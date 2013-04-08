@@ -78,6 +78,17 @@ class Test_Piwik_Integration_SiteSearch extends IntegrationTestCase
                                                 'testSuffix'   => '_' . $api . '_firstSite_lastN')
             );
         }
+            
+        // test filter_sort_column w/ processed metric
+        $result[] = array('API.getProcessedReport', array('idSite'                 => $idSite1,
+                                                          'date'                   => $dateTime,
+                                                          'periods'                => 'month',
+                                                          'apiModule'              => 'Actions',
+                                                          'apiAction'              => 'getPageTitles',
+                                                          'testSuffix'             => '_filterSortProcessed',
+                                                          'otherRequestParameters' => array(
+                                                              'filter_sort_column' => 'avg_time_on_page'
+                                                          )));
         return $result;
     }
 
