@@ -265,18 +265,18 @@ class Piwik_API_ResponseBuilder
             $datatable = $flattener->flatten($datatable);
         }
 
-        // if the flag disable_generic_filters is defined we skip the generic filters
-        if (0 == Piwik_Common::getRequestVar('disable_generic_filters', '0', 'string', $this->request)) {
-            $genericFilter = new Piwik_API_DataTableGenericFilter($this->request);
-            $genericFilter->filter($datatable);
-        }
-
         // we automatically safe decode all datatable labels (against xss)
         $datatable->queueFilter('SafeDecodeLabel');
 
         // if the flag disable_queued_filters is defined we skip the filters that were queued
         if (Piwik_Common::getRequestVar('disable_queued_filters', 'false', 'string', $this->request) == 'false') {
             $datatable->applyQueuedFilters();
+        }
+
+        // if the flag disable_generic_filters is defined we skip the generic filters
+        if (0 == Piwik_Common::getRequestVar('disable_generic_filters', '0', 'string', $this->request)) {
+            $genericFilter = new Piwik_API_DataTableGenericFilter($this->request);
+            $genericFilter->filter($datatable);
         }
 
         // use the ColumnDelete filter if hideColumns/showColumns is provided (must be done

@@ -59,11 +59,14 @@ class Piwik_DataTable_Filter_AddSummaryRow extends Piwik_DataTable_Filter
         if ($table->getRowsCount() <= $this->startRowToSummarize + 1) {
             return;
         }
-        $table->filter('Sort',
-            array($this->columnToSortByBeforeTruncating, 'desc'));
-
+        
+        $table->filter('Sort', array($this->columnToSortByBeforeTruncating, 'desc'));
+        
+        $aggregationOps = $table->getColumnAggregationOperations();
+        $columnsToSum = $table->getMetadata('rawMetrics');
         $rows = $table->getRows();
         $count = $table->getRowsCount();
+        
         $newRow = new Piwik_DataTable_Row();
         for ($i = $this->startRowToSummarize; $i < $count; $i++) {
             if (!isset($rows[$i])) {
@@ -72,10 +75,10 @@ class Piwik_DataTable_Filter_AddSummaryRow extends Piwik_DataTable_Filter
 
                 //FIXME: I'm not sure why it could return false, but it was reported in: http://forum.piwik.org/read.php?2,89324,page=1#msg-89442
                 if ($summaryRow) {
-                    $newRow->sumRow($summaryRow, $enableCopyMetadata = false, $table->getColumnAggregationOperations());
+                    $newRow->sumRow($summaryRow, $enableCopyMetadata = false, $aggregationOps, $columnsToSum);
                 }
             } else {
-                $newRow->sumRow($rows[$i], $enableCopyMetadata = false, $table->getColumnAggregationOperations());
+                $newRow->sumRow($rows[$i], $enableCopyMetadata = false, $aggregationOps, $columnsToSum);
             }
         }
 

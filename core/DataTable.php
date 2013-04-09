@@ -411,10 +411,30 @@ class Piwik_DataTable
      */
     public function applyQueuedFilters()
     {
+        // store names of current set of columns as rawMetrics metadata
+        $this->metadata['rawMetrics'] = $this->getColumns();
+        
         foreach ($this->queuedFilters as $filter) {
+            // add queued filter to applied queued filters metadata
+            $this->metadata['appliedQueuedFilters'][] = $filter;
+            
             $this->filter($filter['className'], $filter['parameters']);
         }
         $this->queuedFilters = array();
+    }
+    
+    /**
+     * TODO
+     */
+    public function getColumns()
+    {
+        $columns = array();
+        foreach ($this->getRows() as $row) {
+            foreach ($row->getColumns() as $name => $value) {
+                $columns[$name] = true;
+            }
+        }
+        return array_keys($columns);
     }
 
     /**
@@ -509,6 +529,8 @@ class Piwik_DataTable
         $clone = new Piwik_DataTable;
         $clone->queuedFilters = $this->queuedFilters;
         $clone->metadata = $this->metadata;
+        unset($clone->metadata['appliedQueuedFilters']);
+        unset($clone->metadata['rawMetrics']);
         return $clone;
     }
 
@@ -586,6 +608,8 @@ class Piwik_DataTable
             }
             return $this->summaryRow;
         }
+        
+        $this->reapplyQueuedFiltersToRow($row);
 
         $this->rows[] = $row;
         if (!$this->indexNotUpToDate
@@ -599,6 +623,20 @@ class Piwik_DataTable
         }
         return $row;
     }
+    
+    /**
+     * TODO
+     */
+    private function reapplyQueuedFiltersToRow($row)
+    {
+        if (!empty($this->metadata['appliedQueuedFilters'])) {
+            $tempTable = new Piwik_DataTable();
+            $tempTable->addRow($row);
+            foreach ($this->metadata['appliedQueuedFilters'] as $filter) {
+                $tempTable->filter($filter['className'], $filter['parameters']);
+            }
+        }
+    }
 
     /**
      * Sets the summary row (a dataTable can have only one summary row)
@@ -608,6 +646,8 @@ class Piwik_DataTable
      */
     public function addSummaryRow(Piwik_DataTable_Row $row)
     {
+        $this->reapplyQueuedFiltersToRow($row);
+        
         $this->summaryRow = $row;
         return $row;
     }

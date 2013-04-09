@@ -38,7 +38,7 @@ class Piwik_Referers_API
     {
         $dataTable = Piwik_Archive::getDataTableFromArchive($name, $idSite, $period, $date, $segment, $expanded, $idSubtable);
         $dataTable->filter('Sort', array(Piwik_Archive::INDEX_NB_VISITS, 'desc', $naturalSort = false, $expanded));
-        $dataTable->queueFilter('ReplaceColumnNames');
+        $dataTable->filter('ReplaceColumnNames');
         return $dataTable;
     }
 
@@ -123,7 +123,7 @@ class Piwik_Referers_API
 
         // presentation filters
         $dataTable->filter('Sort', array(Piwik_Archive::INDEX_NB_VISITS, 'desc'));
-        $dataTable->queueFilter('ReplaceColumnNames');
+        $dataTable->filter('ReplaceColumnNames');
         $dataTable->queueFilter('ReplaceSummaryRowLabel');
 
         return $dataTable;
@@ -351,7 +351,7 @@ class Piwik_Referers_API
         // prettify the DataTable
         $dataTable->filter('ColumnCallbackReplace', array('label', 'Piwik_Referrers_removeUrlProtocol'));
         $dataTable->filter('Sort', array(Piwik_Archive::INDEX_NB_VISITS, 'desc', $naturalSort = false, $expanded));
-        $dataTable->queueFilter('ReplaceColumnNames');
+        $dataTable->filter('ReplaceColumnNames');
 
         return $dataTable;
     }

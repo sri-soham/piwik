@@ -459,20 +459,34 @@ class Piwik_DataTable_Row
      * @param array               $aggregationOperations  for columns that should not be summed, determine which
      *                                                    aggregation should be used (min, max).
      *                                                    format: column name => function name
+     * TODO modify
      */
-    public function sumRow(Piwik_DataTable_Row $rowToSum, $enableCopyMetadata = true, $aggregationOperations = null)
+    public function sumRow(Piwik_DataTable_Row $rowToSum, $enableCopyMetadata = true,
+                             $aggregationOperations = null, $columnsToSum = null)
     {
-        foreach ($rowToSum->getColumns() as $columnToSumName => $columnToSumValue) {
+        if (empty($columnsToSum)) {
+            $columnsToSum = array_keys($rowToSum->getColumns());
+        }
+        
+        foreach ($columnsToSum as $columnToSumName) {
+            $columnToSumValue = $rowToSum->getColumn($columnToSumName);
             if (!isset(self::$unsummableColumns[$columnToSumName])) // make sure we can add this column
             {
                 $thisColumnValue = $this->getColumn($columnToSumName);
+                if ($thisColumnValue === false
+                    && $columnToSumValue === false
+                ) {
+                    continue;
+                }
 
                 $operation = (is_array($aggregationOperations) && isset($aggregationOperations[$columnToSumName]) ? 
                     strtolower($aggregationOperations[$columnToSumName]) : 'sum');
                 
                 // max_actions is a core metric that is generated in ArchiveProcess_Day. Therefore, it can be
                 // present in any data table and is not part of the $aggregationOperations mechanism.
-                if ($columnToSumName == Piwik_Archive::INDEX_MAX_ACTIONS) {
+                if ($columnToSumName == Piwik_Archive::INDEX_MAX_ACTIONS
+                    || $columnToSumName == 'max_actions'
+                ) {
                     $operation = 'max';
                 }
                 $newValue = $this->getColumnValuesMerged($operation, $thisColumnValue, $columnToSumValue);
