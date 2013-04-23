@@ -313,9 +313,9 @@ class Piwik_API_API
         $segments[] = array(
             'type'           => 'dimension',
             'category'       => 'Visit',
-            'name'           => Piwik_Translate('General_VisitType') . ". " . Piwik_Translate('General_VisitTypeExample', '"&segment=visitorType==returning,visitorType==returningCustomer"'),
+            'name'           => Piwik_Translate('General_VisitType') ,
             'segment'        => 'visitorType',
-            'acceptedValues' => 'new, returning, returningCustomer',
+            'acceptedValues' => 'new, returning, returningCustomer' . ". " . Piwik_Translate('General_VisitTypeExample', '"&segment=visitorType==returning,visitorType==returningCustomer"'),
             'sqlSegment'     => 'log_visit.visitor_returning',
             'sqlFilter'      => create_function('$type', 'return $type == "new" ? 0 : ($type == "returning" ? 1 : 2);'),
         );
@@ -353,9 +353,10 @@ class Piwik_API_API
         $segments[] = array(
             'type'           => 'dimension',
             'category'       => 'Visit',
-            'name'           => Piwik_Translate('General_EcommerceVisitStatus', '"&segment=visitEcommerceStatus==ordered,visitEcommerceStatus==orderedThenAbandonedCart"'),
+            'name'           => Piwik_Translate('General_EcommerceVisitStatusDesc'),
             'segment'        => 'visitEcommerceStatus',
-            'acceptedValues' => implode(", ", self::$visitEcommerceStatus),
+            'acceptedValues' => implode(", ", self::$visitEcommerceStatus)
+                   . '. '. Piwik_Translate('General_EcommerceVisitStatusEg', '"&segment=visitEcommerceStatus==ordered,visitEcommerceStatus==orderedThenAbandonedCart"'),
             'sqlSegment'     => 'log_visit.visit_goal_buyer',
             'sqlFilter'      => array('Piwik_API_API', 'getVisitEcommerceStatus'),
         );
@@ -1651,17 +1652,27 @@ class Piwik_API_API
         }
 
         $startDate = Piwik_Date::now()->subDay(60)->toString();
-
-        // we know which SQL field this segment matches to: call the LIVE api to  get last 1000 visitors values
-        $request = new Piwik_API_Request("method=Live.getLastVisitsDetails
+        $requestLastVisits = "method=Live.getLastVisitsDetails
             &idSite=$idSite
             &period=range
             &date=$startDate,today
-            &filter_limit=10000
             &format=original
             &serialize=0
-            &flat=1
-            &segment=");
+            &flat=1";
+
+        // Select non empty fields only
+        // Note: this optimization has only a very minor impact
+        $requestLastVisits.= "&segment=$segmentName" . Piwik_SegmentExpression::MATCH_IS_NOT_NULL . "null";
+
+        // By default Live fetches all actions for all visitors, but we'd rather do this only when required
+        if($this->doesSegmentNeedActionsData($segmentName)) {
+            $requestLastVisits .= "&filter_limit=500";
+        } else {
+            $requestLastVisits .= "&doNotFetchActions=1";
+            $requestLastVisits .= "&filter_limit=1000";
+        }
+
+        $request = new Piwik_API_Request($requestLastVisits);
         $table = $request->process();
         if(empty($table)) {
             throw new Exception("There was no data to suggest for $segmentName");
@@ -1687,4 +1698,19 @@ class Piwik_API_API
         $values = array_slice($values, 0, $maxSuggestionsToReturn);
         return $values;
     }
+
+    /**
+     * @param $segmentName
+     * @return bool
+     */
+    protected function doesSegmentNeedActionsData($segmentName)
+    {
+        $segmentsNeedActionsInfo = array('visitConvertedGoalId',
+                                         'pageUrl', 'pageTitle', 'siteSearchKeyword',
+                                         'entryPageTitle', 'entryPageUrl', 'exitPageTitle', 'exitPageUrl');
+        $isCustomVariablePage = stripos($segmentName, 'customVariablePage') !== false;
+        $doesSegmentNeedActionsInfo = in_array($segmentName, $segmentsNeedActionsInfo) || $isCustomVariablePage;
+        return $doesSegmentNeedActionsInfo;
+    }
+
 }

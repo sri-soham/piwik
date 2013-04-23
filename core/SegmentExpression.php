@@ -27,6 +27,9 @@ class Piwik_SegmentExpression
     const MATCH_CONTAINS = '=@';
     const MATCH_DOES_NOT_CONTAIN = '!@';
 
+    // Note: undocumented for now, only used in API.getSuggestedValuesForSegment
+    const MATCH_IS_NOT_NULL = '::';
+
     // Special case, since we look up Page URLs/Page titles in a sub SQL query
     const MATCH_ACTIONS_CONTAINS = 'IN';
 
@@ -66,11 +69,12 @@ class Piwik_SegmentExpression
                 . self::MATCH_LESS_OR_EQUAL . '|'
                 . self::MATCH_LESS . '|'
                 . self::MATCH_CONTAINS . '|'
+                . self::MATCH_IS_NOT_NULL . '|'
                 . self::MATCH_DOES_NOT_CONTAIN
                 . '){1}(.+)/';
             $match = preg_match($pattern, $operand, $matches);
             if ($match == 0) {
-                throw new Exception('Segment parameter \'' . $operand . '\' does not appear to have a valid format.');
+                throw new Exception('The segment \'' . $operand . '\' is not valid.');
             }
 
             $leftMember = $matches[1];
@@ -145,7 +149,6 @@ class Piwik_SegmentExpression
      * @throws Exception
      * @return array
      */
-    // @todo case insensitive?
     protected function getSqlMatchFromDefinition($def, &$availableTables)
     {
         $field = $def[0];
@@ -180,6 +183,11 @@ class Piwik_SegmentExpression
                 $value = '%' . $this->escapeLikeString($value) . '%';
                 break;
 
+            case self::MATCH_IS_NOT_NULL:
+                $sqlMatch = 'IS NOT NULL AND ('.$field.' <> \'\' OR '.$field.' = 0)';
+                $value = null;
+                break;
+
             case self::MATCH_ACTIONS_CONTAINS:
                 // this match type is not accessible from the outside
                 // (it won't be matched in self::parseSubExpressions())
@@ -193,7 +201,8 @@ class Piwik_SegmentExpression
                 break;
         }
 
-        if ($matchType === self::MATCH_ACTIONS_CONTAINS) {
+        if ($matchType === self::MATCH_ACTIONS_CONTAINS
+            || is_null($value)) {
             $sqlExpression = "$field $sqlMatch";
         } else {
             $sqlExpression = "$field $sqlMatch ?";
