@@ -541,9 +541,7 @@ abstract class Piwik_ArchiveProcessing
     protected function initCompute()
     {
         $this->loadNextIdarchive();
-        $done = $this->getDoneStringFlag();echo "PERIOD: ".$this->period->getRangeString()."\n";
-        echo "REPORT: ".$this->getRequestedReport()."\n";
-        echo "DONE: $done\n";
+        $done = $this->getDoneStringFlag();
         $this->insertNumericRecord($done, Piwik_ArchiveProcessing::DONE_ERROR);
 
         // Can be removed when GeoIp is in core

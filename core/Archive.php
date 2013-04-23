@@ -460,7 +460,17 @@ class Piwik_Archive
         $this->getDataTableImpl($name, 'all');
         
         // get top-level data
-        $rows = $this->getDataTableImpl($name, $idSubTable);
+        $rows = array();
+        foreach ($this->blobCache as $idSite => $dates) {
+            foreach ($dates as $dateRange => $blobs) {
+                $table = new Piwik_DataTable();
+                if (!empty($blobs[$name])) {
+                    $table->addRowsFromSerializedArray($blobs[$name]);
+                }
+                
+                $rows[$idSite][$dateRange] = $table;
+            }
+        }
         
         // fetch subtables
         foreach ($rows as $idsite => $dates) {
@@ -540,6 +550,8 @@ class Piwik_Archive
      */
     private function get( $archiveNames, $archiveTableType, $idSubTable = null )
     {
+        $this->idarchives = null; // TODO if subsequent requests go to the same plugin, the idarchives don't have to be reset
+        
         $result = array();
         
         if (!is_array($archiveNames)) {
@@ -597,11 +609,8 @@ class Piwik_Archive
         foreach ($archiveIds as $tableMonth => $ids) {
             $table = Piwik_Common::prefixTable($archiveTableType."_".$tableMonth);
             $sql = sprintf($getValuesSql, $table, implode(',', $ids));
-            $datas = Piwik_FetchAll($sql, $bind);/*if ($this->getPeriodLabel() == 'range' && in_array('Referers_urlByWebsite', $archiveNames)){echo print_r($sql, true)."\n".print_r($bind, true);
-            echo print_r(Piwik_FetchAll("SELECT name, idsite, period, date1, date2 FROM $table WHERE name = 'Referers_urlByWebsite'"), true);
             
-            }*/
-            foreach ($datas as $row) {
+            foreach (Piwik_FetchAll($sql, $bind) as $row) {
                 // values are grouped by idsite (site ID), date1-date2 (date range), then name (field name)
                 $idSite = $row['idsite'];
                 $periodStr = $row['date1'].",".$row['date2'];
