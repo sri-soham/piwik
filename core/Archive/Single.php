@@ -17,7 +17,7 @@
  * @package Piwik
  * @subpackage Piwik_Archive
  */
-class Piwik_Archive_Single extends Piwik_Archive
+class Piwik_Archive_Single //extends Piwik_Archive
 {
     /**
      * The Piwik_ArchiveProcessing object used to check that the archive is available

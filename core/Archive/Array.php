@@ -16,7 +16,7 @@
  * @package Piwik
  * @subpackage Piwik_Archive
  */
-abstract class Piwik_Archive_Array extends Piwik_Archive
+abstract class Piwik_Archive_Array // extends Piwik_Archive
 {
     /**
      * This array contains one Piwik_Archive per entry in the period

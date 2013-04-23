@@ -1491,4 +1491,45 @@ class Piwik_DataTable
         return $this->columnAggregationOperations;
     }
     
+    /**
+     * TODO
+     * array('idSite', 'date')
+     */
+    public static function createIndexedFromArray( $rows, $metadata, $indices, $createSimpleTable = false )
+    {
+        // if there are no indices left, create a DataTable
+        if (empty($indices)) {
+            if ($rows instanceof Piwik_DataTable) {
+                $result = $rows;
+            } else {
+                if ($createSimpleTable) {
+                    $result = new Piwik_DataTable_Simple();
+                } else {
+                    $result = new Piwik_DataTable();
+                }
+                
+                // TODO: hack? used because Archive::createSimpleGetResult will send one row, not multiple rows, to this function. however, wrapping the row in that function, fails...
+                if (!empty($rows)
+                    && !is_array(reset($rows))
+                ) {
+                    $rows = array($rows);
+                }
+                
+                $result->addRowsFromSimpleArray($rows);
+            }
+            
+            if (is_array($metadata)) {
+                $result->metadata = $metadata;
+            }
+        } else { // create a DataTable_Array
+            $result = new Piwik_DataTable_Array();
+            $result->setKeyName(array_shift($indices));
+            
+            foreach ($rows as $key => $childRows) {
+                $table = self::createIndexedFromArray($childRows, $metadata[$key], $indices, $createSimpleTable);
+                $result->addTable($table, $key);
+            }
+        }
+        return $result;
+    }
 }

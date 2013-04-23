@@ -13,7 +13,7 @@
  * @package Piwik
  * @subpackage Piwik_Archive
  */
-class Piwik_Archive_Array_IndexedBySite extends Piwik_Archive_Array
+class Piwik_Archive_Array_IndexedBySite //extends Piwik_Archive_Array
 {
     /**
      * Used to cache the name of the table that holds the data this archive.
