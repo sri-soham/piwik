@@ -459,13 +459,18 @@ class Piwik_Archive
         // cache all blobs of this type using one SQL request
         $this->getDataTableImpl($name, 'all');
         
+        $recordName = $name;
+        if ($idSubTable !== null) {
+            $recordName .= '_' . $idSubTable;
+        }
+        
         // get top-level data
         $rows = array();
         foreach ($this->blobCache as $idSite => $dates) {
             foreach ($dates as $dateRange => $blobs) {
                 $table = new Piwik_DataTable();
-                if (!empty($blobs[$name])) {
-                    $table->addRowsFromSerializedArray($blobs[$name]);
+                if (!empty($blobs[$recordName])) {
+                    $table->addRowsFromSerializedArray($blobs[$recordName]);
                 }
                 
                 $rows[$idSite][$dateRange] = $table;
