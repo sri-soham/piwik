@@ -229,29 +229,8 @@ class Piwik_Archive
     public function __construct($siteIds, $periods, Piwik_Segment $segment, $forceIndexedBySite = false,
                                   $forceIndexedByDate = false)
     {
-        if (!is_array($siteIds)) {
-            $siteIds = array($siteIds);
-        }
-        if (!is_array($periods)) {
-            $periods = array($periods);
-        }
-        
-        if (empty($siteIds)) { // TODO move to helper
-            throw new Exception("Piwik_Archive::__construct: \$siteIds is empty.");
-        }
-        
-        if (empty($periods)) {
-            throw new Exception("Piwik_Archive::__construct: \$periods is empty.");
-        }
-        
-        $this->siteIds = $siteIds;
-        
-        $this->periods = array();
-        foreach ($periods as $period) {
-            $this->periods[$period->getRangeString()] = $period;
-            // TODO: getRangeString() is the key, so don't need to call it in other places
-        }
-        
+        $this->siteIds = $this->getAsNonEmptyArray($siteIds, 'siteIds');
+        $this->periods = $this->getAsNonEmptyArray($periods, 'periods');
         $this->segment = $segment;
         $this->forceIndexedBySite = $forceIndexedBySite;
         $this->forceIndexedByDate = $forceIndexedByDate;
@@ -286,7 +265,7 @@ class Piwik_Archive
         $forceIndexedByDate = false;
         
         // determine site IDs to query from
-        if ($idSite === 'all') {// TODO: this should be done in constructor
+        if ($idSite === 'all') {
             $sites = Piwik_SitesManager_API::getInstance()->getSitesIdWithAtLeastViewAccess($_restrictSitesToLogin);
             $forceIndexedBySite = true;
         } else {
@@ -296,24 +275,21 @@ class Piwik_Archive
             $sites = Piwik_Site::getIdSitesFromIdSitesString($idSite);
         }
         
-        // determine timezone of dates. if more than one site, use UTC, otherwise use the site's timezone.
-        // TODO: should use each site's timezone.
-        if (count($sites) == 1) {
-            $oSite = new Piwik_Site($sites[0]);
-            $tz = $oSite->getTimezone();
-        } else {
-            $tz =  'UTC';
-        }
-        
         // if a period date string is detected: either 'last30', 'previous10' or 'YYYY-MM-DD,YYYY-MM-DD'
         if (is_string($strDate)
             && self::isMultiplePeriod($strDate, $period)
         ) {
-            $oPeriod = new Piwik_Period_Range($period, $strDate, $tz);
+            $oPeriod = new Piwik_Period_Range($period, $strDate);
             $allPeriods = $oPeriod->getSubperiods();
             $forceIndexedByDate = true;
         } else {
-            $oSite = new Piwik_Site(reset($sites));
+            // TODO: create ticket for this: should use each site's timezone (ONLY FOR 'now'). 
+            if (count($sites) == 1) {
+                $oSite = new Piwik_Site($sites[0]);
+            } else {
+                $oSite = null;
+            }
+            
             $oPeriod = Piwik_Archive::makePeriodFromQueryParams($oSite, $period, $strDate);
             $allPeriods = array($oPeriod);
         }
@@ -326,23 +302,31 @@ class Piwik_Archive
      * Creates a period instance using a Piwik_Site instance and two strings describing
      * the period & date.
      *
-     * @param Piwik_Site $site
+     * @param Piwik_Site|null $site
      * @param string $strPeriod The period string: day, week, month, year, range
      * @param string $strDate The date or date range string.
      * @return Piwik_Period
      */
     public static function makePeriodFromQueryParams($site, $strPeriod, $strDate)
     {
-        $tz = $site->getTimezone();
+        if ($site === null) {
+            $tz = 'UTC';
+        } else {
+            $tz = $site->getTimezone();
+        }
 
         if ($strPeriod == 'range') {
             $oPeriod = new Piwik_Period_Range('range', $strDate, $tz, Piwik_Date::factory('today', $tz));
         } else {
             $oDate = $strDate;
             if (!($strDate instanceof Piwik_Date)) {
-                if ($strDate == 'now' || $strDate == 'today') {
+                if ($strDate == 'now'
+                    || $strDate == 'today'
+                ) {
                     $strDate = date('Y-m-d', Piwik_Date::factory('now', $tz)->getTimestamp());
-                } elseif ($strDate == 'yesterday' || $strDate == 'yesterdaySameTime') {
+                } elseif ($strDate == 'yesterday'
+                          || $strDate == 'yesterdaySameTime'
+                ) {
                     $strDate = date('Y-m-d', Piwik_Date::factory('now', $tz)->subDay(1)->getTimestamp());
                 }
                 $oDate = Piwik_Date::factory($strDate);
@@ -408,19 +392,9 @@ class Piwik_Archive
      * @return Piwik_DataTable
      * @throws exception If the value cannot be found
      * TODO: modify
+     * TODO: only allows one name right now, change?
      */
     public function getDataTable( $name, $idSubTable = null )
-    {
-        $rows = $this->getDataTableImpl($name, $idSubTable);
-        return $this->createSimpleGetResult($rows, $name, $createDataTable = true, $isSimpleTable = false);
-    }
-    
-    /**
-     * TODO
-     * TODO: only allows one name right now, but that could be changed. Would need an IndexedByName
-     *       datatable array type & more modifications to createSimpleGetResult.
-     */
-    private function getDataTableImpl( $name, $idSubTable )
     {
         $rows = $this->get($name, 'archive_blob', $idSubTable);
         
@@ -438,7 +412,7 @@ class Piwik_Archive
             }
         }
         
-        return $rows;
+        return $this->createSimpleGetResult($rows, $name, $createDataTable = true, $isSimpleTable = false);
     }
     
     /**
@@ -457,7 +431,7 @@ class Piwik_Archive
     public function getDataTableExpanded( $name, $idSubTable = null, $addMetadataSubtableId = true )
     {
         // cache all blobs of this type using one SQL request
-        $this->getDataTableImpl($name, 'all');
+        $this->get($name, 'archive_blob', 'all');
         
         $recordName = $name;
         if ($idSubTable !== null) {
@@ -481,7 +455,7 @@ class Piwik_Archive
         foreach ($rows as $idsite => $dates) {
             foreach ($dates as $dateRange => $table) {
                 $tableMonth = $this->getTableMonthFromDateRange($dateRange);
-                //$idarchive = $this->idarchives[$cacheKey][$idsite][$dateRange]; // TODO: need index by site/range now?
+                // TODO: don't need index by site/range now. remove it.
                 $this->fetchSubTables($table, $name, $idsite, $dateRange, $addMetadataSubtableId);
                 $table->enableRecursiveFilters();
             }
@@ -497,7 +471,6 @@ class Piwik_Archive
      * TODO
      * TODO: possible improvement. should be able to select several name types at a time. Right
      *       now, can only do one name at a time.
-     * TODO: speed issue, should select ALL subtables like name_% in desired range and just look through them. at least this is how its done in Single.php.
      * does breadth first search
      */
     private function fetchSubTables( $table, $name, $idSite, $dateRange, $addMetadataSubtableId = true )
@@ -667,20 +640,18 @@ class Piwik_Archive
             }
             
             $idArchivesByMonth = array();
-            foreach ($this->idarchives as $key => $sites) {
+            foreach ($this->idarchives as $key => $dates) {
                 // if this set of idarchives isn't related to the desired archive fields, don't use them
                 if (!isset($cacheKeys[$key])) {
                     continue;
                 }
                 
-                foreach ($sites as $idsite => $dates) {
-                    foreach ($dates as $dateRange => $pair) {
-                        list($isThereSomeVisits, $idarchive) = $pair;
-                        if (!$isThereSomeVisits) continue;
-                        
-                        $tableMonth = $this->getTableMonthFromDateRange($dateRange);
-                        $idArchivesByMonth[$tableMonth][] = $idarchive;
-                    }
+                foreach ($dates as $dateRange => $pair) {
+                    list($isThereSomeVisits, $idarchive) = $pair;
+                    if (!$isThereSomeVisits) continue;
+                    
+                    $tableMonth = $this->getTableMonthFromDateRange($dateRange);
+                    $idArchivesByMonth[$tableMonth][] = $idarchive;
                 }
             }
             
@@ -696,11 +667,6 @@ class Piwik_Archive
     
     /**
      * TODO
- static $total = 0;static $count = 0;
-$before = memory_get_usage();
-        $delta = memory_get_usage() - $before;$total += $delta;++$count;
-        if ($delta > 512) {
-        echo "<pre>ARCHIVE IDS DELTA: ".Piwik::getPrettySizeFromBytes($delta)."\nTOTAL: ".Piwik::getPrettySizeFromBytes($total)."\nTOTAL COUNT: $count</pre>";}
      */
     private function getArchiveIdsAfterLaunching( $requestedReports )
     {
@@ -755,7 +721,7 @@ $before = memory_get_usage();
                         $result[$tableMonth][] = $idArchive;
                         
                         $cacheKey = $this->getArchiveCacheKey($report);
-                        $this->idarchives[$cacheKey][$idSite][$periodStr] =
+                        $this->idarchives[$cacheKey][$periodStr] =
                             array($processing->isThereSomeVisits, $idArchive);
                     }
                 }
@@ -829,7 +795,7 @@ $before = memory_get_usage();
                 
                 $dateStr = $row['date1'].",".$row['date2'];
                 $idSite = (int)$row['idsite'];
-                $this->idarchives['all'][$idSite][$dateStr] = array(true, $row['idarchive']); // TODO: any way to get isThereSomeVisits w/ this optimization?
+                $this->idarchives['all'][$dateStr] = array(true, $row['idarchive']); // TODO: any way to get isThereSomeVisits w/ this optimization?
             }
             
             if (!empty($archiveIds)) {
@@ -1167,5 +1133,21 @@ $before = memory_get_usage();
     public function getBlobCache()
     {
         return $this->blobCache;
+    }
+    
+    /**
+     * TODO
+     */
+    private function getAsNonEmptyArray($array, $paramName)
+    {
+        if (!is_array($array)) {
+            $array = array($array);
+        }
+        
+        if (empty($array)) {
+            throw new Exception("Piwik_Archive::__construct: \$$paramName is empty.");
+        }
+        
+        return $array;
     }
 }
