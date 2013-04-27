@@ -223,6 +223,11 @@ class Piwik_Archive
     private $blobCache = array();
     
     /**
+     * TODO
+     */
+    private $processingCache = array();
+    
+    /**
      * Constructor.
      * TODO
      */
@@ -528,8 +533,6 @@ class Piwik_Archive
      */
     private function get( $archiveNames, $archiveTableType, $idSubTable = null )
     {
-        $this->idarchives = null; // TODO if subsequent requests go to the same plugin, the idarchives don't have to be reset
-        
         $result = array();
         
         if (!is_array($archiveNames)) {
@@ -633,10 +636,12 @@ class Piwik_Archive
                 }
             }
             
-            if (!empty($reportsToArchive)
-                && !$this->isArchivingDisabled()
-            ) {
-                $this->getArchiveIdsAfterLaunching($reportsToArchive);
+            if (!empty($reportsToArchive)) {
+                if ($this->isArchivingDisabled()) {
+                    $this->getArchiveIdsAfterLaunching($reportsToArchive);
+                } else {
+                    $this->getArchiveIdsWithoutLaunching($reportsToArchive);
+                }
             }
             
             $idArchivesByMonth = array();
@@ -661,7 +666,7 @@ class Piwik_Archive
         if (!$this->isArchivingDisabled()) {
             return $this->getArchiveIdsAfterLaunching($requestedReports);
         } else {
-            return $this->getArchiveIdsWithoutLaunching($archiveNames);
+            return $this->getArchiveIdsWithoutLaunching($requestedReports);
         }
     }
     
@@ -722,7 +727,7 @@ class Piwik_Archive
                         
                         $cacheKey = $this->getArchiveCacheKey($report);
                         $this->idarchives[$cacheKey][$periodStr] =
-                            array($processing->isThereSomeVisits, $idArchive);
+                            array($processing->isThereSomeVisits(), $idArchive);
                     }
                 }
             }
@@ -730,8 +735,6 @@ class Piwik_Archive
         
         return $result;
     }
-    
-    private $processingCache = array();
     
     /**
      * TODO
@@ -748,7 +751,7 @@ class Piwik_Archive
     /**
      * TODO
      */
-    private function getArchiveIdsWithoutLaunching( $archiveNames )
+    private function getArchiveIdsWithoutLaunching( $requestedReports )
     {
         $piwikTables = Piwik::getTablesInstalled(); // TODO: will this be too slow?
         
@@ -756,7 +759,7 @@ class Piwik_Archive
                                FROM %s
                               WHERE period = ?
                                 AND %s
-                                AND ".$this->getNameCondition($archiveNames)."
+                                AND ".$this->getNameCondition($requestedReports)."
                                 AND idsite IN (".implode(',', $this->siteIds).")
                            GROUP BY idsite, date1, date2";
         
@@ -809,13 +812,13 @@ class Piwik_Archive
     /**
      * TODO
      */
-    private function getNameCondition( $archiveNames )
+    private function getNameCondition( $requestedReports )
     {
         // the flags used to tell how the archiving process for a specific archive was completed,
         // if it was completed
         $doneFlags = array();
         $periodType = $this->getPeriodLabel();
-        foreach ($archiveNames as $name) {
+        foreach ($requestedReports as $name) {
             $done = Piwik_ArchiveProcessing::getDoneStringFlagFor($this->segment, $periodType, $name);
             $donePlugins = Piwik_ArchiveProcessing::getDoneStringFlagFor($this->segment, $periodType, $name, true);
             
@@ -906,11 +909,7 @@ class Piwik_Archive
         $report = self::getRequestedReport($nameOrReport);
         
         // TODO: isArchivingDisabled gets called a lot. need to cache?
-        if ($this->getPeriodLabel() == 'range') {
-            return Piwik_ArchiveProcessing::getPluginBeingProcessed($report);
-        } else {
-            return 'all';
-        }
+        return Piwik_ArchiveProcessing::getPluginBeingProcessed($report);
     }
     
     /**

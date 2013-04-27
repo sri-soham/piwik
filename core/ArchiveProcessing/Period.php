@@ -112,10 +112,8 @@ class Piwik_ArchiveProcessing_Period extends Piwik_ArchiveProcessing
         }
 
         // remove nb_uniq_visitors if present
-        foreach ($aNames as $i => $name)
-        {
-            if ($name == 'nb_uniq_visitors')
-            {
+        foreach ($aNames as $i => $name) {
+            if ($name == 'nb_uniq_visitors') {
                 $results['nb_uniq_visitors'] = 0;
                 unset($aNames[$i]);
                 
@@ -399,13 +397,11 @@ class Piwik_ArchiveProcessing_Period extends Piwik_ArchiveProcessing
         $numericTable = $this->tableArchiveNumeric->getTableName();
         self::doPurgeOutdatedArchives($numericTable, $this->isArchiveTemporary());
 
-        if (!isset($this->archives)) {
+        if (!isset($this->archive)) {
             return;
         }
-        foreach ($this->archives as $archive) {
-            destroy($archive);
-        }
-        $this->archives = array();
+        destroy($this->archive);
+        $this->archive = null;
     }
 
     const FLAG_TABLE_PURGED = 'lastPurge_';
