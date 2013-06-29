@@ -14,7 +14,6 @@
  */
 class Piwik_Transitions extends Piwik_Plugin
 {
-
     private $limitBeforeGrouping = 5;
     private $totalTransitionsToFollowingActions = 0;
 
@@ -71,7 +70,9 @@ class Piwik_Transitions extends Piwik_Plugin
     public function queryExternalReferrers($idaction, $actionType, $archiveProcessing,
                                            $limitBeforeGrouping = false)
     {
-        $rankingQuery = new Piwik_RankingQuery($limitBeforeGrouping ? $limitBeforeGrouping : $this->limitBeforeGrouping);
+        $rankingQuery = Piwik_Db_Factory::getHelper('RankingQuery');
+        $rankingQuery->setLimit($limitBeforeGrouping ? $limitBeforeGrouping : $this->limitBeforeGrouping);
+        $rankingQuery->setOthersLabel('-1');
 
         // we generate a single column that contains the interesting data for each referrer.
         // the reason we cannot group by referer_* becomes clear when we look at search engine keywords.
@@ -82,13 +83,13 @@ class Piwik_Transitions extends Piwik_Plugin
         $dimension = 'referrer_data';
         $rankingQuery->addLabelColumn('referrer_data');
         $select = '
-			CASE referer_type
-				WHEN ' . Piwik_Common::REFERER_TYPE_DIRECT_ENTRY . ' THEN \'\'
-				WHEN ' . Piwik_Common::REFERER_TYPE_SEARCH_ENGINE . ' THEN referer_keyword
-				WHEN ' . Piwik_Common::REFERER_TYPE_WEBSITE . ' THEN referer_url
-				WHEN ' . Piwik_Common::REFERER_TYPE_CAMPAIGN . ' THEN CONCAT(referer_name, \' \', referer_keyword)
-			END AS referrer_data,
-			referer_type';
+            CASE referer_type
+                WHEN ' . Piwik_Common::REFERER_TYPE_DIRECT_ENTRY . ' THEN \'\'
+                WHEN ' . Piwik_Common::REFERER_TYPE_SEARCH_ENGINE . ' THEN referer_keyword
+                WHEN ' . Piwik_Common::REFERER_TYPE_WEBSITE . ' THEN referer_url
+                WHEN ' . Piwik_Common::REFERER_TYPE_CAMPAIGN . ' THEN CONCAT(referer_name, \' \', referer_keyword)
+            END AS referrer_data,
+            referer_type';
 
         // get one limited group per referrer type
         $rankingQuery->partitionResultIntoMultipleGroups('referer_type', array(
@@ -98,14 +99,15 @@ class Piwik_Transitions extends Piwik_Plugin
                                                                               Piwik_Common::REFERER_TYPE_CAMPAIGN
                                                                          ));
 
-        $orderBy = '`' . Piwik_Archive::INDEX_NB_VISITS . '` DESC';
+        $orderBy = $archiveProcessing->C('INDEX_NB_VISITS') . ' DESC';
+        $addGroupBy = ' referer_type ';
 
         $type = $this->getColumnTypeSuffix($actionType);
         $where = 'visit_entry_idaction_' . $type . ' = ' . intval($idaction);
 
         $metrics = array(Piwik_Archive::INDEX_NB_VISITS);
         $data = $archiveProcessing->queryVisitsByDimension($dimension, $where, $metrics, $orderBy,
-            $rankingQuery, $select, $selectGeneratesLabelColumn = true);
+            $rankingQuery, $select, $selectGeneratesLabelColumn = true, $addGroupBy);
 
         $referrerData = array();
         $referrerSubData = array();
@@ -147,7 +149,9 @@ class Piwik_Transitions extends Piwik_Plugin
     public function queryInternalReferrers($idaction, $actionType, $archiveProcessing,
                                            $limitBeforeGrouping = false)
     {
-        $rankingQuery = new Piwik_RankingQuery($limitBeforeGrouping ? $limitBeforeGrouping : $this->limitBeforeGrouping);
+        $rankingQuery = Piwik_Db_Factory::getHelper('RankingQuery');
+        $rankingQuery->setLimit($limitBeforeGrouping ? $limitBeforeGrouping : $this->limitBeforeGrouping);
+        $rankingQuery->setOthersLabel('-1');
         $rankingQuery->addLabelColumn(array('name', 'url_prefix'));
         $rankingQuery->setColumnToMarkExcludedRows('is_self');
         $rankingQuery->partitionResultIntoMultipleGroups('action_partition', array(0, 1, 2));
@@ -162,32 +166,34 @@ class Piwik_Transitions extends Piwik_Plugin
         }
 
         $addSelect = '
-			log_action.name, log_action.url_prefix,
-			CASE WHEN log_link_visit_action.idaction_' . $type . '_ref = ' . intval($idaction) . ' THEN 1 ELSE 0 END AS is_self,
-			CASE
-				WHEN log_action.type = ' . $mainActionType . ' THEN 1
-				WHEN log_action.type = ' . Piwik_Tracker_Action::TYPE_SITE_SEARCH . ' THEN 2
-				ELSE 0 
-			END AS action_partition';
+            log_action.name, log_action.url_prefix,
+            CASE WHEN log_link_visit_action.idaction_' . $type . '_ref = ' . intval($idaction) . ' THEN 1 ELSE 0 END AS is_self,
+            CASE
+                WHEN log_action.type = ' . $mainActionType . ' THEN 1
+                WHEN log_action.type = ' . Piwik_Tracker_Action::TYPE_SITE_SEARCH . ' THEN 2
+                ELSE 0 
+            END AS action_partition';
+        $addGroupBy = ' log_action.name, log_action.url_prefix, is_self, action_partition ';
 
         $where = '
-			log_link_visit_action.idaction_' . $type . ' = ' . intval($idaction);
+            log_link_visit_action.idaction_' . $type . ' = ' . intval($idaction);
 
         if ($dimension == 'idaction_url_ref') {
             // site search referrers are logged with url_ref=NULL
             // when we find one, we have to join on name_ref
-            $dimension = 'IF( idaction_url_ref IS NULL, idaction_name_ref, idaction_url_ref )';
+            //$dimension = 'IF( idaction_url_ref IS NULL, idaction_name_ref, idaction_url_ref )';
+            $dimension = 'COALESCE(idaction_url_ref, idaction_name_ref)';
             $joinLogActionOn = $dimension;
         } else {
             $joinLogActionOn = $dimension;
             $dimension = array($dimension);
         }
 
-        $orderBy = '`' . Piwik_Archive::INDEX_NB_ACTIONS . '` DESC';
+        $orderBy = $archiveProcessing->C('INDEX_NB_ACTIONS').' DESC';
 
         $metrics = array(Piwik_Archive::INDEX_NB_ACTIONS);
         $data = $archiveProcessing->queryActionsByDimension($dimension, $where, $metrics, $orderBy,
-            $rankingQuery, $joinLogActionOn, $addSelect);
+            $rankingQuery, $joinLogActionOn, $addSelect, $addGroupBy);
 
         $loops = 0;
         $nbPageviews = 0;
@@ -274,11 +280,12 @@ class Piwik_Transitions extends Piwik_Plugin
         if (!$isTitle) {
             // specific setup for page urls
             $types[Piwik_Tracker_Action::TYPE_ACTION_URL] = 'followingPages';
-            $dimension = 'IF( idaction_url IS NULL, idaction_name, idaction_url )';
+            $dimension = 'COALESCE(idaction_url, idaction_name)';
             // site search referrers are logged with url=NULL
             // when we find one, we have to join on name
             $joinLogActionColumn = $dimension;
             $addSelect = 'log_action.name, log_action.url_prefix, log_action.type';
+            $addGroupBy = $addSelect;
         } else {
             // specific setup for page titles:
             $types[Piwik_Tracker_Action::TYPE_ACTION_NAME] = 'followingPages';
@@ -286,34 +293,35 @@ class Piwik_Transitions extends Piwik_Plugin
             // the table joined on url is log_action1
             $joinLogActionColumn = array('idaction_url', 'idaction_name');
             $dimension = '
-				CASE
-					' /* following site search */ . '
-					WHEN log_link_visit_action.idaction_url IS NULL THEN log_action2.idaction
-					' /* following page view: use page title */ . '
-					WHEN log_action1.type = ' . Piwik_Tracker_Action::TYPE_ACTION_URL . ' THEN log_action2.idaction
-					' /* following download or outlink: use url */ . '
-					ELSE log_action1.idaction
-				END
-			';
+                CASE
+                    ' /* following site search */ . '
+                    WHEN log_link_visit_action.idaction_url IS NULL THEN log_action2.idaction
+                    ' /* following page view: use page title */ . '
+                    WHEN log_action1.type = ' . Piwik_Tracker_Action::TYPE_ACTION_URL . ' THEN log_action2.idaction
+                    ' /* following download or outlink: use url */ . '
+                    ELSE log_action1.idaction
+                END
+            ';
             $addSelect = '
-				CASE
-					' /* following site search */ . '
-					WHEN log_link_visit_action.idaction_url IS NULL THEN log_action2.name
-					' /* following page view: use page title */ . '
-					WHEN log_action1.type = ' . Piwik_Tracker_Action::TYPE_ACTION_URL . ' THEN log_action2.name
-					' /* following download or outlink: use url */ . '
-					ELSE log_action1.name
-				END AS name,
-				CASE
-					' /* following site search */ . '
-					WHEN log_link_visit_action.idaction_url IS NULL THEN log_action2.type
-					' /* following page view: use page title */ . '
-					WHEN log_action1.type = ' . Piwik_Tracker_Action::TYPE_ACTION_URL . ' THEN log_action2.type
-					' /* following download or outlink: use url */ . '
-					ELSE log_action1.type
-				END AS type,
-				NULL AS url_prefix
-			';
+                CASE
+                    ' /* following site search */ . '
+                    WHEN log_link_visit_action.idaction_url IS NULL THEN log_action2.name
+                    ' /* following page view: use page title */ . '
+                    WHEN log_action1.type = ' . Piwik_Tracker_Action::TYPE_ACTION_URL . ' THEN log_action2.name
+                    ' /* following download or outlink: use url */ . '
+                    ELSE log_action1.name
+                END AS name,
+                CASE
+                    ' /* following site search */ . '
+                    WHEN log_link_visit_action.idaction_url IS NULL THEN log_action2.type
+                    ' /* following page view: use page title */ . '
+                    WHEN log_action1.type = ' . Piwik_Tracker_Action::TYPE_ACTION_URL . ' THEN log_action2.type
+                    ' /* following download or outlink: use url */ . '
+                    ELSE log_action1.type
+                END AS type,
+                NULL AS url_prefix
+            ';
+            $addGroupBy = 'name, type, url_prefix';
         }
 
         // these types are available for both titles and urls
@@ -321,7 +329,9 @@ class Piwik_Transitions extends Piwik_Plugin
         $types[Piwik_Tracker_Action::TYPE_OUTLINK] = 'outlinks';
         $types[Piwik_Tracker_Action::TYPE_DOWNLOAD] = 'downloads';
 
-        $rankingQuery = new Piwik_RankingQuery($limitBeforeGrouping ? $limitBeforeGrouping : $this->limitBeforeGrouping);
+        $rankingQuery = Piwik_Db_Factory::getHelper('RankingQuery');
+        $rankingQuery->setLimit($limitBeforeGrouping ? $limitBeforeGrouping : $this->limitBeforeGrouping);
+        $rankingQuery->setOthersLabel('-1');
         $rankingQuery->addLabelColumn(array('name', 'url_prefix'));
         $rankingQuery->partitionResultIntoMultipleGroups('type', array_keys($types));
 
@@ -332,11 +342,11 @@ class Piwik_Transitions extends Piwik_Plugin
                 . 'log_link_visit_action.idaction_' . $type . ' != ' . intval($idaction) . ')';
         }
 
-        $orderBy = '`' . Piwik_Archive::INDEX_NB_ACTIONS . '` DESC';
+        $orderBy = 'idaction_url ASC, '.$archiveProcessing->C('INDEX_NB_ACTIONS').' DESC';
 
         $metrics = array(Piwik_Archive::INDEX_NB_ACTIONS);
         $data = $archiveProcessing->queryActionsByDimension($dimension, $where, $metrics, $orderBy,
-            $rankingQuery, $joinLogActionColumn, $addSelect);
+            $rankingQuery, $joinLogActionColumn, $addSelect, $addGroupBy);
 
         $this->totalTransitionsToFollowingActions = 0;
         $dataTables = array();

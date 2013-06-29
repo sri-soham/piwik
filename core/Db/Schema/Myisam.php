@@ -215,7 +215,7 @@ class Piwik_Db_Schema_Myisam implements Piwik_Db_Schema_Interface
 							  config_cookie TINYINT(1) NOT NULL,
 							  location_ip VARBINARY(16) NOT NULL,
 							  location_browser_lang VARCHAR(20) NOT NULL,
-							  location_country CHAR(3) NOT NULL,
+							  location_country VARCHAR(3) NOT NULL,
 							  location_region char(2) DEFAULT NULL,
 							  location_city varchar(255) DEFAULT NULL,
 							  location_latitude float(10, 6) DEFAULT NULL,
@@ -243,7 +243,6 @@ class Piwik_Db_Schema_Myisam implements Piwik_Db_Schema_Interface
 										          server_time DATETIME NOT NULL,
 												  idvisit INTEGER(10) UNSIGNED NOT NULL,
 												  idorder varchar(100) NOT NULL,
-												  
 												  idaction_sku INTEGER(10) UNSIGNED NOT NULL,
 												  idaction_name INTEGER(10) UNSIGNED NOT NULL,
 												  idaction_category INTEGER(10) UNSIGNED NOT NULL,
@@ -254,7 +253,6 @@ class Piwik_Db_Schema_Myisam implements Piwik_Db_Schema_Interface
 												  price FLOAT NOT NULL,
 												  quantity INTEGER(10) UNSIGNED NOT NULL,
 												  deleted TINYINT(1) UNSIGNED NOT NULL,
-												  
 												  PRIMARY KEY(idvisit, idorder, idaction_sku),
 										          INDEX index_idsite_servertime ( idsite, server_time )
 												)  DEFAULT CHARSET=utf8
@@ -275,15 +273,14 @@ class Piwik_Db_Schema_Myisam implements Piwik_Db_Schema_Interface
         							  visitor_count_visits SMALLINT(5) UNSIGNED NOT NULL,
         							  visitor_days_since_first SMALLINT(5) UNSIGNED NOT NULL,
 							  		  visitor_days_since_order SMALLINT(5) UNSIGNED NOT NULL,
-									  location_country char(3) NOT NULL,
+									  location_country VARCHAR(3) NOT NULL,
 									  location_region char(2) DEFAULT NULL,
 									  location_city varchar(255) DEFAULT NULL,
 									  location_latitude float(10, 6) DEFAULT NULL,
 									  location_longitude float(10, 6) DEFAULT NULL,
-									  url text NOT NULL,
+									  url text,
 									  idgoal int(10) NOT NULL,
 									  buster int unsigned NOT NULL,
-									  
 									  idorder varchar(100) default NULL,
 									  items SMALLINT UNSIGNED DEFAULT NULL,
 									  revenue float default NULL,
@@ -291,7 +288,6 @@ class Piwik_Db_Schema_Myisam implements Piwik_Db_Schema_Interface
 									  revenue_tax float default NULL,
 									  revenue_shipping float default NULL,
 									  revenue_discount float default NULL,
-        							  
 									  custom_var_k1 VARCHAR(200) DEFAULT NULL,
         							  custom_var_v1 VARCHAR(200) DEFAULT NULL,
         							  custom_var_k2 VARCHAR(200) DEFAULT NULL,

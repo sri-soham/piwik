@@ -30,7 +30,6 @@
  *    Piwik_Config::getInstance()->branding = $brandingConfig;
  *
  * Example setting an option within a section in the configuration:
- *
  *    $brandingConfig = Piwik_Config::getInstance()->branding;
  *    $brandingConfig['use_custom_logo'] = 1;
  *    Piwik_Config::getInstance()->branding = $brandingConfig;
@@ -120,6 +119,31 @@ class Piwik_Config
         // for unit tests, we set that no plugin is installed. This will force
         // the test initialization to create the plugins tables, execute ALTER queries, etc.
         $this->configCache['PluginsInstalled'] = array('PluginsInstalled' => array());
+    }
+
+    /**
+     *  appendToLocalConfig
+     *
+     *  Reads another config file and appends the contents to the existing
+     *  local config
+     *
+     *  @param string   $pathLocal path to the config file to be appended
+     *  @return void
+     */
+    public function appendToLocalConfig($pathLocal) {
+        $temp = _parse_ini_file($pathLocal, true);
+        $this->configLocal = array_merge($this->configLocal, $temp);    
+    }
+
+    /**
+     *  isTestEnvironment
+     *
+     *  Returns the value of isTest
+     *  
+     *  @return bool
+     */
+    public function isTestEnvironment() {
+        return $this->isTest;
     }
 
     /**

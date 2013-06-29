@@ -39,17 +39,13 @@ class Piwik_Login_Auth implements Piwik_Auth
         $rootPassword = Piwik_Config::getInstance()->superuser['password'];
         $rootToken = Piwik_UsersManager_API::getInstance()->getTokenAuth($rootLogin, $rootPassword);
 
+        $User = Piwik_Db_Factory::getDAO('user');
         if (is_null($this->login)) {
             if ($this->token_auth === $rootToken) {
                 return new Piwik_Auth_Result(Piwik_Auth_Result::SUCCESS_SUPERUSER_AUTH_CODE, $rootLogin, $this->token_auth);
             }
 
-            $login = Piwik_FetchOne(
-                'SELECT login
-                FROM ' . Piwik_Common::prefixTable('user') . '
-					WHERE token_auth = ?',
-                array($this->token_auth)
-            );
+            $login = $User->getLoginByTokenAuth($this->token_auth);
             if (!empty($login)) {
                 return new Piwik_Auth_Result(Piwik_Auth_Result::SUCCESS, $login, $this->token_auth);
             }
@@ -63,12 +59,7 @@ class Piwik_Login_Auth implements Piwik_Auth
             }
 
             $login = $this->login;
-            $userToken = Piwik_FetchOne(
-                'SELECT token_auth
-                FROM ' . Piwik_Common::prefixTable('user') . '
-					WHERE login = ?',
-                array($login)
-            );
+            $userToken = $User->getTokenAuthByLogin($login);
             if (!empty($userToken)
                 && (($this->getHashTokenAuth($login, $userToken) === $this->token_auth)
                     || $userToken === $this->token_auth)

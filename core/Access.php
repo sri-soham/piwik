@@ -156,21 +156,8 @@ class Piwik_Access
 
     public function getRawSitesWithSomeViewAccess($login)
     {
-        return Piwik_FetchAll(self::getSqlAccessSite("access, t2.idsite"), $login);
-    }
-
-    /**
-     * Returns the SQL query joining sites and access table for a given login
-     *
-     * @param string $select  Columns or expression to SELECT FROM table, eg. "MIN(ts_created)"
-     * @return string  SQL query
-     */
-    public static function getSqlAccessSite($select)
-    {
-        return "SELECT " . $select . "
-						  FROM " . Piwik_Common::prefixTable('access') . " as t1
-							JOIN " . Piwik_Common::prefixTable('site') . " as t2 USING (idsite) " .
-            " WHERE login = ?";
+		$Access = Piwik_Db_Factory::getDAO('access');
+		return $Access->getAccessSiteByLogin($login);
     }
 
     /**

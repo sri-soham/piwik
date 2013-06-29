@@ -401,7 +401,7 @@ class Piwik_PrivacyManager extends Piwik_Plugin
 
     private static function getMaxGoalId()
     {
-        return Piwik_FetchOne("SELECT MAX(idgoal) FROM " . Piwik_Common::prefixTable('goal'));
+        return Piwik_Db_Factory::getDAO('goal')->getMaxIdgoal();
     }
 }
 

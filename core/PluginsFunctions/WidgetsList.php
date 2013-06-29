@@ -19,14 +19,14 @@ class Piwik_WidgetsList
      *
      * @var array
      */
-    static protected $widgets = null;
+    protected static $widgets = null;
 
     /**
      * Indicates whether the hook was posted or not
      *
      * @var bool
      */
-    static protected $hookCalled = false;
+    protected static $hookCalled = false;
 
     /**
      * Returns all available widgets
@@ -34,7 +34,7 @@ class Piwik_WidgetsList
      *
      * @return array
      */
-    static public function get()
+    public static function get()
     {
         self::addWidgets();
         Piwik_PostEvent('WidgetsList.get');
@@ -101,7 +101,7 @@ class Piwik_WidgetsList
      * @param string $controllerAction
      * @param array $customParameters
      */
-    static public function add($widgetCategory, $widgetName, $controllerName, $controllerAction, $customParameters)
+    public static function add($widgetCategory, $widgetName, $controllerName, $controllerAction, $customParameters)
     {
         $widgetName = Piwik_Translate($widgetName);
         $widgetUniqueId = 'widget' . $controllerName . $controllerAction;
@@ -123,7 +123,7 @@ class Piwik_WidgetsList
     }
 
 
-    static public function remove($widgetCategory, $widgetName = false)
+    public static function remove($widgetCategory, $widgetName = false)
     {
         if (empty($widgetName)) {
             unset(self::$widgets[$widgetCategory]);
@@ -144,7 +144,7 @@ class Piwik_WidgetsList
      * @param string $controllerAction
      * @return bool
      */
-    static public function isDefined($controllerName, $controllerAction)
+    public static function isDefined($controllerName, $controllerAction)
     {
         $widgetsList = self::get();
         foreach ($widgetsList as $widgetCategory => $widgets) {

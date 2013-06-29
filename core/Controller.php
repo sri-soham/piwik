@@ -389,7 +389,7 @@ abstract class Piwik_Controller
             $view->idSite = $this->idSite;
             if (empty($this->site) || empty($this->idSite)) {
                 throw new Exception("The requested website idSite is not found in the request, or is invalid.
-				Please check that you are logged in Piwik and have permission to access the specified website.");
+                Please check that you are logged in Piwik and have permission to access the specified website.");
             }
             $this->setPeriodVariablesView($view);
 
@@ -528,9 +528,9 @@ abstract class Piwik_Controller
                                                                                   ));
             }
             $view->invalidHostMessageHowToFix = '<b>How do I fix this problem and how do I login again?</b><br/> The Piwik Super User can manually edit the file piwik/config/config.ini.php
-						and add the following lines: <pre>[General]' . "\n" . 'trusted_hosts[] = "' . $validHost . '"</pre><br/>After making the change, you will be able to login again.<br/><br/>
-						You may also <i>disable this security feature (not recommended)</i>. To do so edit config/config.ini.php and add:
-						<pre>[General]' . "\n" . 'enable_trusted_host_check=0</pre>';
+                        and add the following lines: <pre>[General]' . "\n" . 'trusted_hosts[] = "' . $validHost . '"</pre><br/>After making the change, you will be able to login again.<br/><br/>
+                        You may also <i>disable this security feature (not recommended)</i>. To do so edit config/config.ini.php and add:
+                        <pre>[General]' . "\n" . 'enable_trusted_host_check=0</pre>';
 
             $view->invalidHost = $invalidHost; // for UserSettings warning
             $view->invalidHostMailLinkStart = $mailLinkStart;
@@ -666,7 +666,7 @@ abstract class Piwik_Controller
 
         if (Piwik::isUserIsSuperUser()) {
             Piwik_ExitWithMessage("Error: no website was found in this Piwik installation.
-			<br />Check the table '" . Piwik_Common::prefixTable('site') . "' in your database, it should contain your Piwik websites.", false, true);
+            <br />Check the table '" . Piwik_Common::prefixTable('site') . "' in your database, it should contain your Piwik websites.", false, true);
         }
 
         $currentLogin = Piwik::getCurrentUserLogin();

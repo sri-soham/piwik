@@ -114,6 +114,7 @@ class Piwik_Updater
      */
     public function getSqlQueriesToExecute()
     {
+        $Option = Piwik_Db_Factory::getDAO('option');
         $queries = array();
         foreach ($this->componentsWithUpdateFile as $componentName => $componentUpdateInfo) {
             foreach ($componentUpdateInfo as $file => $fileVersion) {
@@ -130,9 +131,10 @@ class Piwik_Updater
                 }
             }
             // unfortunately had to extract this query from the Piwik_Option class
-            $queries[] = 'UPDATE `' . Piwik_Common::prefixTable('option') . '`
-    				SET option_value = \'' . $fileVersion . '\'
-    				WHERE option_name = \'' . $this->getNameInOptionTable($componentName) . '\';';
+            $queries[] = $Option->sqlUpdate(
+                            $this->getNameInOptionTable($componentName),
+                            $fileVersion
+                        );
         }
         return $queries;
     }
@@ -245,6 +247,7 @@ class Piwik_Updater
                 $currentVersion = Piwik_GetOption('version_' . $name);
             } catch (Exception $e) {
                 // mysql error 1146: table doesn't exist
+                // need common check for postgresql and mysql
                 if (Zend_Registry::get('db')->isErrNo($e, '1146')) {
                     // case when the option table is not yet created (before 0.2.10)
                     $currentVersion = false;

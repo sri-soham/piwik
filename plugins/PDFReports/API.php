@@ -95,28 +95,27 @@ class Piwik_PDFReports_API
         // validation of requested reports
         $reports = self::validateRequestedReports($idSite, $reportType, $reports);
 
-        $db = Zend_Registry::get('db');
-        $idReport = $db->fetchOne("SELECT max(idreport) + 1 FROM " . Piwik_Common::prefixTable('report'));
+        $dao = Piwik_Db_Factory::getDAO('report');
+        $idReport = $dao->getMaxIdreport();
 
         if ($idReport == false) {
             $idReport = 1;
         }
 
-        $db->insert(Piwik_Common::prefixTable('report'),
-            array(
-                 'idreport'    => $idReport,
-                 'idsite'      => $idSite,
-                 'login'       => $currentUser,
-                 'description' => $description,
-                 'period'      => $period,
-                 'hour'        => $hour,
-                 'type'        => $reportType,
-                 'format'      => $reportFormat,
-                 'parameters'  => $parameters,
-                 'reports'     => $reports,
-                 'ts_created'  => Piwik_Date::now()->getDatetime(),
-                 'deleted'     => 0,
-            ));
+        $dao->insert(
+            $idReport,
+            $idSite,
+            $currentUser,
+            $description,
+            $period,
+            $hour,
+            $reportType,
+            $reportFormat,
+            $parameters,
+            $reports,
+            Piwik_Date::now()->getDatetime(),
+            0
+        );
 
         return $idReport;
     }
@@ -154,17 +153,18 @@ class Piwik_PDFReports_API
         // validation of requested reports
         $reports = self::validateRequestedReports($idSite, $reportType, $reports);
 
-        Zend_Registry::get('db')->update(Piwik_Common::prefixTable('report'),
+        $dao = Piwik_Db_Factory::getDAO('report');
+        $dao->updateByIdreport(
             array(
-                 'description' => $description,
-                 'period'      => $period,
-                 'hour'        => $hour,
-                 'type'        => $reportType,
-                 'format'      => $reportFormat,
-                 'parameters'  => $parameters,
-                 'reports'     => $reports,
+                'description' => $description,
+                'period'      => $period,
+                'hour'        => $hour,
+                'type'        => $reportType,
+                'format'      => $reportFormat,
+                'parameters'  => $parameters,
+                'reports'     => $reports,
             ),
-            "idreport = '$idReport'"
+            $idReport
         );
 
         self::$cache = array();
@@ -181,12 +181,8 @@ class Piwik_PDFReports_API
         $report = reset($pdfReports);
         Piwik::checkUserIsSuperUserOrTheUser($report['login']);
 
-        Zend_Registry::get('db')->update(Piwik_Common::prefixTable('report'),
-            array(
-                 'deleted' => 1,
-            ),
-            "idreport = '$idReport'"
-        );
+        $dao = Piwik_Db_Factory::getDAO('report');
+        $dao->updateByIdreport(array('deleted' => 1), $idReport);
         self::$cache = array();
     }
 
@@ -210,39 +206,21 @@ class Piwik_PDFReports_API
             return self::$cache[$cacheKey];
         }
 
-        $sqlWhere = '';
-        $bind = array();
-
-        // Super user gets all reports back, other users only their own
-        if (!Piwik::isUserIsSuperUser()
-            || $ifSuperUserReturnOnlySuperUserReports
-        ) {
-            $sqlWhere .= "AND login = ?";
-            $bind[] = Piwik::getCurrentUserLogin();
-        }
-
         if (!empty($period)) {
             $this->validateReportPeriod($period);
-            $sqlWhere .= " AND period = ? ";
-            $bind[] = $period;
         }
         if (!empty($idSite)) {
             Piwik::checkUserHasViewAccess($idSite);
-            $sqlWhere .= " AND " . Piwik_Common::prefixTable('site') . ".idsite = ?";
-            $bind[] = $idSite;
-        }
-        if (!empty($idReport)) {
-            $sqlWhere .= " AND idreport = ?";
-            $bind[] = $idReport;
         }
 
-        // Joining with the site table to work around pre-1.3 where reports could still be linked to a deleted site
-        $reports = Piwik_FetchAll("SELECT *
-								FROM " . Piwik_Common::prefixTable('report') . "
-									JOIN " . Piwik_Common::prefixTable('site') . "
-									USING (idsite)
-								WHERE deleted = 0
-									$sqlWhere", $bind);
+        $dao = Piwik_Db_Factory::getDAO('report');
+        $reports = $dao->getAllActive(
+                        $idSite,
+                        $period,
+                        $idReport,
+                        $ifSuperUserReturnOnlySuperUserReports
+                    );
+
         // When a specific report was requested and not found, throw an error
         if ($idReport !== false
             && empty($reports)

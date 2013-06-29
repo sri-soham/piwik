@@ -28,7 +28,12 @@ class DatabaseTestCase extends PHPUnit_Framework_TestCase
 
             $dbConfig = Piwik_Config::getInstance()->database;
             $dbName = $dbConfig['dbname'];
-            $dbConfig['dbname'] = null;
+            if ($dbConfig['adapter'] === 'PDO_MYSQL') {
+                $dbConfig['dbname'] = null;
+            }
+            else {
+                $dbConfig['dbname'] = 'postgres';
+            }
 
             Piwik::createDatabaseObject($dbConfig);
 
@@ -40,12 +45,14 @@ class DatabaseTestCase extends PHPUnit_Framework_TestCase
             Piwik::createTables();
             Piwik::createLogObject();
 
+            Piwik_Db_Factory::setTest(true);
+
             Piwik_PluginsManager::getInstance()->loadPlugins(array());
-
-        } catch (Exception $e) {
-            $this->fail("TEST INITIALIZATION FAILED: " . $e->getMessage());
+            
+        } catch(Exception $e) {
+            $this->fail("TEST INITIALIZATION FAILED: " .$e->getMessage());
         }
-
+        
         include "DataFiles/SearchEngines.php";
         include "DataFiles/Languages.php";
         include "DataFiles/Countries.php";

@@ -286,12 +286,9 @@ class Piwik_Archive_Single extends Piwik_Archive
                 break;
         }
 
-        $db = Zend_Registry::get('db');
-        $row = $db->fetchRow("SELECT value, ts_archived
-								FROM $table
-								WHERE idarchive = ? AND name = ?",
-            array($this->idArchive, $name)
-        );
+		$Generic = Piwik_Db_Factory::getGeneric();
+		$Archive = Piwik_Db_Factory::getDAO('archive');
+		$row = $Archive->getByIdarchiveName($table, $this->idArchive, $name);
 
         $value = $tsArchived = false;
         if (is_array($row)) {
@@ -313,7 +310,7 @@ class Piwik_Archive_Single extends Piwik_Archive
         }
 
         // uncompress when selecting from the BLOB table
-        if ($typeValue == 'blob' && $db->hasBlobDataType()) {
+        if ($typeValue == 'blob' && $Generic->hasBlobDataType()) {
             $value = $this->uncompress($value);
         }
 
@@ -394,21 +391,13 @@ class Piwik_Archive_Single extends Piwik_Archive
 
         $tableBlob = $this->archiveProcessing->getTableArchiveBlobName();
 
-        $db = Zend_Registry::get('db');
-        $hasBlobs = $db->hasBlobDataType();
-
-        // select blobs w/ name like "$name_[0-9]+" w/o using RLIKE
-        $nameEnd = strlen($name) + 2;
-        $query = $db->query("SELECT value, name
-								FROM $tableBlob
-								WHERE idarchive = ?
-									AND (name = ? OR
-											(name LIKE ? AND SUBSTRING(name, $nameEnd, 1) >= '0'
-														 AND SUBSTRING(name, $nameEnd, 1) <= '9') )",
-            array($this->idArchive, $name, $name . '%')
-        );
-
-        while ($row = $query->fetch()) {
+        $Generic = Piwik_Db_Factory::getGeneric();
+        $hasBlobs = $Generic->hasBlobDataType();
+        $Archive = Piwik_Db_Factory::getDAO('archive');
+        $rows = $Archive->getAllByIdarchiveNameLike(
+                    $tableBlob, $this->idArchive, $name
+                );
+        foreach ($rows as $row) {
             $value = $row['value'];
             $name = $row['name'];
 

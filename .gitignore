@@ -20,8 +20,11 @@ tmp/*
 .project
 *.tmp
 *.db
+*.swp
 *.buildpath
 config/config.ini.php
+config/global.ini.php
+config/.htaccess
 .DS_Store
 tests/PHPUnit/Integration/processed/
 js/yui*

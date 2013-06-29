@@ -93,15 +93,12 @@ abstract class Piwik_Tracker_Db
         // turn off the profiler so we don't profile the following queries
         self::$profiling = false;
 
+        $LogProfiling = Piwik_Db_Factory::getDAO('log_profiling', $this->connection);
         foreach ($this->queriesProfiling as $query => $info) {
             $time = $info['sum_time_ms'];
             $count = $info['count'];
 
-            $queryProfiling = "INSERT INTO " . Piwik_Common::prefixTable('log_profiling') . "
-						(query,count,sum_time_ms) VALUES (?,$count,$time)
-						ON DUPLICATE KEY 
-							UPDATE count=count+$count,sum_time_ms=sum_time_ms+$time";
-            $this->query($queryProfiling, array($query));
+            $LogProfiling->recordProfiling($query, $count, $time);
         }
 
         // turn back on profiling
@@ -206,10 +203,12 @@ abstract class Piwik_Tracker_Db
     /**
      * Returns the last inserted ID in the DB
      * Wrapper of PDO::lastInsertId()
-     *
+     * 
+     * @param  String $sequenceCol Column on which the sequence is created.
+     *         Pertinent for DBMS that use sequences instead of auto_increment.
      * @return int
      */
-    abstract public function lastInsertId();
+    abstract public function lastInsertId($sequenceCol=null);
 
     /**
      * Test error number

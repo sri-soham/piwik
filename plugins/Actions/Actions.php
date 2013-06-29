@@ -137,13 +137,12 @@ class Piwik_Actions extends Piwik_Plugin
 
         $valueToMatch = Piwik_Common::sanitizeInputValue(Piwik_Common::unsanitizeInputValue($valueToMatch));
 
+        $LogAction = Piwik_Db_Factory::getDAO('log_action');
         // exact matches work by returning the id directly
         if ($matchType == Piwik_SegmentExpression::MATCH_EQUAL
             || $matchType == Piwik_SegmentExpression::MATCH_NOT_EQUAL
         ) {
-            $sql = Piwik_Tracker_Action::getSqlSelectActionId();
-            $bind = array($valueToMatch, $valueToMatch, $actionType);
-            $idAction = Piwik_FetchOne($sql, $bind);
+            $idAction = $LogAction->getIdaction($string, $actionType);
             // if the action is not found, we hack -100 to ensure it tries to match against an integer
             // otherwise binding idaction_name to "false" returns some rows for some reasons (in case &segment=pageTitle==Větrnásssssss)
             if (empty($idAction)) {
@@ -155,20 +154,7 @@ class Piwik_Actions extends Piwik_Plugin
         // now, we handle the cases =@ (contains) and !@ (does not contain)
 
         // build the expression based on the match type
-        $sql = 'SELECT idaction FROM ' . Piwik_Common::prefixTable('log_action') . ' WHERE ';
-        $sqlMatchType = 'AND type = ' . $actionType;
-        switch ($matchType) {
-            case '=@':
-                // use concat to make sure, no %s occurs because some plugins use %s in their sql
-                $sql .= '( name LIKE CONCAT(\'%\', ?, \'%\') ' . $sqlMatchType . ' )';
-                break;
-            case '!@':
-                $sql .= '( name NOT LIKE CONCAT(\'%\', ?, \'%\') ' . $sqlMatchType . ' )';
-                break;
-            default:
-                throw new Exception("This match type $matchType is not available for action-segments.");
-                break;
-        }
+        $sql = $LogAction->sqlIdactionFromSegment($matchType, $actionType);
 
         return array(
             // mark that the returned value is an sql-expression instead of a literal value
@@ -200,7 +186,7 @@ class Piwik_Actions extends Piwik_Plugin
                 'nb_uniq_outlinks'    => Piwik_Translate('Actions_ColumnUniqueOutlinks'),
                 'nb_searches'         => Piwik_Translate('Actions_ColumnSearches'),
                 'nb_keywords'         => Piwik_Translate('Actions_ColumnSiteSearchKeywords'),
-				'avg_time_generation' => Piwik_Translate('General_ColumnAverageGenerationTime'),
+                'avg_time_generation' => Piwik_Translate('General_ColumnAverageGenerationTime'),
             ),
             'metricsDocumentation' => array(
                 'nb_pageviews'        => Piwik_Translate('General_ColumnPageviewsDocumentation'),
@@ -210,8 +196,8 @@ class Piwik_Actions extends Piwik_Plugin
                 'nb_outlinks'         => Piwik_Translate('Actions_ColumnClicksDocumentation'),
                 'nb_uniq_outlinks'    => Piwik_Translate('Actions_ColumnUniqueClicksDocumentation'),
                 'nb_searches'         => Piwik_Translate('Actions_ColumnSearchesDocumentation'),
-				'avg_time_generation' => Piwik_Translate('General_ColumnAverageGenerationTimeDocumentation'),
-//				'nb_keywords' => Piwik_Translate('Actions_ColumnSiteSearchKeywords'),
+                'avg_time_generation' => Piwik_Translate('General_ColumnAverageGenerationTimeDocumentation'),
+//              'nb_keywords' => Piwik_Translate('Actions_ColumnSiteSearchKeywords'),
             ),
             'processedMetrics'     => false,
             'order'                => 1

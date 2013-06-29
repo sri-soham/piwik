@@ -428,19 +428,15 @@ class Piwik_Tracker_GoalManager
         }
 
         // Select all items currently in the Cart if any
-        $sql = "SELECT idaction_sku, idaction_name, idaction_category, idaction_category2, idaction_category3, idaction_category4, idaction_category5, price, quantity, deleted, idorder as idorder_original_value
-				FROM " . Piwik_Common::prefixTable('log_conversion_item') . "
-				WHERE idvisit = ?
-					AND (idorder = ? OR idorder = ?)";
 
-        $bind = array($goal['idvisit'],
-                      isset($goal['idorder']) ? $goal['idorder'] : self::ITEM_IDORDER_ABANDONED_CART,
-                      self::ITEM_IDORDER_ABANDONED_CART
-        );
+        $LogConversionItem = Piwik_Db_Factory::getDAO('log_conversion_item');
 
-        $itemsInDb = Piwik_Tracker::getDatabase()->fetchAll($sql, $bind);
-
-        printDebug("Items found in current cart, for conversion_item (visit,idorder)=" . var_export($bind, true));
+        $order = isset($goal['idorder']) ? $goal['idorder'] : self::ITEM_IDORDER_ABANDONED_CART;
+        $itemsInDb = $LogConversionItem->getAllByVisitAndOrder(
+                        $goal['idvisit'],
+                        $order,
+                        self::ITEM_IDORDER_ABANDONED_CART
+                     );
         printDebug($itemsInDb);
         // Look at which items need to be deleted, which need to be added or updated, based on the SKU
         $skuFoundInDb = $itemsToUpdate = array();
@@ -641,23 +637,9 @@ class Piwik_Tracker_GoalManager
         printDebug("Goal data used to update ecommerce items:");
         printDebug($goal);
 
-        foreach ($itemsToUpdate as $item) {
-            $newRow = $this->getItemRowEnriched($goal, $item);
-            printDebug($newRow);
-            $updateParts = $sqlBind = array();
-            foreach ($newRow AS $name => $value) {
-                $updateParts[] = $name . " = ?";
-                $sqlBind[] = $value;
-            }
-            $sql = 'UPDATE ' . Piwik_Common::prefixTable('log_conversion_item') . "
-					SET " . implode($updateParts, ', ') . "
-						WHERE idvisit = ?
-							AND idorder = ? 
-							AND idaction_sku = ?";
-            $sqlBind[] = $newRow['idvisit'];
-            $sqlBind[] = $item['idorder_original_value'];
-            $sqlBind[] = $newRow['idaction_sku'];
-            Piwik_Tracker::getDatabase()->query($sql, $sqlBind);
+        $LogConversionItem = Piwik_Db_Factory::getDAO('log_conversion_item', Piwik_Tracker::getDatabase());
+        foreach($itemsToUpdate as $item) {
+            $LogConversionItem->updateByGoalAndItem($goal, $item);
         }
     }
 
@@ -678,46 +660,8 @@ class Piwik_Tracker_GoalManager
         printDebug("Ecommerce items that are added to the cart/order");
         printDebug($itemsToInsert);
 
-        $sql = "INSERT INTO " . Piwik_Common::prefixTable('log_conversion_item') . "
-					(idaction_sku, idaction_name, idaction_category, idaction_category2, idaction_category3, idaction_category4, idaction_category5, price, quantity, deleted, 
-					idorder, idsite, idvisitor, server_time, idvisit) 
-					VALUES ";
-        $i = 0;
-        $bind = array();
-        foreach ($itemsToInsert as $item) {
-            if ($i > 0) {
-                $sql .= ',';
-            }
-            $newRow = array_values($this->getItemRowEnriched($goal, $item));
-            $sql .= " ( " . Piwik_Common::getSqlStringFieldsArray($newRow) . " ) ";
-            $i++;
-            $bind = array_merge($bind, $newRow);
-        }
-        Piwik_Tracker::getDatabase()->query($sql, $bind);
-        printDebug($sql);
-        printDebug($bind);
-    }
-
-    protected function getItemRowEnriched($goal, $item)
-    {
-        $newRow = array(
-            'idaction_sku'       => (int)$item[self::INTERNAL_ITEM_SKU],
-            'idaction_name'      => (int)$item[self::INTERNAL_ITEM_NAME],
-            'idaction_category'  => (int)$item[self::INTERNAL_ITEM_CATEGORY],
-            'idaction_category2' => (int)$item[self::INTERNAL_ITEM_CATEGORY2],
-            'idaction_category3' => (int)$item[self::INTERNAL_ITEM_CATEGORY3],
-            'idaction_category4' => (int)$item[self::INTERNAL_ITEM_CATEGORY4],
-            'idaction_category5' => (int)$item[self::INTERNAL_ITEM_CATEGORY5],
-            'price'              => $item[self::INTERNAL_ITEM_PRICE],
-            'quantity'           => $item[self::INTERNAL_ITEM_QUANTITY],
-            'deleted'            => isset($item['deleted']) ? $item['deleted'] : 0, //deleted
-            'idorder'            => isset($goal['idorder']) ? $goal['idorder'] : self::ITEM_IDORDER_ABANDONED_CART, //idorder = 0 in log_conversion_item for carts
-            'idsite'             => $goal['idsite'],
-            'idvisitor'          => $goal['idvisitor'],
-            'server_time'        => $goal['server_time'],
-            'idvisit'            => $goal['idvisit']
-        );
-        return $newRow;
+        $LogConversionItem = Piwik_Db_Factory::getDAO('log_conversion_item', Piwik_Tracker::getDatabase());
+        $LogConversionItem->insertEcommerceItems($goal, $itemsToInsert);
     }
 
     /**
@@ -766,33 +710,8 @@ class Piwik_Tracker_GoalManager
         $newGoalDebug['idvisitor'] = bin2hex($newGoalDebug['idvisitor']);
         printDebug($newGoalDebug);
 
-        $fields = implode(", ", array_keys($newGoal));
-        $bindFields = Piwik_Common::getSqlStringFieldsArray($newGoal);
-
-        if ($mustUpdateNotInsert) {
-            $updateParts = $sqlBind = $updateWhereParts = array();
-            foreach ($newGoal AS $name => $value) {
-                $updateParts[] = $name . " = ?";
-                $sqlBind[] = $value;
-            }
-            foreach ($updateWhere as $name => $value) {
-                $updateWhereParts[] = $name . " = ?";
-                $sqlBind[] = $value;
-            }
-            $sql = 'UPDATE  ' . Piwik_Common::prefixTable('log_conversion') . "
-					SET " . implode($updateParts, ', ') . "
-						WHERE " . implode($updateWhereParts, ' AND ');
-            Piwik_Tracker::getDatabase()->query($sql, $sqlBind);
-            return true;
-        } else {
-            $sql = 'INSERT IGNORE INTO ' . Piwik_Common::prefixTable('log_conversion') . "
-					($fields) VALUES ($bindFields) ";
-            $bind = array_values($newGoal);
-            $result = Piwik_Tracker::getDatabase()->query($sql, $bind);
-
-            // If a record was inserted, we return true
-            return Piwik_Tracker::getDatabase()->rowCount($result) > 0;
-        }
+        $LogConversion = Piwik_Db_Factory::getDAO('log_conversion', Piwik_Tracker::getDatabase());
+        return $LogConversion->recordGoal($newGoal, $mustUpdateNotInsert, $updateWhere);
     }
 
     /**

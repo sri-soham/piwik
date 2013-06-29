@@ -389,21 +389,13 @@ class Piwik_Tracker_Visit implements Piwik_Tracker_Visit_Interface
             $this->visitorInfo[$name] = $value;
         }
 
-        // build sql query
-        $updateParts = $sqlBind = array();
-
-        foreach ($valuesToUpdate AS $name => $value) {
-            $updateParts[] = $name . " = ?";
-            $sqlBind[] = $value;
-        }
-        $sqlQuery = "UPDATE " . Piwik_Common::prefixTable('log_visit') . "
-						SET $sqlActionUpdate " . implode($updateParts, ', ') . "
-						WHERE idsite = ?
-							AND idvisit = ?";
-        array_push($sqlBind, $this->idsite, (int)$this->visitorInfo['idvisit']);
-
-        $result = Piwik_Tracker::getDatabase()->query($sqlQuery, $sqlBind);
-
+		$LogVisit = Piwik_Db_Factory::getDAO('log_visit', Piwik_Tracker::getDatabase());
+		list($row_count, $sqlQuery, $sqlBind)
+			= $LogVisit->update($sqlActionUpdate,
+					$valuesToUpdate,
+					$this->idsite,
+					(int)$this->visitorInfo['idvisit']
+				);
         $this->visitorInfo['visit_last_action_time'] = $this->getCurrentTimestamp();
 
         // Debug output
@@ -412,7 +404,7 @@ class Piwik_Tracker_Visit implements Piwik_Tracker_Visit_Interface
         }
         printDebug('Updating existing visit: ' . var_export($valuesToUpdate, true));
 
-        if (Piwik_Tracker::getDatabase()->rowCount($result) == 0) {
+        if ($row_count == 0) {
             printDebug("Visitor with this idvisit wasn't found in the DB.");
             printDebug("$sqlQuery --- ");
             printDebug($sqlBind);
@@ -702,14 +694,9 @@ class Piwik_Tracker_Visit implements Piwik_Tracker_Visit_Interface
         $this->visitorInfo['referer_keyword'] = substr($this->visitorInfo['referer_keyword'], 0, 255);
         $this->visitorInfo['config_resolution'] = substr($this->visitorInfo['config_resolution'], 0, 9);
 
-        $fields = implode(", ", array_keys($this->visitorInfo));
-        $values = Piwik_Common::getSqlStringFieldsArray($this->visitorInfo);
+		$LogVisit = Piwik_Db_Factory::getDAO('log_visit', Piwik_Tracker::getDatabase());
+		$idVisit = $LogVisit->add($this->visitorInfo);
 
-        $sql = "INSERT INTO " . Piwik_Common::prefixTable('log_visit') . " ($fields) VALUES ($values)";
-        $bind = array_values($this->visitorInfo);
-        Piwik_Tracker::getDatabase()->query($sql, $bind);
-
-        $idVisit = Piwik_Tracker::getDatabase()->lastInsertId();
         $this->visitorInfo['idvisit'] = $idVisit;
 
         $this->visitorInfo['visit_first_action_time'] = $this->getCurrentTimestamp();
@@ -1087,117 +1074,21 @@ class Piwik_Tracker_Visit implements Piwik_Tracker_Visit_Interface
             printDebug("Visitor doesn't have the piwik cookie...");
         }
 
-        $selectCustomVariables = '';
-        // No custom var were found in the request, so let's copy the previous one in a potential conversion later
-        if (!$this->customVariablesSetFromRequest) {
-            $selectCustomVariables = ',
-				custom_var_k1, custom_var_v1,
-				custom_var_k2, custom_var_v2,
-				custom_var_k3, custom_var_v3,
-				custom_var_k4, custom_var_v4,
-				custom_var_k5, custom_var_v5';
-        }
-
-        $select = "SELECT  	idvisitor,
-							visit_last_action_time,
-							visit_first_action_time,
-							idvisit,
-							visit_exit_idaction_url,
-							visit_exit_idaction_name,
-							visitor_returning,
-							visitor_days_since_first,
-							visitor_days_since_order,
-							location_country,
-							location_region,
-							location_city,
-							location_latitude,
-							location_longitude,
-							referer_name,
-							referer_keyword,
-							referer_type,
-							visitor_count_visits,
-							visit_goal_buyer
-							$selectCustomVariables 
-		";
-        $from = "FROM " . Piwik_Common::prefixTable('log_visit');
-
-        $bindSql = array();
-
-
         $timeLookBack = $this->getWindowLookupPreviousVisit();
 
         $shouldMatchOneFieldOnly = $this->shouldLookupOneVisitorFieldOnly($isVisitorIdToLookup);
 
-        // Two use cases:
-        // 1) there is no visitor ID so we try to match only on config_id (heuristics)
-        // 		Possible causes of no visitor ID: no browser cookie support, direct Tracking API request without visitor ID passed, etc.
-        // 		We can use config_id heuristics to try find the visitor in the past, there is a risk to assign
-        // 		this page view to the wrong visitor, but this is better than creating artificial visits.
-        // 2) there is a visitor ID and we trust it (config setting trust_visitors_cookies, OR it was set using &cid= in tracking API),
-        //      and in these cases, we force to look up this visitor id
-        if ($shouldMatchOneFieldOnly) {
-            $where = "visit_last_action_time >= ? AND idsite = ?";
-            $bindSql[] = $timeLookBack;
-            $bindSql[] = $this->idsite;
-            if (!$isVisitorIdToLookup) {
-                $where .= ' AND config_id = ?';
-                $bindSql[] = $configId;
-            } else {
-                $where .= ' AND idvisitor = ?';
-                $bindSql[] = $this->visitorInfo['idvisitor'];
-            }
-
-            $sql = "$select
-				$from
-				WHERE " . $where . "
-				ORDER BY visit_last_action_time DESC
-				LIMIT 1";
-        } // We have a config_id AND a visitor_id. We match on either of these.
-        // 		Why do we also match on config_id?
-        //		we do not trust the visitor ID only. Indeed, some browsers, or browser addons,
-        // 		cause the visitor id from the 1st party cookie to be different on each page view!
-        // 		It is not acceptable to create a new visit every time such browser does a page view,
-        // 		so we also backup by searching for matching config_id.
-        // We use a UNION here so that each sql query uses its own INDEX
-        else {
-            $whereSameBothQueries = "visit_last_action_time >= ? AND idsite = ?";
-
-
-            // will use INDEX index_idsite_config_datetime (idsite, config_id, visit_last_action_time)
-            $bindSql[] = $timeLookBack;
-            $bindSql[] = $this->idsite;
-            $where = ' AND config_id = ?';
-            $bindSql[] = $configId;
-            $sqlConfigId = "$select ,
-					0 as priority
-					$from
-					WHERE $whereSameBothQueries $where
-					ORDER BY visit_last_action_time DESC
-					LIMIT 1
-			";
-
-            // will use INDEX index_idsite_idvisitor (idsite, idvisitor)
-            $bindSql[] = $timeLookBack;
-            $bindSql[] = $this->idsite;
-            $where = ' AND idvisitor = ?';
-            $bindSql[] = $this->visitorInfo['idvisitor'];
-            $sqlVisitorId = "$select ,
-					1 as priority
-					$from
-					WHERE $whereSameBothQueries $where
-					LIMIT 1
-			";
-
-            // We join both queries and favor the one matching the visitor_id if it did match
-            $sql = " ( $sqlConfigId )
-					UNION 
-					( $sqlVisitorId ) 
-					ORDER BY priority DESC 
-					LIMIT 1";
-        }
-
-
-        $visitRow = Piwik_Tracker::getDatabase()->fetch($sql, $bindSql);
+		$LogVisit = Piwik_Db_Factory::getDAO('log_visit', Piwik_Tracker::getDatabase());
+		list($visitRow, $selectCustomVariables)
+			= $LogVisit->recognizeVisitor(
+				$this->customVariablesSetFromRequest,
+				$timeLookBack,
+				$shouldMatchOneFieldOnly,
+				$isVisitorIdToLookup ,
+				$this->idsite,
+				$configId,
+				$this->visitorInfo['idvisitor']
+			);
 
         if (!Piwik_Config::getInstance()->Debug['tracker_always_new_visitor']
             && $visitRow

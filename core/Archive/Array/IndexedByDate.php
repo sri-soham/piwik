@@ -84,6 +84,7 @@ class Piwik_Archive_Array_IndexedByDate extends Piwik_Archive_Array
         // date => array( 'field1' =>X, 'field2'=>Y)
         // date2 => array( 'field1' =>X2, 'field2'=>Y2)
 
+        $Archive = Piwik_Db_Factory::getDAO('archive');
         $arrayValues = array();
         foreach ($queries as $table => $aIds) {
             $inIds = implode(', ', array_filter($aIds));
@@ -92,12 +93,7 @@ class Piwik_Archive_Array_IndexedByDate extends Piwik_Archive_Array
                 continue;
             }
 
-            $sql = "SELECT value, name, date1 as startDate
-					FROM $table
-					WHERE idarchive IN ( $inIds )
-					AND name IN ( $inNames )
-					ORDER BY date1, name";
-            $values = $db->fetchAll($sql, $fields);
+            $values = $Archive->getForNumericDataTable($table, $inIds, $fields);
             foreach ($values as $value) {
                 $timestamp = Piwik_Date::factory($value['startDate'])->getTimestamp();
                 $arrayValues[$timestamp][$value['name']] = $this->formatNumericValue($value['value']);

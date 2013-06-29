@@ -46,9 +46,8 @@ class Piwik_Dashboard extends Piwik_Plugin
      */
     public function getLayoutForUser($login, $idDashboard)
     {
-        $paramsBind = array($login, $idDashboard);
-        $query = sprintf('SELECT layout FROM %s WHERE login = ? AND iddashboard = ?',
-            Piwik_Common::prefixTable('user_dashboard'));
+        $UserDashboard = Piwik_Db_Factory::getDAO('user_dashboard');
+        $return = $UserDashboard->getLayoutByLoginDashboard($login, $idDashboard);
         $return = Piwik_FetchAll($query, $paramsBind);
 
         if (count($return) == 0) {
@@ -99,9 +98,8 @@ class Piwik_Dashboard extends Piwik_Plugin
 
     public function getAllDashboards($login)
     {
-        $dashboards = Piwik_FetchAll('SELECT iddashboard, name, layout
-                                      FROM ' . Piwik_Common::prefixTable('user_dashboard') .
-            ' WHERE login = ? ORDER BY iddashboard', array($login));
+        $UserDashboard = Piwik_Db_Factory::getDAO('user_dashboard');
+        $dashboards = $UserDashboard->getByLogin($login);
 
         $nameless = 1;
         foreach ($dashboards AS &$dashboard) {
@@ -258,32 +256,19 @@ class Piwik_Dashboard extends Piwik_Plugin
     function deleteDashboardLayout($notification)
     {
         $userLogin = $notification->getNotificationObject();
-        Piwik_Query('DELETE FROM ' . Piwik_Common::prefixTable('user_dashboard') . ' WHERE login = ?', array($userLogin));
+        $UserDashboard = Piwik_Db_Factory::getDAO('user_dashboard');
+        $UserDashboard->deleteByLogin($userLogin);
     }
 
     public function install()
     {
-        // we catch the exception
-        try {
-            $sql = "CREATE TABLE " . Piwik_Common::prefixTable('user_dashboard') . " (
-					login VARCHAR( 100 ) NOT NULL ,
-					iddashboard INT NOT NULL ,
-					name VARCHAR( 100 ) NULL DEFAULT NULL ,
-					layout TEXT NOT NULL,
-					PRIMARY KEY ( login , iddashboard )
-					)  DEFAULT CHARSET=utf8 ";
-            Piwik_Exec($sql);
-        } catch (Exception $e) {
-            // mysql code error 1050:table already exists
-            // see bug #153 http://dev.piwik.org/trac/ticket/153
-            if (!Zend_Registry::get('db')->isErrNo($e, '1050')) {
-                throw $e;
-            }
-        }
+        $UserDashboard = Piwik_Db_Factory::getDAO('user_dashboard');
+        $UserDashboard->install();
     }
 
     public function uninstall()
     {
-        Piwik_DropTables(Piwik_Common::prefixTable('user_dashboard'));
+        $UserDashboard = Piwik_Db_Factory::getDAO('user_dashboard');
+        $UserDashboard->uninstall();
     }
 }

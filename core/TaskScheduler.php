@@ -26,7 +26,7 @@ class Piwik_TaskScheduler
 {
     const GET_TASKS_EVENT = "TaskScheduler.getScheduledTasks";
     const TIMETABLE_OPTION_STRING = "TaskScheduler.timetable";
-    static private $running = false;
+    private static $running = false;
 
     /**
      * runTasks collects tasks defined within piwik plugins, runs them if they are scheduled and reschedules
@@ -34,7 +34,7 @@ class Piwik_TaskScheduler
      *
      * @return array
      */
-    static public function runTasks()
+    public static function runTasks()
     {
         // get the array where rescheduled timetables are stored
         $timetable = self::getTimetableFromOptionTable();
@@ -86,7 +86,7 @@ class Piwik_TaskScheduler
         return $executionResults;
     }
 
-    static public function isTaskBeingExecuted()
+    public static function isTaskBeingExecuted()
     {
         return self::$running;
     }
@@ -99,7 +99,7 @@ class Piwik_TaskScheduler
      * @param string $methodParameter
      * @return mixed int|bool the next schedule in miliseconds, false if task has never been run
      */
-    static public function getScheduledTimeForMethod($className, $methodName, $methodParameter = null)
+    public static function getScheduledTimeForMethod($className, $methodName, $methodParameter = null)
     {
 
         // get the array where rescheduled timetables are stored
@@ -113,9 +113,9 @@ class Piwik_TaskScheduler
     /*
      * Task has to be executed if :
      *  - the task has already been scheduled once and the current system time is greater than the scheduled time.
-     * 	- execution is forced, see $forceTaskExecution
+     *  - execution is forced, see $forceTaskExecution
      */
-    static private function taskShouldBeExecuted($taskName, $timetable)
+    private static function taskShouldBeExecuted($taskName, $timetable)
     {
         $forceTaskExecution =
             (isset($GLOBALS['PIWIK_TRACKER_DEBUG_FORCE_SCHEDULED_TASKS']) && $GLOBALS['PIWIK_TRACKER_DEBUG_FORCE_SCHEDULED_TASKS'])
@@ -127,30 +127,30 @@ class Piwik_TaskScheduler
     /*
      * Task has to be rescheduled if :
      *  - the task has to be executed
-     * 	- the task has never been scheduled before
+     *  - the task has never been scheduled before
      */
-    static private function taskShouldBeRescheduled($taskName, $timetable)
+    private static function taskShouldBeRescheduled($taskName, $timetable)
     {
         return !self::taskHasBeenScheduledOnce($taskName, $timetable) || self::taskShouldBeExecuted($taskName, $timetable);
     }
 
-    static private function taskHasBeenScheduledOnce($taskName, $timetable)
+    private static function taskHasBeenScheduledOnce($taskName, $timetable)
     {
         return isset($timetable[$taskName]);
     }
 
-    static private function getTimetableFromOptionValue($option)
+    private static function getTimetableFromOptionValue($option)
     {
         $unserializedTimetable = @unserialize($option);
         return $unserializedTimetable === false ? array() : $unserializedTimetable;
     }
 
-    static private function getTimetableFromOptionTable()
+    private static function getTimetableFromOptionTable()
     {
         return self::getTimetableFromOptionValue(Piwik_GetOption(self::TIMETABLE_OPTION_STRING));
     }
 
-    static private function executeTask($task)
+    private static function executeTask($task)
     {
         try {
             $timer = new Piwik_Timer();

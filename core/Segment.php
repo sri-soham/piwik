@@ -162,8 +162,8 @@ class Piwik_Segment
             if (!empty($segmentWhere)) {
                 if (!empty($where)) {
                     $where = "( $where )
-				AND
-				($segmentWhere)";
+                AND
+                ($segmentWhere)";
                 } else {
                     $where = $segmentWhere;
                 }
@@ -223,7 +223,7 @@ class Piwik_Segment
                 // join condition provided
                 $alias = isset($table['tableAlias']) ? $table['tableAlias'] : $table['table'];
                 $sql .= "
-				LEFT JOIN " . Piwik_Common::prefixTable($table['table']) . " AS " . $alias
+                LEFT JOIN " . Piwik_Common::prefixTable($table['table']) . " AS " . $alias
                     . " ON " . $table['joinOn'];
                 continue;
             }
@@ -272,7 +272,7 @@ class Piwik_Segment
 
                 // the join sql the default way
                 $sql .= "
-				LEFT JOIN $tableSql ON $join";
+                LEFT JOIN $tableSql ON $join";
             }
 
             // remember which tables are available
@@ -299,27 +299,27 @@ class Piwik_Segment
     private function buildSelectQuery($select, $from, $where, $orderBy, $groupBy)
     {
         $sql = "
-			SELECT
-				$select
-			FROM
-				$from";
+            SELECT
+                $select
+            FROM
+                $from";
 
         if ($where) {
             $sql .= "
-			WHERE
-				$where";
+            WHERE
+                $where";
         }
 
         if ($groupBy) {
             $sql .= "
-			GROUP BY
-				$groupBy";
+            GROUP BY
+                $groupBy";
         }
 
         if ($orderBy) {
             $sql .= "
-			ORDER BY
-				$orderBy";
+            ORDER BY
+                $orderBy";
         }
 
         return $sql;
@@ -351,15 +351,14 @@ class Piwik_Segment
         $groupBy = preg_replace('/(log_visit|log_conversion|log_action)\./', 'log_inner.', $groupBy);
 
         $from = "(
-			SELECT
-				" . implode(",
-				", $neededFields) . "
-			FROM
-				$from
-			WHERE
-				$where
-			GROUP BY log_visit.idvisit
-				) AS log_inner";
+            SELECT DISTINCT 
+                " . implode(",
+                ", $neededFields) . "
+            FROM
+                $from
+            WHERE
+                $where
+                ) AS log_inner";
 
         $where = false;
         return $this->buildSelectQuery($select, $from, $where, $orderBy, $groupBy);

@@ -115,7 +115,6 @@ class Piwik_Archive_Array_IndexedBySite extends Piwik_Archive_Array
     private function loadValuesFromDB($fields)
     {
         $requestedMetrics = is_string($fields) ? array($fields) : $fields;
-        $inNames = Piwik_Common::getSqlStringFieldsArray($fields);
 
         // get the archive ids
         if (!$this->getFirstArchive()->isArchivingDisabled()) {
@@ -132,12 +131,12 @@ class Piwik_Archive_Array_IndexedBySite extends Piwik_Archive_Array
         }
 
         // select archive data
-        $sql = "SELECT value, name, idarchive, idsite
-								FROM {$this->getNumericTableName()}
-								WHERE idarchive IN ( $archiveIds )
-									AND name IN ( $inNames )";
-
-        return Piwik_FetchAll($sql, $fields);
+        $Archive = Piwik_Db_Factory::getDAO('archive');
+        return $Archive->getByIdsNames(
+                  $this->getNumericTableName(),
+                  $archiveIds,
+                  $fields
+                );
     }
 
     /**
@@ -220,28 +219,20 @@ class Piwik_Archive_Array_IndexedBySite extends Piwik_Archive_Array
 
         $allDoneFlags = "'" . implode("','", $doneFlags) . "'";
 
-        // create the SQL to query every archive ID
-        $nameCondition = "(name IN ($allDoneFlags)) AND
-						  (value = '" . Piwik_ArchiveProcessing::DONE_OK . "' OR
-						   value = '" . Piwik_ArchiveProcessing::DONE_OK_TEMPORARY . "')";
-
-        $sql = "SELECT idsite,
-		               MAX(idarchive) AS idarchive
-		          FROM " . $this->getNumericTableName() . "
-		         WHERE date1 = ?
-		           AND date2 = ?
-		           AND period = ?
-		           AND $nameCondition
-		           AND idsite IN (" . implode(',', array_keys($this->archives)) . ")
-		      GROUP BY idsite";
-
-        $bind = array($period->getDateStart()->toString('Y-m-d'),
-                      $period->getDateEnd()->toString('Y-m-d'),
-                      $period->getId());
+        $Archive = Piwik_Db_Factory::getDAO('archive');
+        $rows = $Archive->getIdsWithoutLaunching(
+                    $this->getNumericTableName(),
+                    $allDoneFlags,
+                    array_keys($this->archives),
+                    $period->getDateStart()->toString('Y-m-d'),
+                    $period->getDateEnd()->toString('Y-m-d'),
+                    $period->getId()
+                );
 
         // execute the query and process the results.
         $archiveIds = array();
-        foreach (Piwik_FetchAll($sql, $bind) as $row) {
+        foreach ($rows as $row)
+        {
             $archiveIds[] = $row['idarchive'];
         }
 

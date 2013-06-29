@@ -139,7 +139,7 @@ class Piwik_Db_Adapter_Pdo_Pgsql extends Zend_Db_Adapter_Pdo_Pgsql implements Pi
         );
 
         if (preg_match('/([0-9]{2}[0-9P][0-9]{2})/', $e->getMessage(), $match)) {
-            return $match[1] == $map[$errno];
+            return ($match[1] == $errno) || ($match[1] == $map[$errno]);
         }
         return false;
     }
@@ -173,5 +173,36 @@ class Piwik_Db_Adapter_Pdo_Pgsql extends Zend_Db_Adapter_Pdo_Pgsql implements Pi
             // In case of the driver doesn't support getting attributes
         }
         return null;
+    }
+
+    private $cachePreparedStatement = array();
+
+    /**
+     * Prepares and executes an SQL statement with bound data.
+     * Caches prepared statements to avoid preparing the same query more than once
+     *
+     * @param string|Zend_Db_Select  $sql   The SQL statement with placeholders.
+     * @param array                  $bind  An array of data to bind to the placeholders.
+     * @return Zend_Db_Statement_Interface
+     */
+    public function query($sql, $bind = array())
+    {
+        if (!is_string($sql)) {
+            return parent::query($sql, $bind);
+        }
+
+        if (isset($this->cachePreparedStatement[$sql])) {
+            if (!is_array($bind)) {
+                $bind = array($bind);
+            }
+
+            $stmt = $this->cachePreparedStatement[$sql];
+            $stmt->execute($bind);
+            return $stmt;
+        }
+
+        $stmt = parent::query($sql, $bind);
+        $this->cachePreparedStatement[$sql] = $stmt;
+        return $stmt;
     }
 }

@@ -223,22 +223,22 @@ class Piwik_Installation_FormDatabaseSetup_Rule_checkUserPrivileges extends HTML
     {
         return array(
             'CREATE'                  => 'CREATE TABLE ' . self::TEST_TABLE_NAME . ' (
-								   id INT AUTO_INCREMENT,
-								   value INT,
-								   PRIMARY KEY (id),
-								   KEY index_value (value)
-							   )',
+                                   id INT NOT NULL,
+                                   value INT,
+                                   PRIMARY KEY (id),
+                                   KEY index_value (value)
+                               )',
             'ALTER'                   => 'ALTER TABLE ' . self::TEST_TABLE_NAME . '
-								ADD COLUMN other_value INT DEFAULT 0',
+                                ADD COLUMN other_value INT DEFAULT 0',
             'SELECT'                  => 'SELECT * FROM ' . self::TEST_TABLE_NAME,
-            'INSERT'                  => 'INSERT INTO ' . self::TEST_TABLE_NAME . ' (value) VALUES (123)',
+            'INSERT'                  => 'INSERT INTO ' . self::TEST_TABLE_NAME . ' (id, value) VALUES (1, 123)',
             'UPDATE'                  => 'UPDATE ' . self::TEST_TABLE_NAME . ' SET value = 456 WHERE id = 1',
             'DELETE'                  => 'DELETE FROM ' . self::TEST_TABLE_NAME . ' WHERE id = 1',
             'DROP'                    => 'DROP TABLE ' . self::TEST_TABLE_NAME,
             'CREATE TEMPORARY TABLES' => 'CREATE TEMPORARY TABLE ' . self::TEST_TEMP_TABLE_NAME . ' (
-											id INT AUTO_INCREMENT,
-											PRIMARY KEY (id)
-										 )',
+                                            id INT AUTO_INCREMENT,
+                                            PRIMARY KEY (id)
+                                         )',
         );
     }
 

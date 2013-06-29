@@ -311,10 +311,10 @@ class Piwik
 
         if (Piwik_Common::isWindows()) {
             $message .= "On Windows, check that the folder is not read only and is writable. 
-						You can try to execute:<br />";
+                        You can try to execute:<br />";
         } else {
             $message .= "For example, on a Linux server if your Apache httpd user 
-						is www-data, you can try to execute:<br />"
+                        is www-data, you can try to execute:<br />"
                 . "<code>chown -R www-data:www-data " . $path . "</code><br />";
         }
 
@@ -416,7 +416,7 @@ class Piwik
 
         // The error message mentions chmod 777 in case users can't chown
         $directoryMessage = "<p><b>Piwik couldn't write to some directories</b>.</p> 
-							<p>Try to Execute the following commands on your server, to allow Write access on these directories:</p>"
+                            <p>Try to Execute the following commands on your server, to allow Write access on these directories:</p>"
             . "<blockquote>$directoryList</blockquote>"
             . "<p>If this doesn't work, you can try to create the directories with your FTP software, and set the CHMOD to 0755 (or 0777 if 0755 is not enough). To do so with your FTP software, right click on the directories then click permissions.</p>"
             . "<p>After applying the modifications, you can <a href='index.php'>refresh the page</a>.</p>"
@@ -1103,9 +1103,9 @@ class Piwik
         if (is_null($db)) {
             $db = Piwik_Tracker::getDatabase();
         }
-        $tableName = Piwik_Common::prefixTable('log_profiling');
 
-        $all = $db->fetchAll('SELECT * FROM ' . $tableName);
+        $LogProfiling = Piwik_Db_Factory::getDAO('log_profiling', $db);
+        $all = $LogProfiling->getAll();
         if ($all === false) {
             return;
         }
@@ -2267,10 +2267,10 @@ class Piwik
         }
 
         $query = "
-				'$filePath'
-			REPLACE
-			INTO TABLE
-				`" . $tableName . "`";
+                '$filePath'
+            REPLACE
+            INTO TABLE
+                `" . $tableName . "`";
 
         if (isset($fileSpec['charset'])) {
             $query .= ' CHARACTER SET ' . $fileSpec['charset'];
@@ -2279,32 +2279,32 @@ class Piwik
         $fieldList = '(' . join(',', $fields) . ')';
 
         $query .= "
-			FIELDS TERMINATED BY
-				'" . $fileSpec['delim'] . "'
-			ENCLOSED BY
-				'" . $fileSpec['quote'] . "'
-		";
+            FIELDS TERMINATED BY
+                '" . $fileSpec['delim'] . "'
+            ENCLOSED BY
+                '" . $fileSpec['quote'] . "'
+        ";
         if (isset($fileSpec['escape'])) {
             $query .= " ESCAPED BY '" . $fileSpec['escape'] . "'";
         }
         $query .= "
-			LINES TERMINATED BY
-				'" . $fileSpec['eol'] . "'
-			$fieldList
-		";
+            LINES TERMINATED BY
+                '" . $fileSpec['eol'] . "'
+            $fieldList
+        ";
 
         /*
-		 * First attempt: assume web server and MySQL server are on the same machine;
-		 * this requires that the db user have the FILE privilege; however, since this is
-		 * a global privilege, it may not be granted due to security concerns
-		 */
+         * First attempt: assume web server and MySQL server are on the same machine;
+         * this requires that the db user have the FILE privilege; however, since this is
+         * a global privilege, it may not be granted due to security concerns
+         */
         $keywords = array('');
 
         /*
-		 * Second attempt: using the LOCAL keyword means the client reads the file and sends it to the server;
-		 * the LOCAL keyword may trigger a known PHP PDO_MYSQL bug when MySQL not built with --enable-local-infile
-		 * @see http://bugs.php.net/bug.php?id=54158
-		 */
+         * Second attempt: using the LOCAL keyword means the client reads the file and sends it to the server;
+         * the LOCAL keyword may trigger a known PHP PDO_MYSQL bug when MySQL not built with --enable-local-infile
+         * @see http://bugs.php.net/bug.php?id=54158
+         */
         $openBaseDir = ini_get('open_basedir');
         $safeMode = ini_get('safe_mode');
         if (empty($openBaseDir) && empty($safeMode)) {
@@ -2324,7 +2324,7 @@ class Piwik
 
                 return true;
             } catch (Exception $e) {
-//				echo $sql . ' ---- ' .  $e->getMessage();
+//              echo $sql . ' ---- ' .  $e->getMessage();
                 $code = $e->getCode();
                 $message = $e->getMessage() . ($code ? "[$code]" : '');
                 if (!Zend_Registry::get('db')->isErrNo($e, '1148')) {
@@ -2357,7 +2357,7 @@ class Piwik
 
         if (Zend_Registry::get('db')->hasBulkLoader()) {
             try {
-//				throw new Exception('');
+//              throw new Exception('');
 
                 $fileSpec = array(
                     'delim'            => "\t",
@@ -2411,67 +2411,18 @@ class Piwik
      */
     static public function tableInsertBatchIterate($tableName, $fields, $values, $ignoreWhenDuplicate = true)
     {
-        $fieldList = '(' . join(',', $fields) . ')';
-        $ignore = $ignoreWhenDuplicate ? 'IGNORE' : '';
-
-        foreach ($values as $row) {
-            $query = "INSERT $ignore
-					INTO " . $tableName . "
-					$fieldList
-					VALUES (" . Piwik_Common::getSqlStringFieldsArray($row) . ")";
-            Piwik_Query($query, $row);
+        $isArchive = strpos($tableName, 'archive');
+        if ($isArchive === false)
+        {
+            $Generic = Piwik_Db_Factory::getGeneric();
+            $Generic->insertIgnoreBatch($tableName, $fields, $values, $ignoreWhenDuplicate);
         }
-    }
-
-    /**
-     * Generate advisory lock name
-     *
-     * @param int $idsite
-     * @param Piwik_Period $period
-     * @param Piwik_Segment $segment
-     * @return string
-     */
-    static public function getArchiveProcessingLockName($idsite, $period, Piwik_Segment $segment)
-    {
-        $config = Piwik_Config::getInstance();
-
-        $lockName = 'piwik.'
-            . $config->database['dbname'] . '.'
-            . $config->database['tables_prefix'] . '/'
-            . $idsite . '/'
-            . (!$segment->isEmpty() ? $segment->getHash() . '/' : '')
-            . $period->getId() . '/'
-            . $period->getDateStart()->toString('Y-m-d') . ','
-            . $period->getDateEnd()->toString('Y-m-d');
-        return $lockName . '/' . md5($lockName . Piwik_Common::getSalt());
-    }
-
-    /**
-     * Get an advisory lock
-     *
-     * @param int $idsite
-     * @param Piwik_Period $period
-     * @param Piwik_Segment $segment
-     * @return bool  True if lock acquired; false otherwise
-     */
-    static public function getArchiveProcessingLock($idsite, $period, $segment)
-    {
-        $lockName = self::getArchiveProcessingLockName($idsite, $period, $segment);
-        return Piwik_GetDbLock($lockName, $maxRetries = 30);
-    }
-
-    /**
-     * Release an advisory lock
-     *
-     * @param int $idsite
-     * @param Piwik_Period $period
-     * @param Piwik_Segment $segment
-     * @return bool True if lock released; false otherwise
-     */
-    static public function releaseArchiveProcessingLock($idsite, $period, $segment)
-    {
-        $lockName = self::getArchiveProcessingLockName($idsite, $period, $segment);
-        return Piwik_ReleaseDbLock($lockName);
+        else
+        {
+            // archive_blob_* tables need special handling for the "value" column
+            $Archive = Piwik_Db_Factory::getDAO('archive');
+            $Archive->insertIgnoreBatch($tableName, $fields, $values, $ignoreWhenDuplicate);
+        }
     }
 
     /**
@@ -2490,15 +2441,10 @@ class Piwik
      */
     static public function isLockPrivilegeGranted()
     {
-        if (is_null(self::$lockPrivilegeGranted)) {
-            try {
-                Piwik_LockTables(Piwik_Common::prefixTable('log_visit'));
-                Piwik_UnlockAllTables();
-
-                self::$lockPrivilegeGranted = true;
-            } catch (Exception $ex) {
-                self::$lockPrivilegeGranted = false;
-            }
+        if (is_null(self::$lockPrivilegeGranted))
+        {
+            $generic = Piwik_Db_Factory::getGeneric();
+            self::$lockPrivilegeGranted = $generic->isLockPrivilegeGranted();
         }
 
         return self::$lockPrivilegeGranted;

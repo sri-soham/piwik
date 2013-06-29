@@ -226,10 +226,10 @@ class Piwik_API_API
             'nb_actions'       => 'General_ColumnNbActions',
 // Do not display these in reports, as they are not so relevant
 // They are used to process metrics below
-//			'nb_visits_converted' => 'General_ColumnVisitsWithConversions',
-//    		'max_actions' => 'General_ColumnMaxActions',
-//    		'sum_visit_length' => 'General_ColumnSumVisitLength',
-//			'bounce_count'
+//          'nb_visits_converted' => 'General_ColumnVisitsWithConversions',
+//          'max_actions' => 'General_ColumnMaxActions',
+//          'sum_visit_length' => 'General_ColumnSumVisitLength',
+//          'bounce_count'
         );
         $translations = array_map('Piwik_Translate', $translations);
         return $translations;
@@ -294,6 +294,7 @@ class Piwik_API_API
             'name'       => 'General_NbActions',
             'segment'    => 'actions',
             'sqlSegment' => 'log_visit.visit_total_actions',
+            'sqlFilter'  => array('Piwik_Common', 'nullWhenNotNumeric'),
         );
         $segments[] = array(
             'type'           => 'metric',
@@ -301,6 +302,7 @@ class Piwik_API_API
             'name'           => 'General_NbSearches',
             'segment'        => 'searches',
             'sqlSegment'     => 'log_visit.visit_total_searches',
+            'sqlFilter'      => array('Piwik_Common', 'nullWhenNotNumeric'),
             'acceptedValues' => 'To select all visits who used internal Site Search, use: &segment=searches>0',
         );
         $segments[] = array(
@@ -309,6 +311,7 @@ class Piwik_API_API
             'name'       => 'General_ColumnVisitDuration',
             'segment'    => 'visitDuration',
             'sqlSegment' => 'log_visit.visit_total_time',
+            'sqlFilter'  => array('Piwik_Common', 'nullWhenNotNumeric'),
         );
         $segments[] = array(
             'type'           => 'dimension',
@@ -325,6 +328,7 @@ class Piwik_API_API
             'name'       => 'General_DaysSinceLastVisit',
             'segment'    => 'daysSinceLastVisit',
             'sqlSegment' => 'log_visit.visitor_days_since_last',
+            'sqlFilter'  => array('Piwik_Common', 'nullWhenNotNumeric'),
         );
         $segments[] = array(
             'type'       => 'metric',
@@ -332,6 +336,7 @@ class Piwik_API_API
             'name'       => 'General_DaysSinceFirstVisit',
             'segment'    => 'daysSinceFirstVisit',
             'sqlSegment' => 'log_visit.visitor_days_since_first',
+            'sqlFilter'  => array('Piwik_Common', 'nullWhenNotNumeric'),
         );
         $segments[] = array(
             'type'       => 'metric',
@@ -339,6 +344,7 @@ class Piwik_API_API
             'name'       => 'General_NumberOfVisits',
             'segment'    => 'visitCount',
             'sqlSegment' => 'log_visit.visitor_count_visits',
+            'sqlFilter'  => array('Piwik_Common', 'nullWhenNotNumeric'),
         );
 
         $segments[] = array(
@@ -348,6 +354,7 @@ class Piwik_API_API
             'segment'        => 'visitConverted',
             'acceptedValues' => '0, 1',
             'sqlSegment'     => 'log_visit.visit_goal_converted',
+            'sqlFilter'      => array('Piwik_Common', 'nullWhenNotNumeric'),
         );
 
         $segments[] = array(
@@ -367,6 +374,7 @@ class Piwik_API_API
             'name'       => 'General_DaysSinceLastEcommerceOrder',
             'segment'    => 'daysSinceLastEcommerceOrder',
             'sqlSegment' => 'log_visit.visitor_days_since_order',
+            'sqlFilter'  => array('Piwik_Common', 'nullWhenNotNumeric'),
         );
 
         foreach ($segments as &$segment) {
@@ -748,7 +756,7 @@ class Piwik_API_API
             $name = ucfirst($name);
         }
         $website = new Piwik_Site($idSite);
-//    	$segment = new Piwik_Segment($segment, $idSite);
+//      $segment = new Piwik_Segment($segment, $idSite);
 
         $period = Piwik_Period::advancedFactory($period, $date);
         $period = $period->getLocalizedLongString();
@@ -756,7 +764,7 @@ class Piwik_API_API
         $return = array(
             'website'        => $website->getName(),
             'prettyDate'     => $period,
-//    			'prettySegment' => $segment->getPrettyString(),
+//              'prettySegment' => $segment->getPrettyString(),
             'metadata'       => $reportMetadata,
             'columns'        => $columns,
             'reportData'     => $newReport,

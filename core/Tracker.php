@@ -41,11 +41,11 @@ class Piwik_Tracker
     const MAX_LENGTH_CUSTOM_VARIABLE = 200;
 
     protected $authenticated = false;
-    static protected $forcedDateTime = null;
-    static protected $forcedIpString = null;
-    static protected $forcedVisitorId = null;
+    protected static $forcedDateTime = null;
+    protected static $forcedIpString = null;
+    protected static $forcedVisitorId = null;
 
-    static protected $pluginsNotToLoad = array();
+    protected static $pluginsNotToLoad = array();
 
     /**
      * The set of visits to track.
@@ -111,7 +111,7 @@ class Piwik_Tracker
      * Do not load the specified plugins (used during testing, to disable Provider plugin)
      * @param array $plugins
      */
-    static public function setPluginsNotToLoad($plugins)
+    public static function setPluginsNotToLoad($plugins)
     {
         self::$pluginsNotToLoad = $plugins;
     }
@@ -121,7 +121,7 @@ class Piwik_Tracker
      *
      * @return array
      */
-    static public function getPluginsNotToLoad()
+    public static function getPluginsNotToLoad()
     {
         return self::$pluginsNotToLoad;
     }
@@ -132,7 +132,7 @@ class Piwik_Tracker
      * @param string $name  Setting name
      * @param mixed $value Value
      */
-    static private function updateTrackerConfig($name, $value)
+    private static function updateTrackerConfig($name, $value)
     {
         $section = Piwik_Config::getInstance()->Tracker;
         $section[$name] = $value;
@@ -323,13 +323,13 @@ class Piwik_Tracker
         printDebug("Next run will be from: " . date('Y-m-d H:i:s', $nextRunTime) . ' UTC');
     }
 
-    static public $initTrackerMode = false;
+    public static $initTrackerMode = false;
 
     /*
      * Used to initialize core Piwik components on a piwik.php request
      * Eg. when cache is missed and we will be calling some APIs to generate cache
      */
-    static public function initCorePiwikInTrackerMode()
+    public static function initCorePiwikInTrackerMode()
     {
         if (!empty($GLOBALS['PIWIK_TRACKER_MODE'])
             && self::$initTrackerMode === false
@@ -461,6 +461,10 @@ class Piwik_Tracker
             case 'MYSQLI':
                 require_once PIWIK_INCLUDE_PATH . '/core/Tracker/Db/Mysqli.php';
                 return new Piwik_Tracker_Db_Mysqli($configDb);
+
+            case 'PDO_PGSQL':
+                require_once PIWIK_INCLUDE_PATH .'/core/Tracker/Db/Pdo/Pgsql.php';
+                return new Piwik_Tracker_Db_Pdo_Pgsql($configDb);
         }
 
         throw new Exception('Unsupported database adapter ' . $configDb['adapter']);

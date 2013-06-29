@@ -96,7 +96,7 @@ class Piwik_Smarty extends Smarty
      * @param string $expression Expression.
      * @return string
      */
-    static public function bitwise_eval($expression)
+    public static function bitwise_eval($expression)
     {
         // replace defined constants
         $buf = get_defined_constants(true);
@@ -122,7 +122,7 @@ class Piwik_Smarty extends Smarty
      * @param int $key (don't care)
      * @param string $path Piwik root
      */
-    static public function addPiwikPath(&$value, $key, $path)
+    public static function addPiwikPath(&$value, $key, $path)
     {
         if ($value[0] != '/' && $value[0] != DIRECTORY_SEPARATOR) {
             $value = $path . "/$value";

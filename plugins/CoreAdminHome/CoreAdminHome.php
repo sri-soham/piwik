@@ -122,6 +122,7 @@ class Piwik_CoreAdminHome extends Piwik_Plugin
     function optimizeArchiveTable()
     {
         $archiveTables = Piwik::getTablesArchivesInstalled();
-        Piwik_OptimizeTables($archiveTables);
+        $Generic = Piwik_Db_Factory::getGeneric();
+        $Generic->optimizeTables($archiveTables);
     }
 }

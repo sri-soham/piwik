@@ -23,7 +23,7 @@ abstract class Piwik_TablePartitioning
     protected $generatedTableName = null;
     protected $timestamp = null;
 
-    static public $tablesAlreadyInstalled = null;
+    public static $tablesAlreadyInstalled = null;
 
     public function __construct($tableName)
     {
@@ -64,21 +64,8 @@ abstract class Piwik_TablePartitioning
         }
 
         if (!in_array($this->generatedTableName, self::$tablesAlreadyInstalled)) {
-            $db = Zend_Registry::get('db');
-            $sql = Piwik::getTableCreateSql($this->tableName);
-
-            $config = Piwik_Config::getInstance();
-            $prefixTables = $config->database['tables_prefix'];
-            $sql = str_replace($prefixTables . $this->tableName, $this->generatedTableName, $sql);
-            try {
-                $db->query($sql);
-            } catch (Exception $e) {
-                // mysql error 1050: table already exists
-                if (!$db->isErrNo($e, '1050')) {
-                    // failed for some other reason
-                    throw $e;
-                }
-            }
+            $Archive = Piwik_Db_Factory::getDAO('archive');
+            $Archive->createPartitionTable($this->tableName, $this->generatedTableName);
 
             self::$tablesAlreadyInstalled[] = $this->generatedTableName;
         }

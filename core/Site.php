@@ -64,7 +64,7 @@ class Piwik_Site
     /**
      * @return string
      */
-    function __toString()
+    public function __toString()
     {
         return "site id=" . $this->getId() . ",
 				 name=" . $this->getName() . ",
@@ -80,7 +80,7 @@ class Piwik_Site
      *
      * @return string
      */
-    function getName()
+    public function getName()
     {
         return $this->get('name');
     }
@@ -90,7 +90,7 @@ class Piwik_Site
      *
      * @return string
      */
-    function getMainUrl()
+    public function getMainUrl()
     {
         return $this->get('main_url');
     }
@@ -100,7 +100,7 @@ class Piwik_Site
      *
      * @return int
      */
-    function getId()
+    public function getId()
     {
         return $this->id;
     }
@@ -124,7 +124,7 @@ class Piwik_Site
      *
      * @return Piwik_Date
      */
-    function getCreationDate()
+    public function getCreationDate()
     {
         $date = $this->get('ts_created');
         return Piwik_Date::factory($date);
@@ -135,7 +135,7 @@ class Piwik_Site
      *
      * @return string
      */
-    function getTimezone()
+    public function getTimezone()
     {
         return $this->get('timezone');
     }
@@ -145,7 +145,7 @@ class Piwik_Site
      *
      * @return string
      */
-    function getCurrency()
+    public function getCurrency()
     {
         return $this->get('currency');
     }
@@ -155,7 +155,7 @@ class Piwik_Site
      *
      * @return string
      */
-    function getExcludedIps()
+    public function getExcludedIps()
     {
         return $this->get('excluded_ips');
     }
@@ -165,7 +165,7 @@ class Piwik_Site
      *
      * @return string
      */
-    function getExcludedQueryParameters()
+    public function getExcludedQueryParameters()
     {
         return $this->get('excluded_parameters');
     }
@@ -175,17 +175,17 @@ class Piwik_Site
      *
      * @return bool
      */
-    function isEcommerceEnabled()
+    public function isEcommerceEnabled()
     {
         return $this->get('ecommerce') == 1;
     }
 
-    function getSearchKeywordParameters()
+    public function getSearchKeywordParameters()
     {
         return $this->get('sitesearch_keyword_parameters');
     }
 
-    function getSearchCategoryParameters()
+    public function getSearchCategoryParameters()
     {
         return $this->get('sitesearch_category_parameters');
     }
@@ -195,7 +195,7 @@ class Piwik_Site
      *
      * @return bool
      */
-    function isSiteSearchEnabled()
+    public function isSiteSearchEnabled()
     {
         return $this->get('sitesearch') == 1;
     }
@@ -206,7 +206,7 @@ class Piwik_Site
      * @param string $ids comma separated idSite list
      * @return array of valid integer
      */
-    static public function getIdSitesFromIdSitesString($ids)
+    public static function getIdSitesFromIdSitesString($ids)
     {
         if ($ids === 'all') {
             return Piwik_SitesManager_API::getInstance()->getSitesIdWithAtLeastViewAccess();
@@ -231,7 +231,7 @@ class Piwik_Site
     /**
      * Clears the site cache
      */
-    static public function clearCache()
+    public static function clearCache()
     {
         self::$infoSites = array();
     }
@@ -245,7 +245,7 @@ class Piwik_Site
      * @param string $field   The name of the field to get.
      * @return mixed
      */
-    static protected function getFor($idsite, $field)
+    protected static function getFor($idsite, $field)
     {
         $idsite = (int)$idsite;
 
@@ -262,7 +262,7 @@ class Piwik_Site
      * @param int $idsite  The site ID.
      * @return string
      */
-    static public function getNameFor($idsite)
+    public static function getNameFor($idsite)
     {
         return self::getFor($idsite, 'name');
     }
@@ -273,7 +273,7 @@ class Piwik_Site
      * @param int $idsite  The site ID.
      * @return string
      */
-    static public function getTimezoneFor($idsite)
+    public static function getTimezoneFor($idsite)
     {
         return self::getFor($idsite, 'timezone');
     }
@@ -284,7 +284,7 @@ class Piwik_Site
      * @param int $idsite  The site ID.
      * @return string
      */
-    static public function getCreationDateFor($idsite)
+    public static function getCreationDateFor($idsite)
     {
         return self::getFor($idsite, 'ts_created');
     }
@@ -295,7 +295,7 @@ class Piwik_Site
      * @param int $idsite  The site ID.
      * @return string
      */
-    static public function getMainUrlFor($idsite)
+    public static function getMainUrlFor($idsite)
     {
         return self::getFor($idsite, 'main_url');
     }
@@ -306,7 +306,7 @@ class Piwik_Site
      * @param int $idsite  The site ID.
      * @return string
      */
-    static public function isEcommerceEnabledFor($idsite)
+    public static function isEcommerceEnabledFor($idsite)
     {
         return self::getFor($idsite, 'ecommerce') == 1;
     }
@@ -317,7 +317,7 @@ class Piwik_Site
      * @param int $idsite  The site ID.
      * @return string
      */
-    static public function isSiteSearchEnabledFor($idsite)
+    public static function isSiteSearchEnabledFor($idsite)
     {
         return self::getFor($idsite, 'sitesearch') == 1;
     }
@@ -328,7 +328,7 @@ class Piwik_Site
      * @param int $idsite  The site ID.
      * @return string
      */
-    static public function getCurrencyFor($idsite)
+    public static function getCurrencyFor($idsite)
     {
         return self::getFor($idsite, 'currency');
     }
@@ -339,7 +339,7 @@ class Piwik_Site
      * @param int $idsite  The site ID.
      * @return string
      */
-    static public function getExcludedIpsFor($idsite)
+    public static function getExcludedIpsFor($idsite)
     {
         return self::getFor($idsite, 'excluded_ips');
     }
@@ -350,7 +350,7 @@ class Piwik_Site
      * @param int $idsite  The site ID.
      * @return string
      */
-    static public function getExcludedQueryParametersFor($idsite)
+    public static function getExcludedQueryParametersFor($idsite)
     {
         return self::getFor($idsite, 'excluded_parameters');
     }

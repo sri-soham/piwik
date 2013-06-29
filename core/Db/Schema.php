@@ -4,6 +4,7 @@
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
+ * @version $Id: Schema.php 6325 2012-05-26 21:08:06Z SteveG $
  *
  * @category Piwik
  * @package Piwik
@@ -24,7 +25,7 @@ class Piwik_Db_Schema
      *
      * @var Piwik_Db_Schema
      */
-    static private $instance = null;
+    private static $instance = null;
 
     /**
      * Type of database schema
@@ -38,7 +39,7 @@ class Piwik_Db_Schema
      *
      * @return Piwik_Db_Schema
      */
-    static public function getInstance()
+    public static function getInstance()
     {
         if (self::$instance === null) {
             self::$instance = new self;
@@ -69,21 +70,21 @@ class Piwik_Db_Schema
             // MySQL storage engines
             'MYSQL' => array(
                 'Myisam',
-//				'Innodb',
-//				'Infinidb',
+//              'Innodb',
+//              'Infinidb',
             ),
 
             // Microsoft SQL Server
-//			'MSSQL' => array( 'Mssql' ),
+//          'MSSQL' => array( 'Mssql' ),
 
             // PostgreSQL
-//			'PDO_PGSQL' => array( 'Pgsql' ),
+            'PGSQL' => array( 'Pgsql' ),
 
             // IBM DB2
-//			'IBM' => array( 'Ibm' ),
+//          'IBM' => array( 'Ibm' ),
 
             // Oracle
-//			'OCI' => array( 'Oci' ),
+//          'OCI' => array( 'Oci' ),
         );
 
         $adapterName = strtoupper($adapterName);
@@ -91,6 +92,10 @@ class Piwik_Db_Schema
             case 'PDO_MYSQL':
             case 'MYSQLI':
                 $adapterName = 'MYSQL';
+                break;
+            
+            case 'PDO_PGSQL':
+                $adapterName = 'PGSQL';
                 break;
 
             case 'PDO_MSSQL':
@@ -113,8 +118,8 @@ class Piwik_Db_Schema
         $schemas = array();
 
         foreach ($schemaNames as $schemaName) {
-            $className = 'Piwik_Db_Schema_' . $schemaName;
-            if (call_user_func(array($className, 'isAvailable'))) {
+            $className = 'Piwik_Db_Schema_'.$schemaName;
+            if(call_user_func(array($className, 'isAvailable'))) {
                 $schemas[] = $schemaName;
             }
         }
@@ -132,6 +137,7 @@ class Piwik_Db_Schema
         if ($schema === null) {
             $config = Piwik_Config::getInstance();
             $dbInfos = $config->database;
+
             if (isset($dbInfos['schema'])) {
                 $schemaName = $dbInfos['schema'];
             } else {
@@ -159,8 +165,8 @@ class Piwik_Db_Schema
     /**
      * Get the SQL to create a specific Piwik table
      *
-     * @param string $tableName  name of the table to create
-     * @return string  SQL
+     * @param string $tableName name of the table to create
+     * @return string SQL
      */
     public function getTableCreateSql($tableName)
     {
@@ -170,7 +176,7 @@ class Piwik_Db_Schema
     /**
      * Get the SQL to create Piwik tables
      *
-     * @return array   array of strings containing SQL
+     * @return array array of strings containing SQL
      */
     public function getTablesCreateSql()
     {
@@ -178,9 +184,19 @@ class Piwik_Db_Schema
     }
 
     /**
+     * Get the SQL to create the indexes
+     *
+     * @return array array of string containing SQL
+     */
+    public function getIndexesCreateSql()
+    {
+        return $this->getSchema()->getIndexesCreateSql();
+    }
+
+    /**
      * Create database
      *
-     * @param null|string $dbName  database name to create
+     * @param null|string $dbName database name to create
      */
     public function createDatabase($dbName = null)
     {
@@ -243,8 +259,8 @@ class Piwik_Db_Schema
     /**
      * Get list of tables installed
      *
-     * @param bool $forceReload  Invalidate cache
-     * @return array  installed tables
+     * @param bool $forceReload Invalidate cache
+     * @return array installed tables
      */
     public function getTablesInstalled($forceReload = true)
     {

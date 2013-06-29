@@ -201,17 +201,19 @@ class Piwik_Tracker_Db_Mysqli extends Piwik_Tracker_Db
             return $result;
         } catch (Exception $e) {
             throw new Piwik_Tracker_Db_Exception("Error query: " . $e->getMessage() . "
-								In query: $query
-								Parameters: " . var_export($parameters, true));
+                                In query: $query
+                                Parameters: " . var_export($parameters, true));
         }
     }
 
     /**
      * Returns the last inserted ID in the DB
      *
+     * @param  String $sequenceCol Column on which the sequence is created.
+     *         Pertinent for DBMS that use sequences instead of auto_increment.
      * @return int
      */
-    public function lastInsertId()
+    public function lastInsertId($sequenceCol=null)
     {
         return mysqli_insert_id($this->connection);
     }

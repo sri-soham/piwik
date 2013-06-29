@@ -475,15 +475,6 @@ class Piwik_Tracker_Action implements Piwik_Tracker_Action_Interface
         $this->setActionUrl($info['url']);
     }
 
-    static public function getSqlSelectActionId()
-    {
-        $sql = "SELECT idaction, type, name
-							FROM " . Piwik_Common::prefixTable('log_action')
-            . "  WHERE "
-            . "		( hash = CRC32(?) AND name = ? AND type = ? ) ";
-        return $sql;
-    }
-
     /**
      * This function will find the idaction from the lookup table piwik_log_action,
      * given an Action name and type.
@@ -496,81 +487,8 @@ class Piwik_Tracker_Action implements Piwik_Tracker_Action_Interface
      */
     static public function loadActionId($actionNamesAndTypes)
     {
-        // First, we try and select the actions that are already recorded
-        $sql = self::getSqlSelectActionId();
-        $bind = array();
-        $normalizedUrls = array();
-        $i = 0;
-        foreach ($actionNamesAndTypes as $index => &$actionNameType) {
-            list($name, $type) = $actionNameType;
-            if (empty($name)) {
-                $actionNameType[] = false;
-                continue;
-            }
-            if ($i > 0) {
-                $sql .= " OR ( hash = CRC32(?) AND name = ? AND type = ? ) ";
-            }
-            if ($type == Piwik_Tracker_Action::TYPE_ACTION_URL) {
-                // normalize urls by stripping protocol and www
-                $normalizedUrls[$index] = self::normalizeUrl($name);
-                $name = $normalizedUrls[$index]['url'];
-            }
-            $bind[] = $name;
-            $bind[] = $name;
-            $bind[] = $type;
-            $i++;
-        }
-        // Case URL & Title are empty
-        if (empty($bind)) {
-            return $actionNamesAndTypes;
-        }
-        $actionIds = Piwik_Tracker::getDatabase()->fetchAll($sql, $bind);
-
-        // For the Actions found in the lookup table, add the idaction in the array,
-        // If not found in lookup table, queue for INSERT
-        $actionsToInsert = array();
-        foreach ($actionNamesAndTypes as $index => &$actionNameType) {
-            list($name, $type) = $actionNameType;
-            if (empty($name)) {
-                continue;
-            }
-            if (isset($normalizedUrls[$index])) {
-                $name = $normalizedUrls[$index]['url'];
-            }
-            $found = false;
-            foreach ($actionIds as $row) {
-                if ($name == $row['name']
-                    && $type == $row['type']
-                ) {
-                    $found = true;
-                    $actionNameType[] = $row['idaction'];
-                    continue;
-                }
-            }
-            if (!$found) {
-                $actionsToInsert[] = $index;
-            }
-        }
-
-        $sql = "INSERT INTO " . Piwik_Common::prefixTable('log_action') .
-            "( name, hash, type, url_prefix ) VALUES (?,CRC32(?),?,?)";
-        // Then, we insert all new actions in the lookup table
-        foreach ($actionsToInsert as $actionToInsert) {
-            list($name, $type) = $actionNamesAndTypes[$actionToInsert];
-
-            $urlPrefix = null;
-            if (isset($normalizedUrls[$actionToInsert])) {
-                $name = $normalizedUrls[$actionToInsert]['url'];
-                $urlPrefix = $normalizedUrls[$actionToInsert]['prefixId'];
-            }
-
-            Piwik_Tracker::getDatabase()->query($sql, array($name, $name, $type, $urlPrefix));
-            $actionId = Piwik_Tracker::getDatabase()->lastInsertId();
-            printDebug("Recorded a new action (" . self::getActionTypeName($type) . ") in the lookup table: " . $name . " (idaction = " . $actionId . ")");
-
-            $actionNamesAndTypes[$actionToInsert][] = $actionId;
-        }
-        return $actionNamesAndTypes;
+        $LogAction = Piwik_Db_Factory::getDAO('log_action', Piwik_Tracker::getDatabase());
+        return $LogAction->loadActionId($actionNamesAndTypes);
     }
 
     static public function getActionTypeName($type)
@@ -693,44 +611,23 @@ class Piwik_Tracker_Action implements Piwik_Tracker_Action_Interface
             ? (int)$this->getIdActionName()
             : null;
 
-
-        $insert = array(
-            'idvisit'               => $idVisit,
-            'idsite'                => $this->idSite,
-            'idvisitor'             => $visitorIdCookie,
-            'server_time'           => Piwik_Tracker::getDatetimeFromTimestamp($this->timestamp),
-            'idaction_url'          => $this->getIdActionUrl(),
-            'idaction_name'         => $idActionName,
-            'idaction_url_ref'      => $idRefererActionUrl,
-            'idaction_name_ref'     => $idRefererActionName,
-            'time_spent_ref_action' => $timeSpentRefererAction
-        );
-
-        if (!empty($this->timeGeneration)) {
-            $insert[self::DB_COLUMN_TIME_GENERATION] = $this->timeGeneration;
-        }
-
         $customVariables = $this->getCustomVariables();
 
-        $insert = array_merge($insert, $customVariables);
-
-        // Mysqli apparently does not like NULL inserts?
-        $insertWithoutNulls = array();
-        foreach ($insert as $column => $value) {
-            if (!is_null($value) || $column == 'idaction_url_ref') {
-                $insertWithoutNulls[$column] = $value;
-            }
-        }
-
-        $fields = implode(", ", array_keys($insertWithoutNulls));
-        $bind = array_values($insertWithoutNulls);
-        $values = Piwik_Common::getSqlStringFieldsArray($insertWithoutNulls);
-
-        $sql = "INSERT INTO " . Piwik_Common::prefixTable('log_link_visit_action') . " ($fields) VALUES ($values)";
-        Piwik_Tracker::getDatabase()->query($sql, $bind);
-
-        $this->idLinkVisitAction = Piwik_Tracker::getDatabase()->lastInsertId();
-
+        $LogLinkVisitAction = Piwik_Db_Factory::getDAO('log_link_visit_action', Piwik_Tracker::getDatabase());
+        $this->idLinkVisitAction = $LogLinkVisitAction->record(
+            $idVisit,
+            $this->idSite,
+            $visitorIdCookie,
+            Piwik_Tracker::getDatetimeFromTimestamp($this->timestamp),
+            (int)$this->getIdActionUrl(),
+            $idActionName,
+            $idRefererActionUrl,
+            $idRefererActionName,
+            $timeSpentRefererAction,
+            $this->timeGeneration,
+            $customVariables
+        );
+        
         $info = array(
             'idSite'                 => $this->idSite,
             'idLinkVisitAction'      => $this->idLinkVisitAction,
@@ -739,7 +636,6 @@ class Piwik_Tracker_Action implements Piwik_Tracker_Action_Interface
             'idRefererActionName'    => $idRefererActionName,
             'timeSpentRefererAction' => $timeSpentRefererAction,
         );
-        printDebug($insertWithoutNulls);
 
         /*
         * send the Action object ($this)  and the list of ids ($info) as arguments to the event

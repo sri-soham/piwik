@@ -41,7 +41,7 @@ abstract class Piwik_Period
      * @var Piwik_Date
      */
     protected $date = null;
-    static protected $errorAvailablePeriods = 'day, week, month, year, range';
+    protected static $errorAvailablePeriods = 'day, week, month, year, range';
 
     /**
      * Constructor
@@ -59,7 +59,7 @@ abstract class Piwik_Period
      * @throws Exception
      * @return Piwik_Period
      */
-    static public function factory($strPeriod, Piwik_Date $date)
+    public static function factory($strPeriod, Piwik_Date $date)
     {
         switch ($strPeriod) {
             case 'day':

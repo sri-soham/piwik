@@ -97,7 +97,7 @@ class Piwik_Goals extends Piwik_Plugin
     function deleteSiteGoals($notification)
     {
         $idSite = & $notification->getNotificationObject();
-        Piwik_Query("DELETE FROM " . Piwik_Common::prefixTable('goal') . " WHERE idsite = ? ", array($idSite));
+        Piwik_Db_Factory::getDAO('goal')->deleteByIdsite($idSite);
     }
 
     /**
@@ -361,6 +361,7 @@ class Piwik_Goals extends Piwik_Plugin
             'segment'        => 'visitConvertedGoalId',
             'sqlSegment'     => 'log_conversion.idgoal',
             'acceptedValues' => '1, 2, 3, etc.',
+            'sqlFilter' => array('Piwik_Common', 'nullWhenNotNumeric'),
         );
     }
 

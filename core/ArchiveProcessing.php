@@ -474,7 +474,9 @@ abstract class Piwik_ArchiveProcessing
      */
     public function launchArchiving()
     {
-        if (!Piwik::getArchiveProcessingLock($this->idsite, $this->period, $this->segment)) {
+        $Archive = Piwik_Db_Factory::getDAO('archive');
+
+        if (!$Archive->getProcessingLock($this->idsite, $this->period, $this->segment)) {
             Piwik::log('Unable to get lock for idSite = ' . $this->idsite
                 . ', period = ' . $this->period->getLabel()
                 . ', UTC datetime [' . $this->startDatetimeUTC . ' -> ' . $this->endDatetimeUTC . ' ]...');
@@ -486,7 +488,7 @@ abstract class Piwik_ArchiveProcessing
         $this->postCompute();
         // we execute again the isArchived that does some initialization work
         $this->idArchive = $this->isArchived();
-        Piwik::releaseArchiveProcessingLock($this->idsite, $this->period, $this->segment);
+        $Archive->releaseProcessingLock($this->idsite, $this->period, $this->segment);
     }
 
     /**
@@ -572,9 +574,12 @@ abstract class Piwik_ArchiveProcessing
     {
         // delete the first done = ERROR
         $done = $this->getDoneStringFlag();
-        Piwik_Query("DELETE FROM " . $this->tableArchiveNumeric->getTableName() . "
-					WHERE idarchive = ? AND (name = '" . $done . "' OR name LIKE '" . self::PREFIX_SQL_LOCK . "%')",
-            array($this->idArchive)
+        $Archive = Piwik_Db_Factory::getDAO('archive');
+        $Archive->deleteByIdarchiveName(
+            $this->tableArchiveNumeric->getTableName(),
+            $this->idArchive,
+            $done,
+            self::PREFIX_SQL_LOCK
         );
 
         $flag = Piwik_ArchiveProcessing::DONE_OK;
@@ -706,21 +711,9 @@ abstract class Piwik_ArchiveProcessing
         $locked = self::PREFIX_SQL_LOCK . Piwik_Common::generateUniqId();
         $date = date("Y-m-d H:i:s");
 
-        if (Piwik_GetDbLock($dbLockName, $maxRetries = 30) === false) {
-            throw new Exception("loadNextIdArchive: Cannot get named lock for table $table.");
-        }
-        $db->exec("INSERT INTO $table "
-            . " SELECT ifnull(max(idarchive),0)+1,
-								'" . $locked . "',
-								" . (int)$this->idsite . ",
-								'" . $date . "',
-								'" . $date . "',
-								0,
-								'" . $date . "',
-								0 "
-            . " FROM $table as tb1");
-        Piwik_ReleaseDbLock($dbLockName);
-        $id = $db->fetchOne("SELECT idarchive FROM $table WHERE name = ? LIMIT 1", $locked);
+        $Archive = Piwik_Db_Factory::getDAO('archive');
+        $Archive->loadNextIdarchive($table, 'tb1', $locked, (int)$this->idsite, $date);
+        $id = $Archive->getIdByName($table, $locked);
 
         $this->idArchive = $id;
     }
@@ -785,7 +778,7 @@ abstract class Piwik_ArchiveProcessing
             }
             return;
         }
-        $bindSql = $this->getBindArray();
+        $bindSql = $this->getBindArrayAssoc();
         $values = array();
 
         foreach ($records as $record) {
@@ -793,8 +786,8 @@ abstract class Piwik_ArchiveProcessing
             if (empty($record[1])) continue;
 
             $bind = $bindSql;
-            $bind[] = $record[0]; // name
-            $bind[] = $record[1]; // value
+            $bind['name'] = $record[0]; // name
+            $bind['value'] = $record[1]; // value
             $values[] = $bind;
 
         }
@@ -818,6 +811,18 @@ abstract class Piwik_ArchiveProcessing
                      $this->period->getDateEnd()->toString('Y-m-d'),
                      $this->periodId,
                      date("Y-m-d H:i:s"));
+    }
+    
+    protected function getBindArrayAssoc()
+    {
+        return array(
+            'idarchive'   => $this->idArchive,
+            'idsite'      => $this->idsite, 
+            'date1'       => $this->period->getDateStart()->toString('Y-m-d'),           
+            'date2'       => $this->period->getDateEnd()->toString('Y-m-d'), 
+            'period'      => $this->periodId, 
+            'ts_archived' => date("Y-m-d H:i:s")
+        );
     }
 
     protected function getInsertFields()
@@ -847,14 +852,11 @@ abstract class Piwik_ArchiveProcessing
         }
 
         // duplicate idarchives are Ignored, see http://dev.piwik.org/trac/ticket/987
-
-        $query = "INSERT IGNORE INTO " . $table->getTableName() . "
-					(" . implode(", ", $this->getInsertFields()) . ")
-					VALUES (?,?,?,?,?,?,?,?)";
-        $bindSql = $this->getBindArray();
-        $bindSql[] = $name;
-        $bindSql[] = $value;
-        Piwik_Query($query, $bindSql);
+        $Archive = Piwik_Db_Factory::getDAO('archive');
+        $bindSql = $this->getBindArrayAssoc();
+        $bindSql['name'] = $name;
+        $bindSql['value'] = $value;
+        $Archive->insertRecord($table->getTableName(), $bindSql);
     }
 
     /**
@@ -870,17 +872,15 @@ abstract class Piwik_ArchiveProcessing
      */
     protected function isArchived()
     {
-        $bindSQL = array($this->idsite,
-                         $this->period->getDateStart()->toString('Y-m-d'),
-                         $this->period->getDateEnd()->toString('Y-m-d'),
-                         $this->periodId,
-        );
-
-        $timeStampWhere = '';
-
-        if ($this->minDatetimeArchiveProcessedUTC) {
-            $timeStampWhere = " AND ts_archived >= ? ";
-            $bindSQL[] = Piwik_Date::factory($this->minDatetimeArchiveProcessedUTC)->getDatetime();
+        $Archive = Piwik_Db_Factory::getDAO('archive');
+        
+        if($this->minDatetimeArchiveProcessedUTC)
+        {
+            $minDate = Piwik_Date::factory($this->minDatetimeArchiveProcessedUTC)->getDatetime();
+        }
+        else
+        {
+            $minDate = null;
         }
 
         // When a Segment is specified, we try and only process the requested report in the archive
@@ -890,25 +890,16 @@ abstract class Piwik_ArchiveProcessing
         $done = $this->getDoneStringFlag();
         $doneAllPluginsProcessed = $this->getDoneStringFlag($flagArchiveAsAllPlugins = true);
 
-        $sqlSegmentsFindArchiveAllPlugins = '';
-
-        if ($done != $doneAllPluginsProcessed) {
-            $sqlSegmentsFindArchiveAllPlugins = "OR (name = '" . $doneAllPluginsProcessed . "' AND value = " . Piwik_ArchiveProcessing::DONE_OK . ")
-					OR (name = '" . $doneAllPluginsProcessed . "' AND value = " . Piwik_ArchiveProcessing::DONE_OK_TEMPORARY . ")";
-        }
-        $sqlQuery = "	SELECT idarchive, value, name, date1 as startDate
-						FROM " . $this->tableArchiveNumeric->getTableName() . "
-						WHERE idsite = ?
-							AND date1 = ?
-							AND date2 = ?
-							AND period = ?
-							AND ( (name = '" . $done . "' AND value = " . Piwik_ArchiveProcessing::DONE_OK . ")
-									OR (name = '" . $done . "' AND value = " . Piwik_ArchiveProcessing::DONE_OK_TEMPORARY . ")
-									$sqlSegmentsFindArchiveAllPlugins
-									OR name = 'nb_visits')
-							$timeStampWhere
-						ORDER BY idarchive DESC";
-        $results = Piwik_FetchAll($sqlQuery, $bindSQL);
+        $results = $Archive->isArchived(
+                     $this->tableArchiveNumeric->getTableName(),
+                     $done,
+                     $doneAllPluginsProcessed,
+                     $minDate,
+                     $this->idsite,
+                     $this->period->getDateStart()->toString('Y-m-d'), 
+                     $this->period->getDateEnd()->toString('Y-m-d'), 
+                     $this->periodId
+                   );
         if (empty($results)) {
             return false;
         }
@@ -1050,4 +1041,15 @@ abstract class Piwik_ArchiveProcessing
             || !Piwik_PluginsManager::getInstance()->isPluginLoaded($pluginBeingProcessed);
     }
 
+    /**
+     *  Returns the constants defined Piwik_Archive by quoting them for use
+     *  in queries
+     *
+     *  @param String $const_name Name of the constant as defined in Piwik_Archive
+     *  @return String 
+     */
+    public function C($const_name)
+    {
+        return $this->db->quoteIdentifier(constant('Piwik_Archive::'.$const_name));
+    }
 }

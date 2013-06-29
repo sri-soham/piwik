@@ -78,24 +78,15 @@ class Piwik_Provider extends Piwik_Plugin
     function install()
     {
         // add column hostname / hostname ext in the visit table
-        $query = "ALTER IGNORE TABLE `" . Piwik_Common::prefixTable('log_visit') . "` ADD `location_provider` VARCHAR( 100 ) NULL";
-
-        // if the column already exist do not throw error. Could be installed twice...
-        try {
-            Piwik_Exec($query);
-        } catch (Exception $e) {
-            if (!Zend_Registry::get('db')->isErrNo($e, '1060')) {
-                throw $e;
-            }
-        }
-
+        $LogVisit = Piwik_Db_Factory::getDAO('log_visit');
+        $LogVisit->addColLocationProvider();
     }
 
     function uninstall()
     {
-        // add column hostname / hostname ext in the visit table
-        $query = "ALTER TABLE `" . Piwik_Common::prefixTable('log_visit') . "` DROP `location_provider`";
-        Piwik_Exec($query);
+        // remove column hostname / hostname ext in the visit table
+        $LogVisit = Piwik_Db_Factory::getDAO('log_visit');
+        $LogVisit->removeColLocationProvider();
     }
 
     function addWidget()
@@ -245,9 +236,8 @@ class Piwik_Provider extends Piwik_Plugin
     {
         $out =& $notification->getNotificationObject();
         $out = '<div>
-			<h2>' . Piwik_Translate('Provider_WidgetProviders') . '</h2>';
+            <h2>' . Piwik_Translate('Provider_WidgetProviders') . '</h2>';
         $out .= Piwik_FrontController::getInstance()->fetchDispatch('Provider', 'getProvider');
         $out .= '</div>';
     }
-
 }

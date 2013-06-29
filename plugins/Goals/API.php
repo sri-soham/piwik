@@ -59,10 +59,8 @@ class Piwik_Goals_API
             return array();
         }
         Piwik::checkUserHasViewAccess($idSite);
-        $goals = Piwik_FetchAll("SELECT *
-								FROM " . Piwik_Common::prefixTable('goal') . "
-								WHERE idsite IN (" . implode(", ", $idSite) . ")
-									AND deleted = 0");
+        $dao = Piwik_Db_Factory::getDAO('goal');
+        $goals = $dao->getAllForIdsites($idSite);
         $cleanedGoals = array();
         foreach ($goals as &$goal) {
             if ($goal['match_attribute'] == 'manually') {
@@ -97,26 +95,23 @@ class Piwik_Goals_API
         $pattern = $this->checkPattern($pattern);
 
         // save in db
-        $db = Zend_Registry::get('db');
-        $idGoal = $db->fetchOne("SELECT max(idgoal) + 1
-								FROM " . Piwik_Common::prefixTable('goal') . "
-								WHERE idsite = ?", $idSite);
-        if ($idGoal == false) {
+        $dao = Piwik_Db_Factory::getDAO('goal');
+        $idGoal = $dao->getIdgoalForIdsite($idSite);
+        if($idGoal == false) {
             $idGoal = 1;
         }
-        $db->insert(Piwik_Common::prefixTable('goal'),
-            array(
-                 'idsite'          => $idSite,
-                 'idgoal'          => $idGoal,
-                 'name'            => $name,
-                 'match_attribute' => $matchAttribute,
-                 'pattern'         => $pattern,
-                 'pattern_type'    => $patternType,
-                 'case_sensitive'  => (int)$caseSensitive,
-                 'allow_multiple'  => (int)$allowMultipleConversionsPerVisit,
-                 'revenue'         => (float)$revenue,
-                 'deleted'         => 0,
-            ));
+        $dao->addRecord(
+            $idSite,
+            $idGoal,
+            $name,
+            $matchAttribute,
+            $pattern,
+            $patternType,
+            (int)$caseSensitive,
+            (int)$allowMultipleConversionsPerVisit,
+            (float)$revenue,
+            0
+        );
         Piwik_Tracker_Cache::regenerateCacheWebsiteAttributes($idSite);
         return $idGoal;
     }
@@ -143,17 +138,17 @@ class Piwik_Goals_API
         $name = $this->checkName($name);
         $pattern = $this->checkPattern($pattern);
         $this->checkPatternIsValid($patternType, $pattern);
-        Zend_Registry::get('db')->update(Piwik_Common::prefixTable('goal'),
-            array(
-                 'name'            => $name,
-                 'match_attribute' => $matchAttribute,
-                 'pattern'         => $pattern,
-                 'pattern_type'    => $patternType,
-                 'case_sensitive'  => (int)$caseSensitive,
-                 'allow_multiple'  => (int)$allowMultipleConversionsPerVisit,
-                 'revenue'         => (float)$revenue,
-            ),
-            "idsite = '$idSite' AND idgoal = '$idGoal'"
+        $dao = Piwik_Db_Factory::getDao('goal');
+        $dao->update(
+            $name,
+            $matchAttribute,
+            $pattern,
+            $patternType,
+            (int)$caseSensitive,
+            (int)$allowMultipleConversionsPerVisit,
+            (float)$revenue,
+            $idSite,
+            $idGoal
         );
         Piwik_Tracker_Cache::regenerateCacheWebsiteAttributes($idSite);
     }
@@ -188,12 +183,14 @@ class Piwik_Goals_API
     public function deleteGoal($idSite, $idGoal)
     {
         Piwik::checkUserHasAdminAccess($idSite);
-        Piwik_Query("UPDATE " . Piwik_Common::prefixTable('goal') . "
-										SET deleted = 1
-										WHERE idsite = ? 
-											AND idgoal = ?",
-            array($idSite, $idGoal));
-        Piwik_DeleteAllRows(Piwik_Common::prefixTable("log_conversion"), "WHERE idgoal = ?", 100000, array($idGoal));
+        $dao = Piwik_Db_Factory::getDao('goal');
+        $dao->markAsDeleted($idSite, $idGoal);
+        Piwik_Db_Factory::getGeneric()->deleteAll(
+            Piwik_Common::prefixTable('log_conversion'),
+            array(' idgoal = ? '),
+            100000,
+            array($idGoal)
+        );
         Piwik_Tracker_Cache::regenerateCacheWebsiteAttributes($idSite);
     }
 

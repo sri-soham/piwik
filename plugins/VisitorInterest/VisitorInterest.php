@@ -230,8 +230,8 @@ class Piwik_VisitorInterest extends Piwik_Plugin
         // when creating the 'days since last visit' report. the SELECT expression below it
         // is used to count all new visits.
         $daysSinceLastExtraCondition = 'and log_visit.visitor_returning = 1';
-        $selectAs = $daysSinceLastVisitPrefix . 'General_NewVisits';
-        $newVisitCountSelect = "sum(case when log_visit.visitor_returning = 0 then 1 else 0 end) as `$selectAs`";
+        $selectAs = Zend_Registry::get('db')->quoteIdentifier($daysSinceLastVisitPrefix.'General_NewVisits');
+        $newVisitCountSelect = "sum(case when log_visit.visitor_returning = 0 then 1 else 0 end) as $selectAs";
 
         // create the select expressions to use
         $timeGapSelects = Piwik_ArchiveProcessing_Day::buildReduceByRangeSelect(
@@ -326,8 +326,8 @@ class Piwik_VisitorInterest extends Piwik_Plugin
     {
         $out =& $notification->getNotificationObject();
         $out = '</div>
-			<div id="rightcolumn">
-			';
+            <div id="rightcolumn">
+            ';
         $out .= Piwik_FrontController::getInstance()->fetchDispatch('VisitorInterest', 'index');
         $out .= '</div>';
     }

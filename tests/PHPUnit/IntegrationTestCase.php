@@ -38,7 +38,12 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
     {
         $dbConfig = Piwik_Config::getInstance()->database;
         $oldDbName = $dbConfig['dbname'];
-        $dbConfig['dbname'] = null;
+        if ($dbConfig['adapter'] === 'PDO_MYSQL') {
+            $dbConfig['dbname'] = null;
+        }
+        else {
+            $dbConfig['dbname'] = 'postgres';
+        }
 
         Piwik::createDatabaseObject($dbConfig);
 
@@ -468,7 +473,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
                     && in_array($moduleName, self::$apiToCall) === false
                     && in_array($apiId, self::$apiToCall) === false
                 ) {
-//	                echo "Skipped $apiId... \n";
+//                  echo "Skipped $apiId... \n";
                     $skipped[] = $apiId;
                     continue;
                 } // Excluded modules from test
@@ -482,7 +487,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
                         || $methodName == 'getHeaderLogoUrl'
                     )
                 ) {
-//	                echo "Skipped $apiId... \n";
+//                  echo "Skipped $apiId... \n";
                     $skipped[] = $apiId;
                     continue;
                 }
@@ -1031,71 +1036,85 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
     protected static function getDbTablesWithData()
     {
         $result = array();
-        foreach (Piwik::getTablesInstalled() as $tableName) {
-            $result[$tableName] = Piwik_FetchAll("SELECT * FROM $tableName");
+        foreach (Piwik::getTablesInstalled() as $tableName)
+        {
+            $table = Piwik_Common::unprefixTable($tableName);
+            if (strpos($table, 'archive_') === 0)
+            {
+                $dao = Piwik_Db_Factory::getDAO('archive');
+                $dao->setTable($tableName);
+            }
+            else
+            {
+                $dao = Piwik_Db_Factory::getDAO($table);
+            }
+
+            if (strpos($table, 'archive_blob_') === 0)
+            {
+                $result[$tableName] = $dao->fetchAllBlob($tableName);
+            }
+            else
+            {
+                $result[$tableName] = $dao->fetchAll();
+            }
         }
         return $result;
     }
-
+    
     /**
      * Truncates all tables then inserts the data in $tables into each
      * mapped table.
-     *
+     * 
      * @param array $tables Array mapping table names with arrays of row data.
      */
-    protected static function restoreDbTables($tables)
+    protected static function restoreDbTables( $tables )
     {
         // truncate existing tables
         Piwik::truncateAllTables();
-
+        
         // insert data
         $existingTables = Piwik::getTablesInstalled();
-        foreach ($tables as $table => $rows) {
+        foreach ($tables as $table => $rows)
+        {
             // create table if it's an archive table
-            if (strpos($table, 'archive_') !== false && !in_array($table, $existingTables)) {
+            if (strpos($table, 'archive_') !== false && !in_array($table, $existingTables))
+            {
                 $tableType = strpos($table, 'archive_numeric') !== false ? 'archive_numeric' : 'archive_blob';
-
+                
                 $createSql = Piwik::getTableCreateSql($tableType);
                 $createSql = str_replace(Piwik_Common::prefixTable($tableType), $table, $createSql);
                 Piwik_Query($createSql);
             }
-
-            if (empty($rows)) {
+            
+            if (empty($rows))
+            {
                 continue;
             }
-
-            $rowsSql = array();
-            foreach ($rows as $row) {
-                $values = array();
-                foreach ($row as $name => $value) {
-                    if (is_null($value)) {
-                        $values[] = 'NULL';
-                    } else if (is_numeric($value)) {
-                        $values[] = $value;
-                    } else if (!ctype_print($value)) {
-                        $values[] = "x'" . bin2hex(substr($value, 1)) . "'";
-                    } else {
-                        $values[] = "'$value'";
-                    }
-                }
-
-                $rowsSql[] = "(" . implode(',', $values) . ")";
+            
+            $no_prefix_table = Piwik_Common::unprefixTable($table);
+            if (strpos($no_prefix_table, 'archive_') === 0)
+            {
+                $dao = Piwik_Db_Factory::getDAO('archive');
+                $dao->setTable($table);
             }
-
-            $sql = "INSERT INTO $table VALUES " . implode(',', $rowsSql);
-            Piwik_Query($sql);
+            else
+            {
+                $dao = Piwik_Db_Factory::getDAO($no_prefix_table);
+            }
+            $dao->insertAll($rows);
         }
     }
-
+    
     /**
      * Drops all archive tables.
      */
     public static function deleteArchiveTables()
     {
-        foreach (Piwik::getTablesArchivesInstalled() as $table) {
+        foreach (Piwik::getTablesArchivesInstalled() as $table)
+        {
             Piwik_Query("DROP TABLE IF EXISTS $table");
         }
-
+        
         Piwik_TablePartitioning::$tablesAlreadyInstalled = Piwik::getTablesInstalled($forceReload = true);
     }
 }

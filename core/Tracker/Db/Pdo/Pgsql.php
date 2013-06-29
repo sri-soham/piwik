@@ -58,6 +58,23 @@ class Piwik_Tracker_Db_Pdo_Pgsql extends Piwik_Tracker_Db_Pdo_Mysql
     }
 
     /**
+     * Returns the last inserted ID in the DB
+     * Wrapper of PDO::lastInsertId()
+     * 
+     * @param  String $sequenceCol Column on which the sequence is created.
+     *         Pertinent for DBMS that use sequences instead of auto_increment.
+     *         Zend adapter appends the "_seq" which has to be repeated here, to
+     *         avoid passing different values for the argument based on which
+     *         adaper (zend or piwik_tracker_db) is being used.
+     * @return int
+     */
+    public function lastInsertId($sequenceCol=null)
+    {
+        $sequenceCol .= '_seq';
+        return $this->connection->lastInsertId($sequenceCol);
+    }
+
+    /**
      * Test error number
      *
      * @param Exception $e
@@ -98,7 +115,7 @@ class Piwik_Tracker_Db_Pdo_Pgsql extends Piwik_Tracker_Db_Pdo_Mysql
         );
 
         if (preg_match('/([0-9]{2}[0-9P][0-9]{2})/', $e->getMessage(), $match)) {
-            return $match[1] == $map[$errno];
+            return ($match[1] == $errno) || ($match[1] == $map[$errno]);
         }
         return false;
     }
@@ -112,5 +129,19 @@ class Piwik_Tracker_Db_Pdo_Pgsql extends Piwik_Tracker_Db_Pdo_Mysql
     public function rowCount($queryResult)
     {
         return $queryResult->rowCount();
+    }
+    
+    /**
+     *  Quote Identifier
+     *
+     *  Not as sophisiticated as the zend-db quoteIdentifier. Just encloses the
+     *  given string in backticks and returns it.
+     *
+     *  @param string $identifier
+     *  @return string
+     */
+    public function quoteIdentifier($identifier)
+    {
+        return '"' . $identifier . '"';
     }
 }
