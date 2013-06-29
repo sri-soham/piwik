@@ -451,11 +451,12 @@ class Piwik_SitesManager_API
         $group = (!empty($group) && Piwik::isUserIsSuperUser())
                  ? trim($group) : '';
 
+        $dao = Piwik_Db_Factory::getDAO('site');
         $idSite = $dao->addRecord(
                     $siteName,
                     $url,
                     $this->checkAndReturnExcludedIps($excludedIps),
-                    $this->checkAndReturnExcludedQueryParameters($excludedQueryParameters),
+                    $this->checkAndReturnCommaSeparatedStringList($excludedQueryParameters),
                     $this->checkAndReturnCommaSeparatedStringList($excludedUserAgents),
                     $keepURLFragments,
                     $timezone,
