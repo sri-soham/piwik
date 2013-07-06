@@ -64,14 +64,14 @@ class Piwik_PrivacyManager_LogDataPurger
         }
 
         $logTables = self::getDeleteTableLogTables();
-		$Generic = Piwik_Db_Factory::getGeneric();
+        $Generic = Piwik_Db_Factory::getGeneric();
 
         // delete data from log tables
-        $where = "WHERE idvisit <= ?";
+        $where = array('idvisit <= ?');
         foreach ($logTables as $logTable) {
             // deleting from log_action must be handled differently, so we do it later
             if ($logTable != Piwik_Common::prefixTable('log_action')) {
-				$Generic->deleteAll($logTable, $where, $this->maxRowsToDeletePerQuery, array($maxIdVisit));
+                $Generic->deleteAll($logTable, $where, $this->maxRowsToDeletePerQuery, array($maxIdVisit));
             }
         }
 
@@ -84,7 +84,7 @@ class Piwik_PrivacyManager_LogDataPurger
         }
 
         // optimize table overhead after deletion
-		$Generic->optimizeTables($logTables);
+        $Generic->optimizeTables($logTables);
     }
 
     /**
@@ -105,8 +105,8 @@ class Piwik_PrivacyManager_LogDataPurger
             foreach ($this->getDeleteTableLogTables() as $table) {
                 // getting an estimate for log_action is not supported since it can take too long
                 if ($table != Piwik_Common::prefixTable('log_action')) {
-					$TableDAO = Piwik_Db_Factory::getDAO(Piwik_Common::unprefixTable($table));
-					$rowCount = $TableDAO->getCountByIdvisit($maxIdVisit);
+                    $TableDAO = Piwik_Db_Factory::getDAO(Piwik_Common::unprefixTable($table));
+                    $rowCount = $TableDAO->getCountByIdvisit($maxIdVisit);
                     if ($rowCount > 0) {
                         $result[$table] = $rowCount;
                     }
@@ -122,8 +122,8 @@ class Piwik_PrivacyManager_LogDataPurger
      */
     private function purgeUnusedLogActions()
     {
-		$LogAction = Piwik_Db_Factory::getDAO('log_action');
-		$LogAction->purgeUnused();
+        $LogAction = Piwik_Db_Factory::getDAO('log_action');
+        $LogAction->purgeUnused();
     }
 
     /**
@@ -132,21 +132,21 @@ class Piwik_PrivacyManager_LogDataPurger
      */
     private function getDeleteIdVisitOffset()
     {
-		$LogVisit = Piwik_Db_Factory::getDAO('log_visit');
+        $LogVisit = Piwik_Db_Factory::getDAO('log_visit');
 
         // get max idvisit
-		$maxIdVisit = $LogVisit->getMaxIdvisit();
+        $maxIdVisit = $LogVisit->getMaxIdvisit();
         if (empty($maxIdVisit)) {
             return false;
         }
 
         // select highest idvisit to delete from
         $dateStart = Piwik_Date::factory("today")->subDay($this->deleteLogsOlderThan);
-		return $LogVisit->getDeleteIdVisitOffset(
-				  $dateStart->toString('Y-m-d H:i:s'),
-				  $maxIdVisit,
-				  -self::$selectSegmentSize
-				);
+        return $LogVisit->getDeleteIdVisitOffset(
+                  $dateStart->toString('Y-m-d H:i:s'),
+                  $maxIdVisit,
+                  -self::$selectSegmentSize
+                );
     }
 
     // let's hardcode, since these are not dynamically created tables

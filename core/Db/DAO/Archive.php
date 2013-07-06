@@ -194,7 +194,8 @@ class Piwik_Db_DAO_Archive extends Piwik_Db_DAO_Base
             $timestampWhere = '';
         }
 
-        $sql = 'SELECT idarchive, value, name, date1 AS start_date '
+        $startDate = $this->db->quoteIdentifier('startDate');
+        $sql = "SELECT idarchive, value, name, date1 AS $startDate "
              . 'FROM ' . $table . ' '
              . 'WHERE idsite = ? '
              . '  AND date1 = ? '

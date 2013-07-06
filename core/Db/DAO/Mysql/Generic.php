@@ -152,11 +152,13 @@ class Piwik_Db_DAO_Mysql_Generic extends Piwik_Db_DAO_Generic
         $params = Piwik_Common::getSqlStringFieldsArray($values[0]);
 
         foreach ($values as $row) {
-            $query = "INSERT $ignore
-                    INTO ".$tableName."
-                    $fieldList
-                    VALUES (".$params.")";
-            $this->db->query($query, $row);
+            $query = "INSERT $ignore INTO $tableName SET \n";
+            $setClause = array();
+            foreach ($row as $k=>$v) {
+                $setClause[] = $this->db->quoteInto("$k = ?", $v);
+            }
+            $query .= implode(",\n", $setClause);
+            $this->db->query($query);
         }
     }
 

@@ -164,6 +164,7 @@ class Piwik_ArchiveProcessing_Day extends Piwik_ArchiveProcessing
     public static function buildReduceByRangeSelect(
         $column, $ranges, $table, $selectColumnPrefix = '', $extraCondition = false)
     {
+        $db = Zend_Registry::get('db');
         $selects = array();
 
         foreach ($ranges as $gap) {
@@ -174,14 +175,14 @@ class Piwik_ArchiveProcessing_Day extends Piwik_ArchiveProcessing
                 $selectAs = "$selectColumnPrefix$lowerBound-$upperBound";
 
                 $selects[] = "sum(case when $table.$column between $lowerBound and $upperBound $extraCondition" .
-                    " then 1 else 0 end) as " . $this->db->quoteIdentifier($selectAs);
+                    " then 1 else 0 end) as " . $db->quoteIdentifier($selectAs);
             } else {
                 $lowerBound = $gap[0];
 
                 $selectAs = $selectColumnPrefix . ($lowerBound + 1) . urlencode('+');
 
                 $selects[] = "sum(case when $table.$column > $lowerBound $extraCondition then 1 else 0 end) as "
-                           . $this->db->quoteIdentifier($selectAs);
+                           . $db->quoteIdentifier($selectAs);
             }
         }
 

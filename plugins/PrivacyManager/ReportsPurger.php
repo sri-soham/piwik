@@ -256,7 +256,7 @@ class Piwik_PrivacyManager_ReportsPurger
                    AND idarchive >= ?
                    AND idarchive < ?";
 
-        $segments = $generic->segmentedFetchOne($sql, 0, $maxIdArchive, self::$selectSegmentSize);
+        $segments = $Generic->segmentedFetchOne($sql, 0, $maxIdArchive, self::$selectSegmentSize);
         return array_sum($segments);
     }
 
@@ -267,11 +267,11 @@ class Piwik_PrivacyManager_ReportsPurger
 
         $sql = "SELECT COUNT(*)
                   FROM $table
-                 WHERE " . $this->getBlobTableWhereExpr($oldNumericTables, $table) . "
+                 WHERE (" . implode(' ', $this->getBlobTableWhereExpr($oldNumericTables, $table)) . ")
                    AND idarchive >= ?
                    AND idarchive < ?";
 
-        $segments = $generic->segmentedFetchOne($sql, 0, $maxIdArchive, self::$selectSegmentSize);
+        $segments = $Generic->segmentedFetchOne($sql, 0, $maxIdArchive, self::$selectSegmentSize);
         return array_sum($segments);
     }
 
