@@ -44,6 +44,12 @@ foreach (glob(PIWIK_INCLUDE_PATH . '/tests/PHPUnit/Fixtures/*.php') as $file) {
     require_once $file;
 }
 
+// Without this, localConfig settings are being read.
+// For testing, database config has to be read from the globalConfig
+// setTestEnvironment makes sure that database config settings are read
+// from the globalConfig from "database_tests" settings
+Piwik_Config::getInstance()->setTestEnvironment();
+
 // General requirement checks & help: a webserver must be running for tests to work!
 checkPiwikSetupForTests();
 

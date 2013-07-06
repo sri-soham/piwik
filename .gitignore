@@ -25,6 +25,7 @@ tmp/*
 config/config.ini.php
 config/global.ini.php
 config/.htaccess
+plugins/ExamplePlugin/config/local.config.php
 .DS_Store
 tests/PHPUnit/Integration/processed/
 js/yui*

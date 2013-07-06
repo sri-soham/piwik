@@ -110,6 +110,8 @@ class Piwik_VisitTime extends Piwik_Plugin
      */
     public function getSegmentsMetadata($notification)
     {
+        $Generic = Piwik_Db_Factory::getGeneric();
+
         $segments =& $notification->getNotificationObject();
         $acceptedValues = "0, 1, 2, 3, ..., 20, 21, 22, 23";
         $segments[] = array(

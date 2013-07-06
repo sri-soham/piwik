@@ -5,7 +5,7 @@
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
-class SegmentTest extends PHPUnit_Framework_TestCase
+class SegmentTest extends DatabaseTestCase
 {
     public function setUp()
     {

@@ -86,6 +86,7 @@ class Piwik_Config
     public function setTestEnvironment($pathLocal = null, $pathGlobal = null)
     {
         $this->isTest = true;
+        Piwik_Db_Factory::setTest(true);
 
         $this->clear();
 
