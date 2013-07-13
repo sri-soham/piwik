@@ -105,9 +105,9 @@ class Piwik_Db_DAO_Report extends Piwik_Db_DAO_Base
         }
     }
 
-    public function truncateTable()
+    public function dropTable()
     {
-        $sql = 'TRUNCATE TABLE ' . $this->table;
+        $sql = 'DROP TABLE IF EXISTS ' . $this->table;
         $this->db->query($sql);
     }
 

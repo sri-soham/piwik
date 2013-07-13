@@ -97,8 +97,8 @@ class Piwik_SegmentEditor_API
     public function delete($idSegment)
     {
         $segment = $this->getSegmentOrFail($idSegment);
-        $db = Zend_Registry::get('db');
-        $db->delete(Piwik_Common::prefixTable('segment'), 'idsegment = ' . $idSegment);
+        $dao = Piwik_Db_Factory::getDao('segment');
+        $dao->deleteByIdsegment($idSegment);
         return true;
     }
 
@@ -111,20 +111,16 @@ class Piwik_SegmentEditor_API
         $autoArchive = $this->checkAutoArchive($autoArchive, $idSite);
 
         $segment = $this->getSegmentOrFail($idSegment);
+        $dao = Piwik_Db_Factory::getDao('segment');
         $bind = array(
             'name'               => $name,
             'definition'         => $definition,
             'enable_all_users'   => $enabledAllUsers,
             'enable_only_idsite' => $idSite,
             'auto_archive'       => $autoArchive,
-            'ts_last_edit'       => Piwik_Date::now()->getDatetime(),
+            'ts_last_edit'       => Piwik_Date::now()->getDateTime()
         );
-
-        $db = Zend_Registry::get('db');
-        $db->update(Piwik_Common::prefixTable("segment"),
-            $bind,
-            "idsegment = $idSegment"
-        );
+        $dao->updateByIdsegment($bind, $idSegment);
         return true;
     }
 
@@ -138,37 +134,26 @@ class Piwik_SegmentEditor_API
         $enabledAllUsers = $this->checkEnabledAllUsers($enabledAllUsers);
         $autoArchive = $this->checkAutoArchive($autoArchive, $idSite);
 
-        $db = Zend_Registry::get('db');
+        $dao = Piwik_Db_Factory::getDao('segment');
         $bind = array(
             'name'               => $name,
             'definition'         => $definition,
             'login'              => Piwik::getCurrentUserLogin(),
-            'enable_all_users'   => $enabledAllUsers,
-            'enable_only_idsite' => $idSite,
-            'auto_archive'       => $autoArchive,
+            'enable_all_users'   => (int)$enabledAllUsers,
+            'enable_only_idsite' => (int)$idSite,
+            'auto_archive'       => (int)$autoArchive,
             'ts_created'         => Piwik_Date::now()->getDatetime(),
             'deleted'            => 0,
         );
-        $db->insert(Piwik_Common::prefixTable("segment"), $bind);
-        return $db->lastInsertId();
+        $id = $dao->add($bind);
+        return $id;
     }
 
     public function getSegmentsToAutoArchive($idSite = false)
     {
         Piwik::checkUserIsSuperUser();
-
-        $sqlRestrictSite = '';
-        $bind = array();
-        if ($idSite) {
-            $sqlRestrictSite = 'OR enable_only_idsite = ?';
-            $bind = array($idSite);
-        }
-        $segments = Zend_Registry::get('db')->fetchAll("SELECT *
-                                 FROM " . Piwik_Common::prefixTable("segment") . "
-                                 WHERE auto_archive = 1
-                                    AND deleted = 0
-                                    AND (enable_only_idsite IS NULL " . $sqlRestrictSite . " )", $bind
-        );
+        $dao = Piwik_Db_Factory::getDao('segment');
+        $segments = $dao->getSegmentsToAutoArchive($idSite);
         return $segments;
     }
 
@@ -178,9 +163,8 @@ class Piwik_SegmentEditor_API
         if (!is_numeric($idSegment)) {
             throw new Exception("idSegment should be numeric.");
         }
-        $segment = Zend_Registry::get('db')->fetchRow("SELECT * " .
-            " FROM " . Piwik_Common::prefixTable("segment") .
-            " WHERE idsegment = ?", $idSegment);
+        $dao = Piwik_Db_Factory::getDao('segment');
+        $segment = $dao->getByIdsegment($idSegment);
 
         if (empty($segment)) {
             return false;
@@ -215,14 +199,8 @@ class Piwik_SegmentEditor_API
     {
         Piwik::checkUserHasViewAccess($idSite);
 
-        $sql = "SELECT * " .
-            " FROM " . Piwik_Common::prefixTable("segment") .
-            " WHERE (enable_only_idsite = ? OR enable_only_idsite IS NULL)
-                AND  (enable_all_users = 1 OR login = ?)
-                AND deleted = 0
-              ORDER BY name ASC";
-        $bind = array($idSite, Piwik::getCurrentUserLogin());
-        $segments = Zend_Registry::get('db')->fetchAll($sql, $bind);
+        $dao = Piwik_Db_Factory::getDao('segment');
+        $segments = $dao->getAll($idSite, Piwik::getCurrentUserLogin());
 
         return $segments;
     }

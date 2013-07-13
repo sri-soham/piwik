@@ -109,6 +109,9 @@ class PrivacyManagerTest extends IntegrationTestCase
 
         $tempTableName = Piwik_Common::prefixTable(Piwik_PrivacyManager_LogDataPurger::TEMP_TABLE_NAME);
         Piwik_Query("DROP TABLE IF EXISTS " . $tempTableName);
+
+        $dao = Piwik_Db_Factory::getDao('segment');
+        $dao->uninstall();
     }
 
     /**
@@ -711,21 +714,23 @@ class PrivacyManagerTest extends IntegrationTestCase
         // add garbage metrics
         $janDate1 = '2012-01-05';
         $febDate1 = '2012-02-04';
+        $period = 255;
+        $tsArchived = '2012-01-01 10:10:10';
 
         $sql = "INSERT INTO %s (idarchive,name,idsite,date1,date2,period,ts_archived,value)
                         VALUES (10000,?,1,?,?,?,?,?)";
 
         // one metric for jan & one for feb
         Piwik_Query(sprintf($sql, Piwik_Common::prefixTable($archiveTables['numeric'][0])),
-            array(self::GARBAGE_FIELD, $janDate1, $janDate1, $janDate1, 1, 100));
+            array(self::GARBAGE_FIELD, $janDate1, $janDate1, $period, $tsArchived, 100));
         Piwik_Query(sprintf($sql, Piwik_Common::prefixTable($archiveTables['numeric'][1])),
-            array(self::GARBAGE_FIELD, $febDate1, $febDate1, $febDate1, 1, 200));
+            array(self::GARBAGE_FIELD, $febDate1, $febDate1, $period, $tsArchived, 200));
 
         // add garbage reports
         Piwik_Query(sprintf($sql, Piwik_Common::prefixTable($archiveTables['blob'][0])),
-            array(self::GARBAGE_FIELD, $janDate1, $janDate1, $janDate1, 10, 'blobval'));
+            array(self::GARBAGE_FIELD, $janDate1, $janDate1, $period, $tsArchived, 'blobval'));
         Piwik_Query(sprintf($sql, Piwik_Common::prefixTable($archiveTables['blob'][1])),
-            array(self::GARBAGE_FIELD, $febDate1, $febDate1, $febDate1, 20, 'blobval'));
+            array(self::GARBAGE_FIELD, $febDate1, $febDate1, $period, $tsArchived, 'blobval'));
     }
 
     protected function _checkNoDataChanges()

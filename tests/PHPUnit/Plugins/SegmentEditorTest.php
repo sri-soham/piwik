@@ -27,6 +27,13 @@ class SegmentEditorTest extends DatabaseTestCase
         Piwik_SitesManager_API::getInstance()->addSite('test', 'http://example.org');
     }
 
+    public function tearDown()
+    {
+        $dao = Piwik_Db_Factory::getDao('segment');
+        $dao->uninstall();
+        parent::tearDown();
+    }
+
     public function testAddInvalidSegment_ShouldThrow()
     {
         try {

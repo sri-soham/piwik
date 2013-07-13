@@ -27,6 +27,13 @@ class PDFReportsTest extends DatabaseTestCase
         Piwik_PDFReports_API::$cache = array();
     }
 
+    public function tearDown()
+    {
+        $Report = Piwik_Db_Factory::getDAO('report');
+        $Report->dropTable();
+        parent::tearDown();
+    }
+
     /**
      * @group Plugins
      * @group PDFReports

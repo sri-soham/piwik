@@ -152,6 +152,7 @@ class Piwik_Actions_Archiving
      */
     protected function archiveDayActions($archiveProcessing, $rankingQueryLimit)
     {
+        $Generic = Piwik_Db_Factory::getGeneric();
         $select = "log_action.name,
                 log_action.type,
                 log_action.idaction,
@@ -215,8 +216,9 @@ class Piwik_Actions_Archiving
         // 1) No result Keywords
         // 2) For each page view, count number of times the referrer page was a Site Search
         if ($this->isSiteSearchEnabled()) {
+            $custom_var_v = $Generic->castToNumeric('log_link_visit_action.custom_var_v'.Piwik_Tracker_Action::CVAR_INDEX_SEARCH_COUNT);
             $selectFlagNoResultKeywords = ",
-                CASE WHEN (MAX(log_link_visit_action.custom_var_v" . Piwik_Tracker_Action::CVAR_INDEX_SEARCH_COUNT . ") = 0 AND log_link_visit_action.custom_var_k" . Piwik_Tracker_Action::CVAR_INDEX_SEARCH_COUNT . " = '" . Piwik_Tracker_Action::CVAR_KEY_SEARCH_COUNT . "') THEN 1 ELSE 0 END AS " . $archiveProcessing->C('INDEX_SITE_SEARCH_HAS_NO_RESULT') . " ";
+                CASE WHEN ($custom_var_v = 0 AND log_link_visit_action.custom_var_k" . Piwik_Tracker_Action::CVAR_INDEX_SEARCH_COUNT . " = '" . Piwik_Tracker_Action::CVAR_KEY_SEARCH_COUNT . "') THEN 1 ELSE 0 END AS " . $archiveProcessing->C('INDEX_SITE_SEARCH_HAS_NO_RESULT') . " ";
 
             //we need an extra JOIN to know whether the referrer "idaction_name_ref" was a Site Search request
             $from[] = array(
@@ -224,6 +226,7 @@ class Piwik_Actions_Archiving
                 "tableAlias" => "log_action_name_ref",
                 "joinOn"     => "log_link_visit_action.idaction_name_ref = log_action_name_ref.idaction"
             );
+            $groupBy .= ", " . $archiveProcessing->C('INDEX_SITE_SEARCH_HAS_NO_RESULT');
 
             $selectSiteSearchFollowingPages = ",
                 SUM(CASE WHEN log_action_name_ref.type = " . Piwik_Tracker_Action::TYPE_SITE_SEARCH . " THEN 1 ELSE 0 END) AS " . $archiveProcessing->C('INDEX_PAGE_IS_FOLLOWING_SITE_SEARCH_NB_HITS') . " ";
