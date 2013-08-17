@@ -387,4 +387,14 @@ class Piwik_Db_DAO_Pgsql_Generic extends Piwik_Db_DAO_Generic
         return implode(', ', $columns);
 
     }
+
+    /**
+     *  isEmpty
+     *  Used in the Piwik_SegmentExpression::getSqlMatchFromDefinition for the
+     *  MATCH_IS_NOT_NULL.
+     */
+    public function isEmpty($field)
+    {
+         return "$field::text <> '' OR $field::text = '0'";
+    }
 }

@@ -136,10 +136,13 @@ class Piwik_SegmentExpression
 
             $operand = $this->getSqlMatchFromDefinition($operandDefinition, $availableTables);
             
-            if (in_array($operandDefinition[0], $possible_keys) && !empty($operand[1])) {
-                $this->valuesBind[] = $Generic->bin2db($operand[1]);
-            } else {
-                $this->valuesBind[] = $operand[1];
+            if (strlen((string)$operand[1]) > 0) {
+                if (in_array($operandDefinition[0], $possible_keys)) {
+                    $this->valuesBind[] = $Generic->bin2db($operand[1]);
+                }
+                else {
+                    $this->valuesBind[] = $operand[1];
+                }
             }
             $operand = $operand[0];
             $sqlSubExpressions[] = array(
@@ -164,6 +167,8 @@ class Piwik_SegmentExpression
      */
     protected function getSqlMatchFromDefinition($def, &$availableTables)
     {
+        $Generic = Piwik_Db_Factory::getGeneric();
+
         $field = $def[0];
         $matchType = $def[1];
         $value = $def[2];
@@ -197,7 +202,7 @@ class Piwik_SegmentExpression
                 break;
 
             case self::MATCH_IS_NOT_NULL:
-                $sqlMatch = 'IS NOT NULL AND ('.$field.' <> \'\' OR '.$field.' = 0)';
+                $sqlMatch = 'IS NOT NULL AND (' . $Generic->isEmpty($field) . ')';
                 $value = null;
                 break;
 

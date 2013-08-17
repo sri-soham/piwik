@@ -132,7 +132,8 @@ class Piwik_Db_DAO_Archive extends Piwik_Db_DAO_Base
     public function getForNumericDataTable($table, $ids, $names)
     {
         $inNames = Piwik_Common::getSqlStringFieldsArray($names);
-        $sql = 'SELECT value, name, date1 AS start_date '
+        $startDate = $this->db->quoteIdentifier('startDate');
+        $sql = "SELECT value, name, date1 AS $startDate "
              . 'FROM ' . $table . ' '
              . 'WHERE idarchive IN ( ' . $ids . ' ) '
              . '  AND name IN ( ' . $inNames . ' ) '

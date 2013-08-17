@@ -338,8 +338,7 @@ class Piwik_Segment
      */
     private function buildWrappedSelectQuery($select, $from, $where, $orderBy, $groupBy)
     {
-        preg_match_all("/(log_visit|log_conversion|log_action).[a-z0-9_\*]+/", $select, $matches);
-        $neededFields = array_unique($matches[0]);
+        $neededFields = $this->getNeededFields($select);
 
         if (count($neededFields) == 0) {
             throw new Exception("No needed fields found in select expression. "
@@ -364,4 +363,55 @@ class Piwik_Segment
         return $this->buildSelectQuery($select, $from, $where, $orderBy, $groupBy);
     }
 
+    /**
+     *  Retrieve the needed columns from the $select clause. This used to be done with
+     *      preg_match_all("/(log_visit|log_conversion|log_action).[a-z0-9_\*]+/", $select, $matches);
+     *  The regex was trimming off the column aliases like log_visit.idvisitor::text ad idivisitor_text.
+     *  The above mentioned aliases are used Piwik_Db_DAO_Pgsql_LogVisit::loadLastVisitorDetailsSelect.
+     *  When the preg_match generated columns are used in sub queries it came out like
+     *      SELECT
+     *        log_inner.*, log_inner.idvisitor::text AS idvisitor_text, log_inner.config_id::text AS config_id_text, log_inner.location_ip::text AS location_ip_text 
+     *     FROM (
+     *         SELECT DISTINCT log_visit.*, log_visit.idvisitor, log_visit.config_id, log_visit.location_ip
+     *          FROM piwiktests_log_visit AS log_visit
+     *          LEFT JOIN piwiktests_log_conversion AS log_conversion ON log_conversion.idvisit = log_visit.idvisit
+     *          WHERE ( log_visit.idsite = $1 
+     *              AND log_visit.visit_last_action_time >= $2 )
+     *              AND ( log_conversion.idgoal IS NOT NULL AND (log_conversion.idgoal::text <> '' OR log_conversion.idgoal::text = '0') 
+     *              )
+     *     ) AS log_inner
+     *
+     *  The "SELECT log_inner.*, log_inner.idivisitor::text AS idivisitor_text" in outer uqery is throwing sql error
+     *      SQLSTATE[42702]: Ambiguous column: 7 ERROR:  column reference "idvisitor" is ambiguous
+     *
+     *  To avoid the above error, column aliases have to be retained. This function does that.
+     *  If the select clause contains columns like "sum(log_visit.visit_total_actions) as nb_actions" then
+     *  the explode etc. doesn't work. So, if there are not "column::text aliases" use preg_match_all as done
+     *  earlier. If there are "column::text as column_text" aliases use the explode etc.
+     *
+     *  @param string $select
+     *  @return array
+     */
+    private function getNeededFields($select) {
+        if (strpos($select, '::text') === false) {
+            preg_match_all("/(log_visit|log_conversion|log_action).[a-z0-9_\*]+/", $select, $matches);
+            $neededFields = array_unique($matches[0]);
+
+            return $neededFields;
+        }
+        else {
+            $tables = array('log_visit', 'log_conversion', 'log_action');
+            $parts = explode(',', $select);
+            $neededColumns = array();
+            foreach ($parts as $part) {
+                $part = trim($part);
+                $col_parts = explode('.', $part);
+                if (in_array($col_parts[0], $tables)) {
+                    $neededColumns[] = $part;
+                }
+            }
+
+            return array_unique($neededColumns);
+        }
+    }
 }

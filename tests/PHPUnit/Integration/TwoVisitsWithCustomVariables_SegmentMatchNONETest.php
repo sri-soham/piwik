@@ -25,6 +25,7 @@ class Test_Piwik_Integration_TwoVisitsWithCustomVariables_SegmentMatchNONE exten
 
     public function getApiForTesting()
     {
+        Zend_Registry::set('db', '');
         IntegrationTestCase::loadAllPlugins();
 
         $apiToCall = array('VisitsSummary.get', 'CustomVariables.getCustomVariables');

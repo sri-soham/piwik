@@ -389,7 +389,7 @@ class Piwik_Live_API
         $from = "log_visit";
         $subQuery = $segment->getSelectQuery($select, $from, $where, $whereBind, $orderBy);
 
-        $sqlLimit = $filter_limit >= 1 ? " LIMIT " . (int)$filter_offset . ", " . (int)$filter_limit : "";
+        $sqlLimit = $filter_limit >= 1 ? " LIMIT " . (int)$filter_limit . " OFFSET " . (int)$filter_offset : "";
 
         try {
             $data = $LogVisit->loadLastVisitorDetails($subQuery, $sqlLimit, $orderByParent);
@@ -439,7 +439,7 @@ class Piwik_Live_API
         for ($i = 1; $i <= Piwik_Tracker::MAX_CUSTOM_VARIABLES; $i++) {
             $sqlCustomVariables .= ', custom_var_k' . $i . ', custom_var_v' . $i;
         }
-        $actionDetails = $LogLinkVisitAction->getActionDetailsOfIdvisit($sqlCustomVariables, $idvisit, $actionsLimit);
+        $actionDetails = $LogLinkVisitAction->getActionDetailsOfIdvisit($sqlCustomVariables, $idVisit, $actionsLimit);
 
         foreach ($actionDetails as $actionIdx => &$actionDetail) {
             $actionDetail =& $actionDetails[$actionIdx];
@@ -487,7 +487,7 @@ class Piwik_Live_API
 
         // If the visitor converted a goal, we shall select all Goals
         $goalDetails = $LogConversion->getAllByIdvisit($idVisit, $actionsLimit);
-        $ecommerceDetails = $LogConversion->getEcommerceDetails($idvisit, $actionsLimit);
+        $ecommerceDetails = $LogConversion->getEcommerceDetails($idVisit, $actionsLimit);
 
         foreach ($ecommerceDetails as &$ecommerceDetail) {
             if ($ecommerceDetail['type'] == Piwik_Archive::LABEL_ECOMMERCE_CART) {
@@ -511,7 +511,7 @@ class Piwik_Live_API
         // Enrich ecommerce carts/orders with the list of products
         usort($ecommerceDetails, array($this, 'sortByServerTime'));
         foreach ($ecommerceDetails as $key => &$ecommerceConversion) {
-            $itemsDetails = $LogConversionItem->getEcommerceDetails($idvisit, $ecommerceConversion, $actionsLimit);
+            $itemsDetails = $LogConversionItem->getEcommerceDetails($idVisit, $ecommerceConversion, $actionsLimit);
             foreach ($itemsDetails as &$detail) {
                 if ($detail['price'] == round($detail['price'])) {
                     $detail['price'] = round($detail['price']);

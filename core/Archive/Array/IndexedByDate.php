@@ -61,8 +61,6 @@ class Piwik_Archive_Array_IndexedByDate extends Piwik_Archive_Array
      */
     public function getDataTableFromNumeric($fields)
     {
-        $inNames = Piwik_Common::getSqlStringFieldsArray($fields);
-
         // we select in different shots
         // one per distinct table (case we select last 300 days, maybe we will  select from 10 different tables)
         $queries = array();
@@ -79,8 +77,6 @@ class Piwik_Archive_Array_IndexedByDate extends Piwik_Archive_Array
             $queries[$table][] = $archive->getIdArchive();
         }
         // we select the requested value
-        $db = Zend_Registry::get('db');
-
         // date => array( 'field1' =>X, 'field2'=>Y)
         // date2 => array( 'field1' =>X2, 'field2'=>Y2)
 

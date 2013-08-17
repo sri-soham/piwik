@@ -814,13 +814,43 @@ class Piwik_Common
     {
         # remove all digits
         $result = preg_replace('/\d+/', '', $string);
-        if (strlen($result) == 0)
-        {
+        if (strlen($result) == 0) {
             return $string;
         }
-        else
-        {
+        else {
             return null;
+        }
+    }
+
+    /**
+     *  dummyWhenNotNumeric
+     *
+     *  Returns a dummy value when the string given as parameter does not
+     *  contain digits. Postgresql cannot compare strings with integers, mysql
+     *  can. This is causing errors for 'segment' queries.
+     *  Generally, the values to be compared are positive. So, by returning a
+     *  negative value of 16 bit integer, effort is made to minimize the
+     *  possibility of conflict with possible legal values.
+     *
+     *  If nullWhenNotNumeric is used instead of dummyWhenNotNumeric then in the 
+     *  Piwik_SegmentExpression::parseSubExpressionsIntoSqlExpressions function
+     *  , if the $operand[1] is null, then the value is not being added
+     *  to the $this->valuesBind array, which is leading to queries like
+     *  " log_visit.visit_last_action_time <> AND log_visit.visit_duration <> AND "
+     *  (column names are not exact) which are failing.
+     *
+     *  @param string   $string
+     *  @return mixed   string
+     */
+    public static function dummyWhenNotNumeric($string)
+    {
+        # remove all digits
+        $result = preg_replace('/\d+/', '', $string);
+        if (strlen($result) == 0) {
+            return $string;
+        }
+        else {
+            return '-32000';
         }
     }
 
@@ -847,6 +877,37 @@ class Piwik_Common
         else
         {
             return null;
+        }
+    }
+
+    /**
+     *  dummyWhenNotTime
+     *
+     *  When a invalid time string is passed to functions that extract hour from timestamp
+     *  mysql throws a warning and goes on but postgres throws error and stops. This function
+     *  is to return an date way back in time if the string does not look like timestamp.
+     *
+     *  nullWhenNotTime is causing errors in the
+     *  Piwik_SegmentExpression::parseSubExpressionsIntoSqlExpressions function. When value
+     *  is null, it is not being added to $this->valuesBind array which leads to queries like
+     *  " log_visit.visit_last_action_time <> AND log_visit.visit_duration <> AND "
+     *  (column names are not exact) which are failing. dummyWhenNotTime gives a parseable
+     *  time string which would not interfere with any possible valid values as the
+     *  returned timestamp will be way back past in the time.
+     *
+     *  @param string   $string
+     *  @return string
+     */
+    public static function dummyWhenNotTime($string)
+    {
+        # remove digits, : and - which are part of time
+        $result = preg_replace('/[0-9:-]/', '', $string);
+        $result = trim($result);
+        if (strlen($result) == 0) {
+            return $string;
+        }
+        else {
+            return '1970-10-10 10:10:10';
         }
     }
 

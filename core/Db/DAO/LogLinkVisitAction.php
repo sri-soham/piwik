@@ -45,7 +45,7 @@ class Piwik_Db_DAO_LogLinkVisitAction extends Piwik_Db_DAO_Base
              . ' , log_link_visit_action.custom_float '
              . $customVariables . ' '
              . 'FROM ' . $this->table . ' AS log_link_visit_action '
-             . 'INNER JOIN ' . Piwik_Common::prefixTable('log_action') . ' AS log_action '
+             . 'LEFT OUTER JOIN ' . Piwik_Common::prefixTable('log_action') . ' AS log_action '
              . '    ON log_link_visit_action.idaction_url = log_action.idaction '
              . 'LEFT OUTER JOIN ' . Piwik_Common::prefixTable('log_action') . ' AS log_action_title '
              . '    ON log_link_visit_action.idaction_name = log_action_title.idaction '

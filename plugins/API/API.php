@@ -294,7 +294,7 @@ class Piwik_API_API
             'name'       => 'General_NbActions',
             'segment'    => 'actions',
             'sqlSegment' => 'log_visit.visit_total_actions',
-            'sqlFilter'  => array('Piwik_Common', 'nullWhenNotNumeric'),
+            'sqlFilter'  => array('Piwik_Common', 'dummyWhenNotNumeric'),
         );
         $segments[] = array(
             'type'           => 'metric',
@@ -302,7 +302,7 @@ class Piwik_API_API
             'name'           => 'General_NbSearches',
             'segment'        => 'searches',
             'sqlSegment'     => 'log_visit.visit_total_searches',
-            'sqlFilter'      => array('Piwik_Common', 'nullWhenNotNumeric'),
+            'sqlFilter'      => array('Piwik_Common', 'dummyWhenNotNumeric'),
             'acceptedValues' => 'To select all visits who used internal Site Search, use: &segment=searches>0',
         );
         $segments[] = array(
@@ -311,7 +311,7 @@ class Piwik_API_API
             'name'       => 'General_ColumnVisitDuration',
             'segment'    => 'visitDuration',
             'sqlSegment' => 'log_visit.visit_total_time',
-            'sqlFilter'  => array('Piwik_Common', 'nullWhenNotNumeric'),
+            'sqlFilter'  => array('Piwik_Common', 'dummyWhenNotNumeric'),
         );
         $segments[] = array(
             'type'           => 'dimension',
@@ -328,7 +328,7 @@ class Piwik_API_API
             'name'       => 'General_DaysSinceLastVisit',
             'segment'    => 'daysSinceLastVisit',
             'sqlSegment' => 'log_visit.visitor_days_since_last',
-            'sqlFilter'  => array('Piwik_Common', 'nullWhenNotNumeric'),
+            'sqlFilter'  => array('Piwik_Common', 'dummyWhenNotNumeric'),
         );
         $segments[] = array(
             'type'       => 'metric',
@@ -336,7 +336,7 @@ class Piwik_API_API
             'name'       => 'General_DaysSinceFirstVisit',
             'segment'    => 'daysSinceFirstVisit',
             'sqlSegment' => 'log_visit.visitor_days_since_first',
-            'sqlFilter'  => array('Piwik_Common', 'nullWhenNotNumeric'),
+            'sqlFilter'  => array('Piwik_Common', 'dummyWhenNotNumeric'),
         );
         $segments[] = array(
             'type'       => 'metric',
@@ -344,7 +344,7 @@ class Piwik_API_API
             'name'       => 'General_NumberOfVisits',
             'segment'    => 'visitCount',
             'sqlSegment' => 'log_visit.visitor_count_visits',
-            'sqlFilter'  => array('Piwik_Common', 'nullWhenNotNumeric'),
+            'sqlFilter'  => array('Piwik_Common', 'dummyWhenNotNumeric'),
         );
 
         $segments[] = array(
@@ -354,7 +354,7 @@ class Piwik_API_API
             'segment'        => 'visitConverted',
             'acceptedValues' => '0, 1',
             'sqlSegment'     => 'log_visit.visit_goal_converted',
-            'sqlFilter'      => array('Piwik_Common', 'nullWhenNotNumeric'),
+            'sqlFilter'      => array('Piwik_Common', 'dummyWhenNotNumeric'),
         );
 
         $segments[] = array(
@@ -374,7 +374,7 @@ class Piwik_API_API
             'name'       => 'General_DaysSinceLastEcommerceOrder',
             'segment'    => 'daysSinceLastEcommerceOrder',
             'sqlSegment' => 'log_visit.visitor_days_since_order',
-            'sqlFilter'  => array('Piwik_Common', 'nullWhenNotNumeric'),
+            'sqlFilter'  => array('Piwik_Common', 'dummyWhenNotNumeric'),
         );
 
         foreach ($segments as &$segment) {

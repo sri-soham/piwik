@@ -142,7 +142,7 @@ class Piwik_Actions extends Piwik_Plugin
         if ($matchType == Piwik_SegmentExpression::MATCH_EQUAL
             || $matchType == Piwik_SegmentExpression::MATCH_NOT_EQUAL
         ) {
-            $idAction = $LogAction->getIdaction($string, $actionType);
+            $idAction = $LogAction->getIdaction($valueToMatch, $actionType);
             // if the action is not found, we hack -100 to ensure it tries to match against an integer
             // otherwise binding idaction_name to "false" returns some rows for some reasons (in case &segment=pageTitle==Větrnásssssss)
             if (empty($idAction)) {

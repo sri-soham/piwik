@@ -182,9 +182,10 @@ class Piwik_Db_DAO_Site extends Piwik_Db_DAO_Base
             $bind[] = $pattern;
             $where = ' OR idsite = ?';
         }
+        $like = $this->likeKeyword();
         $sql = 'SELECT idsite, name, main_url '
              . 'FROM ' . $this->table . ' '
-             . 'WHERE (name like ? OR main_url like ? ' . $where . ' ) '
+             . "WHERE (name $like ? OR main_url $like ? $where ) "
              . '  AND idsite in (' . $ids_str . ') '
              . 'LIMIT ' . $limit;
 
@@ -247,5 +248,12 @@ class Piwik_Db_DAO_Site extends Piwik_Db_DAO_Base
             array('ts_created' => $ts_created),
             "idsite = $idsite"
         );
+    }
+
+    // Mysql does case insensitive comparison for "LIKE" conditions
+    // Pgsql does case sensitive comparison
+    protected function likeKeyword()
+    {
+        return 'LIKE';
     }
 }

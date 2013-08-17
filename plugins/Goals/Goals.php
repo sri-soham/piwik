@@ -361,7 +361,7 @@ class Piwik_Goals extends Piwik_Plugin
             'segment'        => 'visitConvertedGoalId',
             'sqlSegment'     => 'log_conversion.idgoal',
             'acceptedValues' => '1, 2, 3, etc.',
-            'sqlFilter' => array('Piwik_Common', 'nullWhenNotNumeric'),
+            'sqlFilter' => array('Piwik_Common', 'dummyWhenNotNumeric'),
         );
     }
 

@@ -48,7 +48,6 @@ class Piwik_Dashboard extends Piwik_Plugin
     {
         $UserDashboard = Piwik_Db_Factory::getDAO('user_dashboard');
         $return = $UserDashboard->getLayoutByLoginDashboard($login, $idDashboard);
-        $return = Piwik_FetchAll($query, $paramsBind);
 
         if (count($return) == 0) {
             return false;

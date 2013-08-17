@@ -1255,7 +1255,7 @@ class Piwik_SitesManager_API
         $ids_str .= $id_val;
 
         $dao = Piwik_Db_Factory::getDAO('site');
-        $sites = $dao->getSitesByPattern($pattern, $ids_str, Piwik::getWebsitesCountToDisplay);
+        $sites = $dao->getSitesByPattern($pattern, $ids_str, Piwik::getWebsitesCountToDisplay());
         return $sites;
     }
 

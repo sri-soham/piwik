@@ -34,6 +34,16 @@ class Test_Piwik_Integration_AutoSuggestAPITest extends IntegrationTestCase
 
     public function getApiForTesting()
     {
+        // Piwik_API_API::getSegmentsMetadata is invoking Piwik_PostEvent
+        // that is calling some code which is looking for the "db" key is
+        // the Zend_Registry.
+        // Looks like setUpBeforeClass is not called prior to calling this
+        // function and hence the "db" key is not set.
+        // Code in piwik/piwik.git is running without exceptions which makes
+        // me assume that no queries are being run. So, some dummy value is
+        // being set for the "db" key in the registry to circumvent the problem
+        Zend_Registry::set('db', '');
+
         // we will test all segments from all plugins
         self::loadAllPlugins();
 

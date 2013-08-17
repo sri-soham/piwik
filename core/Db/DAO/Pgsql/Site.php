@@ -70,4 +70,11 @@ class Piwik_Db_DAO_Pgsql_Site extends Piwik_Db_DAO_Site
             }
         }
     }
+
+    // Mysql does case insensitive comparison for "LIKE" conditions
+    // Pgsql does case sensitive comparison, so using ILIKE instead of LIKE
+    protected function likeKeyword()
+    {
+        return 'ILIKE';
+    }
 }

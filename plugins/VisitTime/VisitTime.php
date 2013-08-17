@@ -120,7 +120,7 @@ class Piwik_VisitTime extends Piwik_Plugin
             'name'           => Piwik_Translate('VisitTime_ColumnServerTime'),
             'segment'        => 'visitServerHour',
             'sqlSegment'     => $Generic->hour('log_visit.visit_last_action_time'),
-            'sqlFilter'      => array('Piwik_Common', 'nullWhenNotTime'),
+            'sqlFilter'      => array('Piwik_Common', 'dummyWhenNotTime'),
             'acceptedValues' => $acceptedValues
         );
         $segments[] = array(
@@ -129,7 +129,7 @@ class Piwik_VisitTime extends Piwik_Plugin
             'name'           => Piwik_Translate('VisitTime_ColumnLocalTime'),
             'segment'        => 'visitLocalHour',
             'sqlSegment'     => $Generic->hour('log_visit.visitor_localtime'),
-            'sqlFilter'      => array('Piwik_Common', 'nullWhenNotTime'),
+            'sqlFilter'      => array('Piwik_Common', 'dummyWhenNotTime'),
             'acceptedValues' => $acceptedValues
         );
     }

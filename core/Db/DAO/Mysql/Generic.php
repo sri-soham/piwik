@@ -152,13 +152,11 @@ class Piwik_Db_DAO_Mysql_Generic extends Piwik_Db_DAO_Generic
         $params = Piwik_Common::getSqlStringFieldsArray($values[0]);
 
         foreach ($values as $row) {
-            $query = "INSERT $ignore INTO $tableName SET \n";
-            $setClause = array();
-            foreach ($row as $k=>$v) {
-                $setClause[] = $this->db->quoteInto("$k = ?", $v);
-            }
-            $query .= implode(",\n", $setClause);
-            $this->db->query($query);
+            $query = "INSERT $ignore INTO $tableName $fieldList VALUES ($params) \n";
+            // In some instances $row is an associative array, to make it
+            // compatible with positional parameters array, array_values($row)
+            // is used.
+            $this->db->query($query, array_values($row));
         }
     }
 
@@ -250,5 +248,15 @@ class Piwik_Db_DAO_Mysql_Generic extends Piwik_Db_DAO_Generic
     public function getQuoteIdentifierSymbol()
     {
         return '`';
+    }
+
+    /**
+     *  isEmpty
+     *  Used in the Piwik_SegmentExpression::getSqlMatchFromDefinition for the
+     *  MATCH_IS_NOT_NULL.
+     */
+    public function isEmpty($field)
+    {
+         return "$field <> '' OR $field = 0";
     }
 }
