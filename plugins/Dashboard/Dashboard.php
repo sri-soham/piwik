@@ -6,24 +6,26 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_Dashboard
+ * @package Dashboard
  */
+namespace Piwik\Plugins\Dashboard;
+
+use Exception;
+use Piwik\Piwik;
+use Piwik\Common;
+use Piwik\Site;
+use Piwik\Db;
+use Piwik\WidgetsList;
+use Zend_Registry;
 
 /**
- * @package Piwik_Dashboard
+ * @package Dashboard
  */
-class Piwik_Dashboard extends Piwik_Plugin
+class Dashboard extends \Piwik\Plugin
 {
-    public function getInformation()
-    {
-        return array(
-            'description'     => Piwik_Translate('Dashboard_PluginDescription'),
-            'author'          => 'Piwik',
-            'author_homepage' => 'http://piwik.org/',
-            'version'         => Piwik_Version::VERSION,
-        );
-    }
-
+    /**
+     * @see Piwik_Plugin::getListHooksRegistered
+     */
     public function getListHooksRegistered()
     {
         return array(
@@ -112,7 +114,7 @@ class Piwik_Dashboard extends Piwik_Plugin
                 $nameless++;
             }
 
-            $dashboard['name'] = Piwik_Common::unsanitizeInputValue($dashboard['name']);
+            $dashboard['name'] = Common::unsanitizeInputValue($dashboard['name']);
 
             $layout = '[]';
             if (!empty($dashboard['layout'])) {
@@ -161,7 +163,7 @@ class Piwik_Dashboard extends Piwik_Plugin
                 if (isset($widget->parameters->module)) {
                     $controllerName = $widget->parameters->module;
                     $controllerAction = $widget->parameters->action;
-                    if (!Piwik_IsWidgetDefined($controllerName, $controllerAction)) {
+                    if (!WidgetsList::isDefined($controllerName, $controllerAction)) {
                         unset($row[$widgetId]);
                     }
                 } else {
@@ -183,12 +185,12 @@ class Piwik_Dashboard extends Piwik_Plugin
         $layout = str_replace("\\\"", "\"", $layout);
         $layout = str_replace("\n", "", $layout);
 
-        return Piwik_Common::json_decode($layout, $assoc = false);
+        return Common::json_decode($layout, $assoc = false);
     }
 
     public function encodeLayout($layout)
     {
-        return Piwik_Common::json_encode($layout);
+        return Common::json_encode($layout);
     }
 
     public function addMenus()
@@ -206,7 +208,6 @@ class Piwik_Dashboard extends Piwik_Plugin
                     $pos++;
                 }
             }
-
         }
     }
 
@@ -214,8 +215,8 @@ class Piwik_Dashboard extends Piwik_Plugin
     {
         $tooltip = false;
         try {
-            $idSite = Piwik_Common::getRequestVar('idSite');
-            $tooltip = Piwik_Translate('Dashboard_TopLinkTooltip', Piwik_Site::getNameFor($idSite));
+            $idSite = Common::getRequestVar('idSite');
+            $tooltip = Piwik_Translate('Dashboard_TopLinkTooltip', Site::getNameFor($idSite));
         } catch (Exception $ex) {
             // if no idSite parameter, show no tooltip
         }
@@ -224,35 +225,22 @@ class Piwik_Dashboard extends Piwik_Plugin
         Piwik_AddTopMenu('General_Dashboard', $urlParams, true, 1, $isHTML = false, $tooltip);
     }
 
-    /**
-     * @param Piwik_Event_Notification $notification  notification object
-     */
-    function getJsFiles($notification)
+    public function getJsFiles(&$jsFiles)
     {
-        $jsFiles = & $notification->getNotificationObject();
-
-        $jsFiles[] = "plugins/Dashboard/templates/widgetMenu.js";
+        $jsFiles[] = "plugins/Dashboard/javascripts/widgetMenu.js";
         $jsFiles[] = "libs/javascript/json2.js";
-        $jsFiles[] = "plugins/Dashboard/templates/dashboardObject.js";
-        $jsFiles[] = "plugins/Dashboard/templates/dashboardWidget.js";
-        $jsFiles[] = "plugins/Dashboard/templates/dashboard.js";
+        $jsFiles[] = "plugins/Dashboard/javascripts/dashboardObject.js";
+        $jsFiles[] = "plugins/Dashboard/javascripts/dashboardWidget.js";
+        $jsFiles[] = "plugins/Dashboard/javascripts/dashboard.js";
     }
 
-    /**
-     * @param Piwik_Event_Notification $notification  notification object
-     */
-    function getCssFiles($notification)
+    public function getCssFiles(&$cssFiles)
     {
-        $cssFiles = & $notification->getNotificationObject();
-
-        $cssFiles[] = "plugins/CoreHome/templates/datatable.css";
-        $cssFiles[] = "plugins/Dashboard/templates/dashboard.css";
+        $cssFiles[] = "plugins/CoreHome/stylesheets/dataTable.less";
+        $cssFiles[] = "plugins/Dashboard/stylesheets/dashboard.less";
     }
 
-    /**
-     * @param Piwik_Event_Notification $notification  notification object
-     */
-    function deleteDashboardLayout($notification)
+    public function deleteDashboardLayout($userLogin)
     {
         $userLogin = $notification->getNotificationObject();
         $UserDashboard = Piwik_Db_Factory::getDAO('user_dashboard');

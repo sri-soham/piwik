@@ -8,6 +8,13 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik\Tracker;
+
+use Exception;
+use PDOStatement;
+use Piwik\Common;
+use Piwik\Timer;
+use Piwik\Tracker\Db\DbException;
 
 /**
  * Simple database wrapper.
@@ -15,9 +22,9 @@
  * We wrote this simple class
  *
  * @package Piwik
- * @subpackage Piwik_Tracker
+ * @subpackage Tracker
  */
-abstract class Piwik_Tracker_Db
+abstract class Db
 {
     protected static $profiling = false;
 
@@ -59,18 +66,18 @@ abstract class Piwik_Tracker_Db
     /**
      * Initialize profiler
      *
-     * @return Piwik_Timer
+     * @return Timer
      */
     protected function initProfiler()
     {
-        return new Piwik_Timer;
+        return new Timer;
     }
 
     /**
      * Record query profile
      *
      * @param string $query
-     * @param Piwik_Timer $timer
+     * @param Timer $timer
      */
     protected function recordQueryProfile($query, $timer)
     {
@@ -108,7 +115,7 @@ abstract class Piwik_Tracker_Db
     /**
      * Connects to the DB
      *
-     * @throws Piwik_Tracker_Db_Exception if there was an error connecting the DB
+     * @throws \Piwik\Tracker\Db\DbException if there was an error connecting the DB
      */
     abstract public function connect();
 
@@ -126,7 +133,7 @@ abstract class Piwik_Tracker_Db
      * @param string $query       Query
      * @param array $parameters  Parameters to bind
      * @see query()
-     * @throws Piwik_Tracker_Db_Exception if an exception occurred
+     * @throws \Piwik\Tracker\Db\DbException if an exception occurred
      */
     abstract public function fetchAll($query, $parameters = array());
 
@@ -137,7 +144,7 @@ abstract class Piwik_Tracker_Db
      * @param array $parameters  Parameters to bind
      * @see also query()
      *
-     * @throws Piwik_Tracker_Db_Exception if an exception occurred
+     * @throws DbException if an exception occurred
      */
     abstract public function fetch($query, $parameters = array());
 
@@ -196,7 +203,7 @@ abstract class Piwik_Tracker_Db
      * @param array $parameters  Parameters to bind array('idsite'=> 1)
      *
      * @return PDOStatement or false if failed
-     * @throws Piwik_Tracker_Db_Exception if an exception occurred
+     * @throws DbException if an exception occurred
      */
     abstract public function query($query, $parameters = array());
 

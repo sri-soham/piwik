@@ -6,8 +6,18 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_Live
+ * @package Live
  */
+namespace Piwik\Plugins\Live;
+
+use Piwik\Piwik;
+use Piwik\Common;
+use Piwik\IP;
+use Piwik\Tracker;
+use Piwik\Tracker\Visit;
+use Piwik\Plugins\API\API as MetaAPI;
+use Piwik\Plugins\Referers\API as ReferersAPI;
+use Piwik\Plugins\UserCountry\LocationProvider\GeoIp;
 
 /**
  * @see plugins/Referers/functions.php
@@ -22,10 +32,9 @@ require_once PIWIK_INCLUDE_PATH . '/plugins/UserSettings/functions.php';
 require_once PIWIK_INCLUDE_PATH . '/plugins/Provider/functions.php';
 
 /**
- *
- * @package Piwik_Live
+ * @package Live
  */
-class Piwik_Live_Visitor
+class Visitor
 {
     const DELIMITER_PLUGIN_NAME = ", ";
 
@@ -85,6 +94,7 @@ class Piwik_Live_Visitor
             'latitude'                    => $this->getLatitude(),
             'longitude'                   => $this->getLongitude(),
             'provider'                    => $this->getProvider(),
+            'providerName'                => $this->getProviderName(),
             'providerUrl'                 => $this->getProviderUrl(),
 
             'referrerType'                => $this->getRefererType(),
@@ -96,7 +106,7 @@ class Piwik_Live_Visitor
             'referrerSearchEngineUrl'     => $this->getSearchEngineUrl(),
             'referrerSearchEngineIcon'    => $this->getSearchEngineIcon(),
             'operatingSystem'             => $this->getOperatingSystem(),
-            'operatingSystemCode'             => $this->getOperatingSystemCode(),
+            'operatingSystemCode'         => $this->getOperatingSystemCode(),
             'operatingSystemShortName'    => $this->getOperatingSystemShortName(),
             'operatingSystemIcon'         => $this->getOperatingSystemIcon(),
             'browserFamily'               => $this->getBrowserFamily(),
@@ -106,6 +116,7 @@ class Piwik_Live_Visitor
             'browserCode'                 => $this->getBrowserCode(),
             'browserVersion'              => $this->getBrowserVersion(),
             'screenType'                  => $this->getScreenType(),
+            'deviceType'                  => $this->getDeviceType(),
             'resolution'                  => $this->getResolution(),
             'screenTypeIcon'              => $this->getScreenTypeIcon(),
             'plugins'                     => $this->getPlugins(),
@@ -164,7 +175,7 @@ class Piwik_Live_Visitor
     function getIp()
     {
         if (isset($this->details['location_ip'])) {
-            return Piwik_IP::N2P($this->details['location_ip']);
+            return IP::N2P($this->details['location_ip']);
         }
         return false;
     }
@@ -215,7 +226,7 @@ class Piwik_Live_Visitor
         if ($type == 'returning'
             || $type == 'returningCustomer'
         ) {
-            return "plugins/Live/templates/images/returningVisitor.gif";
+            return "plugins/Live/images/returningVisitor.gif";
         }
         return null;
     }
@@ -237,22 +248,22 @@ class Piwik_Live_Visitor
 
     function getCountryName()
     {
-        return Piwik_CountryTranslate($this->getCountryCode());
+        return \Piwik\Plugins\UserCountry\countryTranslate($this->getCountryCode());
     }
 
     function getCountryFlag()
     {
-        return Piwik_getFlagFromCode($this->getCountryCode());
+        return \Piwik\Plugins\UserCountry\getFlagFromCode($this->getCountryCode());
     }
 
     function getContinent()
     {
-        return Piwik_ContinentTranslate($this->getContinentCode());
+        return \Piwik\Plugins\UserCountry\continentTranslate($this->getContinentCode());
     }
 
     function getContinentCode()
     {
-        return Piwik_Common::getContinent($this->details['location_country']);
+        return Common::getContinent($this->details['location_country']);
     }
 
     function getCityName()
@@ -266,8 +277,8 @@ class Piwik_Live_Visitor
     public function getRegionName()
     {
         $region = $this->getRegionCode();
-        if ($region != '' && $region != Piwik_Tracker_Visit::UNKNOWN_CODE) {
-            return Piwik_UserCountry_LocationProvider_GeoIp::getRegionNameFromCodes(
+        if ($region != '' && $region != Visit::UNKNOWN_CODE) {
+            return GeoIp::getRegionNameFromCodes(
                 $this->details['location_country'], $region);
         }
         return null;
@@ -315,7 +326,7 @@ class Piwik_Live_Visitor
     function getCustomVariables()
     {
         $customVariables = array();
-        for ($i = 1; $i <= Piwik_Tracker::MAX_CUSTOM_VARIABLES; $i++) {
+        for ($i = 1; $i <= Tracker::MAX_CUSTOM_VARIABLES; $i++) {
             if (!empty($this->details['custom_var_k' . $i])) {
                 $customVariables[$i] = array(
                     'customVariableName' . $i  => $this->details['custom_var_k' . $i],
@@ -328,21 +339,21 @@ class Piwik_Live_Visitor
 
     function getRefererType()
     {
-        return Piwik_getRefererTypeFromShortName($this->details['referer_type']);
+        return \Piwik\Plugins\Referers\getRefererTypeFromShortName($this->details['referer_type']);
     }
 
     function getRefererTypeName()
     {
-        return Piwik_getRefererTypeLabel($this->details['referer_type']);
+        return \Piwik\Plugins\Referers\getRefererTypeLabel($this->details['referer_type']);
     }
 
     function getKeyword()
     {
         $keyword = $this->details['referer_keyword'];
-        if (Piwik_PluginsManager::getInstance()->isPluginActivated('Referers')
+        if (\Piwik\PluginsManager::getInstance()->isPluginActivated('Referers')
             && $this->getRefererType() == 'search'
         ) {
-            $keyword = Piwik_Referers::getCleanKeyword($keyword);
+            $keyword = \Piwik\Plugins\Referers\API::getCleanKeyword($keyword);
         }
         return urldecode($keyword);
     }
@@ -350,8 +361,8 @@ class Piwik_Live_Visitor
     function getRefererUrl()
     {
         if ($this->getRefererType() == 'search') {
-            if (Piwik_PluginsManager::getInstance()->isPluginActivated('Referers')
-                && $this->details['referer_keyword'] == Piwik_Referers::LABEL_KEYWORD_NOT_DEFINED
+            if (\Piwik\PluginsManager::getInstance()->isPluginActivated('Referers')
+                && $this->details['referer_keyword'] == ReferersAPI::LABEL_KEYWORD_NOT_DEFINED
             ) {
                 return 'http://piwik.org/faq/general/#faq_144';
             } // Case URL is google.XX/url.... then we rewrite to the search result page url
@@ -360,13 +371,13 @@ class Piwik_Live_Visitor
             ) {
                 $refUrl = @parse_url($this->details['referer_url']);
                 if (isset($refUrl['host'])) {
-                    $url = Piwik_getSearchEngineUrlFromUrlAndKeyword('http://google.com', $this->getKeyword());
+                    $url = \Piwik\Plugins\Referers\getSearchEngineUrlFromUrlAndKeyword('http://google.com', $this->getKeyword());
                     $url = str_replace('google.com', $refUrl['host'], $url);
                     return $url;
                 }
             }
         }
-        if (Piwik_Common::isLookLikeUrl($this->details['referer_url'])) {
+        if (Common::isLookLikeUrl($this->details['referer_url'])) {
             return $this->details['referer_url'];
         }
         return null;
@@ -381,7 +392,7 @@ class Piwik_Live_Visitor
             if (empty($url['query'])) {
                 return null;
             }
-            $position = Piwik_Common::getParameterFromQueryString($url['query'], 'cd');
+            $position = Common::getParameterFromQueryString($url['query'], 'cd');
             if (!empty($position)) {
                 return $position;
             }
@@ -399,7 +410,7 @@ class Piwik_Live_Visitor
         if ($this->getRefererType() == 'search'
             && !empty($this->details['referer_name'])
         ) {
-            return Piwik_getSearchEngineUrlFromName($this->details['referer_name']);
+            return \Piwik\Plugins\Referers\getSearchEngineUrlFromName($this->details['referer_name']);
         }
         return null;
     }
@@ -408,7 +419,7 @@ class Piwik_Live_Visitor
     {
         $searchEngineUrl = $this->getSearchEngineUrl();
         if (!is_null($searchEngineUrl)) {
-            return Piwik_getSearchEngineLogoFromUrl($searchEngineUrl);
+            return \Piwik\Plugins\Referers\getSearchEngineLogoFromUrl($searchEngineUrl);
         }
         return null;
     }
@@ -444,7 +455,7 @@ class Piwik_Live_Visitor
             $pluginIcons = array();
 
             foreach ($pluginNames as $plugin) {
-                $pluginIcons[] = array("pluginIcon" => Piwik_getPluginsLogo($plugin), "pluginName" => $plugin);
+                $pluginIcons[] = array("pluginIcon" => \Piwik\Plugins\UserSettings\getPluginsLogo($plugin), "pluginName" => $plugin);
             }
             return $pluginIcons;
         }
@@ -458,27 +469,27 @@ class Piwik_Live_Visitor
 
     function getOperatingSystem()
     {
-        return Piwik_getOSLabel($this->details['config_os']);
+        return \Piwik\Plugins\UserSettings\getOSLabel($this->details['config_os']);
     }
 
     function getOperatingSystemShortName()
     {
-        return Piwik_getOSShortLabel($this->details['config_os']);
+        return \Piwik\Plugins\UserSettings\getOSShortLabel($this->details['config_os']);
     }
 
     function getOperatingSystemIcon()
     {
-        return Piwik_getOSLogo($this->details['config_os']);
+        return \Piwik\Plugins\UserSettings\getOSLogo($this->details['config_os']);
     }
 
     function getBrowserFamilyDescription()
     {
-        return Piwik_getBrowserTypeLabel($this->getBrowserFamily());
+        return \Piwik\Plugins\UserSettings\getBrowserTypeLabel($this->getBrowserFamily());
     }
 
     function getBrowserFamily()
     {
-        return Piwik_getBrowserFamily($this->details['config_browser_name']);
+        return \Piwik\Plugins\UserSettings\getBrowserFamily($this->details['config_browser_name']);
     }
 
     function getBrowserCode()
@@ -493,17 +504,25 @@ class Piwik_Live_Visitor
 
     function getBrowser()
     {
-        return Piwik_getBrowserLabel($this->details['config_browser_name'] . ";" . $this->details['config_browser_version']);
+        return \Piwik\Plugins\UserSettings\getBrowserLabel($this->details['config_browser_name'] . ";" . $this->details['config_browser_version']);
     }
 
     function getBrowserIcon()
     {
-        return Piwik_getBrowsersLogo($this->details['config_browser_name'] . ";" . $this->details['config_browser_version']);
+        return \Piwik\Plugins\UserSettings\getBrowsersLogo($this->details['config_browser_name'] . ";" . $this->details['config_browser_version']);
     }
 
     function getScreenType()
     {
-        return Piwik_getScreenTypeFromResolution($this->details['config_resolution']);
+        return \Piwik\Plugins\UserSettings\getScreenTypeFromResolution($this->details['config_resolution']);
+    }
+
+    function getDeviceType()
+    {
+        if (\Piwik\PluginsManager::getInstance()->isPluginActivated('DevicesDetection')) {
+            return \Piwik\Plugins\DevicesDetection\getDeviceTypeLabel($this->details['config_device_type']);
+        }
+        return false;
     }
 
     function getResolution()
@@ -513,17 +532,26 @@ class Piwik_Live_Visitor
 
     function getScreenTypeIcon()
     {
-        return Piwik_getScreensLogo($this->getScreenType());
+        return \Piwik\Plugins\UserSettings\getScreensLogo($this->getScreenType());
     }
 
     function getProvider()
     {
-        return Piwik_Provider_getPrettyProviderName(@$this->details['location_provider']);
+        if (isset($this->details['location_provider'])) {
+            return $this->details['location_provider'];
+        } else {
+            return Piwik_Translate('General_Unknown');
+        }
+    }
+
+    function getProviderName()
+    {
+        return \Piwik\Plugins\Provider\getPrettyProviderName($this->getProvider());
     }
 
     function getProviderUrl()
     {
-        return Piwik_getHostnameUrl(@$this->details['location_provider']);
+        return \Piwik\Plugins\Provider\getHostnameUrl(@$this->details['location_provider']);
     }
 
     function getDateTimeLastAction()
@@ -536,22 +564,22 @@ class Piwik_Live_Visitor
         $status = $this->getVisitEcommerceStatus();
 
         if (in_array($status, array('ordered', 'orderedThenAbandonedCart'))) {
-            return "themes/default/images/ecommerceOrder.gif";
+            return "plugins/Zeitgeist/images/ecommerceOrder.gif";
         } elseif ($status == 'abandonedCart') {
-            return "themes/default/images/ecommerceAbandonedCart.gif";
+            return "plugins/Zeitgeist/images/ecommerceAbandonedCart.gif";
         }
         return null;
     }
 
     function getVisitEcommerceStatus()
     {
-        return Piwik_API_API::getVisitEcommerceStatusFromId($this->details['visit_goal_buyer']);
+        return MetaAPI::getVisitEcommerceStatusFromId($this->details['visit_goal_buyer']);
     }
 
     function getVisitorGoalConvertedIcon()
     {
         return $this->isVisitorGoalConverted()
-            ? "themes/default/images/goal.png"
+            ? "plugins/Zeitgeist/images/goal.png"
             : null;
     }
 

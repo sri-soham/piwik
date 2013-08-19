@@ -6,7 +6,7 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_ExampleUI
+ * @package ExampleUI
  */
 
 /*
@@ -18,31 +18,19 @@
 - without all columns icon
 + update http://piwik.org/participate/user-interface
 */
+namespace Piwik\Plugins\ExampleUI;
+
 
 /**
  *
- * @package Piwik_ExampleUI
+ * @package ExampleUI
  */
-class Piwik_ExampleUI extends Piwik_Plugin
+class ExampleUI extends \Piwik\Plugin
 {
     /**
-     * Return information about this plugin.
-     *
-     * @see Piwik_Plugin
-     *
-     * @return array
+     * @see Piwik_Plugin::getListHooksRegistered
      */
-    public function getInformation()
-    {
-        return array(
-            'description'     => Piwik_Translate('ExampleUI_PluginDescription'),
-            'author'          => 'Piwik',
-            'author_homepage' => 'http://piwik.org/',
-            'version'         => '0.1',
-        );
-    }
-
-    function getListHooksRegistered()
+    public function getListHooksRegistered()
     {
         $hooks = array(
             'Menu.add' => 'addMenus',
@@ -59,7 +47,6 @@ class Piwik_ExampleUI extends Piwik_Plugin
             'Pie graph'       => 'pieGraph',
             'Tag clouds'      => 'tagClouds',
             'Sparklines'      => 'sparklines',
-            'Misc'            => 'misc',
         );
 
         Piwik_AddMenu('UI Framework', '', array('module' => 'ExampleUI', 'action' => 'dataTables'), true, 30);

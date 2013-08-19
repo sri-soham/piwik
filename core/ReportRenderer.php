@@ -8,15 +8,25 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik;
+
+use Exception;
+use Piwik\DataTable\Simple;
+use Piwik\DataTable\Row;
+use Piwik\Piwik;
+use Piwik\DataTable;
+use Piwik\Loader;
+use Piwik\API\Request;
+use Piwik\Plugins\ImageGraph\API;
 
 /**
  * A Report Renderer produces user friendly renderings of any given Piwik report.
  * All new Renderers must be copied in ReportRenderer and added to the $availableReportRenderers.
  *
  * @package Piwik
- * @subpackage Piwik_ReportRenderer
+ * @subpackage ReportRenderer
  */
-abstract class Piwik_ReportRenderer
+abstract class ReportRenderer
 {
     const DEFAULT_REPORT_FONT = 'dejavusans';
     const REPORT_TEXT_COLOR = "68,68,68";
@@ -39,15 +49,15 @@ abstract class Piwik_ReportRenderer
      *
      * @throws exception If the renderer is unknown
      * @param string $rendererType
-     * @return Piwik_ReportRenderer
+     * @return \Piwik\ReportRenderer
      */
     static public function factory($rendererType)
     {
         $name = ucfirst(strtolower($rendererType));
-        $className = 'Piwik_ReportRenderer_' . $name;
+        $className = 'Piwik\ReportRenderer\\' . $name;
 
         try {
-            Piwik_Loader::loadClass($className);
+            Loader::loadClass($className);
             return new $className;
         } catch (Exception $e) {
 
@@ -104,14 +114,15 @@ abstract class Piwik_ReportRenderer
      * @param string $prettyDate formatted date
      * @param string $description
      * @param array $reportMetadata metadata for all reports
+     * @param array $segment segment applied to all reports
      */
-    abstract public function renderFrontPage($reportTitle, $prettyDate, $description, $reportMetadata);
+    abstract public function renderFrontPage($reportTitle, $prettyDate, $description, $reportMetadata, $segment);
 
     /**
      * Render the provided report.
      * Multiple calls to this method before calling outputRendering appends each report content.
      *
-     * @param array $processedReport @see Piwik_API_API::getProcessedReport()
+     * @param array $processedReport @see API::getProcessedReport()
      */
     abstract public function renderReport($processedReport);
 
@@ -119,9 +130,9 @@ abstract class Piwik_ReportRenderer
      * Append $extension to $filename
      *
      * @static
-     * @param  $filename
-     * @param  $extension
-     * @return filename with extension
+     * @param  string $filename
+     * @param  string $extension
+     * @return string  filename with extension
      */
     protected static function appendExtension($filename, $extension)
     {
@@ -162,7 +173,7 @@ abstract class Piwik_ReportRenderer
 
     protected static function sendToBrowser($filename, $extension, $contentType, $content)
     {
-        $filename = Piwik_ReportRenderer::appendExtension($filename, $extension);
+        $filename = ReportRenderer::appendExtension($filename, $extension);
 
         Piwik::overrideCacheControlHeaders();
         header('Content-Description: File Transfer');
@@ -184,9 +195,9 @@ abstract class Piwik_ReportRenderer
      *
      * @static
      * @param  $reportMetadata array
-     * @param  $report Piwik_DataTable
+     * @param  $report DataTable
      * @param  $reportColumns array
-     * @return array Piwik_DataTable $report & array $columns
+     * @return array DataTable $report & array $columns
      */
     protected static function processTableFormat($reportMetadata, $report, $reportColumns)
     {
@@ -194,9 +205,9 @@ abstract class Piwik_ReportRenderer
         if (empty($reportMetadata['dimension'])) {
             $simpleReportMetrics = $report->getFirstRow();
             if ($simpleReportMetrics) {
-                $finalReport = new Piwik_DataTable_Simple();
+                $finalReport = new Simple();
                 foreach ($simpleReportMetrics->getColumns() as $metricId => $metric) {
-                    $newRow = new Piwik_DataTable_Row();
+                    $newRow = new Row();
                     $newRow->addColumn("label", $reportColumns[$metricId]);
                     $newRow->addColumn("value", $metric);
                     $finalReport->addRow($newRow);
@@ -215,23 +226,23 @@ abstract class Piwik_ReportRenderer
         );
     }
 
-    public static function getStaticGraph($reportMetadata, $width, $height, $evolution)
+    public static function getStaticGraph($reportMetadata, $width, $height, $evolution, $segment)
     {
-
         $imageGraphUrl = $reportMetadata['imageGraphUrl'];
 
         if ($evolution && !empty($reportMetadata['imageGraphEvolutionUrl'])) {
             $imageGraphUrl = $reportMetadata['imageGraphEvolutionUrl'];
         }
 
-        $request = new Piwik_API_Request(
-            $imageGraphUrl .
-                '&outputType=' . Piwik_ImageGraph_API::GRAPH_OUTPUT_PHP .
-                '&format=original&serialize=0' .
-                '&filter_truncate=' .
-                '&width=' . $width .
-                '&height=' . $height
-        );
+        $requestGraph = $imageGraphUrl .
+            '&outputType=' . API::GRAPH_OUTPUT_PHP .
+            '&format=original&serialize=0' .
+            '&filter_truncate=' .
+            '&width=' . $width .
+            '&height=' . $height .
+            ($segment != null ? '&segment=' . urlencode($segment['definition']) : '');
+
+        $request = new Request($requestGraph);
 
         try {
             $imageGraph = $request->process();
@@ -244,7 +255,6 @@ abstract class Piwik_ReportRenderer
             imagedestroy($imageGraph);
 
             return $imageGraphData;
-
         } catch (Exception $e) {
             throw new Exception("ImageGraph API returned an error: " . $e->getMessage() . "\n");
         }

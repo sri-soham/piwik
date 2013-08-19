@@ -1,0 +1,162 @@
+<div class="visitor-profile" data-visitor-id="{{ visitorData.lastVisits.getFirstRow().getColumn('visitorId') }}">
+    <a href class="visitor-profile-close"></a>
+    <div class="visitor-profile-info">
+        <div>
+            <div class="visitor-profile-avatar">
+                <div>
+                    <div class="visitor-profile-image-frame">
+                        <img src="plugins/Live/images/REMOVE_ME_avatar.jpg" alt=""/>
+                    </div>
+                    <img src="plugins/Live/images/paperclip.png" alt=""/>
+                </div>
+                <div>
+                    <h1>{{ 'Live_VisitorProfile'|translate }} <img class="loadingPiwik" style="display:none;" src="plugins/Zeitgeist/images/loading-blue.gif"/></h1>
+                    <div class="visitor-profile-latest-visit">
+                        {% include "@Live/getSingleVisitSummary.twig" with {'visitData': visitorData.lastVisits.getFirstRow().getColumns()} %}
+                    </div>
+                </div>
+                <p style="clear:both; border:none!important;"></p>
+            </div>
+            <div>
+                <div class="visitor-profile-location">
+                    <h1>{{ 'UserCountry_Location'|translate }}</h1>
+                    <img src="plugins/Live/images/REMOVE_ME_chart.png" alt=""/> {# TODO: bar graph #}
+                </div>
+            </div>
+        </div>
+        <div>
+            <div>
+                <div class="visitor-profile-map">
+                    {{ userCountryMap|raw }}
+                </div>
+                <div class="visitor-profile-important-visits">
+                    <div>
+                        <h1>{{ 'Live_FirstVisit'|translate }}</h1>
+                        <div>
+                            <p><strong>{{ visitorData.firstVisit.prettyDate }}</strong><span>&nbsp;- {{ 'UserCountryMap_DaysAgo'|translate(visitorData.firstVisit.daysAgo) }}</span></p>
+                            <p><span>{{ 'General_FromReferrer'|translate }}:</span>
+                            <strong>{{ visitorData.firstVisit.referralSummary }}</strong></p>
+                        </div>
+                    </div>
+                    <div>
+                        <h1>{{ 'Live_LastVisit'|translate }}</h1>
+                        <div>
+                            <p><strong>{{ visitorData.lastVisit.prettyDate }}</strong><span>&nbsp;- {{ 'UserCountryMap_DaysAgo'|translate(visitorData.lastVisit.daysAgo) }}</span></p>
+                            <p><span>{{ 'General_FromReferrer'|translate }}:</span>
+                            <strong>{{ visitorData.lastVisit.referralSummary }}</strong></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="visitor-profile-summary">
+                    <h1>{{ 'General_Summary'|translate }}</h1>
+                    <div>
+                        <p>{{ 'Live_VisitSummary'|translate('<strong>', visitorData.totalVisitDurationPretty, '</strong>', '<strong>', visitorData.totalActionCount, visitorData.totalVisits, '</strong>')|raw }}</p>
+                        <p><strong>{{ 'Live_ConvertedNGoals'|translate(visitorData.totalGoalConversions) }}</strong>
+                        {%- if visitorData.totalGoalConversions %} (
+                            {%- for idGoal, totalConversions in visitorData.totalConversionsByGoal -%}
+                            {%- if not loop.first %}, {% endif -%}{{- totalConversions }} <span class="visitor-profile-goal-name">{{ goals[idGoal]['name'] -}}</span>
+                            {%- endfor -%}
+                        ){% endif %}.</p>
+                        {% if visitorData.totalEcommerceConversions is defined %}
+                        <p>{{ 'Live_EcommerceSummary'|translate('<strong>', visitorData.totalEcommerceConversions, visitorData.totalEcommerceRevenue|money(idSite), '</strong>', visitorData.totalEcommerceItems)|raw }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="visitor-profile-visits-info">
+                <div class="visitor-profile-pages-visited">
+                    <h1>{{ 'Live_VisitedPages'|translate }}</h1>
+                </div>
+                <div class="visitor-profile-visits-container">
+                    <ol class="visitor-profile-visits">
+                        {% include "@Live/getVisitList.twig" with {'visits': visitorData.lastVisits, 'startCounter': 1} %}
+                    </ol>
+                    <br/>
+                </div>
+                <div class="loadingPiwik" style="display:none;">
+                    <div>
+                        <div>
+                            <img src="plugins/Zeitgeist/images/loading-blue.gif"/> {{ 'General_LoadingData'|translate }}
+                        </div>
+                    </div>
+                </div>
+                <div class="visitor-profile-fog"></div>
+            </div>
+        </div>
+    </div>
+    <div class="visitor-profile-more-info">
+        <a href="#">{{ 'Live_ViewMoreVisitInfo'|translate }}</a>
+    </div>
+</div>
+<script type="text/javascript">
+$(function() {
+    $('.visitor-profile-visits-container').jScrollPane({
+        showArrows: true,
+        verticalArrowPositions: 'os',
+        horizontalArrowPositions: 'os'
+    });
+
+    $('.visitor-profile-close').click(function (e) {
+        e.preventDefault();
+        Piwik_Popover.close();
+        return false;
+    });
+
+    $('.visitor-profile-pages-visited,.visitor-profile-more-info').click(function (e) {
+        e.preventDefault();
+
+        var loading = $('.visitor-profile-visits-info > .loadingPiwik');
+        loading.css('display', 'table');
+
+        var ajax = new ajaxHelper();
+        ajax.addParams({
+            module: 'Live',
+            action: 'getVisitList',
+            period: 'range',
+            date: piwik.minDateYear + '-01-01' + ',today',
+            idVisitor: $(this).closest('.visitor-profile').attr('data-visitor-id'),
+            filter_offset: $('.visitor-profile-visits>li').length
+        }, 'GET');
+        ajax.setCallback(function (response) {
+            loading.css('display', 'none');
+
+            var jsp = $('.visitor-profile-visits-container').data('jsp');
+            if (response == '') {
+                jsp.scrollToElement($('.visitor-profile-visits>li:last-child').children().last(), false, true);
+            } else {
+                response = $(response);
+                $('.visitor-profile-visits').append(response);
+                jsp.reinitialise();
+                jsp.scrollToElement(response[0], true, true);
+            }
+        });
+        ajax.setFormat('html');
+        ajax.send();
+
+        return false;
+    });
+
+    $('.visitor-profile-see-more-cvars>a').click(function (e) {
+        e.preventDefault();
+        $('.visitor-profile-extra-cvars').slideToggle();
+        return false;
+    });
+
+    $('.visitor-profile-visit-title').click(function () {
+        var ajax = new ajaxHelper();
+
+        $('.visitor-profile-avatar .loadingPiwik').css('display', 'inline-block');
+        ajax.addParams({
+            module: 'Live',
+            action: 'getSingleVisitSummary',
+            idVisit: $(this).attr('data-idvisit')
+        }, 'GET');
+        ajax.setCallback(function (response) {
+            $('.visitor-profile-avatar .loadingPiwik').hide();
+            $('.visitor-profile-latest-visit').html(response);
+        });
+        ajax.setFormat('html');
+        ajax.send();
+    });
+});
+</script>

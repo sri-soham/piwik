@@ -147,6 +147,7 @@ class Piwik_Db_DAO_LogLinkVisitAction extends Piwik_Db_DAO_Base
         $fields = implode(', ', array_keys($insertWithoutNulls));
         $bind   = array_values($insertWithoutNulls);
         $values = Piwik_Common::getSqlStringFieldsArray($insertWithoutNulls);
+        Piwik_Common::printDebug($insertWithoutNulls);
 
         $sql = 'INSERT INTO ' . $this->table . '( ' . $fields . ') VALUES ( ' . $values . ')';
 

@@ -6,8 +6,17 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_UserCountry
+ * @package UserCountry
  */
+
+namespace Piwik\Plugins\UserCountry\LocationProvider\GeoIp;
+
+use Piwik\Common;
+use Piwik\IP;
+use Piwik\Plugins\UserCountry\LocationProvider;
+use Piwik\Plugins\UserCountry\LocationProvider\GeoIp;
+use Piwik\Plugins\UserCountry\LocationProvider\GeoIp\Pecl;
+use Piwik\Plugins\UserCountry\LocationProvider\GeoIp\Php;
 
 /**
  * A LocationProvider that uses an GeoIP module installed in an HTTP Server.
@@ -15,9 +24,9 @@
  * To make this provider available, make sure the GEOIP_ADDR server
  * variable is set.
  *
- * @package Piwik_UserCountry
+ * @package UserCountry
  */
-class Piwik_UserCountry_LocationProvider_GeoIp_ServerBased extends Piwik_UserCountry_LocationProvider_GeoIp
+class ServerBased extends GeoIp
 {
     const ID = 'geoip_serverbased';
     const TITLE = 'GeoIP (%s)';
@@ -64,24 +73,24 @@ class Piwik_UserCountry_LocationProvider_GeoIp_ServerBased extends Piwik_UserCou
 
         // geoip modules that are built into servers can't use a forced IP. in this case we try
         // to fallback to another version.
-        $myIP = Piwik_IP::getIpFromHeader();
+        $myIP = IP::getIpFromHeader();
         if (!self::isSameOrAnonymizedIp($ip, $myIP)
             && (!isset($info['disable_fallbacks'])
                 || !$info['disable_fallbacks'])
         ) {
-            printDebug("The request is for IP address: " . $info['ip'] . " but your IP is: $myIP. GeoIP Server Module (apache/nginx) does not support this use case... ");
+            Common::printDebug("The request is for IP address: " . $info['ip'] . " but your IP is: $myIP. GeoIP Server Module (apache/nginx) does not support this use case... ");
             $fallbacks = array(
-                Piwik_UserCountry_LocationProvider_GeoIp_Pecl::ID,
-                Piwik_UserCountry_LocationProvider_GeoIp_Php::ID
+                Pecl::ID,
+                Php::ID
             );
             foreach ($fallbacks as $fallbackProviderId) {
-                $otherProvider = Piwik_UserCountry_LocationProvider::getProviderById($fallbackProviderId);
+                $otherProvider = LocationProvider::getProviderById($fallbackProviderId);
                 if ($otherProvider) {
-                    printDebug("Used $fallbackProviderId to detect this visitor IP");
+                    Common::printDebug("Used $fallbackProviderId to detect this visitor IP");
                     return $otherProvider->getLocation($info);
                 }
             }
-            printDebug("FAILED to lookup the geo location of this IP address, as no fallback location providers is configured. We recommend to configure Geolocation PECL module to fix this error.");
+            Common::printDebug("FAILED to lookup the geo location of this IP address, as no fallback location providers is configured. We recommend to configure Geolocation PECL module to fix this error.");
 
             return false;
         }

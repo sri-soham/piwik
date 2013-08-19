@@ -6,6 +6,10 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
 
+use Piwik\API\Request;
+use Piwik\Access;
+use Piwik\Plugins\Annotations\API;
+
 class AnnotationsTest extends IntegrationTestCase
 {
     public static $fixture = null;
@@ -91,7 +95,7 @@ class AnnotationsTest extends IntegrationTestCase
     public function testAddMultipleSitesFail()
     {
         try {
-            Piwik_Annotations_API::getInstance()->add("1,2,3", "2012-01-01", "whatever");
+            API::getInstance()->add("1,2,3", "2012-01-01", "whatever");
             $this->fail("add should fail when given multiple sites in idSite");
         } catch (Exception $ex) {
             // pass
@@ -105,7 +109,7 @@ class AnnotationsTest extends IntegrationTestCase
     public function testAddInvalidDateFail()
     {
         try {
-            Piwik_Annotations_API::getInstance()->add(self::$fixture->idSite1, "invaliddate", "whatever");
+            API::getInstance()->add(self::$fixture->idSite1, "invaliddate", "whatever");
             $this->fail("add should fail when given invalid date");
         } catch (Exception $ex) {
             // pass
@@ -119,7 +123,7 @@ class AnnotationsTest extends IntegrationTestCase
     public function testSaveMultipleSitesFail()
     {
         try {
-            Piwik_Annotations_API::getInstance()->save("1,2,3", 0);
+            API::getInstance()->save("1,2,3", 0);
             $this->fail("save should fail when given multiple sites");
         } catch (Exception $ex) {
             // pass
@@ -133,7 +137,7 @@ class AnnotationsTest extends IntegrationTestCase
     public function testSaveInvalidDateFail()
     {
         try {
-            Piwik_Annotations_API::getInstance()->save(self::$fixture->idSite1, 0, "invaliddate");
+            API::getInstance()->save(self::$fixture->idSite1, 0, "invaliddate");
             $this->fail("save should fail when given an invalid date");
         } catch (Exception $ex) {
             // pass
@@ -147,7 +151,7 @@ class AnnotationsTest extends IntegrationTestCase
     public function testSaveInvalidNoteIdFail()
     {
         try {
-            Piwik_Annotations_API::getInstance()->save(self::$fixture->idSite1, -1);
+            API::getInstance()->save(self::$fixture->idSite1, -1);
             $this->fail("save should fail when given an invalid note id");
         } catch (Exception $ex) {
             // pass
@@ -161,7 +165,7 @@ class AnnotationsTest extends IntegrationTestCase
     public function testDeleteMultipleSitesFail()
     {
         try {
-            Piwik_Annotations_API::getInstance()->delete("1,2,3", 0);
+            API::getInstance()->delete("1,2,3", 0);
             $this->fail("delete should fail when given multiple site IDs");
         } catch (Exception $ex) {
             // pass
@@ -175,7 +179,7 @@ class AnnotationsTest extends IntegrationTestCase
     public function testDeleteInvalidNoteIdFail()
     {
         try {
-            Piwik_Annotations_API::getInstance()->delete(self::$fixture->idSite1, -1);
+            API::getInstance()->delete(self::$fixture->idSite1, -1);
             $this->fail("delete should fail when given an invalid site ID");
         } catch (Exception $ex) {
             // pass
@@ -189,7 +193,7 @@ class AnnotationsTest extends IntegrationTestCase
     public function testGetMultipleSitesFail()
     {
         try {
-            Piwik_Annotations_API::getInstance()->get("1,2,3", 0);
+            API::getInstance()->get("1,2,3", 0);
             $this->fail("get should fail when given multiple site IDs");
         } catch (Exception $ex) {
             // pass
@@ -203,7 +207,7 @@ class AnnotationsTest extends IntegrationTestCase
     public function testGetInvalidNoteIdFail()
     {
         try {
-            Piwik_Annotations_API::getInstance()->get(self::$fixture->idSite1, -1);
+            API::getInstance()->get(self::$fixture->idSite1, -1);
             $this->fail("get should fail when given an invalid note ID");
         } catch (Exception $ex) {
             // pass
@@ -216,7 +220,7 @@ class AnnotationsTest extends IntegrationTestCase
      */
     public function testSaveSuccess()
     {
-        Piwik_Annotations_API::getInstance()->save(
+        API::getInstance()->save(
             self::$fixture->idSite1, 0, $date = '2011-04-01', $note = 'new note text', $starred = 1);
 
         $expectedAnnotation = array(
@@ -227,7 +231,7 @@ class AnnotationsTest extends IntegrationTestCase
             'idNote'          => 0,
             'canEditOrDelete' => true
         );
-        $this->assertEquals($expectedAnnotation, Piwik_Annotations_API::getInstance()->get(self::$fixture->idSite1, 0));
+        $this->assertEquals($expectedAnnotation, API::getInstance()->get(self::$fixture->idSite1, 0));
     }
 
     /**
@@ -236,7 +240,7 @@ class AnnotationsTest extends IntegrationTestCase
      */
     public function testSaveNoChangesSuccess()
     {
-        Piwik_Annotations_API::getInstance()->save(self::$fixture->idSite1, 1);
+        API::getInstance()->save(self::$fixture->idSite1, 1);
 
         $expectedAnnotation = array(
             'date'            => '2011-12-02',
@@ -246,7 +250,7 @@ class AnnotationsTest extends IntegrationTestCase
             'idNote'          => 1,
             'canEditOrDelete' => true
         );
-        $this->assertEquals($expectedAnnotation, Piwik_Annotations_API::getInstance()->get(self::$fixture->idSite1, 1));
+        $this->assertEquals($expectedAnnotation, API::getInstance()->get(self::$fixture->idSite1, 1));
     }
 
     /**
@@ -255,10 +259,10 @@ class AnnotationsTest extends IntegrationTestCase
      */
     public function testDeleteSuccess()
     {
-        Piwik_Annotations_API::getInstance()->delete(self::$fixture->idSite1, 1);
+        API::getInstance()->delete(self::$fixture->idSite1, 1);
 
         try {
-            Piwik_Annotations_API::getInstance()->get(self::$fixture->idSite1, 1);
+            API::getInstance()->get(self::$fixture->idSite1, 1);
             $this->fail("failed to delete annotation");
         } catch (Exception $ex) {
             // pass
@@ -306,18 +310,18 @@ class AnnotationsTest extends IntegrationTestCase
         FakeAccess::$superUser = false;
         FakeAccess::$idSitesAdmin = $hasAdminAccess ? array(self::$fixture->idSite1) : array();
         FakeAccess::$idSitesView = $hasViewAccess ? array(self::$fixture->idSite1) : array();
-        Zend_Registry::set('access', $access);
+        Access::setSingletonInstance($access);
 
         if ($checkException) {
             try {
-                $request = new Piwik_API_Request($request);
+                $request = new Request($request);
                 $request->process();
                 $this->fail($failMessage);
             } catch (Exception $ex) {
                 // pass
             }
         } else {
-            $request = new Piwik_API_Request($request);
+            $request = new Request($request);
             $request->process();
         }
     }

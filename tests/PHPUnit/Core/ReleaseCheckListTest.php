@@ -1,4 +1,8 @@
 <?php
+use Piwik\Piwik;
+use Piwik\Common;
+use Piwik\Tracker\Db;
+
 /**
  * Piwik - Open source web analytics
  *
@@ -52,8 +56,8 @@ class ReleaseCheckListTest extends PHPUnit_Framework_TestCase
      */
     public function testTemplatesDontContainDebug()
     {
-        $patternFailIfFound = '{debug}';
-        $files = Piwik::globr(PIWIK_INCLUDE_PATH . '/plugins', '*.tpl');
+        $patternFailIfFound = 'dump(';
+        $files = Piwik::globr(PIWIK_INCLUDE_PATH . '/plugins', '*.twig');
         foreach ($files as $file) {
             $content = file_get_contents($file);
             $this->assertFalse(strpos($content, $patternFailIfFound), 'found in ' . $file);
@@ -88,7 +92,7 @@ class ReleaseCheckListTest extends PHPUnit_Framework_TestCase
     public function testProfilingDisabledInProduction()
     {
         require_once 'Tracker/Db.php';
-        $this->assertTrue(Piwik_Tracker_Db::isProfilingEnabled() === false, 'SQL profiler should be disabled in production! See Piwik_Tracker_Db::$profiling');
+        $this->assertTrue(Db::isProfilingEnabled() === false, 'SQL profiler should be disabled in production! See Db::$profiling');
     }
 
     /**
@@ -116,28 +120,9 @@ class ReleaseCheckListTest extends PHPUnit_Framework_TestCase
      * @group Core
      * @group ReleaseCheckList
      */
-    public function testAjaxLibraryVersions()
+    public function testEndOfLines()
     {
-        Piwik::createConfigObject();
-        Piwik_Config::getInstance()->setTestEnvironment();
-
-        $jqueryJs = file_get_contents(PIWIK_DOCUMENT_ROOT . '/libs/jquery/jquery.js', false, NULL, 0, 512);
-        $this->assertTrue((boolean)preg_match('/jQuery (?:JavaScript Library )?v?([0-9.]+)/', $jqueryJs, $matches));
-        $this->assertEquals(Piwik_Config::getInstance()->General['jquery_version'], $matches[1]);
-
-        $jqueryuiJs = file_get_contents(PIWIK_DOCUMENT_ROOT . '/libs/jquery/jquery-ui.js', false, NULL, 0, 512);
-        $this->assertTrue((boolean)preg_match('/jQuery UI (?:- v)?([0-9.]+)/', $jqueryuiJs, $matches));
-        $this->assertEquals(Piwik_Config::getInstance()->General['jqueryui_version'], $matches[1]);
-
-    }
-
-    /**
-     * @group Core
-     * @group ReleaseCheckList
-     */
-    public function testSvnEolStyle()
-    {
-        if (Piwik_Common::isWindows()) {
+        if (Common::isWindows()) {
             // SVN native does not make this work on windows
             return;
         }
@@ -154,7 +139,7 @@ class ReleaseCheckListTest extends PHPUnit_Framework_TestCase
             }
 
             // skip files with these file extensions
-            if (preg_match('/\.(bmp|fdf|gif|deflate|gz|ico|jar|jpg|p12|pdf|png|rar|swf|vsd|z|zip|ttf|so|dat|eps)$/', $file)) {
+            if (preg_match('/\.(bmp|fdf|gif|deflate|gz|ico|jar|jpg|p12|pdf|png|rar|swf|vsd|z|zip|ttf|so|dat|eps|phar)$/', $file)) {
                 continue;
             }
 

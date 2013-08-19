@@ -9,6 +9,9 @@
  * @package Piwik
  */
 
+namespace Piwik;
+use Exception;
+
 /**
  * For general performance (and specifically, the Tracker), we use deferred (lazy) initialization
  * and cache sections.  We also avoid any dependency on Zend Framework's Zend_Config.
@@ -37,19 +40,22 @@
  * @package Piwik
  * @subpackage Piwik_Config
  */
-class Piwik_Config
+class Config
 {
     private static $instance = null;
 
     /**
      * Returns the singleton Piwik_Config
      *
-     * @return Piwik_Config
+     * @return \Piwik\Config
      */
     public static function getInstance()
     {
         if (self::$instance == null) {
             self::$instance = new self;
+            self::$instance->init();
+
+            Piwik_PostTestEvent('Config.createConfigSingleton', array(self::$instance));
         }
         return self::$instance;
     }
@@ -66,6 +72,9 @@ class Piwik_Config
     protected $pathGlobal = null;
     protected $pathLocal = null;
 
+    /**
+     * Constructor
+     */
     protected function __construct()
     {
         $this->pathGlobal = self::getGlobalConfigPath();
@@ -120,6 +129,13 @@ class Piwik_Config
         // for unit tests, we set that no plugin is installed. This will force
         // the test initialization to create the plugins tables, execute ALTER queries, etc.
         $this->configCache['PluginsInstalled'] = array('PluginsInstalled' => array());
+
+        if (isset($configGlobal['Plugins'])) {
+            $this->configCache['Plugins'] = $this->configGlobal['Plugins'];
+            $this->configCache['Plugins']['Plugins'][] = 'DevicesDetection';
+        }
+
+        $this->configCache['disable_merged_assets'] = 1;
     }
 
     /**
@@ -152,22 +168,9 @@ class Piwik_Config
      *
      * @return string
      */
-    public static function getGlobalConfigPath()
+    protected static function getGlobalConfigPath()
     {
         return PIWIK_USER_PATH . '/config/global.ini.php';
-    }
-
-    /**
-     * Backward compatibility stub
-     *
-     * @todo remove in 2.0
-     * @since 1.7
-     * @deprecated 1.7
-     * @return string
-     */
-    public static function getDefaultDefaultConfigPath()
-    {
-        return self::getGlobalConfigPath();
     }
 
     /**
@@ -291,12 +294,7 @@ class Piwik_Config
             return $tmp;
         }
 
-        $section = null;
-
-        // merge corresponding sections from global and local settings
-        if (isset($this->configGlobal[$name])) {
-            $section = $this->configGlobal[$name];
-        }
+        $section = $this->getFromDefaultConfig($name);
 
         if (isset($this->configLocal[$name])) {
             // local settings override the global defaults
@@ -306,7 +304,7 @@ class Piwik_Config
         }
 
         if ($section === null) {
-            throw new Exception("Error while trying to read a specific config file entry <b>'$name'</b> from your configuration files.</b>If you just completed a Piwik upgrade, please check that the file config/global.ini.php was overwritten by the latest Piwik version.");
+            throw new Exception("Error while trying to read a specific config file entry <strong>'$name'</strong> from your configuration files.</b>If you just completed a Piwik upgrade, please check that the file config/global.ini.php was overwritten by the latest Piwik version.");
         }
 
         // cache merged section for later
@@ -314,6 +312,14 @@ class Piwik_Config
         $tmp =& $this->configCache[$name];
 
         return $tmp;
+    }
+
+    public function getFromDefaultConfig($name)
+    {
+        if (isset($this->configGlobal[$name])) {
+            return $this->configGlobal[$name];
+        }
+        return null;
     }
 
     /**

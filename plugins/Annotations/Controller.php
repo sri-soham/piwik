@@ -6,15 +6,22 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_Annotations
+ * @package Annotations
  */
+namespace Piwik\Plugins\Annotations;
+
+use Piwik\API\Request;
+use Piwik\Common;
+use Piwik\Plugins\Annotations\AnnotationList;
+use Piwik\Plugins\Annotations\API;
+use Piwik\View;
 
 /**
  * Controller for the Annotations plugin.
  *
- * @package Piwik_Annotations
+ * @package Annotations
  */
-class Piwik_Annotations_Controller extends Piwik_Controller
+class Controller extends \Piwik\Controller
 {
     /**
      * Controller action that returns HTML displaying annotations for a site and
@@ -33,38 +40,38 @@ class Piwik_Annotations_Controller extends Piwik_Controller
      *
      * @param bool $fetch True if the annotation manager should be returned as a string,
      *                    false if it should be echo-ed.
-     * @param string $date Override for 'date' query parameter.
-     * @param string $period Override for 'period' query parameter.
-     * @param string $lastN Override for 'lastN' query parameter.
+     * @param bool|string $date Override for 'date' query parameter.
+     * @param bool|string $period Override for 'period' query parameter.
+     * @param bool|string $lastN Override for 'lastN' query parameter.
      * @return string|void
      */
     public function getAnnotationManager($fetch = false, $date = false, $period = false, $lastN = false)
     {
-        $idSite = Piwik_Common::getRequestVar('idSite');
+        $idSite = Common::getRequestVar('idSite');
 
         if ($date === false) {
-            $date = Piwik_Common::getRequestVar('date', false);
+            $date = Common::getRequestVar('date', false);
         }
 
         if ($period === false) {
-            $period = Piwik_Common::getRequestVar('period', 'day');
+            $period = Common::getRequestVar('period', 'day');
         }
 
         if ($lastN === false) {
-            $lastN = Piwik_Common::getRequestVar('lastN', false);
+            $lastN = Common::getRequestVar('lastN', false);
         }
 
         // create & render the view
-        $view = Piwik_View::factory('annotationManager');
+        $view = new View('@Annotations/getAnnotationManager');
 
-        $allAnnotations = Piwik_API_Request::processRequest(
+        $allAnnotations = Request::processRequest(
             'Annotations.getAll', array('date' => $date, 'period' => $period, 'lastN' => $lastN));
         $view->annotations = empty($allAnnotations[$idSite]) ? array() : $allAnnotations[$idSite];
 
         $view->period = $period;
         $view->lastN = $lastN;
 
-        list($startDate, $endDate) = Piwik_Annotations_API::getDateRangeForPeriod($date, $period, $lastN);
+        list($startDate, $endDate) = API::getDateRangeForPeriod($date, $period, $lastN);
         $view->startDate = $startDate->toString();
         $view->endDate = $endDate->toString();
 
@@ -72,7 +79,7 @@ class Piwik_Annotations_Controller extends Piwik_Controller
         $view->startDatePretty = $startDate->getLocalized($dateFormat);
         $view->endDatePretty = $endDate->getLocalized($dateFormat);
 
-        $view->canUserAddNotes = Piwik_Annotations_AnnotationList::canUserAddNotesFor($idSite);
+        $view->canUserAddNotes = AnnotationList::canUserAddNotesFor($idSite);
 
         if ($fetch) {
             return $view->render();
@@ -103,11 +110,11 @@ class Piwik_Annotations_Controller extends Piwik_Controller
         if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $this->checkTokenInUrl();
 
-            $view = Piwik_View::factory('annotation');
+            $view = new View('@Annotations/saveAnnotation');
 
             // NOTE: permissions checked in API method
             // save the annotation
-            $view->annotation = Piwik_API_Request::processRequest("Annotations.save");
+            $view->annotation = Request::processRequest("Annotations.save");
 
             echo $view->render();
         }
@@ -140,16 +147,16 @@ class Piwik_Annotations_Controller extends Piwik_Controller
             // the date used is for the annotation manager HTML that gets echo'd. we
             // use this date for the new annotation, unless it is a date range, in
             // which case we use the first date of the range.
-            $date = Piwik_Common::getRequestVar('date');
+            $date = Common::getRequestVar('date');
             if (strpos($date, ',') !== false) {
                 $date = reset(explode(',', $date));
             }
 
             // add the annotation. NOTE: permissions checked in API method
-            Piwik_API_Request::processRequest("Annotations.add", array('date' => $date));
+            Request::processRequest("Annotations.add", array('date' => $date));
 
-            $managerDate = Piwik_Common::getRequestVar('managerDate', false);
-            $managerPeriod = Piwik_Common::getRequestVar('managerPeriod', false);
+            $managerDate = Common::getRequestVar('managerDate', false);
+            $managerPeriod = Common::getRequestVar('managerPeriod', false);
             echo $this->getAnnotationManager($fetch = true, $managerDate, $managerPeriod);
         }
     }
@@ -177,7 +184,7 @@ class Piwik_Annotations_Controller extends Piwik_Controller
             $this->checkTokenInUrl();
 
             // delete annotation. NOTE: permissions checked in API method
-            Piwik_API_Request::processRequest("Annotations.delete");
+            Request::processRequest("Annotations.delete");
 
             echo $this->getAnnotationManager($fetch = true);
         }
@@ -204,11 +211,11 @@ class Piwik_Annotations_Controller extends Piwik_Controller
     public function getEvolutionIcons()
     {
         // get annotation the count
-        $annotationCounts = Piwik_API_Request::processRequest(
+        $annotationCounts = Request::processRequest(
             "Annotations.getAnnotationCountForDates", array('getAnnotationText' => 1));
 
         // create & render the view
-        $view = Piwik_View::factory('evolutionAnnotations');
+        $view = new View('@Annotations/getEvolutionIcons');
         $view->annotationCounts = reset($annotationCounts); // only one idSite allowed for this action
 
         echo $view->render();

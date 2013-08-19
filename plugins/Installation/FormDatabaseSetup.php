@@ -6,14 +6,25 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_Installation
+ * @package Installation
  */
+namespace Piwik\Plugins\Installation;
+
+use Piwik\Db\Adapter;
+use Piwik\Piwik;
+use Piwik\Common;
+use Piwik\QuickForm2;
+use Exception;
+use HTML_QuickForm2_Rule;
+use HTML_QuickForm2_DataSource_Array;
+use HTML_QuickForm2_Factory;
+use Zend_Db_Adapter_Exception;
 
 /**
  *
- * @package Piwik_Installation
+ * @package Installation
  */
-class Piwik_Installation_FormDatabaseSetup extends Piwik_QuickForm2
+class FormDatabaseSetup extends QuickForm2
 {
     function __construct($id = 'databasesetupform', $method = 'post', $attributes = null, $trackSubmit = false)
     {
@@ -22,12 +33,12 @@ class Piwik_Installation_FormDatabaseSetup extends Piwik_QuickForm2
 
     function init()
     {
-        HTML_QuickForm2_Factory::registerRule('checkValidFilename', 'Piwik_Installation_FormDatabaseSetup_Rule_checkValidFilename');
+        HTML_QuickForm2_Factory::registerRule('checkValidFilename', 'Piwik\Plugins\Installation\FormDatabaseSetup_Rule_checkValidFilename');
 
-        $checkUserPrivilegesClass = 'Piwik_Installation_FormDatabaseSetup_Rule_checkUserPrivileges';
+        $checkUserPrivilegesClass = 'Piwik\Plugins\Installation\Rule_checkUserPrivileges';
         HTML_QuickForm2_Factory::registerRule('checkUserPrivileges', $checkUserPrivilegesClass);
 
-        $availableAdapters = Piwik_Db_Adapter::getAdapters();
+        $availableAdapters = Adapter::getAdapters();
         $adapters = array();
         foreach ($availableAdapters as $adapter => $port) {
             $adapters[$adapter] = $adapter;
@@ -40,9 +51,9 @@ class Piwik_Installation_FormDatabaseSetup extends Piwik_QuickForm2
         $user = $this->addElement('text', 'username')
             ->setLabel(Piwik_Translate('Installation_DatabaseSetupLogin'));
         $user->addRule('required', Piwik_Translate('General_Required', Piwik_Translate('Installation_DatabaseSetupLogin')));
-        $requiredPrivileges = Piwik_Installation_FormDatabaseSetup_Rule_checkUserPrivileges::getRequiredPrivilegesPretty();
+        $requiredPrivileges = Rule_checkUserPrivileges::getRequiredPrivilegesPretty();
         $user->addRule('checkUserPrivileges',
-            Piwik_Translate('Installation_InsufficientPrivileges', $requiredPrivileges . '<br/><br/>') .
+            Piwik_Translate('Installation_InsufficientPrivilegesMain', $requiredPrivileges . '<br/><br/>') .
                 Piwik_Translate('Installation_InsufficientPrivilegesHelp'));
 
         $this->addElement('password', 'password')
@@ -74,6 +85,7 @@ class Piwik_Installation_FormDatabaseSetup extends Piwik_QuickForm2
     /**
      * Creates database object based on form data.
      *
+     * @throws Exception|Zend_Db_Adapter_Exception
      * @return array The database connection info. Can be passed into Piwik::createDatabaseObject.
      */
     public function createDatabaseObject()
@@ -116,7 +128,7 @@ class Piwik_Installation_FormDatabaseSetup extends Piwik_QuickForm2
         try {
             @Piwik::createDatabaseObject($dbInfos);
         } catch (Zend_Db_Adapter_Exception $e) {
-            $db = Piwik_Db_Adapter::factory($adapter, $dbInfos, $connect = false);
+            $db = Adapter::factory($adapter, $dbInfos, $connect = false);
 
             // database not found, we try to create  it
             if ($db->isErrNo($e, '1049')) {
@@ -149,9 +161,9 @@ class Piwik_Installation_FormDatabaseSetup extends Piwik_QuickForm2
  * - DROP
  * - CREATE TEMPORARY TABLES
  *
- * @package Piwik_Installation
+ * @package Installation
  */
-class Piwik_Installation_FormDatabaseSetup_Rule_checkUserPrivileges extends HTML_QuickForm2_Rule
+class Rule_checkUserPrivileges extends HTML_QuickForm2_Rule
 {
     const TEST_TABLE_NAME = 'piwik_test_table';
     const TEST_TEMP_TABLE_NAME = 'piwik_test_table_temp';
@@ -173,7 +185,7 @@ class Piwik_Installation_FormDatabaseSetup_Rule_checkUserPrivileges extends HTML
             }
         }
 
-        $db = Zend_Registry::get('db');
+        $db = \Zend_Registry::get('db');
 
         try {
             // try to drop tables before running privilege tests
@@ -305,7 +317,7 @@ class Piwik_Installation_FormDatabaseSetup_Rule_checkUserPrivileges extends HTML
     /**
      * Drops the tables created by the privilege checking queries, if they exist.
      *
-     * @param $db The database object to use.
+     * @param \Piwik\Db $db The database object to use.
      */
     private function dropExtraTables($db)
     {
@@ -316,13 +328,15 @@ class Piwik_Installation_FormDatabaseSetup_Rule_checkUserPrivileges extends HTML
 /**
  * Filename check for prefix/DB name
  *
- * @package Piwik_Installation
+ * @package Installation
  */
-class Piwik_Installation_FormDatabaseSetup_Rule_checkValidFilename extends HTML_QuickForm2_Rule
+class FormDatabaseSetup_Rule_checkValidFilename extends HTML_QuickForm2_Rule
 {
     function validateOwner()
     {
-        return Piwik_Common::isValidFilename($this->owner->getValue());
+        $prefix = $this->owner->getValue();
+        return empty($prefix)
+            || Common::isValidFilename($prefix);
     }
 }
 

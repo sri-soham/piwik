@@ -27,7 +27,7 @@ class Piwik_Db_DAO_Report extends Piwik_Db_DAO_Base
         return $this->db->fetchOne($sql);
     }
 
-    public function insert($idreport, $idsite, $login, $description, $period, $hour,
+    public function insert($idreport, $idsite, $login, $description, $idsegment, $period, $hour,
                            $type, $format, $parameters, $reports, $ts_created, $deleted)
     {
         $this->db->insert($this->table,
@@ -36,6 +36,7 @@ class Piwik_Db_DAO_Report extends Piwik_Db_DAO_Base
                 'idsite'      => $idsite,
                 'login'       => $login,
                 'description' => $description,
+                'idsegment'   => $idsegment,
                 'period'      => $period,
                 'hour'        => $hour,
                 'type'        => $type,
@@ -53,9 +54,9 @@ class Piwik_Db_DAO_Report extends Piwik_Db_DAO_Base
         $this->db->update($this->table, $values, "idreport = '$idreport'");
     }
 
-    public function getAllActive($idSite, $period, $idReport, $ifSuperUserReturnOnlySuperUserReports)
+    public function getAllActive($idSite, $period, $idReport, $idSegment, $ifSuperUserReturnOnlySuperUserReports)
     {
-        list($where, $params) = $this->varsGetAllActive($idSite, $period, $idReport, $ifSuperUserReturnOnlySuperUserReports);
+        list($where, $params) = $this->varsGetAllActive($idSite, $period, $idReport, $idSegment, $ifSuperUserReturnOnlySuperUserReports);
         if (empty($where)) {
             $where = '';
         }
@@ -84,6 +85,7 @@ class Piwik_Db_DAO_Report extends Piwik_Db_DAO_Base
                     idsite INTEGER(11) NOT NULL,
                     login VARCHAR(100) NOT NULL,
                     description VARCHAR(255) NOT NULL,
+                    idsegment INT(11),
                     period VARCHAR(10) NOT NULL,
                     hour TINYINT NOT NULL DEFAULT 0,
                     type VARCHAR(10) NOT NULL,
@@ -111,7 +113,7 @@ class Piwik_Db_DAO_Report extends Piwik_Db_DAO_Base
         $this->db->query($sql);
     }
 
-    protected function varsGetAllActive($idsite, $period, $idreport, $ifSuperUserReturnOnlySuperUserReports)
+    protected function varsGetAllActive($idsite, $period, $idreport, $idsegment, $ifSuperUserReturnOnlySuperUserReports)
     {
         $where = array();
         $params = array();
@@ -131,6 +133,10 @@ class Piwik_Db_DAO_Report extends Piwik_Db_DAO_Base
         if (!empty($idreport)) {
             $where[] = ' idreport = ? ';
             $params[] = $idreport;
+        }
+        if (!empty($idsegment)) {
+            $where[] = ' idsegment = ? ';
+            $params = $idsegment;
         }
 
         return array($where, $params);

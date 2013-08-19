@@ -6,36 +6,20 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_ExampleRssWidget
+ * @package ExampleRssWidget
  */
+namespace Piwik\Plugins\ExampleRssWidget;
+
+use Piwik\WidgetsList;
 
 /**
  *
- * @package Piwik_ExampleRssWidget
+ * @package ExampleRssWidget
  */
-class Piwik_ExampleRssWidget extends Piwik_Plugin
+class ExampleRssWidget extends \Piwik\Plugin
 {
     /**
-     * Return information about this plugin.
-     *
-     * @see Piwik_Plugin
-     *
-     * @return array
-     */
-    public function getInformation()
-    {
-        return array(
-            'description'     => Piwik_Translate('ExampleRssWidget_PluginDescription'),
-            'author'          => 'Piwik',
-            'author_homepage' => 'http://piwik.org/',
-            'version'         => '0.1',
-        );
-    }
-
-    /**
-     * Returns a list of registered hooks.
-     *
-     * @return array
+     * @see Piwik_Plugin::getListHooksRegistered
      */
     public function getListHooksRegistered()
     {
@@ -45,19 +29,14 @@ class Piwik_ExampleRssWidget extends Piwik_Plugin
         );
     }
 
-    /**
-     * @param Piwik_Event_Notification $notification  notification object
-     */
-    public function getCssFiles($notification)
+    public function getCssFiles(&$cssFiles)
     {
-        $cssFiles = & $notification->getNotificationObject();
-
-        $cssFiles[] = "plugins/ExampleRssWidget/templates/styles.css";
+        $cssFiles[] = "plugins/ExampleRssWidget/stylesheets/rss.less";
     }
 
     public function addWidgets()
     {
-        Piwik_AddWidget('Example Widgets', 'Piwik.org Blog', 'ExampleRssWidget', 'rssPiwik');
-        Piwik_AddWidget('Example Widgets', 'Piwik Changelog', 'ExampleRssWidget', 'rssChangelog');
+        WidgetsList::add('Example Widgets', 'Piwik.org Blog', 'ExampleRssWidget', 'rssPiwik');
+        WidgetsList::add('Example Widgets', 'Piwik Changelog', 'ExampleRssWidget', 'rssChangelog');
     }
 }

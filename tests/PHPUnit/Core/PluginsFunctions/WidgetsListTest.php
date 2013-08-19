@@ -6,6 +6,10 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
 
+use Piwik\Access;
+use Piwik\Plugins\Goals\API;
+use Piwik\WidgetsList;
+
 class WidgetsListTest extends DatabaseTestCase
 {
     /**
@@ -18,7 +22,7 @@ class WidgetsListTest extends DatabaseTestCase
         // setup the access layer
         $pseudoMockAccess = new FakeAccess;
         FakeAccess::$superUser = true;
-        Zend_Registry::set('access', $pseudoMockAccess);
+        Access::setSingletonInstance($pseudoMockAccess);
 
         Test_Piwik_BaseFixture::createWebsite('2009-01-04 00:11:42');
 
@@ -26,12 +30,12 @@ class WidgetsListTest extends DatabaseTestCase
 
         IntegrationTestCase::loadAllPlugins();
 
-        Piwik_WidgetsList::_reset();
-        $widgets = Piwik_GetWidgetsList();
-        Piwik_WidgetsList::_reset();
+        WidgetsList::_reset();
+        $widgets = WidgetsList::get();
+        WidgetsList::_reset();
 
-        // there should be 11 main categories
-        $this->assertEquals(11, count($widgets));
+        // number of main categories
+        $this->assertEquals(12, count($widgets));
 
         // check if each category has the right number of widgets
         $numberOfWidgets = array(
@@ -45,6 +49,7 @@ class WidgetsListTest extends DatabaseTestCase
             'Goals_Goals'                  => 1,
             'SEO'                          => 2,
             'Example Widgets'              => 4,
+            'DevicesDetection_DevicesDetection' => 7,
             'ExamplePlugin_exampleWidgets' => 3
         );
         foreach ($numberOfWidgets AS $category => $widgetCount) {
@@ -63,23 +68,21 @@ class WidgetsListTest extends DatabaseTestCase
         // setup the access layer
         $pseudoMockAccess = new FakeAccess;
         FakeAccess::$superUser = true;
-        Zend_Registry::set('access', $pseudoMockAccess);
+        Access::setSingletonInstance($pseudoMockAccess);
 
         Test_Piwik_BaseFixture::createWebsite('2009-01-04 00:11:42');
-        Piwik_Goals_API::getInstance()->addGoal(1, 'Goal 1 - Thank you', 'title', 'Thank you', 'contains', $caseSensitive = false, $revenue = 10, $allowMultipleConversions = 1);
+        API::getInstance()->addGoal(1, 'Goal 1 - Thank you', 'title', 'Thank you', 'contains', $caseSensitive = false, $revenue = 10, $allowMultipleConversions = 1);
 
         $_GET['idSite'] = 1;
 
-        $pluginsManager = Piwik_PluginsManager::getInstance();
-        $pluginsToLoad = Piwik_Config::getInstance()->Plugins['Plugins'];
-        $pluginsManager->loadPlugins($pluginsToLoad);
+        IntegrationTestCase::loadAllPlugins();
 
-        Piwik_WidgetsList::_reset();
-        $widgets = Piwik_GetWidgetsList();
-        Piwik_WidgetsList::_reset();
+        WidgetsList::_reset();
+        $widgets = WidgetsList::get();
+        WidgetsList::_reset();
 
-        // there should be 11 main categories
-        $this->assertEquals(11, count($widgets));
+        // number of main categories
+        $this->assertEquals(12, count($widgets));
 
         // check that the goal widget was added
         $numberOfWidgets = array(
@@ -102,23 +105,21 @@ class WidgetsListTest extends DatabaseTestCase
         // setup the access layer
         $pseudoMockAccess = new FakeAccess;
         FakeAccess::$superUser = true;
-        Zend_Registry::set('access', $pseudoMockAccess);
+        Access::setSingletonInstance($pseudoMockAccess);
 
         Test_Piwik_BaseFixture::createWebsite('2009-01-04 00:11:42', true);
-        Piwik_Goals_API::getInstance()->addGoal(1, 'Goal 1 - Thank you', 'title', 'Thank you', 'contains', $caseSensitive = false, $revenue = 10, $allowMultipleConversions = 1);
+        API::getInstance()->addGoal(1, 'Goal 1 - Thank you', 'title', 'Thank you', 'contains', $caseSensitive = false, $revenue = 10, $allowMultipleConversions = 1);
 
         $_GET['idSite'] = 1;
 
-        $pluginsManager = Piwik_PluginsManager::getInstance();
-        $pluginsToLoad = Piwik_Config::getInstance()->Plugins['Plugins'];
-        $pluginsManager->loadPlugins($pluginsToLoad);
+        IntegrationTestCase::loadAllPlugins();
 
-        Piwik_WidgetsList::_reset();
-        $widgets = Piwik_GetWidgetsList();
-        Piwik_WidgetsList::_reset();
+        WidgetsList::_reset();
+        $widgets = WidgetsList::get();
+        WidgetsList::_reset();
 
-        // there should be 12 main categories
-        $this->assertEquals(12, count($widgets));
+        // number of main categories
+        $this->assertEquals(13, count($widgets));
 
         // check if each category has the right number of widgets
         $numberOfWidgets = array(

@@ -6,8 +6,16 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_DBStats
+ * @package DBStats
  */
+namespace Piwik\Plugins\DBStats;
+
+use Exception;
+use Piwik\Piwik;
+use Piwik\Common;
+use Piwik\Config;
+use Piwik\DataTable;
+use Piwik\Db;
 
 /**
  * Utility class that provides general information about databases, including the size of
@@ -17,7 +25,7 @@
  * This class will cache the table information it retrieves from the database. In order to
  * issue a new query instead of using this cache, you must create a new instance of this type.
  */
-class Piwik_DBStats_MySQLMetadataProvider
+class MySQLMetadataProvider
 {
     /**
      * Cached MySQL table statuses. So we won't needlessly re-issue SHOW TABLE STATUS queries.
@@ -35,18 +43,19 @@ class Piwik_DBStats_MySQLMetadataProvider
     /**
      * Gets general database info that is not specific to any table.
      *
+     * @throws Exception
      * @return array See http://dev.mysql.com/doc/refman/5.1/en/show-status.html .
      */
     public function getDBStatus()
     {
         if (function_exists('mysql_connect')) {
-            $configDb = Piwik_Config::getInstance()->database;
+            $configDb = Config::getInstance()->database;
             $link = mysql_connect($configDb['host'], $configDb['username'], $configDb['password']);
             $status = mysql_stat($link);
             mysql_close($link);
             $status = explode("  ", $status);
         } else {
-            $fullStatus = Piwik_FetchAssoc('SHOW STATUS');
+            $fullStatus = Db::fetchAssoc('SHOW STATUS');
             if (empty($fullStatus)) {
                 throw new Exception('Error, SHOW STATUS failed');
             }
@@ -75,13 +84,13 @@ class Piwik_DBStats_MySQLMetadataProvider
      */
     public function getTableStatus($table)
     {
-        $prefixed = Piwik_Common::prefixTable($table);
+        $prefixed = Common::prefixTable($table);
 
         // if we've already gotten every table status, don't issue an uneeded query
         if (!is_null($this->tableStatuses) && isset($this->tableStatuses[$prefixed])) {
             return $this->tableStatuses[$prefixed];
         } else {
-            return Piwik_FetchRow("SHOW TABLE STATUS LIKE ?", array($prefixed));
+            return Db::fetchRow("SHOW TABLE STATUS LIKE ?", array($prefixed));
         }
     }
 
@@ -100,7 +109,7 @@ class Piwik_DBStats_MySQLMetadataProvider
             $tablesPiwik = Piwik::getTablesInstalled();
 
             $this->tableStatuses = array();
-            foreach (Piwik_FetchAll("SHOW TABLE STATUS") as $t) {
+            foreach (Db::fetchAll("SHOW TABLE STATUS") as $t) {
                 if (in_array($t['Name'], $tablesPiwik)) {
                     $this->tableStatuses[$t['Name']] = $t;
                 }
@@ -127,7 +136,7 @@ class Piwik_DBStats_MySQLMetadataProvider
      */
     public function getAllLogTableStatus()
     {
-        $regex = "/^" . Piwik_Common::prefixTable('log_') . "(?!profiling)/";
+        $regex = "/^" . Common::prefixTable('log_') . "(?!profiling)/";
         return $this->getAllTablesStatus($regex);
     }
 
@@ -138,7 +147,7 @@ class Piwik_DBStats_MySQLMetadataProvider
      */
     public function getAllNumericArchiveStatus()
     {
-        $regex = "/^" . Piwik_Common::prefixTable('archive_numeric') . "_/";
+        $regex = "/^" . Common::prefixTable('archive_numeric') . "_/";
         return $this->getAllTablesStatus($regex);
     }
 
@@ -149,7 +158,7 @@ class Piwik_DBStats_MySQLMetadataProvider
      */
     public function getAllBlobArchiveStatus()
     {
-        $regex = "/^" . Piwik_Common::prefixTable('archive_blob') . "_/";
+        $regex = "/^" . Common::prefixTable('archive_blob') . "_/";
         return $this->getAllTablesStatus($regex);
     }
 
@@ -160,7 +169,7 @@ class Piwik_DBStats_MySQLMetadataProvider
      */
     public function getAllAdminTableStatus()
     {
-        $regex = "/^" . Piwik_Common::prefixTable('') . "(?!archive_|(?:log_(?!profiling)))/";
+        $regex = "/^" . Common::prefixTable('') . "(?!archive_|(?:log_(?!profiling)))/";
         return $this->getAllTablesStatus($regex);
     }
 
@@ -172,7 +181,7 @@ class Piwik_DBStats_MySQLMetadataProvider
      *
      * @param bool $forceCache false to use the cached result, true to run the queries again and
      *                         cache the result.
-     * @return Piwik_DataTable
+     * @return DataTable
      */
     public function getRowCountsAndSizeByBlobName($forceCache = false)
     {
@@ -191,7 +200,7 @@ class Piwik_DBStats_MySQLMetadataProvider
      *
      * @param bool $forceCache false to use the cached result, true to run the queries again and
      *                         cache the result.
-     * @return Piwik_DataTable
+     * @return DataTable
      */
     public function getRowCountsAndSizeByMetricName($forceCache = false)
     {
@@ -213,21 +222,21 @@ class Piwik_DBStats_MySQLMetadataProvider
 
         $cols = array_merge(array('row_count'), $otherDataTableColumns);
 
-        $dataTable = new Piwik_DataTable();
+        $dataTable = new DataTable();
         foreach ($statuses as $status) {
             $dataTableOptionName = $this->getCachedOptionName($status['Name'], 'byArchiveName');
 
             // if option exists && !$forceCache, use the cached data, otherwise create the
             $cachedData = Piwik_GetOption($dataTableOptionName);
             if ($cachedData !== false && !$forceCache) {
-                $table = new Piwik_DataTable();
+                $table = new DataTable();
                 $table->addRowsFromSerializedArray($cachedData);
             } else {
                 // otherwise, create data table & cache it
                 $sql = "SELECT name as 'label', COUNT(*) as 'row_count'$extraCols FROM {$status['Name']} GROUP BY name";
 
-                $table = new Piwik_DataTable();
-                $table->addRowsFromSimpleArray(Piwik_FetchAll($sql));
+                $table = new DataTable();
+                $table->addRowsFromSimpleArray(Db::fetchAll($sql));
 
                 $reduceArchiveRowName = array($this, 'reduceArchiveRowName');
                 $table->filter('GroupBy', array('label', $reduceArchiveRowName));
@@ -243,7 +252,6 @@ class Piwik_DBStats_MySQLMetadataProvider
                 array($cols, 'estimated_size', $getEstimatedSize, array($status)));
 
             $dataTable->addDataTable($table);
-            destroy($table);
         }
         return $dataTable;
     }
@@ -271,7 +279,7 @@ class Piwik_DBStats_MySQLMetadataProvider
         static $fixedSizeColumnLength = null;
         if (is_null($fixedSizeColumnLength)) {
             $fixedSizeColumnLength = 0;
-            foreach (Piwik_FetchAll("SHOW COLUMNS FROM " . $status['Name']) as $column) {
+            foreach (Db::fetchAll("SHOW COLUMNS FROM " . $status['Name']) as $column) {
                 $columnType = $column['Type'];
 
                 if (($paren = strpos($columnType, '(')) !== false) {

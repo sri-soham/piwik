@@ -9,13 +9,18 @@
  * @package Piwik
  */
 
+namespace Piwik;
+
+use Exception;
+use Piwik\ScheduledTime;
+
 /**
- * Piwik_ScheduledTask is used by the task scheduler and by plugins to configure runnable tasks.
+ * ScheduledTask is used by the task scheduler and by plugins to configure runnable tasks.
  *
  * @package Piwik
- * @subpackage Piwik_ScheduledTask
+ * @subpackage ScheduledTask
  */
-class Piwik_ScheduledTask
+class ScheduledTask
 {
     const LOWEST_PRIORITY = 12;
     const LOW_PRIORITY = 9;
@@ -49,7 +54,7 @@ class Piwik_ScheduledTask
 
     /**
      * The scheduled time policy
-     * @var Piwik_ScheduledTime
+     * @var ScheduledTime
      */
     var $scheduledTime;
 
@@ -61,7 +66,7 @@ class Piwik_ScheduledTask
 
     function __construct($_objectInstance, $_methodName, $_methodParameter, $_scheduledTime, $_priority = self::NORMAL_PRIORITY)
     {
-        $this->className = get_class($_objectInstance);
+        $this->className = $this->getClassNameFromInstance($_objectInstance);
 
         if ($_priority < self::HIGHEST_PRIORITY || $_priority > self::LOWEST_PRIORITY) {
             throw new Exception("Invalid priority for ScheduledTask '$this->className.$_methodName': $_priority");
@@ -72,6 +77,13 @@ class Piwik_ScheduledTask
         $this->scheduledTime = $_scheduledTime;
         $this->methodParameter = $_methodParameter;
         $this->priority = $_priority;
+    }
+
+    protected function getClassNameFromInstance($_objectInstance)
+    {
+        $namespaced = get_class($_objectInstance);
+        $class = explode('\\', $namespaced);
+        return end($class);
     }
 
     /**
@@ -110,10 +122,9 @@ class Piwik_ScheduledTask
         return $this->methodParameter;
     }
 
-
     /**
      * Return scheduled time
-     * @return Piwik_ScheduledTime
+     * @return ScheduledTime
      */
     public function getScheduledTime()
     {
@@ -131,7 +142,7 @@ class Piwik_ScheduledTask
 
     /**
      * Return the task priority. The priority will be an integer whose value is
-     * between Piwik_ScheduledTask::HIGH_PRIORITY and Piwik_ScheduledTask::LOW_PRIORITY.
+     * between ScheduledTask::HIGH_PRIORITY and ScheduledTask::LOW_PRIORITY.
      *
      * @return int
      */

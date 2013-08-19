@@ -5,6 +5,8 @@
  * @link    http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
+use Piwik\API\Proxy;
+use Piwik\Archive;
 
 /**
  * This use case covers many simple tracking features.
@@ -22,12 +24,12 @@ class Test_Piwik_Integration_OneVisitorTwoVisits extends IntegrationTestCase
 
     public function setUp()
     {
-        Piwik_API_Proxy::getInstance()->setHideIgnoredFunctions(false);
+        Proxy::getInstance()->setHideIgnoredFunctions(false);
     }
 
     public function tearDown()
     {
-        Piwik_API_Proxy::getInstance()->setHideIgnoredFunctions(true);
+        Proxy::getInstance()->setHideIgnoredFunctions(true);
     }
 
     /**
@@ -47,10 +49,8 @@ class Test_Piwik_Integration_OneVisitorTwoVisits extends IntegrationTestCase
 
         $enExtraParam = array('expanded' => 1, 'flat' => 1, 'include_aggregate_rows' => 0, 'translateColumnNames' => 1);
         $bulkUrls = array(
-            "idSite=" . $idSite . "&date=2010-03-06&format=json&expanded=1&period=day&method=VisitsSummary.get",
-            "idSite=" . $idSite . "&date=2010-03-06&format=xml&expanded=1&period=day&method=VisitsSummary.get",
-            "idSite=" . $idSite . "&date=2010-03-06&format=json&expanded=1&period=day&method="
-                . "VisitorInterest.getNumberOfVisitsPerVisitDuration"
+            "idSite=" . $idSite . "&date=2010-03-06&expanded=1&period=day&method=VisitsSummary.get",
+            "idSite=" . $idSite . "&date=2010-03-06&expanded=1&period=day&method=VisitorInterest.getNumberOfVisitsPerVisitDuration"
         );
         foreach ($bulkUrls as &$url) {
             $url = urlencode($url);
@@ -69,7 +69,13 @@ class Test_Piwik_Integration_OneVisitorTwoVisits extends IntegrationTestCase
                                    'language'               => 'en',
                                    'testSuffix'             => '_csv')),
 
-            array('API.getBulkRequest', array('otherRequestParameters' => array('urls' => $bulkUrls))),
+            array('API.getBulkRequest', array('format' => 'xml',
+                                               'testSuffix' => '_bulk_xml',
+                                               'otherRequestParameters' => array('urls' => $bulkUrls))),
+
+            array('API.getBulkRequest', array('format' => 'json',
+                                              'testSuffix' => '_bulk_json',
+                                              'otherRequestParameters' => array('urls' => $bulkUrls))),
 
             // test API.getProcessedReport w/ report that is its own 'actionToLoadSubTables'
             array('API.getProcessedReport', array('idSite'        => $idSite,
@@ -158,9 +164,8 @@ class Test_Piwik_Integration_OneVisitorTwoVisits extends IntegrationTestCase
      */
     public function testArchiveSinglePreFetchBlob()
     {
-        $archive = Piwik_Archive::build(self::$fixture->idSite, 'day', self::$fixture->dateTime);
-        $archive->preFetchBlob('Actions_actions');
-        $cache = $archive->getBlobCache();
+        $archive = Archive::build(self::$fixture->idSite, 'day', self::$fixture->dateTime);
+        $cache = $archive->getBlob('Actions_actions', 'all');
 
         $foundSubtable = false;
 
@@ -174,6 +179,27 @@ class Test_Piwik_Integration_OneVisitorTwoVisits extends IntegrationTestCase
         }
 
         $this->assertTrue($foundSubtable, "Actions_actions subtable was not loaded");
+    }
+    
+    /**
+     * Test that restricting the number of sites to those viewable to another login
+     * works when building an archive query object.
+     * 
+     * @group        Integration
+     * @group        OneVisitorTwoVisits
+     */
+    public function testArchiveSitesWhenRestrictingToLogin()
+    {
+        try
+        {
+            Archive::build(
+                'all', 'day', self::$fixture->dateTime, $segment = false, $_restrictToLogin = 'anotherLogin');
+            $this->fail("Restricting sites to invalid login did not return 0 sites.");
+        }
+        catch (Exception $ex)
+        {
+            // pass
+        }
     }
 }
 

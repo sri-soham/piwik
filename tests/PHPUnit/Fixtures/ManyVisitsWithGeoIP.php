@@ -6,6 +6,11 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
 
+use Piwik\Date;
+use Piwik\Plugins\Goals\API;
+use Piwik\Plugins\UserCountry\LocationProvider;
+use Piwik\Plugins\UserCountry\LocationProvider\GeoIp;
+
 require_once PIWIK_INCLUDE_PATH . '/tests/PHPUnit/MockLocationProvider.php';
 
 /**
@@ -61,12 +66,15 @@ class Test_Piwik_Fixture_ManyVisitsWithGeoIP extends Test_Piwik_BaseFixture
     private function setUpWebsitesAndGoals()
     {
         self::createWebsite($this->dateTime, 0, "Site 1");
-        $this->idGoal = Piwik_Goals_API::getInstance()->addGoal($this->idSite, 'all', 'url', 'http', 'contains', false, 5);
-        $this->idGoal2 = Piwik_Goals_API::getInstance()->addGoal($this->idSite, 'two', 'url', 'xxxxxxxxxxxxx', 'contains', false, 5);
+        $this->idGoal = API::getInstance()->addGoal($this->idSite, 'all', 'url', 'http', 'contains', false, 5);
+        $this->idGoal2 = API::getInstance()->addGoal($this->idSite, 'two', 'url', 'xxxxxxxxxxxxx', 'contains', false, 5);
     }
 
     private function trackVisits($visitorCount, $setIp = false, $useLocal = true, $doBulk = false)
     {
+        static $calledCounter = 0;
+        $calledCounter++;
+
         $dateTime = $this->dateTime;
         $idSite = $this->idSite;
 
@@ -77,7 +85,7 @@ class Test_Piwik_Fixture_ManyVisitsWithGeoIP extends Test_Piwik_BaseFixture
             $t->setTokenAuth(self::getTokenAuth());
         }
         for ($i = 0; $i != $visitorCount; ++$i) {
-            $t->setVisitorId( substr(md5($i + 1000), 0, $t::LENGTH_VISITOR_ID));
+            $t->setVisitorId( substr(md5($i + $calledCounter * 1000), 0, $t::LENGTH_VISITOR_ID));
             if ($setIp) {
                 $t->setIp(current($this->ips));
                 next($this->ips);
@@ -86,7 +94,7 @@ class Test_Piwik_Fixture_ManyVisitsWithGeoIP extends Test_Piwik_BaseFixture
             }
 
             // first visit
-            $date = Piwik_Date::factory($dateTime)->addDay($i);
+            $date = Date::factory($dateTime)->addDay($i);
             $t->setForceVisitDateTime($date->getDatetime());
             $t->setUrl("http://piwik.net/grue/lair");
             $t->setCustomVariable(1, 'Cvar 1 name', 'Cvar1 value is ' .$i , 'visit');
@@ -148,7 +156,7 @@ class Test_Piwik_Fixture_ManyVisitsWithGeoIP extends Test_Piwik_BaseFixture
         $t = self::getTracker($idSite, $dateTime, $defaultInit = true);
         $t->setVisitorId('fed33392d3a48ab2');
         $t->setTokenAuth(self::getTokenAuth());
-        $t->setForceVisitDateTime(Piwik_Date::factory($dateTime)->addDay(20)->getDatetime());
+        $t->setForceVisitDateTime(Date::factory($dateTime)->addDay(20)->getDatetime());
         $t->setIp('194.57.91.215');
         $t->setCountry('us');
         $t->setRegion('CA');
@@ -162,39 +170,39 @@ class Test_Piwik_Fixture_ManyVisitsWithGeoIP extends Test_Piwik_BaseFixture
 
     private function setLocationProvider($file)
     {
-        Piwik_UserCountry_LocationProvider_GeoIp::$dbNames['loc'] = array($file);
-        Piwik_UserCountry_LocationProvider_GeoIp::$geoIPDatabaseDir = 'tests/lib/geoip-files';
-        Piwik_UserCountry_LocationProvider::$providers = null;
-        Piwik_UserCountry_LocationProvider::setCurrentProvider(self::GEOIP_IMPL_TO_TEST);
+        GeoIp::$dbNames['loc'] = array($file);
+        GeoIp::$geoIPDatabaseDir = 'tests/lib/geoip-files';
+        LocationProvider::$providers = null;
+        LocationProvider::setCurrentProvider(self::GEOIP_IMPL_TO_TEST);
 
-        if (Piwik_UserCountry_LocationProvider::getCurrentProviderId() !== self::GEOIP_IMPL_TO_TEST) {
+        if (LocationProvider::getCurrentProviderId() !== self::GEOIP_IMPL_TO_TEST) {
             throw new Exception("Failed to set the current location provider to '" . self::GEOIP_IMPL_TO_TEST . "'.");
         }
 
-        $possibleFiles = Piwik_UserCountry_LocationProvider_GeoIp::$dbNames['loc'];
-        if (Piwik_UserCountry_LocationProvider_GeoIp::getPathToGeoIpDatabase($possibleFiles) === false) {
+        $possibleFiles = GeoIp::$dbNames['loc'];
+        if (GeoIp::getPathToGeoIpDatabase($possibleFiles) === false) {
             throw new Exception("The GeoIP location provider cannot find the '$file' file! Tests will fail.");
         }
     }
 
     private function setMockLocationProvider()
     {
-        Piwik_UserCountry_LocationProvider::$providers = null;
-        Piwik_UserCountry_LocationProvider::setCurrentProvider('mock_provider');
+        LocationProvider::$providers = null;
+        LocationProvider::setCurrentProvider('mock_provider');
         MockLocationProvider::$locations = array(
             self::makeLocation('Stratford-upon-Avon', 'P3', 'gb', 123.456, 21.321), // template location
 
             // same region, different city, same country
-            self::makeLocation('Nuneaton and Bedworth', 'P3', 'gb'),
+            self::makeLocation('Nuneaton and Bedworth', 'P3', 'gb', $isp = 'comcast.net'),
 
             // same region, city & country (different lat/long)
-            self::makeLocation('Stratford-upon-Avon', 'P3', 'gb', 124.456, 22.231),
+            self::makeLocation('Stratford-upon-Avon', 'P3', 'gb', 124.456, 22.231, $isp = 'comcast.net'),
 
             // same country, different region & city
             self::makeLocation('London', 'H9', 'gb'),
 
             // same country, different region, same city
-            self::makeLocation('Stratford-upon-Avon', 'G5', 'gb'),
+            self::makeLocation('Stratford-upon-Avon', 'G5', 'gb', $lat = null, $long = null, $isp = 'awesomeisp.com'),
 
             // different country, diff region, same city
             self::makeLocation('Stratford-upon-Avon', '66', 'ru'),
@@ -212,7 +220,7 @@ class Test_Piwik_Fixture_ManyVisitsWithGeoIP extends Test_Piwik_BaseFixture
 
     private function unsetLocationProvider()
     {
-        Piwik_UserCountry_LocationProvider::setCurrentProvider('default');
+        LocationProvider::setCurrentProvider('default');
     }
 
 }

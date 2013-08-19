@@ -8,16 +8,18 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik;
+use Piwik\Common;
 
 /**
- * Piwik_Option provides a very simple mechanism to save/retrieve key-values pair
+ * Option provides a very simple mechanism to save/retrieve key-values pair
  * from the database (persistent key-value datastore).
  *
  * This is useful to save Piwik-wide preferences, configuration values.
  *
  * @package Piwik
  */
-class Piwik_Option
+class Option
 {
     /**
      * @var array
@@ -31,14 +33,14 @@ class Piwik_Option
 
     /**
      * Singleton instance
-     * @var self
+     * @var \Piwik\Option
      */
     static private $instance = null;
 
     /**
      * Returns Singleton instance
      *
-     * @return Piwik_Option
+     * @return \Piwik\Option
      */
     static public function getInstance()
     {
@@ -59,7 +61,7 @@ class Piwik_Option
      * Returns the option value for the requested option $name, fetching from database, if not in cache.
      *
      * @param string $name  Key
-     * @return string|false  Value or false, if not found
+     * @return string|bool  Value or false, if not found
      */
     public function get($name)
     {
@@ -82,9 +84,9 @@ class Piwik_Option
      *
      * @param string $name
      * @param string $value
-     * @param int $autoload  if set to 1, this option value will be automatically loaded; should be set to 1 for options that will always be used in the Piwik request.
+     * @param int $autoLoad  if set to 1, this option value will be automatically loaded; should be set to 1 for options that will always be used in the Piwik request.
      */
-    public function set($name, $value, $autoload = 0)
+    public function set($name, $value, $autoLoad = 0)
     {
         $autoload = (int)$autoload;
         $dao = Piwik_Db_Factory::getDAO('option');
@@ -152,27 +154,4 @@ class Piwik_Option
         $this->loaded = false;
         $this->all = array();
     }
-}
-
-/**
- * Returns the option value for the requested option $name
- *
- * @param string $name  Key
- * @return string|false  Value or false, if not found
- */
-function Piwik_GetOption($name)
-{
-    return Piwik_Option::getInstance()->get($name);
-}
-
-/**
- * Sets the option value in the database
- *
- * @param string $name
- * @param string $value
- * @param int $autoload  if set to 1, this option value will be automatically loaded; should be set to 1 for options that will always be used in the Piwik request.
- */
-function Piwik_SetOption($name, $value, $autoload = 0)
-{
-    Piwik_Option::getInstance()->set($name, $value, $autoload);
 }

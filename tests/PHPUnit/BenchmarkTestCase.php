@@ -5,6 +5,11 @@
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
+use Piwik\Config;
+use Piwik\Db;
+use Piwik\Common;
+use Piwik\Plugins\Goals\API;
+
 require_once PIWIK_INCLUDE_PATH . '/tests/PHPUnit/IntegrationTestCase.php';
 require_once PIWIK_INCLUDE_PATH . '/tests/LocalTracker.php';
 
@@ -43,18 +48,18 @@ abstract class BenchmarkTestCase extends IntegrationTestCase
         $installedFixture = false;
         try {
             if (isset(self::$fixture->tablesPrefix)) {
-                Piwik_Config::getInstance()->database['tables_prefix'] = self::$fixture->tablesPrefix;
-                Piwik_Common::$cachedTablePrefix = null;
+                Config::getInstance()->database['tables_prefix'] = self::$fixture->tablesPrefix;
+                Common::$cachedTablePrefix = null;
             }
 
-            Piwik_Query("USE " . $dbName);
+            Db::query("USE " . $dbName);
             $installedFixture = Piwik_GetOption('benchmark_fixture_name');
         } catch (Exception $ex) {
             // ignore
         }
 
         $createEmptyDatabase = $fixtureName != $installedFixture;
-        parent::_setUpBeforeClass($dbName, $createEmptyDatabase, $createConfig = false);
+        parent::_setUpBeforeClass($dbName, $createEmptyDatabase, $createConfig = false, $installPlugins = true);
 
         // if we created an empty database, setup the fixture
         if ($createEmptyDatabase) {
@@ -75,14 +80,14 @@ abstract class BenchmarkTestCase extends IntegrationTestCase
      */
     public static function getLocalTracker($idSite)
     {
-        $t = new Piwik_LocalTracker($idSite, IntegrationTestCase::getTrackerUrl());
+        $t = new Piwik_LocalTracker($idSite, Test_Piwik_BaseFixture::getTrackerUrl());
         $t->setUserAgent("Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.9.2.6) Gecko/20100625 Firefox/3.6.6 (.NET CLR 3.5.30729)");
         $t->setBrowserLanguage('fr');
         $t->setLocalTime('12:34:06');
         $t->setResolution(1024, 768);
         $t->setBrowserHasCookies(true);
         $t->setPlugins($flash = true, $java = true, $director = false);
-        $t->setTokenAuth(self::getTokenAuth());
+        $t->setTokenAuth(Test_Piwik_BaseFixture::getTokenAuth());
         return $t;
     }
 }
@@ -99,11 +104,11 @@ class Piwik_Test_Fixture_EmptyOneSite
     public function setUp()
     {
         // add one site
-        IntegrationTestCase::createWebsite(
+        Test_Piwik_BaseFixture::createWebsite(
             $this->date, $ecommerce = 1, $siteName = "Site #0", $siteUrl = "http://whatever.com/");
 
         // add two goals
-        $goals = Piwik_Goals_API::getInstance();
+        $goals = API::getInstance();
         $goals->addGoal($this->idSite, 'all', 'url', 'http', 'contains', false, 5);
         $goals->addGoal($this->idSite, 'all', 'url', 'http', 'contains');
     }

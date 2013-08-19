@@ -6,29 +6,28 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_Installation
+ * @package Installation
  */
+namespace Piwik\Plugins\Installation;
+
 
 /**
  *
- * @package Piwik_Installation
+ * @package Installation
  */
-class Piwik_Installation_View extends Piwik_View
+class View extends \Piwik\View
 {
-    protected $mainTemplate = 'Installation/templates/structure.tpl';
-
-    function __construct($subtemplatePath, $installationSteps, $currentStepName)
+    public function __construct($subtemplatePath, $installationSteps, $currentStepName)
     {
-        parent::__construct($this->mainTemplate);
+        parent::__construct($subtemplatePath);
 
-        $this->subTemplateToLoad = $subtemplatePath;
         $this->steps = array_keys($installationSteps);
         $this->allStepsTitle = array_values($installationSteps);
         $this->currentStepName = $currentStepName;
         $this->showNextStep = false;
     }
 
-    function render()
+    public function render()
     {
         // prepare the all steps templates
         $this->currentStepId = array_search($this->currentStepName, $this->steps);

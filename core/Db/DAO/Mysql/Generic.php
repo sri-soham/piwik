@@ -251,12 +251,21 @@ class Piwik_Db_DAO_Mysql_Generic extends Piwik_Db_DAO_Generic
     }
 
     /**
-     *  isEmpty
+     *  isNotEmptyOrIsZero
      *  Used in the Piwik_SegmentExpression::getSqlMatchFromDefinition for the
-     *  MATCH_IS_NOT_NULL.
+     *  MATCH_IS_NOT_NULL_NOR_EMPTY.
      */
-    public function isEmpty($field)
+    public function isNotEmptyOrIsZero($field)
     {
          return "$field <> '' OR $field = 0";
+    }
+
+    /**
+     *  isEmpty
+     *  Used in the Piwik_SegmentExpression::getSqlMatchFromDefinition for the
+     *  MATCH_IS_NULL_OR_EMPTY
+     */
+    public function isEmpty($field) {
+        return "$field = ''";
     }
 }

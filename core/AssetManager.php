@@ -8,11 +8,16 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik;
 
-/**
- * @see libs/cssmin/cssmin.php
- */
-require_once PIWIK_INCLUDE_PATH . '/libs/cssmin/cssmin.php';
+use Exception;
+use JSMin;
+use Piwik\Config;
+use Piwik\Piwik;
+use Piwik\Common;
+use Piwik\Version;
+use Piwik\PluginsManager;
+use lessc;
 
 /**
  * @see libs/jsmin/jsmin.php
@@ -20,7 +25,7 @@ require_once PIWIK_INCLUDE_PATH . '/libs/cssmin/cssmin.php';
 require_once PIWIK_INCLUDE_PATH . '/libs/jsmin/jsmin.php';
 
 /**
- * Piwik_AssetManager is the class used to manage the inclusion of UI assets:
+ * AssetManager is the class used to manage the inclusion of UI assets:
  * JavaScript and CSS files.
  *
  * It performs the following actions:
@@ -37,7 +42,7 @@ require_once PIWIK_INCLUDE_PATH . '/libs/jsmin/jsmin.php';
  *
  * @package Piwik
  */
-class Piwik_AssetManager
+class AssetManager
 {
     const MERGED_CSS_FILE = "asset_manager_global_css.css";
     const MERGED_JS_FILE = "asset_manager_global_js.js";
@@ -57,11 +62,6 @@ class Piwik_AssetManager
      */
     public static function getCssAssets()
     {
-        if (self::getDisableMergedAssets()) {
-            // Individual includes mode
-            self::removeMergedAsset(self::MERGED_CSS_FILE);
-            return self::getIndividualCssIncludes();
-        }
         return sprintf(self::CSS_IMPORT_DIRECTIVE, self::GET_CSS_MODULE_ACTION);
     }
 
@@ -72,7 +72,7 @@ class Piwik_AssetManager
      */
     public static function getJsAssets()
     {
-        if (self::getDisableMergedAssets()) {
+        if (self::isMergedAssetsDisabled()) {
             // Individual includes mode
             self::removeMergedAsset(self::MERGED_JS_FILE);
             return self::getIndividualJsIncludes();
@@ -81,51 +81,130 @@ class Piwik_AssetManager
     }
 
     /**
+     * Assets are cached in the browser and Piwik server returns 304 after initial download.
+     * when the Cache buster string changes, the assets will be re-generated
+     *
+     * @return string
+     */
+    public static function generateAssetsCacheBuster()
+    {
+        $pluginList = md5(implode(",", PluginsManager::getInstance()->getLoadedPluginsName()));
+        $cacheBuster = md5(Common::getSalt() . $pluginList . PHP_VERSION . Version::VERSION);
+        return $cacheBuster;
+    }
+
+    /**
      * Generate the merged css file.
      *
      * @throws Exception if a file can not be opened in write mode
      */
-    private static function generateMergedCssFile()
+    private static function prepareMergedCssFile()
     {
-        $mergedContent = "";
+        $mergedCssAlreadyGenerated = self::isGenerated(self::MERGED_CSS_FILE);
+        $isDevelopingPiwik = self::isMergedAssetsDisabled();
 
-        // absolute path to doc root
-        $rootDirectory = realpath(PIWIK_DOCUMENT_ROOT);
-        if ($rootDirectory != '/' && substr_compare($rootDirectory, '/', -1)) {
-            $rootDirectory .= '/';
+        if ($mergedCssAlreadyGenerated && !$isDevelopingPiwik) {
+            return;
         }
-        $rootDirectoryLen = strlen($rootDirectory);
+
+        $less = self::makeLess();
 
         // Loop through each css file
         $files = self::getCssFiles();
+        $mergedContent = "";
         foreach ($files as $file) {
 
             self::validateCssFile($file);
 
             $fileLocation = self::getAbsoluteLocation($file);
+            $less->addImportDir(dirname($fileLocation));
+
             $content = file_get_contents($fileLocation);
 
-            // Rewrite css url directives
-            // - assumes these are all relative paths
-            // - rewrite windows directory separator \\ to /
-            $baseDirectory = dirname($file);
-            $content = preg_replace_callback(
-                "/(url\(['\"]?)([^'\")]*)/",
-                create_function(
-                    '$matches',
-                    "return \$matches[1] . str_replace('\\\\', '/', substr(realpath(PIWIK_DOCUMENT_ROOT . '/$baseDirectory/' . \$matches[2]), $rootDirectoryLen));"
-                ),
-                $content
-            );
+            $content = self::rewriteCssPathsDirectives($file, $content);
+
             $mergedContent = $mergedContent . $content;
         }
 
-        $mergedContent = cssmin::minify($mergedContent);
-        $mergedContent = str_replace("\n", "\r\n", $mergedContent);
+        $fileHash = md5($mergedContent);
+        $firstLineCompileHash = "/* compile_me_once=$fileHash */";
 
-        Piwik_PostEvent('AssetManager.filterMergedCss', $mergedContent);
+        // Disable Merged Assets ==> Check on each request if file needs re-compiling
+        if ($mergedCssAlreadyGenerated
+            && !$isDevelopingPiwik
+        ) {
+            $pathMerged = self::getAbsoluteMergedFileLocation(self::MERGED_CSS_FILE);
+            $f = fopen($pathMerged, 'r');
+            $firstLine = fgets($f);
+            fclose($f);
+            if (!empty($firstLine)
+                && trim($firstLine) == trim($firstLineCompileHash)
+            ) {
+                return;
+            }
+            // Some CSS file in the merge, has changed since last merged asset was generated
+            // Note: we do not detect changes in @import'ed LESS files
+        }
+
+        $mergedContent = $less->compile($mergedContent);
+
+        Piwik_PostEvent('AssetManager.filterMergedCss', array(&$mergedContent));
+
+        $mergedContent =
+            $firstLineCompileHash . "\n"
+            . "/* Piwik CSS file is compiled with Less. You may be interested in writing a custom Theme for Piwik! */\n"
+            . $mergedContent;
 
         self::writeAssetToFile($mergedContent, self::MERGED_CSS_FILE);
+    }
+
+    protected static function makeLess()
+    {
+        if (!class_exists("lessc")) {
+            throw new Exception("Less was added to composer during 2.0. ==> Execute this command to update composer packages: \$ php composer.phar update");
+        }
+        $less = new lessc;
+        return $less;
+    }
+
+    /*
+     * Rewrite css url directives
+     * - rewrites relative paths
+     *  - rewrite windows directory separator \\ to /
+     */
+    protected static function rewriteCssPathsDirectives($relativePath, $content)
+    {
+        static $rootDirectoryLength = null;
+        if (is_null($rootDirectoryLength)) {
+            $rootDirectoryLength = self::countDirectoriesInPathToRoot();
+        }
+
+        $baseDirectory = dirname($relativePath);
+        $content = preg_replace_callback(
+            "/(url\(['\"]?)([^'\")]*)/",
+            function ($matches) use ($rootDirectoryLength, $baseDirectory) {
+                $absolutePath = substr(realpath(PIWIK_DOCUMENT_ROOT . "/$baseDirectory/" . $matches[2]), $rootDirectoryLength);
+                $rewritten = str_replace('\\', '/', $absolutePath);
+
+                if (is_file($rewritten)) { // only rewrite the URL if transforming it points to a valid file
+                    return $matches[1] . $rewritten;
+                } else {
+                    return $matches[1] . $matches[2];
+                }
+            },
+            $content
+        );
+        return $content;
+    }
+
+    protected static function countDirectoriesInPathToRoot()
+    {
+        $rootDirectory = realpath(PIWIK_DOCUMENT_ROOT);
+        if ($rootDirectory != '/' && substr_compare($rootDirectory, '/', -1)) {
+            $rootDirectory .= '/';
+        }
+        $rootDirectoryLen = strlen($rootDirectory);
+        return $rootDirectoryLen;
     }
 
     private static function writeAssetToFile($mergedContent, $name)
@@ -174,8 +253,19 @@ class Piwik_AssetManager
     private static function getCssFiles()
     {
         $cssFiles = array();
-        Piwik_PostEvent(self::CSS_IMPORT_EVENT, $cssFiles);
+        Piwik_PostEvent(self::CSS_IMPORT_EVENT, array(&$cssFiles));
+
         $cssFiles = self::sortCssFiles($cssFiles);
+
+        // We also look for the currently enabled theme and add CSS from the json
+        $theme = PluginsManager::getInstance()->getThemeEnabled();
+        if($theme) {
+            $info = $theme->getInformation();
+            if(isset($info['stylesheet'])) {
+                $themeStylesheetFile = 'plugins/'. $theme->getPluginName() . '/' . $info['stylesheet'];
+            }
+            $cssFiles[] = $themeStylesheetFile;
+        }
         return $cssFiles;
     }
 
@@ -189,9 +279,12 @@ class Piwik_AssetManager
     {
         $priorityCssOrdered = array(
             'libs/',
-            'themes/default/common.css',
-            'themes/default/',
+            'plugins/CoreHome/stylesheets/color_manager.css', // must be before other Piwik stylesheets
+            'plugins/Zeitgeist/stylesheets/base.less',
+            'plugins/Zeitgeist/stylesheets/',
             'plugins/',
+            'plugins/Dashboard/stylesheets/dashboard.less',
+            'tests/',
         );
 
         return self::prioritySort($priorityCssOrdered, $cssFiles);
@@ -237,7 +330,7 @@ class Piwik_AssetManager
         }
         $mergedContent = str_replace("\n", "\r\n", $mergedContent);
 
-        Piwik_PostEvent('AssetManager.filterMergedJs', $mergedContent);
+        Piwik_PostEvent('AssetManager.filterMergedJs', array(&$mergedContent));
 
         self::writeAssetToFile($mergedContent, self::MERGED_JS_FILE);
     }
@@ -266,7 +359,7 @@ class Piwik_AssetManager
     private static function getJsFiles()
     {
         $jsFiles = array();
-        Piwik_PostEvent(self::JS_IMPORT_EVENT, $jsFiles);
+        Piwik_PostEvent(self::JS_IMPORT_EVENT, array(&$jsFiles));
         $jsFiles = self::sortJsFiles($jsFiles);
         return $jsFiles;
     }
@@ -284,10 +377,11 @@ class Piwik_AssetManager
             'libs/jquery/jquery-ui.js',
             'libs/jquery/jquery.browser.js',
             'libs/',
-            'themes/default/common.js',
-            'themes/default/',
-            'plugins/CoreHome/templates/broadcast.js',
+            'plugins/Zeitgeist/javascripts/piwikHelper.js',
+            'plugins/Zeitgeist/javascripts/',
+            'plugins/CoreHome/javascripts/broadcast.js',
             'plugins/',
+            'tests/',
         );
 
         return self::prioritySort($priorityJsOrdered, $jsFiles);
@@ -312,9 +406,9 @@ class Piwik_AssetManager
      *
      * @return string
      */
-    private static function getDisableMergedAssets()
+    private static function isMergedAssetsDisabled()
     {
-        return Piwik_Config::getInstance()->Debug['disable_merged_assets'];
+        return Config::getInstance()->Debug['disable_merged_assets'];
     }
 
     /**
@@ -325,12 +419,7 @@ class Piwik_AssetManager
      */
     public static function getMergedCssFileLocation()
     {
-        $isGenerated = self::isGenerated(self::MERGED_CSS_FILE);
-
-        if (!$isGenerated) {
-            self::generateMergedCssFile();
-        }
-
+        self::prepareMergedCssFile();
         return self::getAbsoluteMergedFileLocation(self::MERGED_CSS_FILE);
     }
 
@@ -376,7 +465,7 @@ class Piwik_AssetManager
 
         if ($isGenerated) {
             if (!unlink(self::getAbsoluteMergedFileLocation($filename))) {
-                throw Exception("Unable to delete merged file : " . $filename . ". Please delete the file and refresh");
+                throw new Exception("Unable to delete merged file : " . $filename . ". Please delete the file and refresh");
             }
 
             // Tries to remove compressed version of the merged file.
@@ -419,7 +508,7 @@ class Piwik_AssetManager
         $mergedFileDirectory = PIWIK_USER_PATH . '/' . self::MERGED_FILE_DIR;
 
         if (!is_dir($mergedFileDirectory)) {
-            Piwik_Common::mkdir($mergedFileDirectory);
+            Common::mkdir($mergedFileDirectory);
         }
 
         if (!is_writable($mergedFileDirectory)) {

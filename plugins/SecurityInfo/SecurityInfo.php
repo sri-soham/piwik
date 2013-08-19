@@ -6,27 +6,22 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_SecurityInfo
+ * @package SecurityInfo
  */
+namespace Piwik\Plugins\SecurityInfo;
+
+use Piwik\Piwik;
 
 /**
  *
- * @package Piwik_SecurityInfo
+ * @package SecurityInfo
  */
-class Piwik_SecurityInfo extends Piwik_Plugin
+class SecurityInfo extends \Piwik\Plugin
 {
-    public function getInformation()
-    {
-        $info = array(
-            'description'     => Piwik_Translate('SecurityInfo_PluginDescription'),
-            'author'          => 'Piwik',
-            'author_homepage' => 'http://piwik.org/',
-            'version'         => Piwik_Version::VERSION,
-        );
-        return $info;
-    }
-
-    function getListHooksRegistered()
+    /**
+     * @see Piwik_Plugin::getListHooksRegistered
+     */
+    public function getListHooksRegistered()
     {
         return array(
             'AdminMenu.add' => 'addMenu',

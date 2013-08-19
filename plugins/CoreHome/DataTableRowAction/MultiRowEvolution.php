@@ -6,19 +6,21 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_CoreHome
+ * @package CoreHome
  */
+namespace Piwik\Plugins\CoreHome\DataTableRowAction;
+
+use Piwik\Common;
+use Piwik\ViewDataTable;
+use Piwik\Plugins\CoreHome\DataTableRowAction\RowEvolution;
 
 /**
  * MULTI ROW EVOLUTION
  * The class handles the popover that shows the evolution of a multiple rows in a data table
- * @package Piwik_CoreHome
+ * @package CoreHome
  */
-class Piwik_CoreHome_DataTableRowAction_MultiRowEvolution
-    extends Piwik_CoreHome_DataTableRowAction_RowEvolution
+class MultiRowEvolution extends RowEvolution
 {
-    const IS_MULTI_EVOLUTION_PARAM = 'is_multi_evolution';
-
     /** The requested metric */
     protected $metric;
 
@@ -30,12 +32,12 @@ class Piwik_CoreHome_DataTableRowAction_MultiRowEvolution
 
     /**
      * The constructor
-     * @param int
-     * @param Piwik_Date ($this->date from controller)
+     * @param int $idSite
+     * @param \Piwik\Date $date ($this->date from controller)
      */
     public function __construct($idSite, $date)
     {
-        $this->metric = Piwik_Common::getRequestVar('column', '', 'string');
+        $this->metric = Common::getRequestVar('column', '', 'string');
         parent::__construct($idSite, $date);
     }
 
@@ -57,7 +59,7 @@ class Piwik_CoreHome_DataTableRowAction_MultiRowEvolution
     /**
      * Render the popover
      * @param Piwik_CoreHome_Controller
-     * @param Piwik_View (the popover_rowevolution template)
+     * @param View (the popover_rowevolution template)
      */
     public function renderPopover($controller, $view)
     {
@@ -69,17 +71,5 @@ class Piwik_CoreHome_DataTableRowAction_MultiRowEvolution
             . Piwik_Translate('RowEvolution_ComparingRecords', array(count($this->availableMetrics)));
 
         return parent::renderPopover($controller, $view);
-    }
-
-    /**
-     * Generic method to get an evolution graph or a sparkline for the row evolution popover.
-     * Do as much as possible from outside the controller.
-     * @return Piwik_ViewDataTable
-     */
-    public function getRowEvolutionGraph()
-    {
-        $view = parent::getRowEvolutionGraph();
-        $view->setCustomParameter(self::IS_MULTI_EVOLUTION_PARAM, true);
-        return $view;
     }
 }

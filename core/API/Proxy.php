@@ -9,15 +9,13 @@
  * @package Piwik
  */
 
-/**
- * To differentiate between "no value" and default value of null
- *
- * @package Piwik
- * @subpackage Piwik_API
- */
-class Piwik_API_Proxy_NoDefaultValue
-{
-}
+namespace Piwik\API;
+use Exception;
+use Piwik\Common;
+use Piwik\Timer;
+use ReflectionClass;
+use ReflectionMethod;
+use Zend_Registry;
 
 /**
  * Proxy is a singleton that has the knowledge of every method available, their parameters
@@ -30,7 +28,7 @@ class Piwik_API_Proxy_NoDefaultValue
  * @package Piwik
  * @subpackage Piwik_API
  */
-class Piwik_API_Proxy
+class Proxy
 {
     // array of already registered plugins names
     protected $alreadyRegistered = array();
@@ -43,7 +41,7 @@ class Piwik_API_Proxy
 
     /**
      * Singleton instance
-     * @var self|null
+     * @var \Piwik\API\Proxy|null
      */
     static private $instance = null;
 
@@ -52,13 +50,13 @@ class Piwik_API_Proxy
      */
     protected function __construct()
     {
-        $this->noDefaultValue = new Piwik_API_Proxy_NoDefaultValue();
+        $this->noDefaultValue = new NoDefaultValue();
     }
 
     /**
      * Singleton, returns instance
      *
-     * @return Piwik_API_Proxy
+     * @return \Piwik\API\Proxy
      */
     static public function getInstance()
     {
@@ -90,7 +88,7 @@ class Piwik_API_Proxy
      *
      * The method will introspect the methods, their parameters, etc.
      *
-     * @param string $className  ModuleName eg. "Piwik_UserSettings_API"
+     * @param string $className  ModuleName eg. "API"
      */
     public function registerClass($className)
     {
@@ -148,12 +146,12 @@ class Piwik_API_Proxy
      * It also logs the API calls, with the parameters values, the returned value, the performance, etc.
      * You can enable logging in config/global.ini.php (log_api_call)
      *
-     * @param string $className          The class name (eg. Piwik_Referers_API)
+     * @param string $className          The class name (eg. API)
      * @param string $methodName         The method name
      * @param array $parametersRequest  The parameters pairs (name=>value)
      *
      * @return mixed|null
-     * @throws Exception|Piwik_Access_NoAccessException
+     * @throws Exception|\Piwik\NoAccessException
      */
     public function call($className, $methodName, $parametersRequest)
     {
@@ -161,6 +159,7 @@ class Piwik_API_Proxy
 
         // Temporarily sets the Request array to this API call context
         $saveGET = $_GET;
+        $saveQUERY_STRING = @$_SERVER['QUERY_STRING'];
         foreach ($parametersRequest as $param => $value) {
             $_GET[$param] = $value;
         }
@@ -181,28 +180,28 @@ class Piwik_API_Proxy
             $finalParameters = $this->getRequestParametersArray($parameterNamesDefaultValues, $parametersRequest);
 
             // start the timer
-            $timer = new Piwik_Timer();
+            $timer = new Timer();
 
             // call the method
             $returnedValue = call_user_func_array(array($object, $methodName), $finalParameters);
 
             // allow plugins to manipulate the value
-            if (substr($className, 0, 6) == 'Piwik_' && substr($className, -4) == '_API') {
-                $pluginName = substr($className, 6, -4);
-                Piwik_PostEvent('API.Proxy.processReturnValue', $returnedValue, array(
-                                                                                     'className'  => $className,
-                                                                                     'module'     => $pluginName,
-                                                                                     'action'     => $methodName,
-                                                                                     'parameters' => &$parametersRequest
-                                                                                ));
-            }
+            $pluginName = $this->getModuleNameFromClassName($className);
+            Piwik_PostEvent('API.Proxy.processReturnValue', array(
+                                                                 &$returnedValue,
+                                                                 array('className'  => $className,
+                                                                       'module'     => $pluginName,
+                                                                       'action'     => $methodName,
+                                                                       'parameters' => &$parametersRequest)
+                                                            ));
 
             // Restore the request
             $_GET = $saveGET;
+            $_SERVER['QUERY_STRING'] = $saveQUERY_STRING;
 
             // log the API Call
             try {
-                Zend_Registry::get('logger_api_call')->logEvent(
+                \Zend_Registry::get('logger_api_call')->logEvent(
                     $className,
                     $methodName,
                     $parameterNamesDefaultValues,
@@ -241,12 +240,12 @@ class Piwik_API_Proxy
     /**
      * Returns the 'moduleName' part of 'Piwik_moduleName_API' classname
      *
-     * @param string $className  "Piwik_Referers_API"
+     * @param string $className  "API"
      * @return string "Referers"
      */
     public function getModuleNameFromClassName($className)
     {
-        return str_replace(array('Piwik_', '_API'), '', $className);
+        return str_replace(array('\\Piwik\\Plugins\\', '\\API'), '', $className);
     }
 
     /**
@@ -276,11 +275,17 @@ class Piwik_API_Proxy
         $finalParameters = array();
         foreach ($requiredParameters as $name => $defaultValue) {
             try {
-                if ($defaultValue instanceof Piwik_API_Proxy_NoDefaultValue) {
-                    $requestValue = Piwik_Common::getRequestVar($name, null, null, $parametersRequest);
+                if ($defaultValue instanceof NoDefaultValue) {
+                    $requestValue = Common::getRequestVar($name, null, null, $parametersRequest);
                 } else {
                     try {
-                        $requestValue = Piwik_Common::getRequestVar($name, $defaultValue, null, $parametersRequest);
+
+                        if ($name == 'segment' && !empty($parametersRequest['segment'])) {
+                            // segment parameter is an exception: we do not want to sanitize user input or it would break the segment encoding
+                            $requestValue = ($parametersRequest['segment']);
+                        } else {
+                            $requestValue = Common::getRequestVar($name, $defaultValue, null, $parametersRequest);
+                        }
                     } catch (Exception $e) {
                         // Special case: empty parameter in the URL, should return the empty string
                         if (isset($parametersRequest[$name])
@@ -301,9 +306,9 @@ class Piwik_API_Proxy
     }
 
     /**
-     * Includes the class Piwik_UserSettings_API by looking up plugins/UserSettings/API.php
+     * Includes the class API by looking up plugins/UserSettings/API.php
      *
-     * @param string $fileName  api class name eg. "Piwik_UserSettings_API"
+     * @param string $fileName  api class name eg. "API"
      * @throws Exception
      */
     private function includeApiFile($fileName)
@@ -396,7 +401,17 @@ class Piwik_API_Proxy
     private function checkClassIsSingleton($className)
     {
         if (!method_exists($className, "getInstance")) {
-            throw new Exception("Objects that provide an API must be Singleton and have a 'static public function getInstance()' method.");
+            throw new Exception("$className that provide an API must be Singleton and have a 'static public function getInstance()' method.");
         }
     }
+}
+
+/**
+ * To differentiate between "no value" and default value of null
+ *
+ * @package Piwik
+ * @subpackage Piwik_API
+ */
+class NoDefaultValue
+{
 }

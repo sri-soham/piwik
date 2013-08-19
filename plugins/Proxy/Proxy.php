@@ -6,15 +6,18 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_Proxy
+ * @package Proxy
  */
+namespace Piwik\Plugins\Proxy;
+
+use Piwik\Version;
 
 /**
  * Proxy services for the UI
  *
- * @package Piwik_Proxy
+ * @package Proxy
  */
-class Piwik_Proxy extends Piwik_Plugin
+class Proxy extends \Piwik\Plugin
 {
     /**
      * Return information about this plugin.
@@ -29,7 +32,7 @@ class Piwik_Proxy extends Piwik_Plugin
             'description'          => 'Proxy services',
             'author'               => 'Piwik',
             'author_homepage'      => 'http://piwik.org/',
-            'version'              => Piwik_Version::VERSION,
+            'version'              => Version::VERSION,
             'translationAvailable' => false,
         );
     }

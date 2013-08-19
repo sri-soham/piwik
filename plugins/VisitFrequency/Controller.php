@@ -6,18 +6,24 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_VisitFrequency
+ * @package VisitFrequency
  */
+namespace Piwik\Plugins\VisitFrequency;
+
+use Piwik\API\Request;
+use Piwik\Piwik;
+use Piwik\Common;
+use Piwik\View;
 
 /**
  *
- * @package Piwik_VisitFrequency
+ * @package VisitFrequency
  */
-class Piwik_VisitFrequency_Controller extends Piwik_Controller
+class Controller extends \Piwik\Controller
 {
     function index()
     {
-        $view = Piwik_View::factory('index');
+        $view = new View('@VisitFrequency/index');
         $view->graphEvolutionVisitFrequency = $this->getEvolutionGraph(true, array('nb_visits_returning'));
         $this->setSparklinesAndNumbers($view);
         echo $view->render();
@@ -25,7 +31,7 @@ class Piwik_VisitFrequency_Controller extends Piwik_Controller
 
     public function getSparklines()
     {
-        $view = Piwik_View::factory('sparklines');
+        $view = new View('@VisitFrequency/getSparklines');
         $this->setSparklinesAndNumbers($view);
         echo $view->render();
     }
@@ -33,7 +39,7 @@ class Piwik_VisitFrequency_Controller extends Piwik_Controller
     public function getEvolutionGraph($fetch = false, array $columns = array())
     {
         if (empty($columns)) {
-            $columns = Piwik_Common::getRequestVar('columns');
+            $columns = Common::getRequestVar('columns');
             $columns = Piwik::getArrayFromApiParameter($columns);
         }
 
@@ -57,7 +63,7 @@ class Piwik_VisitFrequency_Controller extends Piwik_Controller
             'avg_time_on_site'
         );
 
-        $period = Piwik_Common::getRequestVar('period', false);
+        $period = Common::getRequestVar('period', false);
         if ($period == 'day') {
             // add number of unique (returning) visitors for period=day
             $selectableColumns = array_merge(
@@ -91,13 +97,12 @@ class Piwik_VisitFrequency_Controller extends Piwik_Controller
         $view->avgVisitDurationReturning = $dataRow->getColumn('avg_time_on_site_returning');
         $nbBouncedReturningVisits = $dataRow->getColumn('bounce_count_returning');
         $view->bounceRateReturning = Piwik::getPercentageSafe($nbBouncedReturningVisits, $nbVisitsReturning);
-
     }
 
     protected function getSummary()
     {
         $requestString = "method=VisitFrequency.get&format=original";
-        $request = new Piwik_API_Request($requestString);
+        $request = new Request($requestString);
         return $request->process();
     }
 }

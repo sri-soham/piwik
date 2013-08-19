@@ -6,14 +6,23 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_MobileMessaging
+ * @package MobileMessaging
  */
+namespace Piwik\Plugins\MobileMessaging;
+
+use Piwik\Piwik;
+use Piwik\Plugins\MobileMessaging\API as MobileMessagingAPI;
+use Piwik\View;
+use Piwik\Plugins\API\API;
+use Piwik\Plugins\MobileMessaging\ReportRenderer\ReportRendererException;
+use Piwik\Plugins\MobileMessaging\ReportRenderer\Sms;
+use Piwik\Plugins\PDFReports\API as PDFReportsAPI;
 
 /**
  *
- * @package Piwik_MobileMessaging
+ * @package MobileMessaging
  */
-class Piwik_MobileMessaging extends Piwik_Plugin
+class MobileMessaging extends \Piwik\Plugin
 {
     const DELEGATED_MANAGEMENT_OPTION = 'MobileMessaging_DelegatedManagement';
     const PROVIDER_OPTION = 'Provider';
@@ -53,31 +62,14 @@ class Piwik_MobileMessaging extends Piwik_Plugin
     );
 
     /**
-     * Return information about this plugin.
-     *
-     * @see Piwik_Plugin
-     *
-     * @return array
+     * @see Piwik_Plugin::getListHooksRegistered
      */
-    public function getInformation()
-    {
-        return array(
-            'name'             => 'Mobile Messaging Plugin',
-            'description'      => Piwik_Translate('MobileMessaging_PluginDescription'),
-            'homepage'         => 'http://piwik.org/',
-            'author'           => 'Piwik',
-            'author_homepage'  => 'http://piwik.org/',
-            'license'          => 'GPL v3 or later',
-            'license_homepage' => 'http://www.gnu.org/licenses/gpl.html',
-            'version'          => Piwik_Version::VERSION,
-        );
-    }
-
-    function getListHooksRegistered()
+    public function getListHooksRegistered()
     {
         return array(
             'AdminMenu.add'                       => 'addMenu',
             'AssetManager.getJsFiles'             => 'getJsFiles',
+            'AssetManager.getCssFiles'            => 'getCssFiles',
             'PDFReports.getReportParameters'      => 'getReportParameters',
             'PDFReports.validateReportParameters' => 'validateReportParameters',
             'PDFReports.getReportMetadata'        => 'getReportMetadata',
@@ -102,26 +94,22 @@ class Piwik_MobileMessaging extends Piwik_Plugin
 
     /**
      * Get JavaScript files
-     *
-     * @param Piwik_Event_Notification $notification notification object
      */
-    function getJsFiles($notification)
+    public function getJsFiles(&$jsFiles)
     {
-        $jsFiles = & $notification->getNotificationObject();
-
-        $jsFiles[] = "plugins/MobileMessaging/scripts/MobileMessagingSettings.js";
+        $jsFiles[] = "plugins/MobileMessaging/javascripts/MobileMessagingSettings.js";
     }
 
-    /**
-     * @param Piwik_Event_Notification $notification notification object
-     */
-    function validateReportParameters($notification)
+    public function getCssFiles($cssFiles)
     {
-        if (self::manageEvent($notification)) {
-            $parameters = & $notification->getNotificationObject();
+        $cssFiles[] = "plugins/MobileMessaging/stylesheets/MobileMessagingSettings.less";
+    }
 
+    public function validateReportParameters(&$parameters, $info)
+    {
+        if (self::manageEvent($info)) {
             // phone number validation
-            $availablePhoneNumbers = Piwik_MobileMessaging_API::getInstance()->getActivatedPhoneNumbers();
+            $availablePhoneNumbers = MobileMessagingAPI::getInstance()->getActivatedPhoneNumbers();
 
             $phoneNumbers = $parameters[self::PHONE_NUMBERS_PARAMETER];
             foreach ($phoneNumbers as $key => $phoneNumber) {
@@ -136,19 +124,13 @@ class Piwik_MobileMessaging extends Piwik_Plugin
         }
     }
 
-    /**
-     * @param Piwik_Event_Notification $notification notification object
-     */
-    function getReportMetadata($notification)
+    public function getReportMetadata(&$availableReportMetadata, $notificationInfo)
     {
-        if (self::manageEvent($notification)) {
-            $availableReportMetadata = & $notification->getNotificationObject();
-
-            $notificationInfo = $notification->getNotificationInfo();
-            $idSite = $notificationInfo[Piwik_PDFReports_API::ID_SITE_INFO_KEY];
+        if (self::manageEvent($notificationInfo)) {
+            $idSite = $notificationInfo[PDFReportsAPI::ID_SITE_INFO_KEY];
 
             foreach (self::$availableReports as $availableReport) {
-                $reportMetadata = Piwik_API_API::getInstance()->getMetadata(
+                $reportMetadata = API::getInstance()->getMetadata(
                     $idSite,
                     $availableReport['module'],
                     $availableReport['action']
@@ -162,87 +144,59 @@ class Piwik_MobileMessaging extends Piwik_Plugin
         }
     }
 
-    /**
-     * @param Piwik_Event_Notification $notification notification object
-     */
-    function getReportTypes($notification)
+    public function getReportTypes(&$reportTypes)
     {
-        $reportTypes = & $notification->getNotificationObject();
         $reportTypes = array_merge($reportTypes, self::$managedReportTypes);
     }
 
-    /**
-     * @param Piwik_Event_Notification $notification notification object
-     */
-    function getReportFormats($notification)
+    public function getReportFormats(&$reportFormats, $info)
     {
-        if (self::manageEvent($notification)) {
-            $reportFormats = & $notification->getNotificationObject();
+        if (self::manageEvent($info)) {
             $reportFormats = array_merge($reportFormats, self::$managedReportFormats);
         }
     }
 
-    /**
-     * @param Piwik_Event_Notification $notification notification object
-     */
-    function getReportParameters($notification)
+    public function getReportParameters(&$availableParameters, $info)
     {
-        if (self::manageEvent($notification)) {
-            $availableParameters = & $notification->getNotificationObject();
+        if (self::manageEvent($info)) {
             $availableParameters = self::$availableParameters;
         }
     }
 
-    /**
-     * @param Piwik_Event_Notification $notification notification object
-     */
-    function getRendererInstance($notification)
+    public function getRendererInstance(&$reportRenderer, $info)
     {
-        if (self::manageEvent($notification)) {
-            $reportRenderer = & $notification->getNotificationObject();
-
-            if (Piwik_PluginsManager::getInstance()->isPluginActivated('MultiSites')) {
-                $reportRenderer = new Piwik_MobileMessaging_ReportRenderer_Sms();
+        if (self::manageEvent($info)) {
+            if (\Piwik\PluginsManager::getInstance()->isPluginActivated('MultiSites')) {
+                $reportRenderer = new Sms();
             } else {
-                $reportRenderer = new Piwik_MobileMessaging_ReportRenderer_Exception(
+                $reportRenderer = new ReportRendererException(
                     Piwik_Translate('MobileMessaging_MultiSites_Must_Be_Activated')
                 );
             }
         }
     }
 
-    /**
-     * @param Piwik_Event_Notification $notification notification object
-     */
-    function allowMultipleReports($notification)
+    public function allowMultipleReports(&$allowMultipleReports, $info)
     {
-        if (self::manageEvent($notification)) {
-            $allowMultipleReports = & $notification->getNotificationObject();
+        if (self::manageEvent($info)) {
             $allowMultipleReports = false;
         }
     }
 
-    function getReportRecipients($notification)
+    public function getReportRecipients(&$recipients, $notificationInfo)
     {
-        if (self::manageEvent($notification)) {
-            $recipients = & $notification->getNotificationObject();
-            $notificationInfo = $notification->getNotificationInfo();
-
-            $report = $notificationInfo[Piwik_PDFReports_API::REPORT_KEY];
+        if (self::manageEvent($notificationInfo)) {
+            $report = $notificationInfo[PDFReportsAPI::REPORT_KEY];
             $recipients = $report['parameters'][self::PHONE_NUMBERS_PARAMETER];
         }
     }
 
-    /**
-     * @param Piwik_Event_Notification $notification notification object
-     */
-    function sendReport($notification)
+    public function sendReport($notificationInfo)
     {
-        if (self::manageEvent($notification)) {
-            $notificationInfo = $notification->getNotificationInfo();
-            $report = $notificationInfo[Piwik_PDFReports_API::REPORT_KEY];
-            $contents = $notificationInfo[Piwik_PDFReports_API::REPORT_CONTENT_KEY];
-            $reportSubject = $notificationInfo[Piwik_PDFReports_API::REPORT_SUBJECT_KEY];
+        if (self::manageEvent($notificationInfo)) {
+            $report = $notificationInfo[PDFReportsAPI::REPORT_KEY];
+            $contents = $notificationInfo[PDFReportsAPI::REPORT_CONTENT_KEY];
+            $reportSubject = $notificationInfo[PDFReportsAPI::REPORT_SUBJECT_KEY];
 
             $parameters = $report['parameters'];
             $phoneNumbers = $parameters[self::PHONE_NUMBERS_PARAMETER];
@@ -252,7 +206,7 @@ class Piwik_MobileMessaging extends Piwik_Plugin
                 $reportSubject = Piwik_Translate('General_Reports');
             }
 
-            $mobileMessagingAPI = Piwik_MobileMessaging_API::getInstance();
+            $mobileMessagingAPI = MobileMessagingAPI::getInstance();
             foreach ($phoneNumbers as $phoneNumber) {
                 $mobileMessagingAPI->sendSMS(
                     $contents,
@@ -263,26 +217,21 @@ class Piwik_MobileMessaging extends Piwik_Plugin
         }
     }
 
-    /**
-     * @param Piwik_Event_Notification $notification notification object
-     */
-    static public function template_reportParametersPDFReports($notification)
+    static public function template_reportParametersPDFReports(&$out)
     {
         if (Piwik::isUserIsAnonymous()) {
             return;
         }
 
-        $out =& $notification->getNotificationObject();
-        $view = Piwik_View::factory('ReportParameters');
+        $view = new View('@MobileMessaging/reportParametersPDFReports');
         $view->reportType = self::MOBILE_TYPE;
-        $view->phoneNumbers = Piwik_MobileMessaging_API::getInstance()->getActivatedPhoneNumbers();
+        $view->phoneNumbers = MobileMessagingAPI::getInstance()->getActivatedPhoneNumbers();
         $out .= $view->render();
     }
 
-    private static function manageEvent($notification)
+    private static function manageEvent($notificationInfo)
     {
-        $notificationInfo = $notification->getNotificationInfo();
-        return in_array($notificationInfo[Piwik_PDFReports_API::REPORT_TYPE_INFO_KEY], array_keys(self::$managedReportTypes));
+        return in_array($notificationInfo[PDFReportsAPI::REPORT_TYPE_INFO_KEY], array_keys(self::$managedReportTypes));
     }
 
     function install()
@@ -296,11 +245,11 @@ class Piwik_MobileMessaging extends Piwik_Plugin
     function deactivate()
     {
         // delete all mobile reports
-        $pdfReportsAPIInstance = Piwik_PDFReports_API::getInstance();
+        $pdfReportsAPIInstance = PDFReportsAPI::getInstance();
         $reports = $pdfReportsAPIInstance->getReports();
 
         foreach ($reports as $report) {
-            if ($report['type'] == Piwik_MobileMessaging::MOBILE_TYPE) {
+            if ($report['type'] == MobileMessaging::MOBILE_TYPE) {
                 $pdfReportsAPIInstance->deleteReport($report['idreport']);
             }
         }

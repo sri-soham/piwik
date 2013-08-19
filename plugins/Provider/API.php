@@ -6,8 +6,14 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_Provider
+ * @package Provider
  */
+namespace Piwik\Plugins\Provider;
+
+use Piwik\Archive;
+use Piwik\Metrics;
+use Piwik\Piwik;
+use Piwik\Plugins\Provider\Archiver;
 
 /**
  * @see plugins/Provider/functions.php
@@ -17,9 +23,9 @@ require_once PIWIK_INCLUDE_PATH . '/plugins/Provider/functions.php';
 /**
  * The Provider API lets you access reports for your visitors Internet Providers.
  *
- * @package Piwik_Provider
+ * @package Provider
  */
-class Piwik_Provider_API
+class API
 {
     static private $instance = null;
 
@@ -34,11 +40,11 @@ class Piwik_Provider_API
     public function getProvider($idSite, $period, $date, $segment = false)
     {
         Piwik::checkUserHasViewAccess($idSite);
-        $archive = Piwik_Archive::build($idSite, $period, $date, $segment);
-        $dataTable = $archive->getDataTable('Provider_hostnameExt');
-        $dataTable->filter('Sort', array(Piwik_Archive::INDEX_NB_VISITS));
-        $dataTable->queueFilter('ColumnCallbackAddMetadata', array('label', 'url', 'Piwik_getHostnameUrl'));
-        $dataTable->queueFilter('ColumnCallbackReplace', array('label', 'Piwik_Provider_getPrettyProviderName'));
+        $archive = Archive::build($idSite, $period, $date, $segment);
+        $dataTable = $archive->getDataTable(Archiver::PROVIDER_RECORD_NAME);
+        $dataTable->filter('Sort', array(Metrics::INDEX_NB_VISITS));
+        $dataTable->queueFilter('ColumnCallbackAddMetadata', array('label', 'url', __NAMESPACE__ . '\getHostnameUrl'));
+        $dataTable->queueFilter('ColumnCallbackReplace', array('label', __NAMESPACE__ . '\getPrettyProviderName'));
         $dataTable->queueFilter('ReplaceColumnNames');
         $dataTable->queueFilter('ReplaceSummaryRowLabel');
         return $dataTable;

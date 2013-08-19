@@ -5,7 +5,9 @@
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
-class MockPiwikOption extends Piwik_Option
+use Piwik\Option;
+
+class MockPiwikOption extends Option
 {
     private $forcedOptionValue = false;
 
@@ -19,7 +21,7 @@ class MockPiwikOption extends Piwik_Option
         return $this->forcedOptionValue;
     }
 
-    public function set($name, $value, $autoload = 0)
+    public function set($name, $value, $autoLoad = 0)
     {
         $this->forcedOptionValue = $value;
     }

@@ -6,8 +6,23 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_PrivacyManager
+ * @package PrivacyManager
  */
+namespace Piwik\Plugins\PrivacyManager;
+
+use Exception;
+use Piwik\Config;
+use Piwik\Metrics;
+use Piwik\Piwik;
+use Piwik\Common;
+use Piwik\Date;
+use Piwik\Plugins\Goals\Archiver;
+use Piwik\Plugins\PrivacyManager\LogDataPurger;
+use Piwik\ScheduledTask;
+use Piwik\Db;
+use Piwik\ScheduledTime\Daily;
+use Piwik\Tracker\GoalManager;
+use Piwik\Plugins\PrivacyManager\ReportsPurger;
 
 /**
  * @see plugins/PrivacyManager/LogDataPurger.php
@@ -21,9 +36,9 @@ require_once PIWIK_INCLUDE_PATH . '/plugins/PrivacyManager/ReportsPurger.php';
 
 /**
  *
- * @package Piwik_PrivacyManager
+ * @package PrivacyManager
  */
-class Piwik_PrivacyManager extends Piwik_Plugin
+class PrivacyManager extends \Piwik\Plugin
 {
     const OPTION_LAST_DELETE_PIWIK_LOGS = "lastDelete_piwik_logs";
     const OPTION_LAST_DELETE_PIWIK_REPORTS = 'lastDelete_piwik_reports';
@@ -47,16 +62,9 @@ class Piwik_PrivacyManager extends Piwik_Plugin
         'delete_reports_keep_segment_reports'  => 0,
     );
 
-    public function getInformation()
-    {
-        return array(
-            'description'     => Piwik_Translate('PrivacyManager_PluginDescription'),
-            'author'          => 'Piwik',
-            'author_homepage' => 'http://piwik.org/',
-            'version'         => Piwik_Version::VERSION,
-        );
-    }
-
+    /**
+     * @see Piwik_Plugin::getListHooksRegistered
+     */
     public function getListHooksRegistered()
     {
         return array(
@@ -66,35 +74,25 @@ class Piwik_PrivacyManager extends Piwik_Plugin
         );
     }
 
-    /**
-     * @param Piwik_Event_Notification $notification  notification object
-     */
-    function getScheduledTasks($notification)
+    public function getScheduledTasks(&$tasks)
     {
-        $tasks = & $notification->getNotificationObject();
-
         // both tasks are low priority so they will execute after most others, but not lowest, so
         // they will execute before the optimize tables task
 
-        $purgeReportDataTask = new Piwik_ScheduledTask(
-            $this, 'deleteReportData', null, new Piwik_ScheduledTime_Daily(), Piwik_ScheduledTask::LOW_PRIORITY
+        $purgeReportDataTask = new ScheduledTask(
+            $this, 'deleteReportData', null, new Daily(), ScheduledTask::LOW_PRIORITY
         );
         $tasks[] = $purgeReportDataTask;
 
-        $purgeLogDataTask = new Piwik_ScheduledTask(
-            $this, 'deleteLogData', null, new Piwik_ScheduledTime_Daily(), Piwik_ScheduledTask::LOW_PRIORITY
+        $purgeLogDataTask = new ScheduledTask(
+            $this, 'deleteLogData', null, new Daily(), ScheduledTask::LOW_PRIORITY
         );
         $tasks[] = $purgeLogDataTask;
     }
 
-    /**
-     * @param Piwik_Event_Notification $notification  notification object
-     */
-    function getJsFiles($notification)
+    public function getJsFiles(&$jsFiles)
     {
-        $jsFiles = & $notification->getNotificationObject();
-
-        $jsFiles[] = "plugins/PrivacyManager/templates/privacySettings.js";
+        $jsFiles[] = "plugins/PrivacyManager/javascripts/privacySettings.js";
     }
 
     function addMenu()
@@ -125,7 +123,7 @@ class Piwik_PrivacyManager extends Piwik_Plugin
                 'delete_logs_older_than',
             );
 
-            $deleteLogsSettings = Piwik_Config::getInstance()->Deletelogs;
+            $deleteLogsSettings = Config::getInstance()->Deletelogs;
             foreach ($oldSettings as $settingName) {
                 $settings[$settingName] = $deleteLogsSettings[$settingName];
             }
@@ -159,7 +157,7 @@ class Piwik_PrivacyManager extends Piwik_Plugin
      */
     public static function savePurgeDataSettings($settings)
     {
-        $plugin = Piwik_PluginsManager::getInstance()->getLoadedPlugin('PrivacyManager');
+        $plugin = \Piwik\PluginsManager::getInstance()->getLoadedPlugin('PrivacyManager');
 
         foreach (self::$defaultPurgeDataOptions as $optionName => $defaultValue) {
             if (isset($settings[$optionName])) {
@@ -202,9 +200,9 @@ class Piwik_PrivacyManager extends Piwik_Plugin
         }
 
         // set last run time
-        Piwik_SetOption(self::OPTION_LAST_DELETE_PIWIK_REPORTS, Piwik_Date::factory('today')->getTimestamp());
+        Piwik_SetOption(self::OPTION_LAST_DELETE_PIWIK_REPORTS, Date::factory('today')->getTimestamp());
 
-        Piwik_PrivacyManager_ReportsPurger::make($settings, self::getAllMetricsToKeep())->purgeData();
+        ReportsPurger::make($settings, self::getAllMetricsToKeep())->purgeData();
     }
 
     /**
@@ -239,11 +237,11 @@ class Piwik_PrivacyManager extends Piwik_Plugin
          * If deletion / table optimization exceeds execution time, other tasks maybe prevented of being executed
          * every time, when the schedule is triggered.
          */
-        $lastDeleteDate = Piwik_Date::factory("today")->getTimestamp();
+        $lastDeleteDate = Date::factory("today")->getTimestamp();
         Piwik_SetOption(self::OPTION_LAST_DELETE_PIWIK_LOGS, $lastDeleteDate);
 
         // execute the purge
-        Piwik_PrivacyManager_LogDataPurger::make($settings)->purgeData();
+        LogDataPurger::make($settings)->purgeData();
     }
 
     /**
@@ -266,12 +264,12 @@ class Piwik_PrivacyManager extends Piwik_Plugin
         $result = array();
 
         if ($settings['delete_logs_enable']) {
-            $logDataPurger = Piwik_PrivacyManager_LogDataPurger::make($settings);
+            $logDataPurger = LogDataPurger::make($settings);
             $result = array_merge($result, $logDataPurger->getPurgeEstimate());
         }
 
         if ($settings['delete_reports_enable']) {
-            $reportsPurger = Piwik_PrivacyManager_ReportsPurger::make($settings, self::getAllMetricsToKeep());
+            $reportsPurger = ReportsPurger::make($settings, self::getAllMetricsToKeep());
             $result = array_merge($result, $reportsPurger->getPurgeEstimate());
         }
 
@@ -287,7 +285,7 @@ class Piwik_PrivacyManager extends Piwik_Plugin
      *
      * @param int $reportDateYear The year of the report in question.
      * @param int $reportDateMonth The month of the report in question.
-     * @param int|Piwik_Date $reportsOlderThan If an int, the number of months a report must be older than
+     * @param int|Date $reportsOlderThan If an int, the number of months a report must be older than
      *                                         in order to be purged. If a date, the date a report must be
      *                                         older than in order to be purged.
      * @return bool
@@ -306,11 +304,11 @@ class Piwik_PrivacyManager extends Piwik_Plugin
         }
 
         // if a integer was supplied, assume it is the number of months a report must be older than
-        if (!($reportsOlderThan instanceof Piwik_Date)) {
-            $reportsOlderThan = Piwik_Date::factory('today')->subMonth(1 + $reportsOlderThan);
+        if (!($reportsOlderThan instanceof Date)) {
+            $reportsOlderThan = Date::factory('today')->subMonth(1 + $reportsOlderThan);
         }
 
-        return Piwik_PrivacyManager_ReportsPurger::shouldReportBePurged(
+        return ReportsPurger::shouldReportBePurged(
             $reportDateYear, $reportDateMonth, $reportsOlderThan);
     }
 
@@ -332,7 +330,7 @@ class Piwik_PrivacyManager extends Piwik_Plugin
     private static function getGoalMetricsToKeep()
     {
         // keep all goal metrics
-        return array_values(Piwik_Archive::$mappingFromIdToNameGoal);
+        return array_values(Metrics::$mappingFromIdToNameGoal);
     }
 
     /**
@@ -344,7 +342,7 @@ class Piwik_PrivacyManager extends Piwik_Plugin
         $metricsToKeep = self::getMetricsToKeep();
 
         // convert goal metric names to correct archive names
-        if (Piwik_Common::isGoalPluginEnabled()) {
+        if (Common::isGoalPluginEnabled()) {
             $goalMetricsToKeep = self::getGoalMetricsToKeep();
 
             $maxGoalId = self::getMaxGoalId();
@@ -354,12 +352,12 @@ class Piwik_PrivacyManager extends Piwik_Plugin
             foreach ($goalMetricsToKeep as $metric) {
                 for ($i = 1; $i <= $maxGoalId; ++$i) // maxGoalId can be 0
                 {
-                    $metricsToKeep[] = Piwik_Goals::getRecordName($metric, $i);
+                    $metricsToKeep[] = Archiver::getRecordName($metric, $i);
                 }
 
-                $metricsToKeep[] = Piwik_Goals::getRecordName($metric);
-                $metricsToKeep[] = Piwik_Goals::getRecordName($metric, Piwik_Tracker_GoalManager::IDGOAL_ORDER);
-                $metricsToKeep[] = Piwik_Goals::getRecordName($metric, Piwik_Tracker_GoalManager::IDGOAL_CART);
+                $metricsToKeep[] = Archiver::getRecordName($metric);
+                $metricsToKeep[] = Archiver::getRecordName($metric, GoalManager::IDGOAL_ORDER);
+                $metricsToKeep[] = Archiver::getRecordName($metric, GoalManager::IDGOAL_CART);
             }
         }
 

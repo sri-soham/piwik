@@ -6,13 +6,16 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_Transitions
+ * @package Transitions
  */
+namespace Piwik\Plugins\Transitions;
+
+use Piwik\View;
 
 /**
- * @package Piwik_Transitions
+ * @package Transitions
  */
-class Piwik_Transitions_Controller extends Piwik_Controller
+class Controller extends \Piwik\Controller
 {
 
     /**
@@ -74,7 +77,7 @@ class Piwik_Transitions_Controller extends Piwik_Controller
      */
     public function renderPopover()
     {
-        $view = Piwik_View::factory('transitions');
+        $view = new View('@Transitions/renderPopover');
         $view->translations = $this->getTranslations();
         echo $view->render();
     }
@@ -87,5 +90,4 @@ class Piwik_Transitions_Controller extends Piwik_Controller
         }
         return $translations;
     }
-
 }

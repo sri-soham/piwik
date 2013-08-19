@@ -9,6 +9,8 @@
  * @package Piwik
  */
 
+namespace Piwik\View;
+
 /**
  * Post-update view
  *
@@ -21,7 +23,7 @@
  *
  * @package Piwik
  */
-class Piwik_View_OneClickDone
+class OneClickDone
 {
     /**
      * @var string
@@ -66,8 +68,7 @@ class Piwik_View_OneClickDone
 <!DOCTYPE html>
 <html>
  <head>
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-  <meta charset="utf-8" />
+  <meta charset="utf-8">
   <title></title>
  </head>
  <body>

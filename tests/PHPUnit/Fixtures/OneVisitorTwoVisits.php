@@ -5,6 +5,9 @@
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
+use Piwik\Date;
+use Piwik\Plugins\Goals\API as GoalsAPI;
+use Piwik\Plugins\SitesManager\API as SitesManagerAPI;
 
 /**
  * This fixture adds one website and tracks two visits by one visitor.
@@ -40,7 +43,7 @@ class Test_Piwik_Fixture_OneVisitorTwoVisits extends Test_Piwik_BaseFixture
         $idSite = $this->idSite;
 
         if ($this->excludeMozilla) {
-            Piwik_SitesManager_API::getInstance()->setSiteSpecificUserAgentExcludeEnabled(false);
+            SitesManagerAPI::getInstance()->setSiteSpecificUserAgentExcludeEnabled(false);
         }
 
         $t = self::getTracker($idSite, $dateTime, $defaultInit = true);
@@ -55,7 +58,7 @@ class Test_Piwik_Fixture_OneVisitorTwoVisits extends Test_Piwik_BaseFixture
 
         // testing URL excluded parameters
         $parameterToExclude = 'excluded_parameter';
-        Piwik_SitesManager_API::getInstance()->updateSite(
+        SitesManagerAPI::getInstance()->updateSite(
             $idSite,
             'new name',
             $url = array('http://site.com'),
@@ -81,54 +84,54 @@ class Test_Piwik_Fixture_OneVisitorTwoVisits extends Test_Piwik_BaseFixture
 
         // testing that / and index.htm above record with different URLs
         // Recording the 2nd page after 3 minutes
-        $t->setForceVisitDateTime(Piwik_Date::factory($dateTime)->addHour(0.05)->getDatetime());
+        $t->setForceVisitDateTime(Date::factory($dateTime)->addHour(0.05)->getDatetime());
         $t->setUrl('http://example.org/');
 		$t->setGenerationTime(224);
         self::checkResponse($t->doTrackPageView('Second page view - should be registered as URL /'));
 
         // Click on external link after 6 minutes (3rd action)
-        $t->setForceVisitDateTime(Piwik_Date::factory($dateTime)->addHour(0.1)->getDatetime());
+        $t->setForceVisitDateTime(Date::factory($dateTime)->addHour(0.1)->getDatetime());
         self::checkResponse($t->doTrackAction('http://dev.piwik.org/svn', 'link'));
 
         // Click on file download after 12 minutes (4th action)
-        $t->setForceVisitDateTime(Piwik_Date::factory($dateTime)->addHour(0.2)->getDatetime());
+        $t->setForceVisitDateTime(Date::factory($dateTime)->addHour(0.2)->getDatetime());
         self::checkResponse($t->doTrackAction('http://piwik.org/path/again/latest.zip', 'download'));
 
         // Click on two more external links, one the same as before (5th & 6th actions)
-        $t->setForceVisitDateTime(Piwik_Date::factory($dateTime)->addHour(0.22)->getDateTime());
+        $t->setForceVisitDateTime(Date::factory($dateTime)->addHour(0.22)->getDateTime());
         self::checkResponse($t->doTrackAction('http://outlinks.org/other_outlink', 'link'));
-        $t->setForceVisitDateTime(Piwik_Date::factory($dateTime)->addHour(0.25)->getDateTime());
+        $t->setForceVisitDateTime(Date::factory($dateTime)->addHour(0.25)->getDateTime());
         self::checkResponse($t->doTrackAction('http://dev.piwik.org/svn', 'link'));
 
         // Create Goal 1: Triggered by JS, after 18 minutes
-        $idGoal = Piwik_Goals_API::getInstance()->addGoal($idSite, 'triggered js', 'manually', '', '');
-        $t->setForceVisitDateTime(Piwik_Date::factory($dateTime)->addHour(0.3)->getDatetime());
+        $idGoal = GoalsAPI::getInstance()->addGoal($idSite, 'triggered js', 'manually', '', '');
+        $t->setForceVisitDateTime(Date::factory($dateTime)->addHour(0.3)->getDatetime());
 
         // Change to Thai  browser to ensure the conversion is credited to FR instead (the visitor initial country)
         $t->setBrowserLanguage('th');
         self::checkResponse($t->doTrackGoal($idGoal, $revenue = 42));
 
         // Track same Goal twice (after 24 minutes), should only be tracked once
-        $t->setForceVisitDateTime(Piwik_Date::factory($dateTime)->addHour(0.4)->getDatetime());
+        $t->setForceVisitDateTime(Date::factory($dateTime)->addHour(0.4)->getDatetime());
         self::checkResponse($t->doTrackGoal($idGoal, $revenue = 42));
 
         $t->setBrowserLanguage('fr');
 
         if ($this->useSiteSearch) {
             // Site Search request
-            $t->setForceVisitDateTime(Piwik_Date::factory($dateTime)->addHour(0.42)->getDatetime());
+            $t->setForceVisitDateTime(Date::factory($dateTime)->addHour(0.42)->getDatetime());
             $t->setUrl('http://example.org/index.htm?q=Banks Own The World');
 			$t->setGenerationTime(812);
             self::checkResponse($t->doTrackPageView('Site Search request'));
 
             // Final page view (after 27 min)
-            $t->setForceVisitDateTime(Piwik_Date::factory($dateTime)->addHour(0.45)->getDatetime());
+            $t->setForceVisitDateTime(Date::factory($dateTime)->addHour(0.45)->getDatetime());
             $t->setUrl('http://example.org/index.htm');
 			$t->setGenerationTime(24);
             self::checkResponse($t->doTrackPageView('Looking at homepage after site search...'));
         } else {
             // Final page view (after 27 min)
-            $t->setForceVisitDateTime(Piwik_Date::factory($dateTime)->addHour(0.45)->getDatetime());
+            $t->setForceVisitDateTime(Date::factory($dateTime)->addHour(0.45)->getDatetime());
             $t->setUrl('http://example.org/index.htm#ignoredFragment#');
 			$t->setGenerationTime(23);
             self::checkResponse($t->doTrackPageView('Looking at homepage (again)...'));
@@ -138,11 +141,11 @@ class Test_Piwik_Fixture_OneVisitorTwoVisits extends Test_Piwik_BaseFixture
         // End of first visit: 24min
 
         // Create Goal 2: Matching on URL
-        Piwik_Goals_API::getInstance()->addGoal($idSite, 'matching purchase.htm', 'url', '(.*)store\/purchase\.(.*)', 'regex', false, $revenue = 1);
+        GoalsAPI::getInstance()->addGoal($idSite, 'matching purchase.htm', 'url', '(.*)store\/purchase\.(.*)', 'regex', false, $revenue = 1);
 
         // -
         // Start of returning visit, 1 hour after first page view
-        $t->setForceVisitDateTime(Piwik_Date::factory($dateTime)->addHour(1)->getDatetime());
+        $t->setForceVisitDateTime(Date::factory($dateTime)->addHour(1)->getDatetime());
         $t->setUrl('http://example.org/store/purchase.htm');
         $t->setUrlReferrer('http://search.yahoo.com/search?p=purchase');
         // Temporary, until we implement 1st party cookies in PiwikTracker

@@ -6,6 +6,9 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
 
+use Piwik\Config;
+use Piwik\Plugins\Actions\ArchivingHelper;
+
 require_once PIWIK_INCLUDE_PATH . '/tests/PHPUnit/MockLocationProvider.php';
 
 /**
@@ -51,10 +54,33 @@ class Test_Piwik_Integration_BlobReportLimitingTest extends IntegrationTestCase
     
     public function getRankingQueryDisabledApiForTesting()
     {
+        $idSite = self::$fixture->idSite;
+        $dateTime = self::$fixture->dateTime;
+        
         return array(
-            array('Actions.getPageUrls', array('idSite'  => self::$fixture->idSite,
-                                               'date'    => self::$fixture->dateTime,
+            array('Actions.getPageUrls', array('idSite'  => $idSite,
+                                               'date'    => $dateTime,
                                                'periods' => array('day'))),
+            
+            array('Provider.getProvider', array('idSite'  => $idSite,
+                                                'date'    => $dateTime,
+                                                'periods' => array('month'))),
+            
+            array('Provider.getProvider', array('idSite'     => $idSite,
+                                                'date'       => $dateTime,
+                                                'periods'    => array('month'),
+                                                'segment'    => 'provider==comcast.net',
+                                                'testSuffix' => '_segment_provider')),
+            
+            // test getDownloads w/ period=range & flat=1
+            array('Actions.getDownloads', array('idSite'                 => $idSite,
+                                                'date'                   => '2010-01-02,2010-01-05',
+                                                'periods'                => 'range',
+                                                'testSuffix'             => '_rangeFlat',
+                                                'otherRequestParameters' => array(
+                                                    'flat'               => 1,
+                                                    'expanded'           => 0
+                                                ))),
         );
     }
 
@@ -80,13 +106,19 @@ class Test_Piwik_Integration_BlobReportLimitingTest extends IntegrationTestCase
         $generalConfig['datatable_archiving_maximum_rows_subtable_referers'] = 4;
         $generalConfig['datatable_archiving_maximum_rows_actions'] = 4;
         $generalConfig['datatable_archiving_maximum_rows_subtable_actions'] = 4;
+        $generalConfig['datatable_archiving_maximum_rows_custom_variables'] = 4;
+        $generalConfig['datatable_archiving_maximum_rows_subtable_custom_variables'] = 4;
         $generalConfig['datatable_archiving_maximum_rows_standard'] = 4;
-        Piwik_Config::getInstance()->General['archiving_ranking_query_row_limit'] = 3;
-        Piwik_Actions_ArchivingHelper::reloadConfig();
+        Config::getInstance()->General['archiving_ranking_query_row_limit'] = 3;
+        ArchivingHelper::reloadConfig();
 
         foreach ($this->getApiForTesting() as $pair) {
             list($apiToCall, $params) = $pair;
-            $params['testSuffix'] = '_rankingQuery';
+            
+            if (empty($params['testSuffix'])) {
+                $params['testSuffix'] = '';
+            }
+            $params['testSuffix'] .= '_rankingQuery';
 
             $this->runApiTests($apiToCall, $params);
         }
@@ -99,17 +131,23 @@ class Test_Piwik_Integration_BlobReportLimitingTest extends IntegrationTestCase
     public function testApiWithRankingQueryDisabled()
     {
         self::deleteArchiveTables();
-        $generalConfig =& Piwik_Config::getInstance()->General;
+        $generalConfig =& Config::getInstance()->General;
         $generalConfig['datatable_archiving_maximum_rows_referers'] = 500;
         $generalConfig['datatable_archiving_maximum_rows_subtable_referers'] = 500;
         $generalConfig['datatable_archiving_maximum_rows_actions'] = 500;
         $generalConfig['datatable_archiving_maximum_rows_subtable_actions'] = 500;
         $generalConfig['datatable_archiving_maximum_rows_standard'] = 500;
+        $generalConfig['datatable_archiving_maximum_rows_custom_variables'] = 500;
+        $generalConfig['datatable_archiving_maximum_rows_subtable_custom_variables'] = 500;
         $generalConfig['archiving_ranking_query_row_limit'] = 0;
         
         foreach ($this->getRankingQueryDisabledApiForTesting() as $pair) {
             list($apiToCall, $params) = $pair;
-            $params['testSuffix'] = '_rankingQueryDisabled';
+            
+            if (empty($params['testSuffix'])) {
+                $params['testSuffix'] = '';
+            }
+            $params['testSuffix'] .= '_rankingQueryDisabled';
 
             $this->runApiTests($apiToCall, $params);
         }
@@ -123,10 +161,12 @@ class Test_Piwik_Integration_BlobReportLimitingTest extends IntegrationTestCase
     protected static function setUpConfigOptions()
     {
         self::createTestConfig();
-        $generalConfig =& Piwik_Config::getInstance()->General;
+        $generalConfig =& Config::getInstance()->General;
         $generalConfig['datatable_archiving_maximum_rows_referers'] = 3;
         $generalConfig['datatable_archiving_maximum_rows_subtable_referers'] = 2;
         $generalConfig['datatable_archiving_maximum_rows_actions'] = 3;
+        $generalConfig['datatable_archiving_maximum_rows_custom_variables'] = 3;
+        $generalConfig['datatable_archiving_maximum_rows_subtable_custom_variables'] = 2;
         $generalConfig['datatable_archiving_maximum_rows_subtable_actions'] = 2;
         $generalConfig['datatable_archiving_maximum_rows_standard'] = 3;
         $generalConfig['archiving_ranking_query_row_limit'] = 50000;

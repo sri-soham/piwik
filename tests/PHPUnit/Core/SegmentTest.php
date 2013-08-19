@@ -1,4 +1,8 @@
 <?php
+use Piwik\Common;
+use Piwik\Access;
+use Piwik\Segment;
+
 /**
  * Piwik - Open source web analytics
  *
@@ -14,17 +18,16 @@ class SegmentTest extends DatabaseTestCase
         // setup the access layer (required in Segment contrustor testing if anonymous is allowed to use segments)
         $pseudoMockAccess = new FakeAccess;
         FakeAccess::$superUser = true;
-        Zend_Registry::set('access', $pseudoMockAccess);
+        Access::setSingletonInstance($pseudoMockAccess);
 
         // Load and install plugins
-        $pluginsManager = Piwik_PluginsManager::getInstance();
-        $pluginsManager->loadPlugins(Piwik_Config::getInstance()->Plugins['Plugins']);
+        IntegrationTestCase::loadAllPlugins();
     }
 
     public function tearDown()
     {
         parent::tearDown();
-        Piwik_PluginsManager::getInstance()->unloadPlugins();
+        IntegrationTestCase::unloadAllPlugins();
     }
 
     protected function _filterWhitsSpaces($valueToFilter)
@@ -55,14 +58,35 @@ class SegmentTest extends DatabaseTestCase
 
             // AND, with 2 values rewrites
             array('countryCode==a;visitorType!=returning;visitorType==new', array(
-                'where' => ' log_visit.location_country = ? AND log_visit.visitor_returning <> ? AND log_visit.visitor_returning = ? ',
+                'where' => ' log_visit.location_country = ? AND ( log_visit.visitor_returning IS NULL OR log_visit.visitor_returning <> ? ) AND log_visit.visitor_returning = ? ',
                 'bind'  => array('a', '1', '0'))),
 
             // OR, with 2 value rewrites
             array('referrerType==search,referrerType==direct', array(
                 'where' => ' (log_visit.referer_type = ? OR log_visit.referer_type = ? )',
-                'bind'  => array(Piwik_Common::REFERER_TYPE_SEARCH_ENGINE,
-                                 Piwik_Common::REFERER_TYPE_DIRECT_ENTRY))),
+                'bind'  => array(Common::REFERER_TYPE_SEARCH_ENGINE,
+                                 Common::REFERER_TYPE_DIRECT_ENTRY))),
+
+            // IS NOT NULL
+            array('browserCode==ff;referrerKeyword!=', array(
+                'where' => ' log_visit.config_browser_name = ? AND ( log_visit.referer_keyword IS NOT NULL AND (log_visit.referer_keyword <> \'\' OR log_visit.referer_keyword = 0) ) ',
+                'bind'  => array('ff')
+            )),
+            array('referrerKeyword!=,browserCode==ff', array(
+                'where' => ' (( log_visit.referer_keyword IS NOT NULL AND (log_visit.referer_keyword <> \'\' OR log_visit.referer_keyword = 0) ) OR log_visit.config_browser_name = ? )',
+                'bind'  => array('ff')
+            )),
+
+            // IS NULL
+            array('browserCode==ff;referrerKeyword==', array(
+                'where' => ' log_visit.config_browser_name = ? AND ( log_visit.referer_keyword IS NULL OR log_visit.referer_keyword = \'\' ) ',
+                'bind'  => array('ff')
+            )),
+            array('referrerKeyword==,browserCode==ff', array(
+                'where' => ' (( log_visit.referer_keyword IS NULL OR log_visit.referer_keyword = \'\' ) OR log_visit.config_browser_name = ? )',
+                'bind'  => array('ff')
+            )),
+
         );
     }
 
@@ -81,13 +105,13 @@ class SegmentTest extends DatabaseTestCase
                 SELECT
                     log_visit.idvisit
                 FROM
-                    ' . Piwik_Common::prefixTable('log_visit') . ' AS log_visit
+                    ' . Common::prefixTable('log_visit') . ' AS log_visit
                 WHERE
                     ' . $expected['where'],
             'bind' => $expected['bind']
         );
 
-        $segment = new Piwik_Segment($segment, $idSites = array());
+        $segment = new Segment($segment, $idSites = array());
         $sql = $segment->getSelectQuery($select, $from, false);
 
         $this->assertEquals($this->_filterWhitsSpaces($expected), $this->_filterWhitsSpaces($sql));
@@ -111,7 +135,7 @@ class SegmentTest extends DatabaseTestCase
         $bind = array(1);
 
         $segment = 'customVariableName1==Test;visitorType==new';
-        $segment = new Piwik_Segment($segment, $idSites = array());
+        $segment = new Segment($segment, $idSites = array());
 
         $query = $segment->getSelectQuery($select, $from, $where, $bind);
 
@@ -120,7 +144,7 @@ class SegmentTest extends DatabaseTestCase
                 SELECT
                     *
                 FROM
-                    " . Piwik_Common::prefixTable('log_visit') . " AS log_visit
+                    " . Common::prefixTable('log_visit') . " AS log_visit
                 WHERE
                     ( idsite = ? )
                     AND
@@ -142,7 +166,7 @@ class SegmentTest extends DatabaseTestCase
         $bind = array(1);
 
         $segment = 'customVariablePageName1==Test;visitorType==new';
-        $segment = new Piwik_Segment($segment, $idSites = array());
+        $segment = new Segment($segment, $idSites = array());
 
         $query = $segment->getSelectQuery($select, $from, $where, $bind);
 
@@ -151,8 +175,8 @@ class SegmentTest extends DatabaseTestCase
                 SELECT
                     *
                 FROM
-                    " . Piwik_Common::prefixTable('log_link_visit_action') . " AS log_link_visit_action
-                    LEFT JOIN " . Piwik_Common::prefixTable('log_visit') . " AS log_visit ON log_visit.idvisit = log_link_visit_action.idvisit
+                    " . Common::prefixTable('log_link_visit_action') . " AS log_link_visit_action
+                    LEFT JOIN " . Common::prefixTable('log_visit') . " AS log_visit ON log_visit.idvisit = log_link_visit_action.idvisit
                 WHERE
                     ( log_link_visit_action.idvisit = ? )
                     AND
@@ -174,7 +198,7 @@ class SegmentTest extends DatabaseTestCase
         $bind = array(1);
 
         $segment = 'customVariablePageName1==Test;visitorType==new';
-        $segment = new Piwik_Segment($segment, $idSites = array());
+        $segment = new Segment($segment, $idSites = array());
 
         $query = $segment->getSelectQuery($select, $from, $where, $bind);
 
@@ -188,8 +212,8 @@ class SegmentTest extends DatabaseTestCase
                     log_visit.visit_total_actions,
                     log_visit.visit_total_time
                 FROM
-                    " . Piwik_Common::prefixTable('log_visit') . " AS log_visit
-                    LEFT JOIN " . Piwik_Common::prefixTable('log_link_visit_action') . " AS log_link_visit_action ON log_link_visit_action.idvisit = log_visit.idvisit
+                    " . Common::prefixTable('log_visit') . " AS log_visit
+                    LEFT JOIN " . Common::prefixTable('log_link_visit_action') . " AS log_link_visit_action ON log_link_visit_action.idvisit = log_visit.idvisit
                 WHERE
                     ( log_visit.idvisit = ? )
                     AND
@@ -213,7 +237,7 @@ class SegmentTest extends DatabaseTestCase
         $bind = array(1);
 
         $segment = 'customVariablePageName1==Test;visitConvertedGoalId==1;customVariablePageName2==Test2';
-        $segment = new Piwik_Segment($segment, $idSites = array());
+        $segment = new Segment($segment, $idSites = array());
 
         $query = $segment->getSelectQuery($select, $from, $where, $bind);
 
@@ -222,8 +246,8 @@ class SegmentTest extends DatabaseTestCase
                 SELECT
                     *
                 FROM
-                    " . Piwik_Common::prefixTable('log_link_visit_action') . " AS log_link_visit_action
-                    LEFT JOIN " . Piwik_Common::prefixTable('log_conversion') . " AS log_conversion ON log_conversion.idlink_va = log_link_visit_action.idlink_va AND log_conversion.idsite = log_link_visit_action.idsite
+                    " . Common::prefixTable('log_link_visit_action') . " AS log_link_visit_action
+                    LEFT JOIN " . Common::prefixTable('log_conversion') . " AS log_conversion ON log_conversion.idlink_va = log_link_visit_action.idlink_va AND log_conversion.idsite = log_link_visit_action.idsite
                 WHERE
                     ( log_link_visit_action.idvisit = ? )
                     AND
@@ -245,7 +269,7 @@ class SegmentTest extends DatabaseTestCase
         $bind = array(1);
 
         $segment = 'visitConvertedGoalId!=2;customVariablePageName1==Test;visitConvertedGoalId==1';
-        $segment = new Piwik_Segment($segment, $idSites = array());
+        $segment = new Segment($segment, $idSites = array());
 
         $query = $segment->getSelectQuery($select, $from, $where, $bind);
 
@@ -254,12 +278,12 @@ class SegmentTest extends DatabaseTestCase
                 SELECT
                     *
                 FROM
-                    " . Piwik_Common::prefixTable('log_conversion') . " AS log_conversion
-                    LEFT JOIN " . Piwik_Common::prefixTable('log_link_visit_action') . " AS log_link_visit_action ON log_conversion.idlink_va = log_link_visit_action.idlink_va
+                    " . Common::prefixTable('log_conversion') . " AS log_conversion
+                    LEFT JOIN " . Common::prefixTable('log_link_visit_action') . " AS log_link_visit_action ON log_conversion.idlink_va = log_link_visit_action.idlink_va
                 WHERE
                     ( log_conversion.idvisit = ? )
                     AND
-                    ( log_conversion.idgoal <> ? AND log_link_visit_action.custom_var_k1 = ? AND log_conversion.idgoal = ? )",
+                    ( ( log_conversion.idgoal IS NULL OR log_conversion.idgoal <> ? ) AND log_link_visit_action.custom_var_k1 = ? AND log_conversion.idgoal = ? )",
             "bind" => array(1, 2, 'Test', 1));
 
         $this->assertEquals($this->_filterWhitsSpaces($expected), $this->_filterWhitsSpaces($query));
@@ -277,7 +301,7 @@ class SegmentTest extends DatabaseTestCase
         $bind = array(1);
 
         $segment = 'visitConvertedGoalId==1';
-        $segment = new Piwik_Segment($segment, $idSites = array());
+        $segment = new Segment($segment, $idSites = array());
 
         $query = $segment->getSelectQuery($select, $from, $where, $bind);
 
@@ -290,8 +314,8 @@ class SegmentTest extends DatabaseTestCase
                 SELECT
                     log_visit.*
                 FROM
-                    " . Piwik_Common::prefixTable('log_visit') . " AS log_visit
-                    LEFT JOIN " . Piwik_Common::prefixTable('log_conversion') . " AS log_conversion ON log_conversion.idvisit = log_visit.idvisit
+                    " . Common::prefixTable('log_visit') . " AS log_visit
+                    LEFT JOIN " . Common::prefixTable('log_conversion') . " AS log_conversion ON log_conversion.idvisit = log_visit.idvisit
                 WHERE
                     ( log_visit.idvisit = ? )
                     AND
@@ -315,7 +339,7 @@ class SegmentTest extends DatabaseTestCase
         $bind = array(1);
 
         $segment = 'visitConvertedGoalId==1';
-        $segment = new Piwik_Segment($segment, $idSites = array());
+        $segment = new Segment($segment, $idSites = array());
 
         $query = $segment->getSelectQuery($select, $from, $where, $bind);
 
@@ -324,7 +348,7 @@ class SegmentTest extends DatabaseTestCase
                 SELECT
                     log_conversion.*
                 FROM
-                    " . Piwik_Common::prefixTable('log_conversion') . " AS log_conversion
+                    " . Common::prefixTable('log_conversion') . " AS log_conversion
                 WHERE
                     ( log_conversion.idvisit = ? )
                     AND
@@ -346,7 +370,7 @@ class SegmentTest extends DatabaseTestCase
         $bind = array(1);
 
         $segment = 'visitConvertedGoalId==1,visitServerHour==12';
-        $segment = new Piwik_Segment($segment, $idSites = array());
+        $segment = new Segment($segment, $idSites = array());
 
         $query = $segment->getSelectQuery($select, $from, $where, $bind);
 
@@ -355,8 +379,8 @@ class SegmentTest extends DatabaseTestCase
                 SELECT
                     *
                 FROM
-                    " . Piwik_Common::prefixTable('log_conversion') . " AS log_conversion
-                    LEFT JOIN " . Piwik_Common::prefixTable('log_visit') . " AS log_visit ON log_conversion.idvisit = log_visit.idvisit
+                    " . Common::prefixTable('log_conversion') . " AS log_conversion
+                    LEFT JOIN " . Common::prefixTable('log_visit') . " AS log_visit ON log_conversion.idvisit = log_visit.idvisit
                 WHERE
                     ( log_conversion.idvisit = ? )
                     AND
@@ -381,7 +405,7 @@ class SegmentTest extends DatabaseTestCase
         $bind = array();
 
         $segment = 'visitServerHour==12;visitConvertedGoalId==1';
-        $segment = new Piwik_Segment($segment, $idSites = array());
+        $segment = new Segment($segment, $idSites = array());
 
         $query = $segment->getSelectQuery($select, $from, $where, $bind);
 
@@ -390,9 +414,9 @@ class SegmentTest extends DatabaseTestCase
                 SELECT
                     *
                 FROM
-                    " . Piwik_Common::prefixTable('log_link_visit_action') . " AS log_link_visit_action
-                    LEFT JOIN " . Piwik_Common::prefixTable('log_visit') . " AS log_visit ON log_visit.idvisit = log_link_visit_action.idvisit
-                    LEFT JOIN " . Piwik_Common::prefixTable('log_conversion') . " AS log_conversion ON log_conversion.idlink_va = log_link_visit_action.idlink_va AND log_conversion.idsite = log_link_visit_action.idsite
+                    " . Common::prefixTable('log_link_visit_action') . " AS log_link_visit_action
+                    LEFT JOIN " . Common::prefixTable('log_visit') . " AS log_visit ON log_visit.idvisit = log_link_visit_action.idvisit
+                    LEFT JOIN " . Common::prefixTable('log_conversion') . " AS log_conversion ON log_conversion.idlink_va = log_link_visit_action.idlink_va AND log_conversion.idsite = log_link_visit_action.idsite
                 WHERE
                      HOUR(log_visit.visit_last_action_time) = ? AND log_conversion.idgoal = ? ",
             "bind" => array(12, 1));
@@ -415,7 +439,7 @@ class SegmentTest extends DatabaseTestCase
         $bind = array();
 
         $segment = 'visitConvertedGoalId==1;visitServerHour==12;customVariablePageName1==Test';
-        $segment = new Piwik_Segment($segment, $idSites = array());
+        $segment = new Segment($segment, $idSites = array());
 
         $query = $segment->getSelectQuery($select, $from, $where, $bind);
 
@@ -428,9 +452,9 @@ class SegmentTest extends DatabaseTestCase
                 SELECT
                     log_visit.*
                 FROM
-                    " . Piwik_Common::prefixTable('log_visit') . " AS log_visit
-                    LEFT JOIN " . Piwik_Common::prefixTable('log_link_visit_action') . " AS log_link_visit_action ON log_link_visit_action.idvisit = log_visit.idvisit
-                    LEFT JOIN " . Piwik_Common::prefixTable('log_conversion') . " AS log_conversion ON log_conversion.idlink_va = log_link_visit_action.idlink_va AND log_conversion.idsite = log_link_visit_action.idsite
+                    " . Common::prefixTable('log_visit') . " AS log_visit
+                    LEFT JOIN " . Common::prefixTable('log_link_visit_action') . " AS log_link_visit_action ON log_link_visit_action.idvisit = log_visit.idvisit
+                    LEFT JOIN " . Common::prefixTable('log_conversion') . " AS log_conversion ON log_conversion.idlink_va = log_link_visit_action.idlink_va AND log_conversion.idsite = log_link_visit_action.idsite
                 WHERE
                      log_conversion.idgoal = ? AND HOUR(log_visit.visit_last_action_time) = ? AND log_link_visit_action.custom_var_k1 = ?
                 GROUP BY log_visit.idvisit
@@ -460,7 +484,7 @@ class SegmentTest extends DatabaseTestCase
     public function testBogusSegmentThrowsException($segment)
     {
         try {
-            $segment = new Piwik_Segment($segment, $idSites = array());
+            $segment = new Segment($segment, $idSites = array());
         } catch (Exception $e) {
             return;
         }

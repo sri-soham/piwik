@@ -6,24 +6,39 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_SegmentEditor
+ * @package SegmentEditor
  */
+namespace Piwik\Plugins\SegmentEditor;
+
+use Exception;
+use Piwik\Common;
+use Piwik\Plugins\SegmentEditor\API;
+use Piwik\Plugins\SegmentEditor\Controller;
+use Piwik\Version;
+use Piwik\Db;
+use Zend_Registry;
 
 /**
- * @package Piwik_SegmentEditor
+ * @package SegmentEditor
  */
-class Piwik_SegmentEditor extends Piwik_Plugin
+class SegmentEditor extends \Piwik\Plugin
 {
+    /**
+     * @see Piwik_Plugin::getInformation
+     */
     public function getInformation()
     {
         return array(
             'description'     => 'Create and reuse custom visitor Segments with the Segment Editor.',
             'author'          => 'Piwik',
             'author_homepage' => 'http://piwik.org/',
-            'version'         => Piwik_Version::VERSION,
+            'version'         => Version::VERSION,
         );
     }
 
+    /**
+     * @see Piwik_Plugin::getListHooksRegistered
+     */
     public function getListHooksRegistered()
     {
         return array(
@@ -35,27 +50,23 @@ class Piwik_SegmentEditor extends Piwik_Plugin
         );
     }
 
-    function getSegmentEditorHtml($notification)
+    function getSegmentEditorHtml(&$out)
     {
-        $out =& $notification->getNotificationObject();
-        $controller = new Piwik_SegmentEditor_Controller();
+        $controller = new Controller();
         $out .= $controller->getSelector();
     }
 
-    public function getKnownSegmentsToArchiveAllSites($notification)
+    public function getKnownSegmentsToArchiveAllSites(&$segments)
     {
-        $segments =& $notification->getNotificationObject();
-        $segmentToAutoArchive = Piwik_SegmentEditor_API::getInstance()->getSegmentsToAutoArchive();
-        if (!empty($segmentToAutoArchive)) {
-            $segments = array_merge($segments, $segmentToAutoArchive);
+        $segmentsToAutoArchive = API::getInstance()->getAll($idSite = false, $returnAutoArchived = true);
+        foreach ($segmentsToAutoArchive as $segment) {
+            $segments[] = $segment['definition'];
         }
     }
 
-    public function getKnownSegmentsToArchiveForSite($notification)
+    public function getKnownSegmentsToArchiveForSite(&$segments, $idSite)
     {
-        $segments =& $notification->getNotificationObject();
-        $idSite = $notification->getNotificationInfo();
-        $segmentToAutoArchive = Piwik_SegmentEditor_API::getInstance()->getSegmentsToAutoArchive($idSite);
+        $segmentToAutoArchive = API::getInstance()->getAll($idSite, $returnAutoArchived = true);
 
         foreach ($segmentToAutoArchive as $segmentInfo) {
             $segments[] = $segmentInfo['definition'];
@@ -69,21 +80,13 @@ class Piwik_SegmentEditor extends Piwik_Plugin
         $dao->install();
     }
 
-    public function getJsFiles($notification)
+    public function getJsFiles(&$jsFiles)
     {
-        $jsFiles = & $notification->getNotificationObject();
-        $jsFiles[] = "plugins/SegmentEditor/templates/jquery.jscrollpane.js";
-        $jsFiles[] = "plugins/SegmentEditor/templates/Segmentation.js";
-        $jsFiles[] = "plugins/SegmentEditor/templates/jquery.mousewheel.js";
-        $jsFiles[] = "plugins/SegmentEditor/templates/mwheelIntent.js";
+        $jsFiles[] = "plugins/SegmentEditor/javascripts/Segmentation.js";
     }
 
-    public function getCssFiles($notification)
+    public function getCssFiles(&$cssFiles)
     {
-        $cssFiles = & $notification->getNotificationObject();
-        $cssFiles[] = "plugins/SegmentEditor/templates/Segmentation.css";
-        $cssFiles[] = "plugins/SegmentEditor/templates/jquery.jscrollpane.css";
-        $cssFiles[] = "plugins/SegmentEditor/templates/scroll.css";
+        $cssFiles[] = "plugins/SegmentEditor/stylesheets/segmentation.less";
     }
-
 }

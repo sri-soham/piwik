@@ -6,26 +6,28 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_CoreUpdater
+ * @package CoreUpdater
  */
+namespace Piwik\Plugins\CoreUpdater;
+
+use Exception;
+use Piwik\Piwik;
+use Piwik\Common;
+use Piwik\FrontController;
+use Piwik\Updater;
+use Piwik\Version;
+use Piwik\UpdateCheck;
 
 /**
  *
- * @package Piwik_CoreUpdater
+ * @package CoreUpdater
  */
-class Piwik_CoreUpdater extends Piwik_Plugin
+class CoreUpdater extends \Piwik\Plugin
 {
-    public function getInformation()
-    {
-        return array(
-            'description'     => Piwik_Translate('CoreUpdater_PluginDescription'),
-            'author'          => 'Piwik',
-            'author_homepage' => 'http://piwik.org/',
-            'version'         => Piwik_Version::VERSION,
-        );
-    }
-
-    function getListHooksRegistered()
+    /**
+     * @see Piwik_Plugin::getListHooksRegistered
+     */
+    public function getListHooksRegistered()
     {
         $hooks = array(
             'FrontController.dispatchCoreAndPluginUpdatesScreen' => 'dispatch',
@@ -34,10 +36,10 @@ class Piwik_CoreUpdater extends Piwik_Plugin
         return $hooks;
     }
 
-    public static function getComponentUpdates($updater)
+    public static function getComponentUpdates(Updater $updater)
     {
-        $updater->addComponentToCheck('core', Piwik_Version::VERSION);
-        $plugins = Piwik_PluginsManager::getInstance()->getLoadedPlugins();
+        $updater->addComponentToCheck('core', Version::VERSION);
+        $plugins = \Piwik\PluginsManager::getInstance()->getLoadedPlugins();
         foreach ($plugins as $pluginName => $plugin) {
             $updater->addComponentToCheck($pluginName, $plugin->getVersion());
         }
@@ -50,13 +52,13 @@ class Piwik_CoreUpdater extends Piwik_Plugin
         return $componentsWithUpdateFile;
     }
 
-    function dispatch()
+    public function dispatch()
     {
-        $module = Piwik_Common::getRequestVar('module', '', 'string');
-        $action = Piwik_Common::getRequestVar('action', '', 'string');
+        $module = Common::getRequestVar('module', '', 'string');
+        $action = Common::getRequestVar('action', '', 'string');
 
-        $updater = new Piwik_Updater();
-        $updater->addComponentToCheck('core', Piwik_Version::VERSION);
+        $updater = new Updater();
+        $updater->addComponentToCheck('core', Version::VERSION);
         $updates = $updater->getComponentsWithNewVersion();
         if (!empty($updates)) {
             Piwik::deleteAllCacheOnUpdate();
@@ -68,8 +70,8 @@ class Piwik_CoreUpdater extends Piwik_Plugin
             && !($module == 'LanguagesManager'
                 && $action == 'saveLanguage')
         ) {
-            if (Piwik_FrontController::shouldRethrowException()) {
-                throw new Exception("Piwik and/or some plugins have been upgraded to a new version. \n".
+            if (FrontController::shouldRethrowException()) {
+                throw new Exception("Piwik and/or some plugins have been upgraded to a new version. \n" .
                     "--> Please run the update process first. See documentation: http://piwik.org/docs/update/ \n");
             } else {
                 Piwik::redirectToModule('CoreUpdater');
@@ -77,8 +79,8 @@ class Piwik_CoreUpdater extends Piwik_Plugin
         }
     }
 
-    function updateCheck()
+    public function updateCheck()
     {
-        Piwik_UpdateCheck::check();
+        UpdateCheck::check();
     }
 }

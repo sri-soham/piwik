@@ -1,4 +1,14 @@
 <?php
+use Piwik\Config;
+use Piwik\Piwik;
+use Piwik\Common;
+use Piwik\FrontController;
+use Piwik\IP;
+use Piwik\Db;
+use Piwik\Plugins\UserCountry\LocationProvider;
+use Piwik\Plugins\UserCountry\LocationProvider\GeoIp\Php;
+use Piwik\Plugins\UserCountry\LocationProvider\GeoIp\Pecl;
+
 ini_set("memory_limit", "512M");
 error_reporting(E_ALL | E_NOTICE);
 
@@ -24,14 +34,14 @@ require_once PIWIK_INCLUDE_PATH . '/core/Loader.php';
 $GLOBALS['PIWIK_TRACKER_DEBUG'] = false;
 define('PIWIK_ENABLE_DISPATCH', false);
 
-Piwik_Config::getInstance()->log['logger_message'][] = 'screen';
-Piwik_FrontController::getInstance()->init();
+Config::getInstance()->log['logger_message'][] = 'screen';
+FrontController::getInstance()->init();
 
-$query = "SELECT count(*) FROM " . Piwik_Common::prefixTable('log_visit');
-$count = Piwik_FetchOne($query);
+$query = "SELECT count(*) FROM " . Common::prefixTable('log_visit');
+$count = Db::fetchOne($query);
 
 // when script run via browser, check for Super User & output html page to do conversion via AJAX
-if (!Piwik_Common::isPhpCliMode()) {
+if (!Common::isPhpCliMode()) {
     try {
         Piwik::checkUserIsSuperUser();
     } catch (Exception $e) {
@@ -40,7 +50,7 @@ if (!Piwik_Common::isPhpCliMode()) {
     }
     // the 'start' query param will be supplied by the AJAX requests, so if it's not there, the
     // user is viewing the page in the browser.
-    if (Piwik_Common::getRequestVar('start', false) === false) {
+    if (Common::getRequestVar('start', false) === false) {
         // output HTML page that runs update via AJAX
         ?>
         <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
@@ -88,8 +98,8 @@ if (!Piwik_Common::isPhpCliMode()) {
         <?php
         exit;
     } else {
-        $start = Piwik_Common::getRequestVar('start', 0, 'int');
-        $end = min($count, Piwik_Common::getRequestVar('end', $count, 'int'));
+        $start = Common::getRequestVar('start', 0, 'int');
+        $end = min($count, Common::getRequestVar('end', $count, 'int'));
         $limit = $end - $start;
     }
 } else // command line
@@ -102,7 +112,7 @@ if (!Piwik_Common::isPhpCliMode()) {
 function geoipUpdateError($message)
 {
     Piwik::log($message);
-    if (!Piwik_Common::isPhpCliMode()) {
+    if (!Common::isPhpCliMode()) {
         @header('HTTP/1.1 500 Internal Server Error', $replace = true, $responseCode = 500);
     }
     exit;
@@ -113,7 +123,7 @@ function geoipUpdateError($message)
 $displayNotes = $start == 0;
 
 // try getting the pecl location provider
-$provider = new Piwik_UserCountry_LocationProvider_GeoIp_Pecl();
+$provider = new Pecl();
 if (!$provider->isAvailable()) {
     if ($displayNotes) {
         Piwik::log("[note] The GeoIP PECL extension is not installed.");
@@ -126,7 +136,7 @@ if (!$provider->isAvailable()) {
         if ($displayNotes) {
             Piwik::log("[note] The GeoIP PECL extension is broken: $workingOrError");
         }
-        if (Piwik_Common::isPhpCliMode()) {
+        if (Common::isPhpCliMode()) {
             Piwik::log("[note] Make sure your command line PHP is configured to use the PECL extension.");
         }
         $provider = null;
@@ -139,7 +149,7 @@ if (is_null($provider)) {
         Piwik::log("[note] Falling back to PHP API. This may become too slow for you. If so, you can read this link on how to install the PECL extension: http://piwik.org/faq/how-to/#faq_164");
     }
 
-    $provider = new Piwik_UserCountry_LocationProvider_GeoIp_Php();
+    $provider = new Php();
     if (!$provider->isAvailable()) {
         if ($displayNotes) {
             Piwik::log("[note] The GeoIP PHP API is not available. This means you do not have a GeoIP location database in your ./misc directory. The database must be named either GeoIP.dat or GeoIPCity.dat based on the type of database it is.");
@@ -166,20 +176,20 @@ if ($displayNotes) {
 }
 
 // perform update
-$logVisitFieldsToUpdate = array('location_country'   => Piwik_UserCountry_LocationProvider::COUNTRY_CODE_KEY,
-                                'location_region'    => Piwik_UserCountry_LocationProvider::REGION_CODE_KEY,
-                                'location_city'      => Piwik_UserCountry_LocationProvider::CITY_NAME_KEY,
-                                'location_latitude'  => Piwik_UserCountry_LocationProvider::LATITUDE_KEY,
-                                'location_longitude' => Piwik_UserCountry_LocationProvider::LONGITUDE_KEY);
+$logVisitFieldsToUpdate = array('location_country'   => LocationProvider::COUNTRY_CODE_KEY,
+                                'location_region'    => LocationProvider::REGION_CODE_KEY,
+                                'location_city'      => LocationProvider::CITY_NAME_KEY,
+                                'location_latitude'  => LocationProvider::LATITUDE_KEY,
+                                'location_longitude' => LocationProvider::LONGITUDE_KEY);
 
 if ($displayNotes) {
-    Piwik::log("\n$count rows to process in " . Piwik_Common::prefixTable('log_visit')
-        . " and " . Piwik_Common::prefixTable('log_conversion') . "...");
+    Piwik::log("\n$count rows to process in " . Common::prefixTable('log_visit')
+        . " and " . Common::prefixTable('log_conversion') . "...");
 }
 flush();
 for (; $start < $end; $start += $limit) {
-    $rows = Piwik_FetchAll("SELECT idvisit, location_ip, " . implode(',', array_keys($logVisitFieldsToUpdate)) . "
-						FROM " . Piwik_Common::prefixTable('log_visit') . "
+    $rows = Db::fetchAll("SELECT idvisit, location_ip, " . implode(',', array_keys($logVisitFieldsToUpdate)) . "
+						FROM " . Common::prefixTable('log_visit') . "
 						LIMIT $start, $limit");
     if (!count($rows)) {
         continue;
@@ -198,12 +208,12 @@ for (; $start < $end; $start += $limit) {
             continue;
         }
 
-        $ip = Piwik_IP::N2P($row['location_ip']);
+        $ip = IP::N2P($row['location_ip']);
         $location = $provider->getLocation(array('ip' => $ip));
 
-        if (!empty($location[Piwik_UserCountry_LocationProvider::COUNTRY_CODE_KEY])) {
-            $location[Piwik_UserCountry_LocationProvider::COUNTRY_CODE_KEY] =
-                strtolower($location[Piwik_UserCountry_LocationProvider::COUNTRY_CODE_KEY]);
+        if (!empty($location[LocationProvider::COUNTRY_CODE_KEY])) {
+            $location[LocationProvider::COUNTRY_CODE_KEY] =
+                strtolower($location[LocationProvider::COUNTRY_CODE_KEY]);
         }
         $row['location_country'] = strtolower($row['location_country']);
 
@@ -225,16 +235,16 @@ for (; $start < $end; $start += $limit) {
         $bind[] = $row['idvisit'];
 
         // update log_visit
-        $sql = "UPDATE " . Piwik_Common::prefixTable('log_visit') . "
+        $sql = "UPDATE " . Common::prefixTable('log_visit') . "
 				   SET " . implode(', ', $columnsToSet) . "
 				 WHERE idvisit = ?";
-        Piwik_Query($sql, $bind);
+        Db::query($sql, $bind);
 
         // update log_conversion
-        $sql = "UPDATE " . Piwik_Common::prefixTable('log_conversion') . "
+        $sql = "UPDATE " . Common::prefixTable('log_conversion') . "
 				   SET " . implode(', ', $columnsToSet) . "
 				 WHERE idvisit = ?";
-        Piwik_Query($sql, $bind);
+        Db::query($sql, $bind);
     }
     Piwik::log(round($start * 100 / $count) . "% done...");
     flush();

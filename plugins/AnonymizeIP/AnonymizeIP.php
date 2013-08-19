@@ -6,19 +6,23 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_AnonymizeIP
+ * @package AnonymizeIP
  */
+namespace Piwik\Plugins\AnonymizeIP;
+
+use Piwik\Config;
+use Piwik\Common;
+use Piwik\Version;
 
 /**
  * Anonymize visitor IP addresses to comply with the privacy laws/guidelines in countries, such as Germany.
  *
- * @package Piwik_AnonymizeIP
+ * @package AnonymizeIP
  */
-class Piwik_AnonymizeIP extends Piwik_Plugin
+class AnonymizeIP extends \Piwik\Plugin
 {
     /**
-     * Get plugin information
-     * @return array
+     * @see Piwik_Plugin::getInformation
      */
     public function getInformation()
     {
@@ -26,14 +30,12 @@ class Piwik_AnonymizeIP extends Piwik_Plugin
             'description'     => Piwik_Translate('AnonymizeIP_PluginDescription'),
             'author'          => 'Piwik',
             'author_homepage' => 'http://piwik.org/',
-            'version'         => Piwik_Version::VERSION,
-            'TrackerPlugin'   => true,
+            'version'         => Version::VERSION,
         );
     }
 
     /**
-     * Get list of hooks to register
-     * @return array
+     * @see Piwik_Plugin::getListHooksRegistered
      */
     public function getListHooksRegistered()
     {
@@ -51,7 +53,7 @@ class Piwik_AnonymizeIP extends Piwik_Plugin
      */
     static public function applyIPMask($ip, $maskLength)
     {
-        $i = Piwik_Common::strlen($ip);
+        $i = Common::strlen($ip);
         if ($maskLength > $i) {
             $maskLength = $i;
         }
@@ -65,12 +67,9 @@ class Piwik_AnonymizeIP extends Piwik_Plugin
 
     /**
      * Hook on Tracker.Visit.setVisitorIp to anonymize visitor IP addresses
-     *
-     * @param Piwik_Event_Notification $notification  notification object
      */
-    function setVisitorIpAddress($notification)
+    public function setVisitorIpAddress(&$ip)
     {
-        $ip =& $notification->getNotificationObject();
-        $ip = self::applyIPMask($ip, Piwik_Config::getInstance()->Tracker['ip_address_mask_length']);
+        $ip = self::applyIPMask($ip, Config::getInstance()->Tracker['ip_address_mask_length']);
     }
 }

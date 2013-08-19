@@ -6,13 +6,18 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_SecurityInfo
+ * @package SecurityInfo
  */
+namespace Piwik\Plugins\SecurityInfo;
+
+use PhpSecInfo;
+use Piwik\Piwik;
+use Piwik\View;
 
 /**
- * @package Piwik_SecurityInfo
+ * @package SecurityInfo
  */
-class Piwik_SecurityInfo_Controller extends Piwik_Controller_Admin
+class Controller extends \Piwik\Controller\Admin
 {
     function index()
     {
@@ -34,9 +39,8 @@ class Piwik_SecurityInfo_Controller extends Piwik_Controller_Admin
         unset($results['test_results']['Core']['post_max_size']);
         unset($results['test_results']['Core']['upload_max_filesize']);
 
-        $view = Piwik_View::factory('index');
+        $view = new View('@SecurityInfo/index');
         $this->setBasicVariablesView($view);
-        $view->menu = Piwik_GetAdminMenu();
         $view->results = $results;
         echo $view->render();
     }

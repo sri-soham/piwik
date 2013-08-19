@@ -8,6 +8,12 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik\API\DataTableManipulator;
+
+use Piwik\Common;
+use Piwik\DataTable;
+use Piwik\DataTable\Row;
+use Piwik\API\DataTableManipulator;
 
 /**
  * This class is responsible for handling the label parameter that can be
@@ -20,12 +26,13 @@
  * @package Piwik
  * @subpackage Piwik_API
  */
-class Piwik_API_DataTableManipulator_LabelFilter extends Piwik_API_DataTableManipulator
+class LabelFilter extends DataTableManipulator
 {
     const SEPARATOR_RECURSIVE_LABEL = '>';
 
     private $labels;
     private $addLabelIndex;
+    const FLAG_IS_ROW_EVOLUTION = 'label_index';
 
     /**
      * Filter a data table by label.
@@ -36,10 +43,10 @@ class Piwik_API_DataTableManipulator_LabelFilter extends Piwik_API_DataTableMani
      * are not needed.
      *
      * @param string $labels      the labels to search for
-     * @param Piwik_DataTable $dataTable  the data table to be filtered
+     * @param DataTable $dataTable  the data table to be filtered
      * @param bool $addLabelIndex Whether to add label_index metadata describing which
      *                            label a row corresponds to.
-     * @return Piwik_DataTable
+     * @return DataTable
      */
     public function filter($labels, $dataTable, $addLabelIndex = false)
     {
@@ -56,8 +63,8 @@ class Piwik_API_DataTableManipulator_LabelFilter extends Piwik_API_DataTableMani
      * Method for the recursive descend
      *
      * @param array $labelParts
-     * @param Piwik_DataTable $dataTable
-     * @return Piwik_DataTable_Row|false
+     * @param DataTable $dataTable
+     * @return Row|bool
      */
     private function doFilterRecursiveDescend($labelParts, $dataTable)
     {
@@ -92,7 +99,7 @@ class Piwik_API_DataTableManipulator_LabelFilter extends Piwik_API_DataTableMani
     }
 
     /**
-     * Clean up request for Piwik_API_ResponseBuilder to behave correctly
+     * Clean up request for ResponseBuilder to behave correctly
      *
      * @param $request
      */
@@ -104,8 +111,8 @@ class Piwik_API_DataTableManipulator_LabelFilter extends Piwik_API_DataTableMani
     /**
      * Use variations of the label to make it easier to specify the desired label
      *
-     * Note: The HTML Encoded version must be tried first, since in Piwik_API_ResponseBuilder the $label is unsanitized
-     * via Piwik_Common::unsanitizeInputValue.
+     * Note: The HTML Encoded version must be tried first, since in ResponseBuilder the $label is unsanitized
+     * via Common::unsanitizeLabelParameter.
      *
      * @param string $label
      * @return array
@@ -113,18 +120,19 @@ class Piwik_API_DataTableManipulator_LabelFilter extends Piwik_API_DataTableMani
     private function getLabelVariations($label)
     {
         static $pageTitleReports = array('getPageTitles', 'getEntryPageTitles', 'getExitPageTitles');
-        
+
         $variations = array();
+        $label = urldecode($label);
         $label = trim($label);
 
-        $sanitizedLabel = Piwik_Common::sanitizeInputValue($label);
+        $sanitizedLabel = Common::sanitizeInputValue($label);
         $variations[] = $sanitizedLabel;
 
         if ($this->apiModule == 'Actions'
             && in_array($this->apiMethod, $pageTitleReports)
         ) {
             // special case: the Actions.getPageTitles report prefixes some labels with a blank.
-            // the blank might be passed by the user but is removed in Piwik_API_Request::getRequestArrayFromString.
+            // the blank might be passed by the user but is removed in Request::getRequestArrayFromString.
             $variations[] = ' ' . $sanitizedLabel;
             $variations[] = ' ' . $label;
         }
@@ -134,7 +142,10 @@ class Piwik_API_DataTableManipulator_LabelFilter extends Piwik_API_DataTableMani
     }
 
     /**
-     * Filter a Piwik_DataTable instance. See @filter for more info.
+     * Filter a DataTable instance. See @filter for more info.
+     *
+     * @param DataTable\Simple|DataTable\Map $dataTable
+     * @return mixed
      */
     protected function manipulateDataTable($dataTable)
     {
@@ -143,14 +154,12 @@ class Piwik_API_DataTableManipulator_LabelFilter extends Piwik_API_DataTableMani
             $row = null;
             foreach ($this->getLabelVariations($label) as $labelVariation) {
                 $labelVariation = explode(self::SEPARATOR_RECURSIVE_LABEL, $labelVariation);
-                $labelVariation = array_map('urldecode', $labelVariation);
 
                 $row = $this->doFilterRecursiveDescend($labelVariation, $dataTable);
                 if ($row) {
                     if ($this->addLabelIndex) {
-                        $row->setMetadata('label_index', $labelIndex);
+                        $row->setMetadata(self::FLAG_IS_ROW_EVOLUTION, $labelIndex);
                     }
-                    
                     $result->addRow($row);
                     break;
                 }

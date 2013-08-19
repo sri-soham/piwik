@@ -6,8 +6,18 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_Annotations
+ * @package Annotations
  */
+namespace Piwik\Plugins\Annotations;
+
+use Exception;
+use Piwik\Period;
+use Piwik\Period\Range;
+use Piwik\Piwik;
+use Piwik\Date;
+use Piwik\Plugins\Annotations\AnnotationList;
+use Piwik\ViewDataTable;
+use Piwik\Plugins\CoreVisualizations\Visualizations\JqplotGraph\Evolution as EvolutionViz;
 
 /**
  * @see plugins/Annotations/AnnotationList.php
@@ -18,16 +28,16 @@ require_once PIWIK_INCLUDE_PATH . '/plugins/Annotations/AnnotationList.php';
  * API for annotations plugin. Provides methods to create, modify, delete & query
  * annotations.
  *
- * @package Piwik_Annotations
+ * @package Annotations
  */
-class Piwik_Annotations_API
+class API
 {
     static private $instance = null;
 
     /**
      * Returns this API's singleton instance.
      *
-     * @return Piwik_Annotations_API
+     * @return \Piwik\Plugins\Annotations\API
      */
     static public function getInstance()
     {
@@ -43,7 +53,7 @@ class Piwik_Annotations_API
      * @param string $idSite The site ID to add the annotation to.
      * @param string $date The date the annotation is attached to.
      * @param string $note The text of the annotation.
-     * @param string $starred Either 0 or 1. Whether the annotation should be starred.
+     * @param int $starred Either 0 or 1. Whether the annotation should be starred.
      * @return array Returns an array of two elements. The first element (indexed by
      *               'annotation') is the new annotation. The second element (indexed
      *               by 'idNote' is the new note's ID).
@@ -55,7 +65,7 @@ class Piwik_Annotations_API
         $this->checkUserCanAddNotesFor($idSite);
 
         // add, save & return a new annotation
-        $annotations = new Piwik_Annotations_AnnotationList($idSite);
+        $annotations = new AnnotationList($idSite);
 
         $newAnnotation = $annotations->add($idSite, $date, $note, $starred);
         $annotations->save($idSite);
@@ -91,7 +101,7 @@ class Piwik_Annotations_API
         $this->checkDateIsValid($date, $canBeNull = true);
 
         // get the annotations for the site
-        $annotations = new Piwik_Annotations_AnnotationList($idSite);
+        $annotations = new AnnotationList($idSite);
 
         // check permissions
         $this->checkUserCanModifyOrDelete($idSite, $annotations->get($idSite, $idNote));
@@ -119,7 +129,7 @@ class Piwik_Annotations_API
     {
         $this->checkSingleIdSite($idSite, $extraMessage = "Note: Cannot delete multiple notes.");
 
-        $annotations = new Piwik_Annotations_AnnotationList($idSite);
+        $annotations = new AnnotationList($idSite);
 
         // check permissions
         $this->checkUserCanModifyOrDelete($idSite, $annotations->get($idSite, $idNote));
@@ -148,7 +158,7 @@ class Piwik_Annotations_API
         Piwik::checkUserHasViewAccess($idSite);
 
         // get single annotation
-        $annotations = new Piwik_Annotations_AnnotationList($idSite);
+        $annotations = new AnnotationList($idSite);
         return $annotations->get($idSite, $idNote);
     }
 
@@ -159,9 +169,9 @@ class Piwik_Annotations_API
      *
      * @param string $idSite The site ID to add the annotation to. Can be one ID or
      *                       a list of site IDs.
-     * @param string|false $date The date of the period.
+     * @param bool|string $date The date of the period.
      * @param string $period The period type.
-     * @param int|false $lastN Whether to include the last N number of periods in the
+     * @param bool|int $lastN Whether to include the last N number of periods in the
      *                         date range or not.
      * @return array An array that indexes arrays of annotations by site ID. ie,
      *               array(
@@ -176,7 +186,7 @@ class Piwik_Annotations_API
     {
         Piwik::checkUserHasViewAccess($idSite);
 
-        $annotations = new Piwik_Annotations_AnnotationList($idSite);
+        $annotations = new AnnotationList($idSite);
 
         // if date/period are supplied, determine start/end date for search
         list($startDate, $endDate) = self::getDateRangeForPeriod($date, $period, $lastN);
@@ -189,9 +199,10 @@ class Piwik_Annotations_API
      * starred annotations.
      *
      * @param string $idSite The site ID to add the annotation to.
-     * @param string|false $date The date of the period.
+     * @param string|bool $date The date of the period.
      * @param string $period The period type.
-     * @param int|false $lastN Whether to get counts for the last N number of periods or not.
+     * @param int|bool $lastN Whether to get counts for the last N number of periods or not.
+     * @param bool $getAnnotationText
      * @return array An array mapping site IDs to arrays holding dates & the count of
      *               annotations made for those dates. eg,
      *               array(
@@ -227,7 +238,7 @@ class Piwik_Annotations_API
         $dates[] = $startDate;
 
         // get annotations for the site
-        $annotations = new Piwik_Annotations_AnnotationList($idSite);
+        $annotations = new AnnotationList($idSite);
 
         // create result w/ 0-counts
         $result = array();
@@ -244,7 +255,7 @@ class Piwik_Annotations_API
                     && $result[$idSite][$strDate]['count'] == 1
                 ) {
                     $annotationsForSite = $annotations->search(
-                        $date, Piwik_Date::factory($nextDate->getTimestamp() - 1), $idSite);
+                        $date, Date::factory($nextDate->getTimestamp() - 1), $idSite);
                     $annotation = reset($annotationsForSite[$idSite]);
 
                     $result[$idSite][$strDate]['note'] = $annotation['note'];
@@ -285,7 +296,7 @@ class Piwik_Annotations_API
      */
     private static function checkUserCanAddNotesFor($idSite)
     {
-        if (!Piwik_Annotations_AnnotationList::canUserAddNotesFor($idSite)) {
+        if (!AnnotationList::canUserAddNotesFor($idSite)) {
             throw new Exception("The current user is not allowed to add notes for site #$idSite.");
         }
     }
@@ -294,12 +305,13 @@ class Piwik_Annotations_API
      * Returns start & end dates for the range described by a period and optional lastN
      * argument.
      *
-     * @param string $date|false The start date of the period (or the date range of a range
+     * @param string|bool $date The start date of the period (or the date range of a range
      *                           period).
      * @param string $period The period type ('day', 'week', 'month', 'year' or 'range').
-     * @param int|false $lastN Whether to include the last N periods in the range or not.
+     * @param bool|int $lastN  Whether to include the last N periods in the range or not.
      *                         Ignored if period == range.
      *
+     * @return Date[]   array of Date objects or array(false, false)
      * @ignore
      */
     public static function getDateRangeForPeriod($date, $period, $lastN = false)
@@ -313,21 +325,20 @@ class Piwik_Annotations_API
             || $period == 'range'
         ) {
             if ($period == 'range') {
-                $oPeriod = new Piwik_Period_Range('day', $date);
+                $oPeriod = new Range('day', $date);
             } else {
-                $oPeriod = Piwik_Period::factory($period, Piwik_Date::factory($date));
+                $oPeriod = Period::factory($period, Date::factory($date));
             }
 
             $startDate = $oPeriod->getDateStart();
             $endDate = $oPeriod->getDateEnd();
         } else // if the range includes the last N periods
         {
-            list($date, $lastN) =
-                Piwik_ViewDataTable_GenerateGraphHTML_ChartEvolution::getDateRangeAndLastN($period, $date, $lastN);
+            list($date, $lastN) = EvolutionViz::getDateRangeAndLastN($period, $date, $lastN);
             list($startDate, $endDate) = explode(',', $date);
 
-            $startDate = Piwik_Date::factory($startDate);
-            $endDate = Piwik_Date::factory($endDate);
+            $startDate = Date::factory($startDate);
+            $endDate = Date::factory($endDate);
         }
         return array($startDate, $endDate);
     }
@@ -356,6 +367,6 @@ class Piwik_Annotations_API
             return;
         }
 
-        Piwik_Date::factory($date);
+        Date::factory($date);
     }
 }

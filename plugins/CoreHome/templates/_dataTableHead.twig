@@ -1,0 +1,17 @@
+<thead>
+   <tr>
+       {% for column in properties.columns_to_display %}
+           <th class="sortable {% if loop.first %}first{% elseif loop.last %}last{% endif %}" id="{{ column }}">
+               {% if properties.metrics_documentation[column]|default is not empty %}
+                   <div class="columnDocumentation">
+                       <div class="columnDocumentationTitle">
+                           {{ properties.translations[column]|default(column) }}
+                       </div>
+                       {{ properties.metrics_documentation[column] }}
+                   </div>
+               {% endif %}
+               <div id="thDIV">{{ properties.translations[column]|default(column) }}</div>
+           </th>
+       {% endfor %}
+   </tr>
+</thead>

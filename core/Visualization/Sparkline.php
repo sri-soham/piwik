@@ -9,6 +9,12 @@
  * @package Piwik
  */
 
+namespace Piwik\Visualization;
+
+use Piwik\Common;
+use Piwik\View\ViewInterface;
+use Sparkline_Line;
+
 /**
  * @see libs/sparkline/lib/Sparkline_Line.php
  * @link http://sparkline.org
@@ -22,25 +28,30 @@ require_once PIWIK_INCLUDE_PATH . '/libs/sparkline/lib/Sparkline_Line.php';
  * @package Piwik
  * @subpackage Piwik_Visualization
  */
-class Piwik_Visualization_Sparkline implements Piwik_View_Interface
+class Sparkline implements ViewInterface
 {
+    const DEFAULT_WIDTH = 100;
+    const DEFAULT_HEIGHT = 25;
+
+    private static $colorNames = array('backgroundColor', 'lineColor', 'minPointColor', 'lastPointColor', 'maxPointColor');
+
     /**
      * Width of the sparkline
      * @var int
      */
-    protected $_width = 100;
+    protected $_width = self::DEFAULT_WIDTH;
 
     /**
      * Height of sparkline
      * @var int
      */
-    protected $_height = 25;
+    protected $_height = self::DEFAULT_HEIGHT;
 
     /**
      * Array with format: array( x, y, z, ... )
      * @param array $data
      */
-    function setValues($data)
+    public function setValues($data)
     {
         $this->values = $data;
     }
@@ -91,16 +102,13 @@ class Piwik_Visualization_Sparkline implements Piwik_View_Interface
         return $this->_height;
     }
 
-    function main()
+    public function main()
     {
         $width = $this->getWidth();
         $height = $this->getHeight();
 
         $sparkline = new Sparkline_Line();
-        $sparkline->SetColor('lineColor', 22, 44, 74); // dark blue
-        $sparkline->SetColorHtml('red', '#FF7F7F');
-        $sparkline->SetColorHtml('blue', '#55AAFF');
-        $sparkline->SetColorHtml('green', '#75BF7C');
+        $this->setSparklineColors($sparkline);
 
         $min = $max = $last = null;
         $i = 0;
@@ -128,17 +136,34 @@ class Piwik_Visualization_Sparkline implements Piwik_View_Interface
         $sparkline->SetYMin(0);
         $sparkline->SetYMax($max[1]);
         $sparkline->SetPadding(3, 0, 2, 0); // top, right, bottom, left
-        $sparkline->SetFeaturePoint($min[0], $min[1], 'red', 5);
-        $sparkline->SetFeaturePoint($max[0], $max[1], 'green', 5);
-        $sparkline->SetFeaturePoint($last[0], $last[1], 'blue', 5);
+        $sparkline->SetFeaturePoint($min[0], $min[1], 'minPointColor', 5);
+        $sparkline->SetFeaturePoint($max[0], $max[1], 'maxPointColor', 5);
+        $sparkline->SetFeaturePoint($last[0], $last[1], 'lastPointColor', 5);
         $sparkline->SetLineSize(3); // for renderresampled, linesize is on virtual image
         $ratio = 1;
         $sparkline->RenderResampled($width * $ratio, $height * $ratio);
         $this->sparkline = $sparkline;
     }
 
-    function render()
+    public function render()
     {
         $this->sparkline->Output();
+    }
+
+    /**
+     * Sets the sparkline colors
+     *
+     * @param Sparkline_Line $sparkline
+     */
+    private function setSparklineColors($sparkline)
+    {
+        $colors = Common::getRequestVar('colors', false, 'json');
+        if (!empty($colors)) {
+            foreach (self::$colorNames as $name) {
+                if (!empty($colors[$name])) {
+                    $sparkline->SetColorHtml($name, $colors[$name]);
+                }
+            }
+        }
     }
 }

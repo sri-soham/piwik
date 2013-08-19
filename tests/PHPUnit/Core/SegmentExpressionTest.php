@@ -5,6 +5,8 @@
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
+use Piwik\SegmentExpression;
+
 class SegmentExpressionTest extends DatabaseTestCase
 {
     /**
@@ -44,7 +46,7 @@ class SegmentExpressionTest extends DatabaseTestCase
      */
     public function testSegmentSqlSimpleNoOperation($expression, $expectedSql)
     {
-        $segment = new Piwik_SegmentExpression($expression);
+        $segment = new SegmentExpression($expression);
         $expected = array('where' => $expectedSql, 'bind' => array(), 'join' => '');
         $processed = $segment->getSql();
         $this->assertEquals($expected, $processed);
@@ -60,10 +62,10 @@ class SegmentExpressionTest extends DatabaseTestCase
         return array(
             array('A==B%', array('where' => " A = ? ", 'bind' => array('B%'))),
             array('ABCDEF====B===', array('where' => " ABCDEF = ? ", 'bind' => array('==B==='))),
-            array('A===B;CDEF!=C!=', array('where' => " A = ? AND CDEF <> ? ", 'bind' => array('=B', 'C!='))),
+            array('A===B;CDEF!=C!=', array('where' => " A = ? AND ( CDEF IS NULL OR CDEF <> ? ) ", 'bind' => array('=B', 'C!='))),
             array('A==B,C==D', array('where' => " (A = ? OR C = ? )", 'bind' => array('B', 'D'))),
-            array('A!=B;C==D', array('where' => " A <> ? AND C = ? ", 'bind' => array('B', 'D'))),
-            array('A!=B;C==D,E!=Hello World!=', array('where' => " A <> ? AND (C = ? OR E <> ? )", 'bind' => array('B', 'D', 'Hello World!='))),
+            array('A!=B;C==D', array('where' => " ( A IS NULL OR A <> ? ) AND C = ? ", 'bind' => array('B', 'D'))),
+            array('A!=B;C==D,E!=Hello World!=', array('where' => " ( A IS NULL OR A <> ? ) AND (C = ? OR ( E IS NULL OR E <> ? ) )", 'bind' => array('B', 'D', 'Hello World!='))),
 
             array('A>B', array('where' => " A > ? ", 'bind' => array('B'))),
             array('A<B', array('where' => " A < ? ", 'bind' => array('B'))),
@@ -74,7 +76,7 @@ class SegmentExpressionTest extends DatabaseTestCase
             array('A>=B;C>=D,E<w_ow great!', array('where' => " A >= ? AND (C >= ? OR E < ? )", 'bind' => array('B', 'D', 'w_ow great!'))),
 
             array('A=@B_', array('where' => " A LIKE ? ", 'bind' => array('%B\_%'))),
-            array('A!@B%', array('where' => " A NOT LIKE ? ", 'bind' => array('%B\%%'))),
+            array('A!@B%', array('where' => " ( A IS NULL OR A NOT LIKE ? ) ", 'bind' => array('%B\%%'))),
         );
     }
 
@@ -85,7 +87,7 @@ class SegmentExpressionTest extends DatabaseTestCase
      */
     public function testSegmentSqlWithOperations($expression, $expectedSql)
     {
-        $segment = new Piwik_SegmentExpression($expression);
+        $segment = new SegmentExpression($expression);
         $segment->parseSubExpressions();
         $segment->parseSubExpressionsIntoSqlExpressions();
         $processed = $segment->getSql();
@@ -107,8 +109,7 @@ class SegmentExpressionTest extends DatabaseTestCase
             array(',;,'),
             array(','),
             array(',,'),
-            array('==='),
-            array('!=')
+            array('!='),
         );
     }
 
@@ -120,12 +121,12 @@ class SegmentExpressionTest extends DatabaseTestCase
     public function testBogusFiltersExpectExceptionThrown($bogus)
     {
         try {
-            $segment = new Piwik_SegmentExpression($bogus);
+            $segment = new SegmentExpression($bogus);
             $segment->parseSubExpressions();
             $segment->getSql();
         } catch (Exception $e) {
             return;
         }
-        $this->fail('Expected exception not raised');
+        $this->fail('Expected exception not raised for:' . var_export($segment->getSql(), true));
     }
 }

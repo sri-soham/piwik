@@ -78,6 +78,7 @@ class Piwik_Db_DAO_Pgsql_Report extends Piwik_Db_DAO_Report
                     idsite INTEGER NOT NULL,
                     login VARCHAR(100) NOT NULL,
                     description VARCHAR(255) NOT NULL,
+                    idsegment INTEGER,
                     period VARCHAR(10) NOT NULL,
                     hour SMALLINT NOT NULL DEFAULT 0,
                     type VARCHAR(10) NOT NULL,

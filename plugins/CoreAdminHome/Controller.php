@@ -6,31 +6,48 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_CoreAdminHome
+ * @package CoreAdminHome
  */
+namespace Piwik\Plugins\CoreAdminHome;
+
+use Exception;
+use Piwik\API\ResponseBuilder;
+use Piwik\ArchiveProcessor\Rules;
+use Piwik\Config;
+use Piwik\Piwik;
+use Piwik\Common;
+use Piwik\Nonce;
+use Piwik\Tracker\IgnoreCookie;
+use Piwik\View;
+use Piwik\Url;
+use Piwik\Site;
+use Piwik\Plugins\LanguagesManager\LanguagesManager;
+use Piwik\Plugins\LanguagesManager\API as LanguagesManagerAPI;
+use Piwik\Plugins\SitesManager\API;
 
 /**
  *
- * @package Piwik_CoreAdminHome
+ * @package CoreAdminHome
  */
-class Piwik_CoreAdminHome_Controller extends Piwik_Controller_Admin
+class Controller extends \Piwik\Controller\Admin
 {
     const LOGO_HEIGHT = 300;
     const LOGO_SMALL_HEIGHT = 100;
 
     public function index()
     {
-        return $this->redirectToIndex('UsersManager', 'userSettings');
+        $this->redirectToIndex('UsersManager', 'userSettings');
+        return;
     }
 
     public function generalSettings()
     {
         Piwik::checkUserHasSomeAdminAccess();
-        $view = Piwik_View::factory('generalSettings');
+        $view = new View('@CoreAdminHome/generalSettings');
 
         if (Piwik::isUserIsSuperUser()) {
-            $enableBrowserTriggerArchiving = Piwik_ArchiveProcessing::isBrowserTriggerArchivingEnabled();
-            $todayArchiveTimeToLive = Piwik_ArchiveProcessing::getTodayArchiveTimeToLive();
+            $enableBrowserTriggerArchiving = Rules::isBrowserTriggerEnabled();
+            $todayArchiveTimeToLive = Rules::getTodayArchiveTimeToLive();
             $showWarningCron = false;
             if (!$enableBrowserTriggerArchiving
                 && $todayArchiveTimeToLive < 3600
@@ -41,11 +58,9 @@ class Piwik_CoreAdminHome_Controller extends Piwik_Controller_Admin
             $view->todayArchiveTimeToLive = $todayArchiveTimeToLive;
             $view->enableBrowserTriggerArchiving = $enableBrowserTriggerArchiving;
 
-            $config = Piwik_Config::getInstance();
+            $this->displayWarningIfConfigFileNotWritable($view);
 
-            if (!$config->isFileWritable()) {
-                $view->configFileNotWritable = true;
-            }
+            $config = Config::getInstance();
 
             $debug = $config->Debug;
             $view->enableBetaReleaseCheck = $debug['allow_upgrades_to_beta'];
@@ -54,8 +69,11 @@ class Piwik_CoreAdminHome_Controller extends Piwik_Controller_Admin
 
             $view->branding = $config->branding;
 
-            $directoryWritable = is_writable(PIWIK_DOCUMENT_ROOT . '/themes/');
-            $logoFilesWriteable = is_writeable(PIWIK_DOCUMENT_ROOT . '/themes/logo.png') && is_writeable(PIWIK_DOCUMENT_ROOT . '/themes/logo-header.png');
+            $directoryWritable = is_writable(PIWIK_DOCUMENT_ROOT . '/misc/user/');
+            $logoFilesWriteable = is_writeable(PIWIK_DOCUMENT_ROOT . '/misc/user/logo.png')
+                && is_writeable(PIWIK_DOCUMENT_ROOT . '/misc/user/logo.svg')
+                && is_writeable(PIWIK_DOCUMENT_ROOT . '/misc/user/logo-header.png');
+            ;
             $view->logosWriteable = ($logoFilesWriteable || $directoryWritable) && ini_get('file_uploads') == 1;
 
             $trustedHosts = array();
@@ -65,51 +83,49 @@ class Piwik_CoreAdminHome_Controller extends Piwik_Controller_Admin
             $view->trustedHosts = $trustedHosts;
         }
 
-        $view->language = Piwik_LanguagesManager::getLanguageCodeForCurrentUser();
+        $view->language = LanguagesManager::getLanguageCodeForCurrentUser();
         $this->setBasicVariablesView($view);
-        $view->topMenu = Piwik_GetTopMenu();
-        $view->menu = Piwik_GetAdminMenu();
         echo $view->render();
     }
 
     public function setGeneralSettings()
     {
         Piwik::checkUserIsSuperUser();
-        $response = new Piwik_API_ResponseBuilder(Piwik_Common::getRequestVar('format'));
+        $response = new ResponseBuilder(Common::getRequestVar('format'));
         try {
             $this->checkTokenInUrl();
-            $enableBrowserTriggerArchiving = Piwik_Common::getRequestVar('enableBrowserTriggerArchiving');
-            $todayArchiveTimeToLive = Piwik_Common::getRequestVar('todayArchiveTimeToLive');
+            $enableBrowserTriggerArchiving = Common::getRequestVar('enableBrowserTriggerArchiving');
+            $todayArchiveTimeToLive = Common::getRequestVar('todayArchiveTimeToLive');
 
-            Piwik_ArchiveProcessing::setBrowserTriggerArchiving((bool)$enableBrowserTriggerArchiving);
-            Piwik_ArchiveProcessing::setTodayArchiveTimeToLive($todayArchiveTimeToLive);
+            Rules::setBrowserTriggerArchiving((bool)$enableBrowserTriggerArchiving);
+            Rules::setTodayArchiveTimeToLive($todayArchiveTimeToLive);
 
             // Update email settings
             $mail = array();
-            $mail['transport'] = (Piwik_Common::getRequestVar('mailUseSmtp') == '1') ? 'smtp' : '';
-            $mail['port'] = Piwik_Common::getRequestVar('mailPort', '');
-            $mail['host'] = Piwik_Common::unsanitizeInputValue(Piwik_Common::getRequestVar('mailHost', ''));
-            $mail['type'] = Piwik_Common::getRequestVar('mailType', '');
-            $mail['username'] = Piwik_Common::unsanitizeInputValue(Piwik_Common::getRequestVar('mailUsername', ''));
-            $mail['password'] = Piwik_Common::unsanitizeInputValue(Piwik_Common::getRequestVar('mailPassword', ''));
-            $mail['encryption'] = Piwik_Common::getRequestVar('mailEncryption', '');
+            $mail['transport'] = (Common::getRequestVar('mailUseSmtp') == '1') ? 'smtp' : '';
+            $mail['port'] = Common::getRequestVar('mailPort', '');
+            $mail['host'] = Common::unsanitizeInputValue(Common::getRequestVar('mailHost', ''));
+            $mail['type'] = Common::getRequestVar('mailType', '');
+            $mail['username'] = Common::unsanitizeInputValue(Common::getRequestVar('mailUsername', ''));
+            $mail['password'] = Common::unsanitizeInputValue(Common::getRequestVar('mailPassword', ''));
+            $mail['encryption'] = Common::getRequestVar('mailEncryption', '');
 
-            $config = Piwik_Config::getInstance();
+            $config = Config::getInstance();
             $config->mail = $mail;
 
             // update branding settings
             $branding = $config->branding;
-            $branding['use_custom_logo'] = Piwik_Common::getRequestVar('useCustomLogo', '0');
+            $branding['use_custom_logo'] = Common::getRequestVar('useCustomLogo', '0');
             $config->branding = $branding;
 
             // update beta channel setting
             $debug = $config->Debug;
-            $debug['allow_upgrades_to_beta'] = Piwik_Common::getRequestVar('enableBetaReleaseCheck', '0', 'int');
+            $debug['allow_upgrades_to_beta'] = Common::getRequestVar('enableBetaReleaseCheck', '0', 'int');
             $config->Debug = $debug;
             // update trusted host settings
-            $trustedHosts = Piwik_Common::getRequestVar('trustedHosts', false, 'json');
+            $trustedHosts = Common::getRequestVar('trustedHosts', false, 'json');
             if ($trustedHosts !== false) {
-                Piwik_Url::saveTrustedHostnameInConfig($trustedHosts);
+                Url::saveTrustedHostnameInConfig($trustedHosts);
             }
 
             $config->forceSave();
@@ -127,20 +143,19 @@ class Piwik_CoreAdminHome_Controller extends Piwik_Controller_Admin
      */
     public function trackingCodeGenerator()
     {
-        $view = Piwik_View::factory('jsTrackingGenerator');
+        $view = new View('@CoreAdminHome/trackingCodeGenerator');
         $this->setBasicVariablesView($view);
         $view->topMenu = Piwik_GetTopMenu();
-        $view->menu = Piwik_GetAdminMenu();
 
-        $viewableIdSites = Piwik_SitesManager_API::getInstance()->getSitesIdWithAtLeastViewAccess();
+        $viewableIdSites = API::getInstance()->getSitesIdWithAtLeastViewAccess();
 
         $defaultIdSite = reset($viewableIdSites);
-        $view->idSite = Piwik_Common::getRequestVar('idSite', $defaultIdSite, 'int');
+        $view->idSite = Common::getRequestVar('idSite', $defaultIdSite, 'int');
 
-        $view->defaultReportSiteName = Piwik_Site::getNameFor($view->idSite);
+        $view->defaultReportSiteName = Site::getNameFor($view->idSite);
         $view->defaultSiteRevenue = Piwik::getCurrency($view->idSite);
 
-        $allUrls = Piwik_SitesManager_API::getInstance()->getSiteUrlsFromId($view->idSite);
+        $allUrls = API::getInstance()->getSiteUrlsFromId($view->idSite);
         if (isset($allUrls[1])) {
             $aliasUrl = $allUrls[1];
         } else {
@@ -148,13 +163,13 @@ class Piwik_CoreAdminHome_Controller extends Piwik_Controller_Admin
         }
         $view->defaultReportSiteAlias = $aliasUrl;
 
-        $mainUrl = Piwik_Site::getMainUrlFor($view->idSite);
+        $mainUrl = Site::getMainUrlFor($view->idSite);
         $view->defaultReportSiteDomain = @parse_url($mainUrl, PHP_URL_HOST);
 
         // get currencies for each viewable site
-        $view->currencySymbols = Piwik_SitesManager_API::getInstance()->getCurrencySymbols();
+        $view->currencySymbols = API::getInstance()->getCurrencySymbols();
 
-        $view->serverSideDoNotTrackEnabled = Piwik_PrivacyManager_Controller::isDntSupported();
+        $view->serverSideDoNotTrackEnabled = \Piwik\Plugins\PrivacyManager\Controller::isDntSupported();
 
         echo $view->render();
     }
@@ -164,22 +179,22 @@ class Piwik_CoreAdminHome_Controller extends Piwik_Controller_Admin
      */
     public function optOut()
     {
-        $trackVisits = !Piwik_Tracker_IgnoreCookie::isIgnoreCookieFound();
+        $trackVisits = !IgnoreCookie::isIgnoreCookieFound();
 
-        $nonce = Piwik_Common::getRequestVar('nonce', false);
-        $language = Piwik_Common::getRequestVar('language', '');
-        if ($nonce !== false && Piwik_Nonce::verifyNonce('Piwik_OptOut', $nonce)) {
-            Piwik_Nonce::discardNonce('Piwik_OptOut');
-            Piwik_Tracker_IgnoreCookie::setIgnoreCookie();
+        $nonce = Common::getRequestVar('nonce', false);
+        $language = Common::getRequestVar('language', '');
+        if ($nonce !== false && Nonce::verifyNonce('Piwik_OptOut', $nonce)) {
+            Nonce::discardNonce('Piwik_OptOut');
+            IgnoreCookie::setIgnoreCookie();
             $trackVisits = !$trackVisits;
         }
 
-        $view = Piwik_View::factory('optOut');
+        $view = new View('@CoreAdminHome/optOut');
         $view->trackVisits = $trackVisits;
-        $view->nonce = Piwik_Nonce::getNonce('Piwik_OptOut', 3600);
-        $view->language = Piwik_LanguagesManager_API::getInstance()->isLanguageAvailable($language)
+        $view->nonce = Nonce::getNonce('Piwik_OptOut', 3600);
+        $view->language = LanguagesManagerAPI::getInstance()->isLanguageAvailable($language)
             ? $language
-            : Piwik_LanguagesManager::getLanguageCodeForCurrentUser();
+            : LanguagesManager::getLanguageCodeForCurrentUser();
         echo $view->render();
     }
 
@@ -198,7 +213,6 @@ class Piwik_CoreAdminHome_Controller extends Piwik_Controller_Admin
             echo '0';
             return;
         }
-        $error = false;
 
         list($width, $height) = getimagesize($file);
         switch ($_FILES['customLogo']['type']) {
@@ -224,8 +238,8 @@ class Piwik_CoreAdminHome_Controller extends Piwik_Controller_Admin
         imagecopyresized($logo, $image, 0, 0, 0, 0, $widthExpected, self::LOGO_HEIGHT, $width, $height);
         imagecopyresized($logoSmall, $image, 0, 0, 0, 0, $smallWidthExpected, self::LOGO_SMALL_HEIGHT, $width, $height);
 
-        imagepng($logo, PIWIK_DOCUMENT_ROOT . '/themes/logo.png', 3);
-        imagepng($logoSmall, PIWIK_DOCUMENT_ROOT . '/themes/logo-header.png', 3);
+        imagepng($logo, PIWIK_DOCUMENT_ROOT . '/misc/user/logo.png', 3);
+        imagepng($logoSmall, PIWIK_DOCUMENT_ROOT . '/misc/user/logo-header.png', 3);
         echo '1';
         return;
     }

@@ -5,6 +5,15 @@
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
+use Piwik\Config;
+use Piwik\DataAccess\ArchiveTableCreator;
+use Piwik\DataTable\Manager;
+use Piwik\Piwik;
+use Piwik\Option;
+use Piwik\Plugins\PDFReports\API;
+use Piwik\Site;
+use Piwik\Tracker\Cache;
+
 /**
  * Tests extending DatabaseTestCase are much slower to run: the setUp will
  * create all Piwik tables in a freshly empty test database.
@@ -23,10 +32,9 @@ class DatabaseTestCase extends PHPUnit_Framework_TestCase
     {
         parent::setUp();
         try {
-            Piwik::createConfigObject();
-            Piwik_Config::getInstance()->setTestEnvironment();
+            Config::getInstance()->setTestEnvironment();
 
-            $dbConfig = Piwik_Config::getInstance()->database;
+            $dbConfig = Config::getInstance()->database;
             $dbName = $dbConfig['dbname'];
             if ($dbConfig['adapter'] === 'PDO_MYSQL') {
                 $dbConfig['dbname'] = null;
@@ -43,11 +51,11 @@ class DatabaseTestCase extends PHPUnit_Framework_TestCase
 
             Piwik::createDatabaseObject();
             Piwik::createTables();
-            Piwik::createLogObject();
+            \Piwik\Log::make();
 
             Piwik_Db_Factory::setTest(true);
-
-            Piwik_PluginsManager::getInstance()->loadPlugins(array());
+//            \Piwik\PluginsManager::getInstance()->loadPlugins(array());
+            IntegrationTestCase::loadAllPlugins();
             
         } catch(Exception $e) {
             $this->fail("TEST INITIALIZATION FAILED: " .$e->getMessage());
@@ -68,14 +76,14 @@ class DatabaseTestCase extends PHPUnit_Framework_TestCase
         parent::tearDown();
         IntegrationTestCase::unloadAllPlugins();
         Piwik::dropDatabase();
-        Piwik_DataTable_Manager::getInstance()->deleteAll();
-        Piwik_Option::getInstance()->clearCache();
-        Piwik_PDFReports_API::$cache = array();
-        Piwik_Site::clearCache();
-        Piwik_Tracker_Cache::deleteTrackerCache();
-        Piwik_Config::getInstance()->clear();
-        Piwik_TablePartitioning::$tablesAlreadyInstalled = null;
-        Zend_Registry::_unsetInstance();
+        Manager::getInstance()->deleteAll();
+        Option::getInstance()->clearCache();
+        API::$cache = array();
+        Site::clearCache();
+        Cache::deleteTrackerCache();
+        Config::getInstance()->clear();
+        ArchiveTableCreator::clear();
+        \Zend_Registry::_unsetInstance();
     }
 
 }

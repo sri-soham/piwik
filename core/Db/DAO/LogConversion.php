@@ -49,8 +49,8 @@ class Piwik_Db_DAO_LogConversion extends Piwik_Db_DAO_Base
         $sql = 'SELECT '
              . 'CASE idgoal '
              . '  WHEN ' . Piwik_Tracker_GoalManager::IDGOAL_CART . ' '
-             . "  THEN '" . Piwik_Archive::LABEL_ECOMMERCE_CART . "' "
-             . "  ELSE '" . Piwik_Archive::LABEL_ECOMMERCE_ORDER . "' "
+             . "  THEN '" . Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_CART . "' "
+             . "  ELSE '" . Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_ORDER . "' "
              . 'END AS type, '
              . 'idorder AS ' . $this->db->quoteIdentifier('orderId') . ', '
              . $Generic->getSqlRevenue('revenue') . ' AS revenue, '

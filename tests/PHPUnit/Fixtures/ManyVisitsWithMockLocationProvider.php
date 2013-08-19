@@ -6,6 +6,9 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
 
+use Piwik\Date;
+use Piwik\Plugins\UserCountry\LocationProvider;
+
 require_once PIWIK_INCLUDE_PATH . '/tests/PHPUnit/MockLocationProvider.php';
 
 /**
@@ -19,7 +22,7 @@ class Test_Piwik_Fixture_ManyVisitsWithMockLocationProvider extends Test_Piwik_B
 
     public function __construct()
     {
-        $this->nextDay = Piwik_Date::factory($this->dateTime)->addDay(1)->getDatetime();
+        $this->nextDay = Date::factory($this->dateTime)->addDay(1)->getDatetime();
     }
 
     public function setUp()
@@ -122,7 +125,7 @@ class Test_Piwik_Fixture_ManyVisitsWithMockLocationProvider extends Test_Piwik_B
                                   $referrers = null, $customVars = null)
     {
         for ($i = 0; $i != 5; ++$i, ++$visitorCounter) {
-            $visitDate = Piwik_Date::factory($this->dateTime);
+            $visitDate = Date::factory($this->dateTime);
 
             $t->setNewVisitorId();
             $t->setIp("156.5.3.$visitorCounter");
@@ -171,7 +174,7 @@ class Test_Piwik_Fixture_ManyVisitsWithMockLocationProvider extends Test_Piwik_B
     
     private function trackOrders($t)
     {
-        $nextDay = Piwik_Date::factory($this->nextDay);
+        $nextDay = Date::factory($this->nextDay);
         $t->setForceVisitDateTime($nextDay);
         
         for ($i = 0; $i != 25; ++$i) {
@@ -202,13 +205,13 @@ class Test_Piwik_Fixture_ManyVisitsWithMockLocationProvider extends Test_Piwik_B
 
     private function setMockLocationProvider()
     {
-        Piwik_UserCountry_LocationProvider::setCurrentProvider('mock_provider');
+        LocationProvider::setCurrentProvider('mock_provider');
         MockLocationProvider::$locations = array(
-            self::makeLocation('Toronto', 'ON', 'CA'),
+            self::makeLocation('Toronto', 'ON', 'CA', $lat = null, $long = null, $isp = 'comcast.net'),
 
-            self::makeLocation('Nice', 'B8', 'FR'),
+            self::makeLocation('Nice', 'B8', 'FR', $lat = null, $long = null, $isp = 'comcast.net'),
 
-            self::makeLocation('Melbourne', '07', 'AU'),
+            self::makeLocation('Melbourne', '07', 'AU', $lat = null, $long = null, $isp = 'awesomeisp.com'),
 
             self::makeLocation('Yokohama', '19', 'JP'),
         );
@@ -216,6 +219,6 @@ class Test_Piwik_Fixture_ManyVisitsWithMockLocationProvider extends Test_Piwik_B
 
     private function unsetMockLocationProvider()
     {
-        Piwik_UserCountry_LocationProvider::setCurrentProvider('default');
+        LocationProvider::setCurrentProvider('default');
     }
 }

@@ -46,7 +46,7 @@
 		<continentCode>eur</continentCode>
 		<country>France</country>
 		<countryCode>fr</countryCode>
-		<countryFlag>plugins/UserCountry/flags/fr.png</countryFlag>
+		<countryFlag>plugins/UserCountry/images/flags/fr.png</countryFlag>
 		<region />
 		<regionCode />
 		<city />
@@ -54,6 +54,7 @@
 		<latitude />
 		<longitude />
 		<provider>Inconnu</provider>
+		<providerName>Inconnu</providerName>
 		<providerUrl>http://piwik.org/faq/general/#faq_52</providerUrl>
 		<referrerType>search</referrerType>
 		<referrerTypeName>Moteurs de recherche</referrerTypeName>
@@ -67,13 +68,14 @@
 		<operatingSystemCode>UNK</operatingSystemCode>
 		<operatingSystemShortName>Unknown</operatingSystemShortName>
 		<operatingSystemIcon>plugins/UserSettings/images/os/UNK.gif</operatingSystemIcon>
-		<browserFamily>gecko</browserFamily>
-		<browserFamilyDescription>Gecko (Firefox)</browserFamilyDescription>
-		<browserName>Netscape 5.0</browserName>
-		<browserIcon>plugins/UserSettings/images/browsers/NS.gif</browserIcon>
-		<browserCode>NS</browserCode>
-		<browserVersion>5.0</browserVersion>
+		<browserFamily>unknown</browserFamily>
+		<browserFamilyDescription>Inconnu</browserFamilyDescription>
+		<browserName>Inconnu</browserName>
+		<browserIcon>plugins/UserSettings/images/browsers/UNK.gif</browserIcon>
+		<browserCode>UNK</browserCode>
+		<browserVersion>UNK</browserVersion>
 		<screenType>normal</screenType>
+		<deviceType>Inconnu</deviceType>
 		<resolution>1024x768</resolution>
 		<screenTypeIcon>plugins/UserSettings/images/screens/normal.gif</screenTypeIcon>
 		<plugins>flash, java</plugins>
@@ -101,7 +103,7 @@
 		<visitorType>new</visitorType>
 		<visitorTypeIcon />
 		<visitConverted>1</visitConverted>
-		<visitConvertedIcon>themes/default/images/goal.png</visitConvertedIcon>
+		<visitConvertedIcon>plugins/Zeitgeist/images/goal.png</visitConvertedIcon>
 		<visitEcommerceStatus>none</visitEcommerceStatus>
 		<visitEcommerceStatusIcon />
 		<searches>0</searches>
@@ -124,7 +126,7 @@
 				<goalPageId />
 				
 				<url>http://example.org/this%20is%20cool!</url>
-				<icon>themes/default/images/goal.png</icon>
+				<icon>plugins/Zeitgeist/images/goal.png</icon>
 			</row>
 		</actionDetails>
 		<customVariables>
@@ -149,7 +151,7 @@
 		<continentCode>eur</continentCode>
 		<country>France</country>
 		<countryCode>fr</countryCode>
-		<countryFlag>plugins/UserCountry/flags/fr.png</countryFlag>
+		<countryFlag>plugins/UserCountry/images/flags/fr.png</countryFlag>
 		<region />
 		<regionCode />
 		<city />
@@ -157,6 +159,7 @@
 		<latitude />
 		<longitude />
 		<provider>Inconnu</provider>
+		<providerName>Inconnu</providerName>
 		<providerUrl>http://piwik.org/faq/general/#faq_52</providerUrl>
 		<referrerType>search</referrerType>
 		<referrerTypeName>Moteurs de recherche</referrerTypeName>
@@ -170,13 +173,14 @@
 		<operatingSystemCode>UNK</operatingSystemCode>
 		<operatingSystemShortName>Unknown</operatingSystemShortName>
 		<operatingSystemIcon>plugins/UserSettings/images/os/UNK.gif</operatingSystemIcon>
-		<browserFamily>gecko</browserFamily>
-		<browserFamilyDescription>Gecko (Firefox)</browserFamilyDescription>
-		<browserName>Netscape 5.0</browserName>
-		<browserIcon>plugins/UserSettings/images/browsers/NS.gif</browserIcon>
-		<browserCode>NS</browserCode>
-		<browserVersion>5.0</browserVersion>
+		<browserFamily>unknown</browserFamily>
+		<browserFamilyDescription>Inconnu</browserFamilyDescription>
+		<browserName>Inconnu</browserName>
+		<browserIcon>plugins/UserSettings/images/browsers/UNK.gif</browserIcon>
+		<browserCode>UNK</browserCode>
+		<browserVersion>UNK</browserVersion>
 		<screenType>normal</screenType>
+		<deviceType>Inconnu</deviceType>
 		<resolution>1024x768</resolution>
 		<screenTypeIcon>plugins/UserSettings/images/screens/normal.gif</screenTypeIcon>
 		<plugins>flash, java</plugins>

@@ -6,53 +6,51 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_VisitTime
+ * @package VisitTime
  */
+namespace Piwik\Plugins\VisitTime;
+
+use Exception;
+use Piwik\ArchiveProcessor;
+use Piwik\Common;
+use Piwik\Period;
+use Piwik\Plugins\VisitTime\Archiver;
+use Piwik\Site;
+use Piwik\WidgetsList;
 
 /**
  *
- * @package Piwik_VisitTime
+ * @package VisitTime
  */
-class Piwik_VisitTime extends Piwik_Plugin
+class VisitTime extends \Piwik\Plugin
 {
-    public function getInformation()
-    {
-        $info = array(
-            'description'     => Piwik_Translate('VisitTime_PluginDescription'),
-            'author'          => 'Piwik',
-            'author_homepage' => 'http://piwik.org/',
-            'version'         => Piwik_Version::VERSION,
-        );
-        return $info;
-    }
-
-    function getListHooksRegistered()
+    /**
+     * @see Piwik_Plugin::getListHooksRegistered
+     */
+    public function getListHooksRegistered()
     {
         $hooks = array(
-            'ArchiveProcessing_Day.compute'    => 'archiveDay',
-            'ArchiveProcessing_Period.compute' => 'archivePeriod',
-            'WidgetsList.add'                  => 'addWidgets',
-            'Menu.add'                         => 'addMenu',
-            'Goals.getReportsWithGoalMetrics'  => 'getReportsWithGoalMetrics',
-            'API.getReportMetadata'            => 'getReportMetadata',
-            'API.getSegmentsMetadata'          => 'getSegmentsMetadata',
+            'ArchiveProcessing_Day.compute'            => 'archiveDay',
+            'ArchiveProcessing_Period.compute'         => 'archivePeriod',
+            'WidgetsList.add'                          => 'addWidgets',
+            'Menu.add'                                 => 'addMenu',
+            'Goals.getReportsWithGoalMetrics'          => 'getReportsWithGoalMetrics',
+            'API.getReportMetadata'                    => 'getReportMetadata',
+            'API.getSegmentsMetadata'                  => 'getSegmentsMetadata',
+            'ViewDataTable.getReportDisplayProperties' => 'getReportDisplayProperties',
         );
         return $hooks;
     }
 
-    /**
-     * @param Piwik_Event_Notification $notification  notification object
-     */
-    public function getReportMetadata($notification)
+    public function getReportMetadata(&$reports)
     {
-        $reports = & $notification->getNotificationObject();
         $reports[] = array(
             'category'          => Piwik_Translate('VisitsSummary_VisitsSummary'),
             'name'              => Piwik_Translate('VisitTime_WidgetLocalTime'),
             'module'            => 'VisitTime',
             'action'            => 'getVisitInformationPerLocalTime',
             'dimension'         => Piwik_Translate('VisitTime_ColumnLocalTime'),
-            'documentation'     => Piwik_Translate('VisitTime_WidgetLocalTimeDocumentation', array('<b>', '</b>')),
+            'documentation'     => Piwik_Translate('VisitTime_WidgetLocalTimeDocumentation', array('<strong>', '</strong>')),
             'constantRowsCount' => true,
             'order'             => 20
         );
@@ -63,7 +61,7 @@ class Piwik_VisitTime extends Piwik_Plugin
             'module'            => 'VisitTime',
             'action'            => 'getVisitInformationPerServerTime',
             'dimension'         => Piwik_Translate('VisitTime_ColumnServerTime'),
-            'documentation'     => Piwik_Translate('VisitTime_WidgetServerTimeDocumentation', array('<b>', '</b>')),
+            'documentation'     => Piwik_Translate('VisitTime_WidgetServerTimeDocumentation', array('<strong>', '</strong>')),
             'constantRowsCount' => true,
             'order'             => 15,
         );
@@ -82,9 +80,9 @@ class Piwik_VisitTime extends Piwik_Plugin
 
     function addWidgets()
     {
-        Piwik_AddWidget('VisitsSummary_VisitsSummary', 'VisitTime_WidgetLocalTime', 'VisitTime', 'getVisitInformationPerLocalTime');
-        Piwik_AddWidget('VisitsSummary_VisitsSummary', 'VisitTime_WidgetServerTime', 'VisitTime', 'getVisitInformationPerServerTime');
-        Piwik_AddWidget('VisitsSummary_VisitsSummary', 'VisitTime_VisitsByDayOfWeek', 'VisitTime', 'getByDayOfWeek');
+        WidgetsList::add('VisitsSummary_VisitsSummary', 'VisitTime_WidgetLocalTime', 'VisitTime', 'getVisitInformationPerLocalTime');
+        WidgetsList::add('VisitsSummary_VisitsSummary', 'VisitTime_WidgetServerTime', 'VisitTime', 'getVisitInformationPerServerTime');
+        WidgetsList::add('VisitsSummary_VisitsSummary', 'VisitTime_VisitsByDayOfWeek', 'VisitTime', 'getByDayOfWeek');
     }
 
     function addMenu()
@@ -92,12 +90,8 @@ class Piwik_VisitTime extends Piwik_Plugin
         Piwik_AddMenu('General_Visitors', 'VisitTime_SubmenuTimes', array('module' => 'VisitTime', 'action' => 'index'));
     }
 
-    /**
-     * @param Piwik_Event_Notification $notification  notification object
-     */
-    function getReportsWithGoalMetrics($notification)
+    public function getReportsWithGoalMetrics(&$dimensions)
     {
-        $dimensions =& $notification->getNotificationObject();
         $dimensions[] = array('category' => Piwik_Translate('VisitTime_ColumnServerTime'),
                               'name'     => Piwik_Translate('VisitTime_ColumnServerTime'),
                               'module'   => 'VisitTime',
@@ -105,18 +99,14 @@ class Piwik_VisitTime extends Piwik_Plugin
         );
     }
 
-    /**
-     * @param Piwik_Event_Notification $notification  notification object
-     */
-    public function getSegmentsMetadata($notification)
+    public function getSegmentsMetadata(&$segments)
     {
         $Generic = Piwik_Db_Factory::getGeneric();
 
-        $segments =& $notification->getNotificationObject();
         $acceptedValues = "0, 1, 2, 3, ..., 20, 21, 22, 23";
         $segments[] = array(
             'type'           => 'dimension',
-            'category'       => 'Visit',
+            'category'       => Piwik_Translate('General_Visit'),
             'name'           => Piwik_Translate('VisitTime_ColumnServerTime'),
             'segment'        => 'visitServerHour',
             'sqlSegment'     => $Generic->hour('log_visit.visit_last_action_time'),
@@ -125,7 +115,7 @@ class Piwik_VisitTime extends Piwik_Plugin
         );
         $segments[] = array(
             'type'           => 'dimension',
-            'category'       => 'Visit',
+            'category'       => Piwik_Translate('General_Visit'),
             'name'           => Piwik_Translate('VisitTime_ColumnLocalTime'),
             'segment'        => 'visitLocalHour',
             'sqlSegment'     => $Generic->hour('log_visit.visitor_localtime'),
@@ -134,98 +124,101 @@ class Piwik_VisitTime extends Piwik_Plugin
         );
     }
 
-    /**
-     * @param Piwik_Event_Notification $notification  notification object
-     * @return mixed
-     */
-    function archivePeriod($notification)
+    public function getReportDisplayProperties(&$properties)
     {
-        $archiveProcessing = $notification->getNotificationObject();
-
-        if (!$archiveProcessing->shouldProcessReportsForPlugin($this->getPluginName())) return;
-
-        $dataTableToSum = array(
-            'VisitTime_localTime',
-            'VisitTime_serverTime',
+        $commonProperties = array(
+            'filter_sort_column'          => 'label',
+            'filter_sort_order'           => 'asc',
+            'show_search'                 => false,
+            'show_exclude_low_population' => false,
+            'show_offset_information'     => false,
+            'show_pagination_control'     => false,
+            'default_view_type'           => 'graphVerticalBar'
         );
-        $archiveProcessing->archiveDataTable($dataTableToSum);
-    }
 
-    /**
-     * @param Piwik_Event_Notification $notification  notification object
-     * @return mixed
-     */
-    public function archiveDay($notification)
-    {
-        $archiveProcessing = $notification->getNotificationObject();
+        $properties['VisitTime.getVisitInformationPerServerTime'] = array_merge($commonProperties, array(
+            'filter_limit' => 24,
+            'show_goals' => true,
+            'translations' => array('label' => Piwik_Translate('VisitTime_ColumnServerTime')),
+            'request_parameters_to_modify' => array('hideFutureHoursWhenToday' => 1),
+            'visualization_properties' => array(
+                'graph' => array(
+                    'max_graph_elements' => false,
+                )
+            )
+        ));
+            
+        $properties['VisitTime.getVisitInformationPerLocalTime'] = array_merge($commonProperties, array(
+            'filter_limit' => 24,
+            'title' => Piwik_Translate('VisitTime_ColumnLocalTime'),
+            'translations' => array('label' => Piwik_Translate('VisitTime_LocalTime')),
+            'visualization_properties' => array(
+                'graph' => array(
+                    'max_graph_elements' => false,
+                )
+            )
+        ));
+            
+        $properties['VisitTime.getByDayOfWeek'] = array_merge($commonProperties, array(
+            'filter_limit' => 7,
+            'enable_sort' => false,
+            'show_footer_message' =>
+                Piwik_Translate('General_ReportGeneratedFrom', self::getDateRangeForFooterMessage()),
+            'translations' => array('label' => Piwik_Translate('VisitTime_DayOfWeek')),
+            'visualization_properties' => array(
+                'graph' => array(
+                    'show_all_ticks' => true,
+                    'max_graph_elements' => false,
+                )
+            )
+        ));
 
-        if (!$archiveProcessing->shouldProcessReportsForPlugin($this->getPluginName())) return;
-
-        $this->archiveDayAggregateVisits($archiveProcessing);
-        $this->archiveDayAggregateGoals($archiveProcessing);
-        $this->archiveDayRecordInDatabase($archiveProcessing);
-    }
-
-    protected function archiveDayAggregateVisits($archiveProcessing)
-    {
-        $Generic = Piwik_Db_Factory::getGeneric();
-        $labelSQL = $Generic->hour('log_visit.visitor_localtime');
-        $this->interestByLocalTime = $archiveProcessing->getArrayInterestForLabel($labelSQL);
-
-        $labelSQL = $Generic->hour('log_visit.visit_last_action_time');
-        $this->interestByServerTime = $archiveProcessing->getArrayInterestForLabel($labelSQL);
-    }
-
-    protected function convertServerTimeToLocalTimezone($interestByServerTime, $archiveProcessing)
-    {
-        $date = Piwik_Date::factory($archiveProcessing->getStartDatetimeUTC())->toString();
-        $timezone = $archiveProcessing->site->getTimezone();
-        $visitsByHourTz = array();
-        foreach ($interestByServerTime as $hour => $stats) {
-            $datetime = $date . ' ' . $hour . ':00:00';
-            $hourInTz = (int)Piwik_Date::factory($datetime, $timezone)->toString('H');
-            $visitsByHourTz[$hourInTz] = $stats;
+        // add the visits by day of week as a related report, if the current period is not 'day'
+        if (Common::getRequestVar('period', 'day') != 'day') {
+            $properties['VisitTime.getVisitInformationPerLocalTime']['related_reports'] = array(
+                'VisitTime.getByDayOfWeek' => Piwik_Translate('VisitTime_VisitsByDayOfWeek')
+            );
         }
-        return $visitsByHourTz;
     }
 
-    protected function archiveDayAggregateGoals($archiveProcessing)
+    public function archivePeriod(ArchiveProcessor\Period $archiveProcessor)
     {
-        $Generic = Piwik_Db_Factory::getGeneric();
-        $query = $archiveProcessing->queryConversionsByDimension($Generic->hour("log_conversion.server_time"));
-
-        if ($query === false) return;
-
-        while ($row = $query->fetch()) {
-            if (!isset($this->interestByServerTime[$row['label']][Piwik_Archive::INDEX_GOALS][$row['idgoal']])) $this->interestByServerTime[$row['label']][Piwik_Archive::INDEX_GOALS][$row['idgoal']] = $archiveProcessing->getNewGoalRow($row['idgoal']);
-            $archiveProcessing->updateGoalStats($row, $this->interestByServerTime[$row['label']][Piwik_Archive::INDEX_GOALS][$row['idgoal']]);
+        $archiving = new Archiver($archiveProcessor);
+        if ($archiving->shouldArchive()) {
+            $archiving->archivePeriod();
         }
-        $goalByServerTime = $this->convertServerTimeToLocalTimezone($this->interestByServerTime, $archiveProcessing);
-        $archiveProcessing->enrichConversionsByLabelArray($this->interestByServerTime);
     }
 
-    protected function archiveDayRecordInDatabase($archiveProcessing)
+    public function archiveDay(ArchiveProcessor\Day $archiveProcessor)
     {
-        $tableLocalTime = $archiveProcessing->getDataTableFromArray($this->interestByLocalTime);
-        $this->makeSureAllHoursAreSet($tableLocalTime, $archiveProcessing);
-        $archiveProcessing->insertBlobRecord('VisitTime_localTime', $tableLocalTime->getSerialized());
-        destroy($tableLocalTime);
-
-        $this->interestByServerTime = $this->convertServerTimeToLocalTimezone($this->interestByServerTime, $archiveProcessing);
-        $tableServerTime = $archiveProcessing->getDataTableFromArray($this->interestByServerTime);
-        $this->makeSureAllHoursAreSet($tableServerTime, $archiveProcessing);
-        $archiveProcessing->insertBlobRecord('VisitTime_serverTime', $tableServerTime->getSerialized());
-        destroy($tableServerTime);
-    }
-
-    private function makeSureAllHoursAreSet($table, $archiveProcessing)
-    {
-        for ($i = 0; $i <= 23; $i++) {
-            if ($table->getRowFromLabel($i) === false) {
-                $row = $archiveProcessing->getNewInterestRowLabeled($i);
-                $table->addRow($row);
-            }
+        $archiving = new Archiver($archiveProcessor);
+        if ($archiving->shouldArchive()) {
+            $archiving->archiveDay();
         }
+    }
+
+    private static function getDateRangeForFooterMessage()
+    {
+        // get query params
+        $idSite = Common::getRequestVar('idSite', false);
+        $date = Common::getRequestVar('date', false);
+        $period = Common::getRequestVar('period', false);
+
+        // create a period instance
+        try {
+            $oPeriod = Period::makePeriodFromQueryParams(Site::getTimezoneFor($idSite), $period, $date);
+        } catch (Exception $ex) {
+            return ''; // if query params are incorrect, forget about the footer message
+        }
+
+        // set the footer message using the period start & end date
+        $start = $oPeriod->getDateStart()->toString();
+        $end = $oPeriod->getDateEnd()->toString();
+        if ($start == $end) {
+            $dateRange = $start;
+        } else {
+            $dateRange = $start . " &ndash; " . $end;
+        }
+        return $dateRange;
     }
 }
-

@@ -6,21 +6,25 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_Overlay
+ * @package Overlay
  */
 
-class Piwik_Overlay extends Piwik_Plugin
+namespace Piwik\Plugins\Overlay;
+
+
+class Overlay extends \Piwik\Plugin
 {
     public function getInformation()
     {
-        return array(
-            'description'     => Piwik_Translate('Overlay_PluginDescription') . ' Note: Requires the Transitions plugin enabled.',
-            'author'          => 'Piwik',
-            'author_homepage' => 'http://piwik.org/',
-            'version'         => Piwik_Version::VERSION,
-        );
+        $suffix = ' Note: Requires the Transitions plugin enabled.';
+        $info = parent::getInformation();
+        $info['description'] .= ' ' . $suffix;
+        return $info;
     }
 
+    /**
+     * @see Piwik_Plugin::getListHooksRegistered
+     */
     function getListHooksRegistered()
     {
         return array(
@@ -28,11 +32,13 @@ class Piwik_Overlay extends Piwik_Plugin
         );
     }
 
-    public function getJsFiles($notification)
+    /**
+     * Returns required Js Files
+     * @param $jsFiles
+     */
+    public function getJsFiles(&$jsFiles)
     {
-        $jsFiles = & $notification->getNotificationObject();
-        $jsFiles[] = 'plugins/Overlay/templates/rowaction.js';
-        $jsFiles[] = 'plugins/Overlay/templates/helper.js';
+        $jsFiles[] = 'plugins/Overlay/javascripts/rowaction.js';
+        $jsFiles[] = 'plugins/Overlay/javascripts/Overlay_Helper.js';
     }
-
 }

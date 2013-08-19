@@ -5,6 +5,26 @@
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
+use Piwik\API\DocumentationGenerator;
+use Piwik\API\Request;
+use Piwik\API\Proxy;
+use Piwik\ArchiveProcessor\Rules;
+use Piwik\Config;
+use Piwik\DataAccess\ArchiveTableCreator;
+use Piwik\DataTable\Manager;
+use Piwik\Db\Adapter\Mysqli;
+use Piwik\Piwik;
+use Piwik\Common;
+use Piwik\Access;
+use Piwik\Option;
+use Piwik\Plugins\LanguagesManager\API;
+use Piwik\ReportRenderer;
+use Piwik\Site;
+use Piwik\Tracker\Cache;
+use Piwik\Translate;
+use Piwik\Db;
+use Piwik\Visualization\Cloud;
+
 require_once PIWIK_INCLUDE_PATH . '/libs/PiwikTracker/PiwikTracker.php';
 
 /**
@@ -27,16 +47,25 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
      */
     public static function createTestConfig()
     {
-        Piwik::createConfigObject();
-        Piwik_Config::getInstance()->setTestEnvironment();
+        Config::getInstance()->setTestEnvironment();
     }
 
+    /**
+     * Sets up access instance.
+     */
+    public static function createAccessInstance()
+    {
+        Access::setSingletonInstance(null);
+        Access::getInstance();
+        Piwik_PostEvent('FrontController.initAuthenticationObject');
+    }
+    
     /**
      * Connects to MySQL w/o specifying a database.
      */
     public static function connectWithoutDatabase()
     {
-        $dbConfig = Piwik_Config::getInstance()->database;
+        $dbConfig = Config::getInstance()->database;
         $oldDbName = $dbConfig['dbname'];
         if ($dbConfig['adapter'] === 'PDO_MYSQL') {
             $dbConfig['dbname'] = null;
@@ -59,21 +88,38 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         }
     }
 
+    /**
+     * @param bool $installPlugins
+     */
+    protected static function installAndLoadPlugins($installPlugins)
+    {
+        $pluginsManager = \Piwik\PluginsManager::getInstance();
+        $plugins = $pluginsManager->readPluginsDirectory();
+
+        $pluginsManager->loadPlugins($plugins);
+        if ($installPlugins)
+        {
+            $pluginsManager->installLoadedPlugins();
+        }
+    }
+
     public static function loadAllPlugins()
     {
-        $pluginsManager = Piwik_PluginsManager::getInstance();
-        $pluginsToLoad = Piwik_Config::getInstance()->Plugins['Plugins'];
+        $pluginsManager = \Piwik\PluginsManager::getInstance();
+        $pluginsToLoad = Config::getInstance()->Plugins['Plugins'];
+        $pluginsToLoad[] = 'DevicesDetection';
+        
         $pluginsManager->loadPlugins($pluginsToLoad);
     }
 
     public static function unloadAllPlugins()
     {
         try {
-            $plugins = Piwik_PluginsManager::getInstance()->getLoadedPlugins();
+            $plugins = \Piwik\PluginsManager::getInstance()->getLoadedPlugins();
             foreach ($plugins AS $plugin) {
                 $plugin->uninstall();
             }
-            Piwik_PluginsManager::getInstance()->unloadPlugins();
+            \Piwik\PluginsManager::getInstance()->unloadPlugins();
         } catch (Exception $e) {
         }
     }
@@ -101,18 +147,18 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
      * setupBeforeClass' implementation. Can be called by derived classes in case
      * they need to do some custom setup procedure.
      */
-    public static function _setUpBeforeClass($dbName = false, $createEmptyDatabase = true, $createConfig = true)
+    public static function _setUpBeforeClass($dbName = false, $createEmptyDatabase = true, $createConfig = true, $installPlugins = null)
     {
         try {
             Piwik::$piwikUrlCache = '';
 
             if ($createConfig) {
-                self::createTestConfig();
+                static::createTestConfig();
             }
 
             if ($dbName === false) // must be after test config is created
             {
-                $dbName = Piwik_Config::getInstance()->database['dbname'];
+                $dbName = Config::getInstance()->database['dbname'];
             }
 
             self::connectWithoutDatabase();
@@ -123,16 +169,15 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
             Piwik::disconnectDatabase();
 
             // reconnect once we're sure the database exists
-            Piwik_Config::getInstance()->database['dbname'] = $dbName;
+            Config::getInstance()->database['dbname'] = $dbName;
             Piwik::createDatabaseObject();
 
             Piwik::createTables();
-            Piwik::createLogObject();
+            \Piwik\Log::make();
 
-            Piwik_PluginsManager::getInstance()->loadPlugins(array());
-
+            \Piwik\PluginsManager::getInstance()->loadPlugins(array());
         } catch (Exception $e) {
-            self::fail("TEST INITIALIZATION FAILED: " . $e->getMessage());
+            self::fail("TEST INITIALIZATION FAILED: " . $e->getMessage() . "\n" . $e->getTraceAsString());
         }
 
         include "DataFiles/SearchEngines.php";
@@ -141,30 +186,23 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         include "DataFiles/Currencies.php";
         include "DataFiles/LanguageToCountry.php";
         include "DataFiles/Providers.php";
-
-        Piwik::createAccessObject();
-        Piwik_PostEvent('FrontController.initAuthenticationObject');
+        
+        static::createAccessInstance();
 
         // We need to be SU to create websites for tests
         Piwik::setUserIsSuperUser();
-        Piwik_Tracker_Cache::deleteTrackerCache();
 
-        // Load and install plugins
-        $pluginsManager = Piwik_PluginsManager::getInstance();
-        $plugins = $pluginsManager->readPluginsDirectory();
+        Cache::deleteTrackerCache();
+        if ($installPlugins === null) $installPlugins = $createEmptyDatabase;
+        self::installAndLoadPlugins( $installPlugins);
 
-        $pluginsManager->loadPlugins($plugins);
-        if ($createEmptyDatabase) // only install if database is empty
-        {
-            $pluginsManager->installLoadedPlugins();
-        }
 
         $_GET = $_REQUEST = array();
         $_SERVER['HTTP_REFERER'] = '';
 
         // Make sure translations are loaded to check messages in English
-        Piwik_Translate::getInstance()->loadEnglishTranslation();
-        Piwik_LanguagesManager_API::getInstance()->setLanguageForUser('superUserLogin', 'en');
+        Translate::getInstance()->reloadLanguage('en');
+        API::getInstance()->setLanguageForUser('superUserLogin', 'en');
 
         // List of Modules, or Module.Method that should not be called as part of the XML output compare
         // Usually these modules either return random changing data, or are already tested in specific unit tests.
@@ -172,6 +210,8 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         self::setApiToCall(array());
         
         FakeAccess::$superUserLogin = 'superUserLogin';
+        
+        Piwik::$cachedKnownSegmentsToArchive = null;
     }
 
     public static function tearDownAfterClass()
@@ -184,7 +224,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         Piwik::$piwikUrlCache = null;
         IntegrationTestCase::unloadAllPlugins();
 /*
-        $plugins = Piwik_PluginsManager::getInstance()->getLoadedPlugins();
+        $plugins = \Piwik\PluginsManager::getInstance()->getLoadedPlugins();
         foreach ($plugins AS $plugin) {
             if ($dropDatabase) {
                 try {
@@ -194,24 +234,21 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
                 }
             }
         }
-        Piwik_PluginsManager::getInstance()->unloadPlugins();*/
+        \Piwik\PluginsManager::getInstance()->unloadPlugins();*/
         if ($dropDatabase) {
             Piwik::dropDatabase();
         }
-        Piwik_DataTable_Manager::getInstance()->deleteAll();
-        Piwik_Option::getInstance()->clearCache();
-        Piwik_Site::clearCache();
-        Piwik_Tracker_Cache::deleteTrackerCache();
-        Piwik_Config::getInstance()->clear();
-        Piwik_TablePartitioning::$tablesAlreadyInstalled = null;
-        Piwik_PDFReports_API::$cache = array();
-        Zend_Registry::_unsetInstance();
+        Manager::getInstance()->deleteAll();
+        Option::getInstance()->clearCache();
+        Site::clearCache();
+        Cache::deleteTrackerCache();
+        Config::getInstance()->clear();
+        ArchiveTableCreator::clear();
+        \Piwik\Plugins\PDFReports\API::$cache = array();
+        \Zend_Registry::_unsetInstance();
 
         $_GET = $_REQUEST = array();
-        Piwik_Translate::getInstance()->unloadEnglishTranslation();
-
-        // re-enable tag cloud shuffling
-        Piwik_Visualization_Cloud::$debugDisableShuffle = true;
+        Translate::getInstance()->unloadEnglishTranslation();
     }
 
     public function setUp()
@@ -228,6 +265,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
     public static $defaultApiNotToCall = array(
         'LanguagesManager',
         'DBStats',
+        'Dashboard',
         'UsersManager',
         'SitesManager',
         'ExampleUI',
@@ -243,6 +281,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         'Annotations',
         'SegmentEditor',
         'UserCountry.getLocationFromIP',
+        'Dashboard'
     );
 
     const DEFAULT_USER_PASSWORD = 'nopass';
@@ -308,6 +347,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
      *
      * @param string $dateTime eg '2010-01-01 12:34:56'
      * @param string $period eg 'day', 'week', 'month', 'year'
+     * @return array
      */
     protected static function getApiForTestingScheduledReports($dateTime, $period)
     {
@@ -326,19 +366,17 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
                      'fileExtension'          => 'html',
                      'otherRequestParameters' => array(
                          'idReport'     => 1,
-                         'reportFormat' => Piwik_ReportRenderer::HTML_FORMAT,
-                         'outputType'   => Piwik_PDFReports_API::OUTPUT_RETURN
+                         'reportFormat' => ReportRenderer::HTML_FORMAT,
+                         'outputType'   => \Piwik\Plugins\PDFReports\API::OUTPUT_RETURN
                      )
                  )
             )
         );
 
-        // This particular PDF file looks different on recent PHP
-        // Differences with expected in: tests/PHPUnit/Integration/processed/test_ecommerceOrderWithItems_scheduled_report_in_pdf_tables_only__PDFReports.generateReport_week.original.pdf
-        // Failed asserting that 486675 matches expected 486668.
-        // So we disable this test for 5.4 and 5.5
-        if (stristr(phpversion(), '5.4') === false && stristr(phpversion(), '5.5') === false) {
+        // We run this particular test on one PHP version only (which should run on Travis CI + Most devs)
+        if (stristr(phpversion(), '5.4') !== false) {
             // PDF Scheduled Report
+            // tests/PHPUnit/Integration/processed/test_ecommerceOrderWithItems_scheduled_report_in_pdf_tables_only__PDFReports.generateReport_week.original.pdf
             array_push(
                 $apiCalls,
                 array(
@@ -351,8 +389,8 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
                          'fileExtension'          => 'pdf',
                          'otherRequestParameters' => array(
                              'idReport'     => 1,
-                             'reportFormat' => Piwik_ReportRenderer::PDF_FORMAT,
-                             'outputType'   => Piwik_PDFReports_API::OUTPUT_RETURN
+                             'reportFormat' => ReportRenderer::PDF_FORMAT,
+                             'outputType'   => \Piwik\Plugins\PDFReports\API::OUTPUT_RETURN
                          )
                      )
                 )
@@ -372,7 +410,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
                      'fileExtension'          => 'sms.txt',
                      'otherRequestParameters' => array(
                          'idReport'   => 2,
-                         'outputType' => Piwik_PDFReports_API::OUTPUT_RETURN
+                         'outputType' => \Piwik\Plugins\PDFReports\API::OUTPUT_RETURN
                      )
                  )
             )
@@ -391,7 +429,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
                      'fileExtension'          => 'sms.txt',
                      'otherRequestParameters' => array(
                          'idReport'   => 3,
-                         'outputType' => Piwik_PDFReports_API::OUTPUT_RETURN
+                         'outputType' => \Piwik\Plugins\PDFReports\API::OUTPUT_RETURN
                      )
                  )
             )
@@ -411,8 +449,8 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
                          'fileExtension'          => 'html',
                          'otherRequestParameters' => array(
                              'idReport'     => 4,
-                             'reportFormat' => Piwik_ReportRenderer::HTML_FORMAT,
-                             'outputType'   => Piwik_PDFReports_API::OUTPUT_RETURN
+                             'reportFormat' => ReportRenderer::HTML_FORMAT,
+                             'outputType'   => \Piwik\Plugins\PDFReports\API::OUTPUT_RETURN
                          )
                      )
                 )
@@ -431,7 +469,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
                          'fileExtension'          => 'html',
                          'otherRequestParameters' => array(
                              'idReport'     => 5,
-                             'outputType'   => Piwik_PDFReports_API::OUTPUT_RETURN
+                             'outputType'   => \Piwik\Plugins\PDFReports\API::OUTPUT_RETURN
                          )
                      )
                 )
@@ -449,22 +487,22 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
      * @param array $parametersToSet Parameters to set in api call
      * @param array $formats         Array of 'format' to fetch from API
      * @param array $periods         Array of 'period' to query API
-     * @param bool $supertableApi
-     * @param bool $setDateLastN    If set to true, the 'date' parameter will be rewritten to query instead a range of dates, rather than one period only.
+     * @param bool  $supertableApi
+     * @param bool  $setDateLastN    If set to true, the 'date' parameter will be rewritten to query instead a range of dates, rather than one period only.
      * @param bool|string $language        2 letter language code, defaults to default piwik language
-     * @param bool|string $segment
      * @param bool|string $fileExtension
      *
      * @throws Exception
+     *
      * @return array of API URLs query strings
      */
     protected function generateUrlsApi($parametersToSet, $formats, $periods, $supertableApi = false, $setDateLastN = false, $language = false, $fileExtension = false)
     {
         // Get the URLs to query against the API for all functions starting with get*
         $skipped = $requestUrls = array();
-        $apiMetadata = new Piwik_API_DocumentationGenerator;
-        foreach (Piwik_API_Proxy::getInstance()->getMetadata() as $class => $info) {
-            $moduleName = Piwik_API_Proxy::getInstance()->getModuleNameFromClassName($class);
+        $apiMetadata = new DocumentationGenerator;
+        foreach (Proxy::getInstance()->getMetadata() as $class => $info) {
+            $moduleName = Proxy::getInstance()->getModuleNameFromClassName($class);
             foreach ($info as $methodName => $infoMethod) {
                 $apiId = $moduleName . '.' . $methodName;
 
@@ -517,7 +555,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
 
                     // set idSubtable if subtable API is set
                     if ($supertableApi !== false) {
-                        $request = new Piwik_API_Request(array(
+                        $request = new Request(array(
                                                               'module'    => 'API',
                                                               'method'    => $supertableApi,
                                                               'idSite'    => $parametersToSet['idSite'],
@@ -549,6 +587,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
                         $parametersToSet['serialize'] = 1;
 
                         $exampleUrl = $apiMetadata->getExampleUrl($class, $methodName, $parametersToSet);
+                        
                         if ($exampleUrl === false) {
                             $skipped[] = $apiId;
                             continue;
@@ -601,7 +640,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
                                         $abandonedCarts = false, $idGoal = false, $apiModule = false, $apiAction = false,
                                         $otherRequestParameters = array(), $supertableApi = false, $fileExtension = false)
     {
-        list($pathProcessed, $pathExpected) = $this->getProcessedAndExpectedDirs();
+        list($pathProcessed, $pathExpected) = self::getProcessedAndExpectedDirs();
 
         if ($periods === false) {
             $periods = 'day';
@@ -617,7 +656,8 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         }
         $parametersToSet = array(
             'idSite'         => $idSite,
-            'date'           => $periods == array('range') ? $dateTime : date('Y-m-d', strtotime($dateTime)),
+            'date'           => ($periods == array('range') || strpos($dateTime, ',') !== false) ?
+                                    $dateTime : date('Y-m-d', strtotime($dateTime)),
             'expanded'       => '1',
             'piwikUrl'       => 'http://example.org/piwik/',
             // Used in getKeywordsForPageUrl
@@ -649,7 +689,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
             $parametersToSet['apiAction'] = $apiAction;
         }
         if (!empty($segment)) {
-            $parametersToSet['segment'] = $segment;
+            $parametersToSet['segment'] = urlencode($segment);
         }
         if ($idGoal !== false) {
             $parametersToSet['idGoal'] = $idGoal;
@@ -678,9 +718,13 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
 
     protected function _testApiUrl($testName, $apiId, $requestUrl)
     {
-        $isLiveMustDeleteDates = strpos($requestUrl, 'Live.getLastVisits') !== false;
-        $request = new Piwik_API_Request($requestUrl);
-        $dateTime = Piwik_Common::getRequestVar('date', '', 'string', Piwik_Common::getArrayFromQueryString($requestUrl));
+        $isTestLogImportReverseChronological = strpos($testName, 'ImportedInRandomOrderTest') === false;
+        $isLiveMustDeleteDates = strpos($requestUrl, 'Live.getLastVisits') !== false
+                                // except for that particular test that we care about dates!
+                                && $isTestLogImportReverseChronological;
+
+        $request = new Request($requestUrl);
+        $dateTime = Common::getRequestVar('date', '', 'string', Common::getArrayFromQueryString($requestUrl));
 
         list($processedFilePath, $expectedFilePath) = $this->getProcessedAndExpectedPaths($testName, $apiId);
 
@@ -757,7 +801,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         }
 
         // is there a better way to test for the current DB type in use?
-        if (Zend_Registry::get('db') instanceof Piwik_Db_Adapter_Mysqli) {
+        if (Zend_Registry::get('db') instanceof Mysqli) {
             // Do not test for TRUNCATE(SUM()) returning .00 on mysqli since this is not working
             // http://bugs.php.net/bug.php?id=54508
             $expected = str_replace('.000000</l', '</l', $expected); //lat/long
@@ -827,9 +871,9 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         return $input;
     }
 
-    private function getProcessedAndExpectedDirs()
+    protected static function getProcessedAndExpectedDirs()
     {
-        $path = $this->getPathToTestDirectory();
+        $path = self::getPathToTestDirectory();
         return array($path . '/processed/', $path . '/expected/');
     }
 
@@ -840,7 +884,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
             $filename .= ".$format";
         }
 
-        list($processedDir, $expectedDir) = $this->getProcessedAndExpectedDirs();
+        list($processedDir, $expectedDir) = self::getProcessedAndExpectedDirs();
 
         return array($processedDir . $filename, $expectedDir . $filename);
     }
@@ -942,9 +986,11 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         $this->_setCallableApi($api);
 
         if (isset($params['disableArchiving']) && $params['disableArchiving'] === true) {
-            Piwik_ArchiveProcessing::$forceDisableArchiving = true;
+            Rules::$archivingDisabledByTests = true;
+            Config::getInstance()->General['browser_archiving_disabled_enforce'] = 1;
         } else {
-            Piwik_ArchiveProcessing::$forceDisableArchiving = false;
+            Rules::$archivingDisabledByTests = false;
+            Config::getInstance()->General['browser_archiving_disabled_enforce'] = 0;
         }
 
         if (isset($params['language'])) {
@@ -1013,17 +1059,17 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
     {
         if ($this->lastLanguage != $langId) {
             $_GET['language'] = $langId;
-            Piwik_Translate::reset();
-            Piwik_Translate::getInstance()->reloadLanguage($langId);
+            Translate::reset();
+            Translate::getInstance()->reloadLanguage($langId);
         }
 
         $this->lastLanguage = $langId;
     }
 
     /**
-     * Path where expected/processed output files are stored. Can be overridden.
+     * Path where expected/processed output files are stored.
      */
-    public function getPathToTestDirectory()
+    public static function getPathToTestDirectory()
     {
         return dirname(__FILE__) . DIRECTORY_SEPARATOR . 'Integration';
     }
@@ -1082,8 +1128,8 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
                 $tableType = strpos($table, 'archive_numeric') !== false ? 'archive_numeric' : 'archive_blob';
                 
                 $createSql = Piwik::getTableCreateSql($tableType);
-                $createSql = str_replace(Piwik_Common::prefixTable($tableType), $table, $createSql);
-                Piwik_Query($createSql);
+                $createSql = str_replace(Common::prefixTable($tableType), $table, $createSql);
+                Db::query($createSql);
             }
             
             if (empty($rows))
@@ -1110,11 +1156,11 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
      */
     public static function deleteArchiveTables()
     {
-        foreach (Piwik::getTablesArchivesInstalled() as $table)
-        {
-            Piwik_Query("DROP TABLE IF EXISTS $table");
+        foreach (ArchiveTableCreator::getTablesArchivesInstalled() as $table) {
+            Db::query("DROP TABLE IF EXISTS $table");
         }
-        
-        Piwik_TablePartitioning::$tablesAlreadyInstalled = Piwik::getTablesInstalled($forceReload = true);
+
+        ArchiveTableCreator::refreshTableList($forceReload = true);
     }
+
 }

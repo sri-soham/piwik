@@ -6,36 +6,40 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_CorePluginsAdmin
+ * @package CorePluginsAdmin
  */
+namespace Piwik\Plugins\CorePluginsAdmin;
+
+use Piwik\Piwik;
 
 /**
  *
- * @package Piwik_CorePluginsAdmin
+ * @package CorePluginsAdmin
  */
-class Piwik_CorePluginsAdmin extends Piwik_Plugin
+class CorePluginsAdmin extends \Piwik\Plugin
 {
-    public function getInformation()
-    {
-        return array(
-            'description'     => Piwik_Translate('CorePluginsAdmin_PluginDescription'),
-            'author'          => 'Piwik',
-            'author_homepage' => 'http://piwik.org/',
-            'version'         => Piwik_Version::VERSION,
-        );
-    }
-
-    function getListHooksRegistered()
+    /**
+     * @see Piwik_Plugin::getListHooksRegistered
+     */
+    public function getListHooksRegistered()
     {
         return array('AdminMenu.add' => 'addMenu');
     }
 
     function addMenu()
     {
-        Piwik_AddAdminSubMenu('CorePluginsAdmin_MenuPlugins', null, "", Piwik::isUserIsSuperUser(), $order = 15);
-        Piwik_AddAdminSubMenu('CorePluginsAdmin_MenuPlugins', 'CorePluginsAdmin_MenuPluginsInstalled',
-            array('module' => 'CorePluginsAdmin', 'action' => 'index'),
+        Piwik_AddAdminSubMenu('CorePluginsAdmin_MenuPlatform', null, "", Piwik::isUserIsSuperUser(), $order = 15);
+        Piwik_AddAdminSubMenu('CorePluginsAdmin_MenuPlatform', 'CorePluginsAdmin_Plugins',
+            array('module' => 'CorePluginsAdmin', 'action' => 'plugins'),
             Piwik::isUserIsSuperUser(),
             $order = 1);
+        Piwik_AddAdminSubMenu('CorePluginsAdmin_MenuPlatform', 'CorePluginsAdmin_Themes',
+            array('module' => 'CorePluginsAdmin', 'action' => 'themes'),
+            Piwik::isUserIsSuperUser(),
+            $order = 3);
+        Piwik_AddAdminSubMenu('CorePluginsAdmin_MenuPlatform', 'CorePluginsAdmin_MenuExtend',
+            array('module' => 'CorePluginsAdmin', 'action' => 'extend'),
+            Piwik::isUserIsSuperUser(),
+            $order = 5);
     }
 }

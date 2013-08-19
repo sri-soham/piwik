@@ -6,9 +6,14 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_LanguagesManager
+ * @package LanguagesManager
  *
  */
+namespace Piwik\Plugins\LanguagesManager;
+
+use Piwik\Piwik;
+use Piwik\Common;
+use Piwik\Db;
 
 /**
  * The LanguagesManager API lets you access existing Piwik translations, and change Users languages preferences.
@@ -20,14 +25,14 @@
  * You can also request the default language to load for a user via "getLanguageForUser",
  * or update it via "setLanguageForUser".
  *
- * @package Piwik_LanguagesManager
+ * @package LanguagesManager
  */
-class Piwik_LanguagesManager_API
+class API
 {
     static private $instance = null;
 
     /**
-     * @return Piwik_LanguagesManager_API
+     * @return \Piwik\Plugins\LanguagesManager\API
      */
     static public function getInstance()
     {
@@ -49,7 +54,7 @@ class Piwik_LanguagesManager_API
     public function isLanguageAvailable($languageCode)
     {
         return $languageCode !== false
-            && Piwik_Common::isValidFilename($languageCode)
+            && Common::isValidFilename($languageCode)
             && in_array($languageCode, $this->getAvailableLanguages());
     }
 
@@ -116,7 +121,7 @@ class Piwik_LanguagesManager_API
         }
 
         $filenames = $this->getAvailableLanguages();
-        $languagesInfo = array();
+        $translations = $languagesInfo = array();
         foreach ($filenames as $filename) {
             require PIWIK_INCLUDE_PATH . "/lang/$filename.php";
             $languagesInfo[] = array(
@@ -140,6 +145,7 @@ class Piwik_LanguagesManager_API
         if (!$this->isLanguageAvailable($languageCode)) {
             return false;
         }
+        $translations = array();
         require PIWIK_INCLUDE_PATH . "/lang/$languageCode.php";
         $languageInfo = array();
         foreach ($translations as $key => $value) {

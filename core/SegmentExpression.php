@@ -9,11 +9,14 @@
  * @package Piwik
  */
 
+namespace Piwik;
+use Exception;
+
 /**
  *
  * @package Piwik
  */
-class Piwik_SegmentExpression
+class SegmentExpression
 {
     const AND_DELIMITER = ';';
     const OR_DELIMITER = ',';
@@ -27,8 +30,11 @@ class Piwik_SegmentExpression
     const MATCH_CONTAINS = '=@';
     const MATCH_DOES_NOT_CONTAIN = '!@';
 
-    // Note: undocumented for now, only used in API.getSuggestedValuesForSegment
-    const MATCH_IS_NOT_NULL = '::';
+    // Note: you can't write this in the API, but access this feature
+    // via field!=        <- IS NOT NULL
+    // or via field==     <- IS NULL / empty
+    const MATCH_IS_NOT_NULL_NOR_EMPTY = '::NOT_NULL';
+    const MATCH_IS_NULL_OR_EMPTY = '::NULL';
 
     // Special case, since we look up Page URLs/Page titles in a sub SQL query
     const MATCH_ACTIONS_CONTAINS = 'IN';
@@ -61,6 +67,9 @@ class Piwik_SegmentExpression
         $parsedSubExpressions = array();
         foreach ($this->tree as $id => $leaf) {
             $operand = $leaf[self::INDEX_OPERAND];
+
+            $operand = urldecode($operand);
+
             $operator = $leaf[self::INDEX_BOOL_OPERATOR];
             $pattern = '/^(.+?)(' . self::MATCH_EQUAL . '|'
                 . self::MATCH_NOT_EQUAL . '|'
@@ -69,9 +78,8 @@ class Piwik_SegmentExpression
                 . self::MATCH_LESS_OR_EQUAL . '|'
                 . self::MATCH_LESS . '|'
                 . self::MATCH_CONTAINS . '|'
-                . self::MATCH_IS_NOT_NULL . '|'
                 . self::MATCH_DOES_NOT_CONTAIN
-                . '){1}(.+)/';
+                . '){1}(.*)/';
             $match = preg_match($pattern, $operand, $matches);
             if ($match == 0) {
                 throw new Exception('The segment \'' . $operand . '\' is not valid.');
@@ -79,7 +87,20 @@ class Piwik_SegmentExpression
 
             $leftMember = $matches[1];
             $operation = $matches[2];
-            $valueRightMember = $matches[3];
+            $valueRightMember = urldecode($matches[3]);
+
+            // is null / is not null
+            if ($valueRightMember === '') {
+                if ($operation == self::MATCH_NOT_EQUAL) {
+                    $operation = self::MATCH_IS_NOT_NULL_NOR_EMPTY;
+                } elseif ($operation == self::MATCH_EQUAL) {
+                    $operation = self::MATCH_IS_NULL_OR_EMPTY;
+                } else {
+                    throw new Exception('The segment \'' . $operand . '\' has no value specified. You can leave this value empty ' .
+                        'only when you use the operators: ' . self::MATCH_NOT_EQUAL . ' (is not) or ' . self::MATCH_EQUAL . ' (is)');
+                }
+            }
+
             $parsedSubExpressions[] = array(
                 self::INDEX_BOOL_OPERATOR => $operator,
                 self::INDEX_OPERAND       => array(
@@ -173,12 +194,14 @@ class Piwik_SegmentExpression
         $matchType = $def[1];
         $value = $def[2];
 
+        $alsoMatchNULLValues = false;
         switch ($matchType) {
             case self::MATCH_EQUAL:
                 $sqlMatch = '=';
                 break;
             case self::MATCH_NOT_EQUAL:
                 $sqlMatch = '<>';
+                $alsoMatchNULLValues = true;
                 break;
             case self::MATCH_GREATER:
                 $sqlMatch = '>';
@@ -199,10 +222,16 @@ class Piwik_SegmentExpression
             case self::MATCH_DOES_NOT_CONTAIN:
                 $sqlMatch = 'NOT LIKE';
                 $value = '%' . $this->escapeLikeString($value) . '%';
+                $alsoMatchNULLValues = true;
                 break;
 
-            case self::MATCH_IS_NOT_NULL:
-                $sqlMatch = 'IS NOT NULL AND (' . $Generic->isEmpty($field) . ')';
+            case self::MATCH_IS_NOT_NULL_NOR_EMPTY:
+                $sqlMatch = 'IS NOT NULL AND (' . $Generic->isNotEmptyOrIsZero($field) . ')';
+                $value = null;
+                break;
+
+            case self::MATCH_IS_NULL_OR_EMPTY:
+                $sqlMatch = 'IS NULL OR ' . $Generic->isEmpty($field) . ' ';
                 $value = null;
                 break;
 
@@ -210,7 +239,7 @@ class Piwik_SegmentExpression
                 // this match type is not accessible from the outside
                 // (it won't be matched in self::parseSubExpressions())
                 // it can be used internally to inject sub-expressions into the query.
-                // see Piwik_Segment::getCleanedExpression()
+                // see Segment::getCleanedExpression()
                 $sqlMatch = 'IN (' . $value['SQL'] . ')';
                 $value = $this->escapeLikeString($value['bind']);
                 break;
@@ -219,11 +248,19 @@ class Piwik_SegmentExpression
                 break;
         }
 
+        // We match NULL values when rows are excluded only when we are not doing a
+        $alsoMatchNULLValues = $alsoMatchNULLValues && !empty($value);
+
         if ($matchType === self::MATCH_ACTIONS_CONTAINS
-            || is_null($value)) {
-            $sqlExpression = "$field $sqlMatch";
+            || is_null($value)
+        ) {
+            $sqlExpression = "( $field $sqlMatch )";
         } else {
-            $sqlExpression = "$field $sqlMatch ?";
+            if ($alsoMatchNULLValues) {
+                $sqlExpression = "( $field IS NULL OR $field $sqlMatch ? )";
+            } else {
+                $sqlExpression = "$field $sqlMatch ?";
+            }
         }
 
         $this->checkFieldIsAvailable($field, $availableTables);

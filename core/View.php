@@ -8,6 +8,23 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik;
+
+use Exception;
+use Piwik\Config;
+use Piwik\Piwik;
+use Piwik\Common;
+use Piwik\AssetManager;
+use Piwik\Version;
+use Piwik\Url;
+use Piwik\UpdateCheck;
+use Piwik\Twig;
+use Piwik\QuickForm2;
+use Piwik\Plugins\SitesManager\API as SitesManagerAPI;
+use Piwik\Plugins\UsersManager\API as UsersManagerAPI;
+use Piwik\View\ViewInterface;
+use Twig_Environment;
+use Zend_Registry;
 
 /**
  * Transition for pre-Piwik 0.4.4
@@ -21,25 +38,31 @@ if (!defined('PIWIK_USER_PATH')) {
  *
  * @package Piwik
  */
-class Piwik_View implements Piwik_View_Interface
+class View implements ViewInterface
 {
-    const COREUPDATER_ONE_CLICK_DONE = 'update_one_click_done';
-
-
     private $template = '';
-    private $smarty = false;
+
+    /**
+     * Instance
+     * @var Twig_Environment
+     */
+    private $twig;
+    private $templateVars = array();
     private $contentType = 'text/html; charset=utf-8';
     private $xFrameOptions = null;
 
-    public function __construct($templateFile, $smConf = array(), $filter = true)
+    public function __construct($templateFile)
     {
+        $templateExt = '.twig';
+        if (substr($templateFile, -strlen($templateExt)) !== $templateExt) {
+            $templateFile .= $templateExt;
+        }
         $this->template = $templateFile;
-        $this->smarty = new Piwik_Smarty($smConf, $filter);
 
-        // global value accessible to all templates: the piwik base URL for the current request
-        $this->piwik_version = Piwik_Version::VERSION;
-        $this->cacheBuster = md5(Piwik_Common::getSalt() . PHP_VERSION . Piwik_Version::VERSION);
-        $this->piwikUrl = Piwik_Common::sanitizeInputValue(Piwik_Url::getCurrentUrlWithoutFileName());
+        $this->initializeTwig();
+
+        $this->piwik_version = Version::VERSION;
+        $this->piwikUrl = Common::sanitizeInputValue(Url::getCurrentUrlWithoutFileName());
     }
 
     /**
@@ -51,7 +74,7 @@ class Piwik_View implements Piwik_View_Interface
      */
     public function __set($key, $val)
     {
-        $this->smarty->assign($key, $val);
+        $this->templateVars[$key] = $val;
     }
 
     /**
@@ -63,7 +86,13 @@ class Piwik_View implements Piwik_View_Interface
      */
     public function __get($key)
     {
-        return $this->smarty->get_template_vars($key);
+        return $this->templateVars[$key];
+    }
+
+    public function initializeTwig()
+    {
+        $piwikTwig = new Twig();
+        $this->twig = $piwikTwig->getTwigEnvironment();
     }
 
     /**
@@ -81,17 +110,17 @@ class Piwik_View implements Piwik_View_Interface
 
             $count = Piwik::getWebsitesCountToDisplay();
 
-            $sites = Piwik_SitesManager_API::getInstance()->getSitesWithAtLeastViewAccess($count);
+            $sites = SitesManagerAPI::getInstance()->getSitesWithAtLeastViewAccess($count);
             usort($sites, create_function('$site1, $site2', 'return strcasecmp($site1["name"], $site2["name"]);'));
             $this->sites = $sites;
-            $this->url = Piwik_Common::sanitizeInputValue(Piwik_Url::getCurrentUrl());
+            $this->url = Common::sanitizeInputValue(Url::getCurrentUrl());
             $this->token_auth = Piwik::getCurrentUserTokenAuth();
             $this->userHasSomeAdminAccess = Piwik::isUserHasSomeAdminAccess();
             $this->userIsSuperUser = Piwik::isUserIsSuperUser();
-            $this->latest_version_available = Piwik_UpdateCheck::isNewestVersionAvailable();
-            $this->disableLink = Piwik_Common::getRequestVar('disableLink', 0, 'int');
-            $this->isWidget = Piwik_Common::getRequestVar('widget', 0, 'int');
-            if (Piwik_Config::getInstance()->General['autocomplete_min_sites'] <= count($sites)) {
+            $this->latest_version_available = UpdateCheck::isNewestVersionAvailable();
+            $this->disableLink = Common::getRequestVar('disableLink', 0, 'int');
+            $this->isWidget = Common::getRequestVar('widget', 0, 'int');
+            if (Config::getInstance()->General['autocomplete_min_sites'] <= count($sites)) {
                 $this->show_autocompleter = true;
             } else {
                 $this->show_autocompleter = false;
@@ -99,15 +128,14 @@ class Piwik_View implements Piwik_View_Interface
 
             $this->loginModule = Piwik::getLoginPluginName();
 
-            $user = Piwik_UsersManager_API::getInstance()->getUser($userLogin);
+            $user = UsersManagerAPI::getInstance()->getUser($userLogin);
             $this->userAlias = $user['alias'];
-
         } catch (Exception $e) {
             // can fail, for example at installation (no plugin loaded yet)
         }
 
-        $this->totalTimeGeneration = Zend_Registry::get('timer')->getTime();
         try {
+            $this->totalTimeGeneration = \Zend_Registry::get('timer')->getTime();
             $this->totalNumberOfQueries = Piwik::getQueryCount();
         } catch (Exception $e) {
             $this->totalNumberOfQueries = 0;
@@ -119,7 +147,36 @@ class Piwik_View implements Piwik_View_Interface
         // always sending this header, sometimes empty, to ensure that Dashboard embed loads (which could call this header() multiple times, the last one will prevail)
         @header('X-Frame-Options: ' . (string)$this->xFrameOptions);
 
-        return $this->smarty->fetch($this->template);
+        return $this->renderTwigTemplate();
+    }
+
+    protected function renderTwigTemplate()
+    {
+        $output = $this->twig->render($this->template, $this->templateVars);
+        $output = $this->applyFilter_cacheBuster($output);
+        return $output;
+    }
+
+    protected function applyFilter_cacheBuster($output)
+    {
+        $cacheBuster = AssetManager::generateAssetsCacheBuster();
+        $tag = 'cb=' . $cacheBuster;
+
+        $pattern = array(
+            '~<script type=[\'"]text/javascript[\'"] src=[\'"]([^\'"]+)[\'"]>~',
+            '~<script src=[\'"]([^\'"]+)[\'"] type=[\'"]text/javascript[\'"]>~',
+            '~<link rel=[\'"]stylesheet[\'"] type=[\'"]text/css[\'"] href=[\'"]([^\'"]+)[\'"] ?/?>~',
+            '~(src|href)=\"index.php\?module=([A-Za-z0-9_]+)&action=([A-Za-z0-9_]+)\?cb=~',
+        );
+
+        $replace = array(
+            '<script type="text/javascript" src="$1?' . $tag . '">',
+            '<script type="text/javascript" src="$1?' . $tag . '">',
+            '<link rel="stylesheet" type="text/css" href="$1?' . $tag . '" />',
+            '$1="index.php?module=$2&amp;action=$3&amp;cb=',
+        );
+
+        return preg_replace($pattern, $replace, $output);
     }
 
     /**
@@ -151,30 +208,29 @@ class Piwik_View implements Piwik_View_Interface
     /**
      * Add form to view
      *
-     * @param Piwik_QuickForm2 $form
+     * @param QuickForm2 $form
      */
-    public function addForm($form)
+    public function addForm(QuickForm2 $form)
     {
-        if ($form instanceof Piwik_QuickForm2) {
-            // assign array with form data
-            $this->smarty->assign('form_data', $form->getFormData());
-            $this->smarty->assign('element_list', $form->getElementList());
-        }
+
+        // assign array with form data
+        $this->assign('form_data', $form->getFormData());
+        $this->assign('element_list', $form->getElementList());
     }
 
     /**
-     * Assign value to a variable for use in Smarty template
-     *
+     * Assign value to a variable for use in a template
+     * ToDo: This is ugly.
      * @param string|array $var
      * @param mixed $value
      */
     public function assign($var, $value = null)
     {
         if (is_string($var)) {
-            $this->smarty->assign($var, $value);
+            $this->$var = $value;
         } elseif (is_array($var)) {
             foreach ($var as $key => $value) {
-                $this->smarty->assign($key, $value);
+                $this->$key = $value;
             }
         }
     }
@@ -184,8 +240,8 @@ class Piwik_View implements Piwik_View_Interface
      */
     static public function clearCompiledTemplates()
     {
-        $view = new Piwik_View(null);
-        $view->smarty->clear_compiled_tpl();
+        $view = new View(null);
+        $view->twig->clearTemplateCache();
     }
 
     /**
@@ -198,7 +254,7 @@ class Piwik_View implements Piwik_View_Interface
      */
     static public function singleReport($title, $reportHtml, $fetch = false)
     {
-        $view = new Piwik_View('CoreHome/templates/single_report.tpl');
+        $view = new View('@CoreHome/_singleReport');
         $view->title = $title;
         $view->report = $reportHtml;
 
@@ -209,34 +265,10 @@ class Piwik_View implements Piwik_View_Interface
     }
 
     /**
-     * View factory method
-     *
-     * @param string $templateName Template name (e.g., 'index')
-     * @throws Exception
-     * @return Piwik_View|Piwik_View_OneClickDone
+     * @deprecated
      */
     static public function factory($templateName = null)
     {
-        if ($templateName == self::COREUPDATER_ONE_CLICK_DONE) {
-            return new Piwik_View_OneClickDone(Piwik::getCurrentUserTokenAuth());
-        }
-
-        Piwik_PostEvent('View.getViewType', $viewType);
-
-        // get caller
-        $bt = @debug_backtrace();
-        if ($bt === null || !isset($bt[0])) {
-            throw new Exception("View factory cannot be invoked");
-        }
-        $path = basename(dirname($bt[0]['file']));
-
-        if (Piwik_Common::isPhpCliMode()) {
-            $templateFile = $path . '/templates/cli_' . $templateName . '.tpl';
-            if (file_exists(PIWIK_INCLUDE_PATH . '/plugins/' . $templateFile)) {
-                return new Piwik_View($templateFile, array(), false);
-            }
-        }
-        $templateFile = $path . '/templates/' . $templateName . '.tpl';
-        return new Piwik_View($templateFile);
+        throw new Exception("View::factory is deprecated. Use 'new View(\$templateFile)' instead.");
     }
 }

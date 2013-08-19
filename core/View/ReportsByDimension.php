@@ -8,22 +8,27 @@
  * @category Piwik
  * @package SmartyPlugins
  */
+namespace Piwik\View;
+
+use Piwik\FrontController;
+use Piwik\View;
+use Piwik\Url;
 
 /**
- * A facade that makes it easier to use the 'reports_by_dimension.tpl' template.
+ * A facade that makes it easier to use the '_reportsByDimension.twig' template.
  *
  * This view will output HTML that displays a list of report names by category and
  * loads them by AJAX when clicked. The loaded report is displayed to the right
  * of the report listing.
  */
-class Piwik_View_ReportsByDimension extends Piwik_View
+class ReportsByDimension extends View
 {
     /**
      * Constructor.
      */
     public function __construct()
     {
-        parent::__construct(PIWIK_INCLUDE_PATH . '/plugins/CoreHome/templates/reports_by_dimension.tpl');
+        parent::__construct('@CoreHome/ReportsByDimension/_reportsByDimension');
         $this->dimensionCategories = array();
     }
 
@@ -47,7 +52,7 @@ class Piwik_View_ReportsByDimension extends Piwik_View
         $categories[$category][] = array(
             'title'  => $title,
             'params' => $params,
-            'url'    => Piwik_Url::getCurrentQueryStringWithParametersModified($params)
+            'url'    => Url::getCurrentQueryStringWithParametersModified($params)
         );
         $this->dimensionCategories = $categories;
     }
@@ -93,7 +98,7 @@ class Piwik_View_ReportsByDimension extends Piwik_View
 
             $module = $firstReportInfo['params']['module'];
             $action = $firstReportInfo['params']['action'];
-            $this->firstReport = Piwik_FrontController::getInstance()->fetchDispatch($module, $action);
+            $this->firstReport = FrontController::getInstance()->fetchDispatch($module, $action);
 
             $_GET = $oldGet;
             $_POST = $oldPost;

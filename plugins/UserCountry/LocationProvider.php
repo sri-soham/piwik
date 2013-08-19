@@ -6,8 +6,16 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_UserCountry
+ * @package UserCountry
  */
+namespace Piwik\Plugins\UserCountry;
+
+use Exception;
+use Piwik\Common;
+use Piwik\IP;
+use Piwik\Tracker\Cache;
+use Piwik\Plugins\UserCountry\LocationProvider\DefaultProvider;
+use ReflectionClass;
 
 /**
  * @see plugins/UserCountry/LocationProvider/Default.php
@@ -26,7 +34,7 @@ require_once PIWIK_INCLUDE_PATH . '/plugins/UserCountry/LocationProvider/GeoIp.p
  * visitor info. All LocationProviders require a visitor's IP address, some
  * require more, such as the browser language.
  */
-abstract class Piwik_UserCountry_LocationProvider
+abstract class LocationProvider
 {
     const NOT_INSTALLED = 0;
     const INSTALLED = 1;
@@ -129,14 +137,14 @@ abstract class Piwik_UserCountry_LocationProvider
     /**
      * Returns every available provider instance.
      *
-     * @return array
+     * @return LocationProvider[]
      */
     public static function getAllProviders()
     {
         if (is_null(self::$providers)) {
             self::$providers = array();
             foreach (get_declared_classes() as $klass) {
-                if (is_subclass_of($klass, 'Piwik_UserCountry_LocationProvider')) {
+                if (is_subclass_of($klass, 'Piwik\Plugins\UserCountry\LocationProvider')) {
                     $klassInfo = new ReflectionClass($klass);
                     if ($klassInfo->isAbstract()) {
                         continue;
@@ -178,14 +186,14 @@ abstract class Piwik_UserCountry_LocationProvider
      *   'status' - Either self::NOT_INSTALLED, self::INSTALLED or self::BROKEN.
      *   'statusMessage' - If the status is self::BROKEN, then the message describes why.
      *   'location' - A pretty formatted location of the current IP address
-     *                (Piwik_IP::getIpFromHeader()).
+     *                (IP::getIpFromHeader()).
      *
      * An example result:
      * array(
      *     'geoip_php' => array('id' => 'geoip_php',
      *                          'title' => '...',
      *                          'desc' => '...',
-     *                          'status' => Piwik_UserCountry_LocationProvider_GeoIp::BROKEN,
+     *                          'status' => GeoIp::BROKEN,
      *                          'statusMessage' => '...',
      *                          'location' => '...')
      *     'geoip_serverbased' => array(...)
@@ -215,8 +223,8 @@ abstract class Piwik_UserCountry_LocationProvider
                 $workingOrError = $provider->isWorking();
                 if ($workingOrError === true) // if the implementation is configured correctly, get the location
                 {
-                    $locInfo = array('ip'                => Piwik_IP::getIpFromHeader(),
-                                     'lang'              => Piwik_Common::getBrowserLanguage(),
+                    $locInfo = array('ip'                => IP::getIpFromHeader(),
+                                     'lang'              => Common::getBrowserLanguage(),
                                      'disable_fallbacks' => true);
 
                     $location = $provider->getLocation($locInfo);
@@ -256,7 +264,7 @@ abstract class Piwik_UserCountry_LocationProvider
     public static function getCurrentProviderId()
     {
         $optionValue = Piwik_GetOption(self::CURRENT_PROVIDER_OPTION_NAME);
-        return $optionValue === false ? Piwik_UserCountry_LocationProvider_Default::ID : $optionValue;
+        return $optionValue === false ? DefaultProvider::ID : $optionValue;
     }
 
     /**
@@ -264,7 +272,7 @@ abstract class Piwik_UserCountry_LocationProvider
      *
      * This function should not be called by the Tracker.
      *
-     * @return Piwik_UserCountry_LocationProvider
+     * @return \Piwik\Plugins\UserCountry\LocationProvider
      */
     public static function getCurrentProvider()
     {
@@ -275,7 +283,7 @@ abstract class Piwik_UserCountry_LocationProvider
      * Sets the provider to use when tracking.
      *
      * @param string $providerId The ID of the provider to use.
-     * @return Piwik_UserCountry_LocationProvider The new current provider.
+     * @return \Piwik\Plugins\UserCountry\LocationProvider The new current provider.
      * @throws Exception If the provider ID is invalid.
      */
     public static function setCurrentProvider($providerId)
@@ -286,7 +294,7 @@ abstract class Piwik_UserCountry_LocationProvider
                 "Invalid provider ID '$providerId'. The provider either does not exist or is not available");
         }
         Piwik_SetOption(self::CURRENT_PROVIDER_OPTION_NAME, $providerId);
-        Piwik_Tracker_Cache::clearCacheGeneral();
+        Cache::clearCacheGeneral();
         return $provider;
     }
 
@@ -294,7 +302,7 @@ abstract class Piwik_UserCountry_LocationProvider
      * Returns a provider instance by ID or false if the ID is invalid or unavailable.
      *
      * @param string $providerId
-     * @return Piwik_UserCountry_LocationProvider|false
+     * @return \Piwik\Plugins\UserCountry\LocationProvider|false
      */
     public static function getProviderById($providerId)
     {
@@ -324,7 +332,7 @@ abstract class Piwik_UserCountry_LocationProvider
             && !empty($location[self::COUNTRY_CODE_KEY])
         ) {
             $countryCode = strtolower($location[self::COUNTRY_CODE_KEY]);
-            $location[self::CONTINENT_CODE_KEY] = Piwik_Common::getContinent($countryCode);
+            $location[self::CONTINENT_CODE_KEY] = Common::getContinent($countryCode);
         }
 
         // fill in continent name if continent code is present
@@ -432,15 +440,15 @@ abstract class Piwik_UserCountry_LocationProvider
      * will return an IPv4 address or false if the address is IPv6 (IPv6 is not
      * supported yet).
      *
-     * @param array $ip Must have 'ip' key.
+     * @param  array $info Must have 'ip' key.
      * @return string|bool
      */
     protected function getIpFromInfo($info)
     {
         $ip = $info['ip'];
-        if (Piwik_IP::isMappedIPv4($ip)) {
-            return Piwik_IP::getIPv4FromMappedIPv6($ip);
-        } else if (Piwik_IP::isIPv6($ip)) // IPv6 is not supported (yet)
+        if (IP::isMappedIPv4($ip)) {
+            return IP::getIPv4FromMappedIPv6($ip);
+        } else if (IP::isIPv6($ip)) // IPv6 is not supported (yet)
         {
             return false;
         } else {

@@ -8,6 +8,19 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik\API;
+
+use Exception;
+use Piwik\API\DataTableGenericFilter;
+use Piwik\API\Proxy;
+use Piwik\Piwik;
+use Piwik\Common;
+use Piwik\Access;
+use Piwik\DataTable;
+use Piwik\Url;
+use Piwik\API\ResponseBuilder;
+use Piwik\PluginsManager;
+use Piwik\PluginDeactivatedException;
 
 /**
  * An API request is the object used to make a call to the API and get the result.
@@ -19,7 +32,7 @@
  * (see examples in the documentation http://piwik.org/docs/analytics-api)
  *
  * Example:
- * $request = new Piwik_API_Request('
+ * $request = new Request('
  *                method=UserSettings.getWideScreen
  *                &idSite=1
  *            &date=yesterday
@@ -35,7 +48,7 @@
  * @package Piwik
  * @subpackage Piwik_API
  */
-class Piwik_API_Request
+class Request
 {
     protected $request = null;
 
@@ -48,6 +61,12 @@ class Piwik_API_Request
     static public function getRequestArrayFromString($request)
     {
         $defaultRequest = $_GET + $_POST;
+
+        $requestRaw = self::getRequestParametersGET();
+        if (!empty($requestRaw['segment'])) {
+            $defaultRequest['segment'] = $requestRaw['segment'];
+        }
+
         $requestArray = $defaultRequest;
 
         if (!is_null($request)) {
@@ -61,9 +80,9 @@ class Piwik_API_Request
 
             $request = trim($request);
             $request = str_replace(array("\n", "\t"), '', $request);
-            parse_str($request, $requestArray);
 
-            $requestArray = $requestArray + $defaultRequest;
+            $requestParsed = Common::getArrayFromQueryString($request);
+            $requestArray = $requestParsed + $defaultRequest;
         }
 
         foreach ($requestArray as &$element) {
@@ -110,38 +129,43 @@ class Piwik_API_Request
      * It then reads the parameters from the request string and throws an exception if there are missing parameters.
      * It then calls the API Proxy which will call the requested method.
      *
-     * @throws Piwik_FrontController_PluginDeactivatedException
-     * @return Piwik_DataTable|mixed  The data resulting from the API call
+     * @throws PluginDeactivatedException
+     * @return DataTable|mixed  The data resulting from the API call
      */
     public function process()
     {
         // read the format requested for the output data
-        $outputFormat = strtolower(Piwik_Common::getRequestVar('format', 'xml', 'string', $this->request));
+        $outputFormat = strtolower(Common::getRequestVar('format', 'xml', 'string', $this->request));
 
         // create the response
-        $response = new Piwik_API_ResponseBuilder($outputFormat, $this->request);
+        $response = new ResponseBuilder($outputFormat, $this->request);
 
         try {
             // read parameters
-            $moduleMethod = Piwik_Common::getRequestVar('method', null, 'string', $this->request);
+            $moduleMethod = Common::getRequestVar('method', null, 'string', $this->request);
 
             list($module, $method) = $this->extractModuleAndMethod($moduleMethod);
 
-            if (!Piwik_PluginsManager::getInstance()->isPluginActivated($module)) {
-                throw new Piwik_FrontController_PluginDeactivatedException($module);
+            if (!PluginsManager::getInstance()->isPluginActivated($module)) {
+                throw new PluginDeactivatedException($module);
             }
-            $moduleClass = "Piwik_" . $module . "_API";
+            $apiClassName = $this->getClassNameAPI($module);
 
             self::reloadAuthUsingTokenAuth($this->request);
 
             // call the method
-            $returnedValue = Piwik_API_Proxy::getInstance()->call($moduleClass, $method, $this->request);
+            $returnedValue = Proxy::getInstance()->call($apiClassName, $method, $this->request);
 
             $toReturn = $response->getResponse($returnedValue, $module, $method);
         } catch (Exception $e) {
             $toReturn = $response->getResponseException($e);
         }
         return $toReturn;
+    }
+
+    static public function getClassNameAPI($module)
+    {
+        return sprintf('\Piwik\Plugins\%s\API', $module);
     }
 
     /**
@@ -155,10 +179,10 @@ class Piwik_API_Request
     static public function reloadAuthUsingTokenAuth($request = null)
     {
         // if a token_auth is specified in the API request, we load the right permissions
-        $token_auth = Piwik_Common::getRequestVar('token_auth', '', 'string', $request);
+        $token_auth = Common::getRequestVar('token_auth', '', 'string', $request);
         if ($token_auth) {
-            Piwik_PostEvent('API.Request.authenticate', $token_auth);
-            Zend_Registry::get('access')->reloadAccess();
+            Piwik_PostEvent('API.Request.authenticate', array($token_auth));
+            Access::getInstance()->reloadAccess();
             Piwik::raiseMemoryLimitIfNecessary();
         }
     }
@@ -189,15 +213,65 @@ class Piwik_API_Request
      */
     public static function processRequest($method, $paramOverride = array())
     {
-        // set up request params
-        $params = $_GET + $_POST;
+        $params = array();
         $params['format'] = 'original';
         $params['module'] = 'API';
         $params['method'] = $method;
         $params = $paramOverride + $params;
 
         // process request
-        $request = new Piwik_API_Request($params);
+        $request = new Request($params);
         return $request->process();
+    }
+
+    /**
+     * @return array
+     */
+    public static function getRequestParametersGET()
+    {
+        if (empty($_SERVER['QUERY_STRING'])) {
+            return array();
+        }
+        $GET = Common::getArrayFromQueryString($_SERVER['QUERY_STRING']);
+        return $GET;
+    }
+
+    /**
+     * Returns the current URL without generic filter query parameters.
+     *
+     * @param array $params Query parameter values to override in the new URL.
+     * @return string
+     */
+    public static function getCurrentUrlWithoutGenericFilters($params)
+    {
+        // unset all filter query params so the related report will show up in its default state,
+        // unless the filter param was in $queryParams
+        $genericFiltersInfo = DataTableGenericFilter::getGenericFiltersInformation();
+        foreach ($genericFiltersInfo as $filter) {
+            foreach ($filter as $queryParamName => $queryParamInfo) {
+                if (!isset($params[$queryParamName])) {
+                    $params[$queryParamName] = null;
+                }
+            }
+        }
+
+        return Url::getCurrentQueryStringWithParametersModified($params);
+    }
+
+    /**
+     * @return array|bool
+     */
+    static public function getRawSegmentFromRequest()
+    {
+        // we need the URL encoded segment parameter, we fetch it from _SERVER['QUERY_STRING'] instead of default URL decoded _GET
+        $segmentRaw = false;
+        $segment = Common::getRequestVar('segment', '', 'string');
+        if (!empty($segment)) {
+            $request = Request::getRequestParametersGET();
+            if(!empty($request['segment'])) {
+                $segmentRaw = $request['segment'];
+            }
+        }
+        return $segmentRaw;
     }
 }

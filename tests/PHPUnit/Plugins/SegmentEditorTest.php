@@ -5,14 +5,20 @@
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
+use Piwik\Piwik;
+use Piwik\Access;
+use Piwik\Date;
+use Piwik\Plugins\SegmentEditor\API;
+use Piwik\Plugins\SitesManager\API as SitesManagerAPI;
+
 class SegmentEditorTest extends DatabaseTestCase
 {
     public function setUp()
     {
         parent::setUp();
 
-        Piwik_PluginsManager::getInstance()->loadPlugin('SegmentEditor');
-        Piwik_PluginsManager::getInstance()->installLoadedPlugins();
+        \Piwik\PluginsManager::getInstance()->loadPlugin('SegmentEditor');
+        \Piwik\PluginsManager::getInstance()->installLoadedPlugins();
 
         // setup the access layer
         $pseudoMockAccess = new FakeAccess;
@@ -22,9 +28,9 @@ class SegmentEditorTest extends DatabaseTestCase
         //finally we set the user as a super user by default
         FakeAccess::$superUser = true;
         FakeAccess::$superUserLogin = 'superusertest';
-        Zend_Registry::set('access', $pseudoMockAccess);
+        Access::setSingletonInstance($pseudoMockAccess);
 
-        Piwik_SitesManager_API::getInstance()->addSite('test', 'http://example.org');
+        SitesManagerAPI::getInstance()->addSite('test', 'http://example.org');
     }
 
     public function tearDown()
@@ -37,12 +43,12 @@ class SegmentEditorTest extends DatabaseTestCase
     public function testAddInvalidSegment_ShouldThrow()
     {
         try {
-            Piwik_SegmentEditor_API::getInstance()->add('name', 'test==test2');
+            API::getInstance()->add('name', 'test==test2');
             $this->fail("Exception not raised.");
         } catch (Exception $expected) {
         }
         try {
-            Piwik_SegmentEditor_API::getInstance()->add('name', 'test');
+            API::getInstance()->add('name', 'test');
             $this->fail("Exception not raised.");
         } catch (Exception $expected) {
         }
@@ -52,9 +58,9 @@ class SegmentEditorTest extends DatabaseTestCase
     {
         $name = 'name';
         $definition = 'searches>1,visitIp!=127.0.0.1';
-        $idSegment = Piwik_SegmentEditor_API::getInstance()->add($name, $definition);
+        $idSegment = API::getInstance()->add($name, $definition);
         $this->assertEquals($idSegment, 1);
-        $segment = Piwik_SegmentEditor_API::getInstance()->get($idSegment);
+        $segment = API::getInstance()->get($idSegment);
         unset($segment['ts_created']);
         $expected = array(
             'idsegment' => 1,
@@ -75,11 +81,11 @@ class SegmentEditorTest extends DatabaseTestCase
     {
         $name = 'name';
         $definition = 'searches>1,visitIp!=127.0.0.1';
-        $idSegment = Piwik_SegmentEditor_API::getInstance()->add($name, $definition, $idSite = 1, $autoArchive = 1, $enabledAllUsers = 1);
+        $idSegment = API::getInstance()->add($name, $definition, $idSite = 1, $autoArchive = 1, $enabledAllUsers = 1);
         $this->assertEquals($idSegment, 1);
 
         // Testing get()
-        $segment = Piwik_SegmentEditor_API::getInstance()->get($idSegment);
+        $segment = API::getInstance()->get($idSegment);
         $expected = array(
             'idsegment' => '1',
             'name' => $name,
@@ -95,16 +101,20 @@ class SegmentEditorTest extends DatabaseTestCase
         $this->assertEquals($segment, $expected);
 
         // There is a segment to process for this particular site
-        $segments = Piwik_SegmentEditor_API::getInstance()->getSegmentsToAutoArchive($idSite);
+        $segments = API::getInstance()->getAll($idSite, $autoArchived = true);
         unset($segments[0]['ts_created']);
         $this->assertEquals($segments, array($expected));
 
-        // There is no segment to process across all sites
-        $segments = Piwik_SegmentEditor_API::getInstance()->getSegmentsToAutoArchive();
-        $this->assertEquals($segments, array());
-
         // There is no segment to process for a non existing site
-        $segments = Piwik_SegmentEditor_API::getInstance()->getSegmentsToAutoArchive(33);
+        try {
+            $segments = API::getInstance()->getAll(33, $autoArchived = true);
+            $this->fail();
+        } catch(Exception $e) {
+            // expected
+        }
+
+        // There is no segment to process across all sites
+        $segments = API::getInstance()->getAll($idSite = false, $autoArchived = true);
         $this->assertEquals($segments, array());
     }
 
@@ -113,8 +123,8 @@ class SegmentEditorTest extends DatabaseTestCase
         $name = 'name"';
         $definition = 'searches>1,visitIp!=127.0.0.1';
         $nameSegment1 = 'hello';
-        $idSegment1 = Piwik_SegmentEditor_API::getInstance()->add($nameSegment1, 'searches==0', $idSite = 1, $autoArchive = 1, $enabledAllUsers = 1);
-        $idSegment2 = Piwik_SegmentEditor_API::getInstance()->add($name, $definition, $idSite = 1, $autoArchive = 1, $enabledAllUsers = 1);
+        $idSegment1 = API::getInstance()->add($nameSegment1, 'searches==0', $idSite = 1, $autoArchive = 1, $enabledAllUsers = 1);
+        $idSegment2 = API::getInstance()->add($name, $definition, $idSite = 1, $autoArchive = 1, $enabledAllUsers = 1);
 
         $updatedSegment = array(
             'idsegment' => $idSegment2,
@@ -123,12 +133,12 @@ class SegmentEditorTest extends DatabaseTestCase
             'enable_only_idsite' => '0',
             'enable_all_users' => '0',
             'auto_archive' => '0',
-            'ts_last_edit' => Piwik_Date::now()->getDatetime(),
-            'ts_created' => Piwik_Date::now()->getDatetime(),
+            'ts_last_edit' => Date::now()->getDatetime(),
+            'ts_created' => Date::now()->getDatetime(),
             'login' => Piwik::getCurrentUserLogin(),
             'deleted' => '0',
         );
-        Piwik_SegmentEditor_API::getInstance()->update($idSegment2,
+        API::getInstance()->update($idSegment2,
             $updatedSegment['name'],
             $updatedSegment['definition'],
             $updatedSegment['enable_only_idsite'],
@@ -136,29 +146,29 @@ class SegmentEditorTest extends DatabaseTestCase
             $updatedSegment['enable_all_users']
         );
 
-        $newSegment = Piwik_SegmentEditor_API::getInstance()->get($idSegment2);
+        $newSegment = API::getInstance()->get($idSegment2);
         $this->assertEquals($newSegment, $updatedSegment);
 
         // Check the other segmenet was not updated
-        $newSegment = Piwik_SegmentEditor_API::getInstance()->get($idSegment1);
+        $newSegment = API::getInstance()->get($idSegment1);
         $this->assertEquals($newSegment['name'], $nameSegment1);
     }
 
     public function test_deleteSegment()
     {
-        $idSegment1 = Piwik_SegmentEditor_API::getInstance()->add('name 1', 'searches==0', $idSite = 1, $autoArchive = 1, $enabledAllUsers = 1);
-        $idSegment2 = Piwik_SegmentEditor_API::getInstance()->add('name 2', 'searches>1,visitIp!=127.0.0.1', $idSite = 1, $autoArchive = 1, $enabledAllUsers = 1);
+        $idSegment1 = API::getInstance()->add('name 1', 'searches==0', $idSite = 1, $autoArchive = 1, $enabledAllUsers = 1);
+        $idSegment2 = API::getInstance()->add('name 2', 'searches>1,visitIp!=127.0.0.1', $idSite = 1, $autoArchive = 1, $enabledAllUsers = 1);
 
-        $deleted = Piwik_SegmentEditor_API::getInstance()->delete($idSegment2);
+        $deleted = API::getInstance()->delete($idSegment2);
         $this->assertTrue($deleted);
         try {
-            Piwik_SegmentEditor_API::getInstance()->get($idSegment2);
+            API::getInstance()->get($idSegment2);
             $this->fail("getting deleted segment should have failed");
         } catch(Exception $e) {
             // expected
         }
 
         // and this should work
-        Piwik_SegmentEditor_API::getInstance()->get($idSegment1);
+        API::getInstance()->get($idSegment1);
     }
 }

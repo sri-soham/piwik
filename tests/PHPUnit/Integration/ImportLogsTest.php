@@ -5,6 +5,8 @@
  * @link    http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
+use Piwik\Access;
+use Piwik\Plugins\SitesManager\API;
 
 /**
  * Tests the log importer.
@@ -12,7 +14,7 @@
 class Test_Piwik_Integration_ImportLogs extends IntegrationTestCase
 {
     public static $fixture = null; // initialized below class definition
-
+    
     /**
      * @dataProvider getApiForTesting
      * @group        Integration
@@ -45,22 +47,25 @@ class Test_Piwik_Integration_ImportLogs extends IntegrationTestCase
     /**
      * @group        Integration
      * @group        ImportLogs
+     * 
+     * NOTE: This test must be last since the new sites that get added are added in
+     *       random order.
      */
     public function testDynamicResolverSitesCreated()
     {
         self::$fixture->logVisitsWithDynamicResolver();
 
         // reload access so new sites are viewable
-        Zend_Registry::get('access')->setSuperUser(true);
+        Access::getInstance()->setSuperUser(true);
 
         // make sure sites aren't created twice
-        $piwikDotNet = Piwik_SitesManager_API::getInstance()->getSitesIdFromSiteUrl('http://piwik.net');
+        $piwikDotNet = API::getInstance()->getSitesIdFromSiteUrl('http://piwik.net');
         $this->assertEquals(1, count($piwikDotNet));
 
-        $anothersiteDotCom = Piwik_SitesManager_API::getInstance()->getSitesIdFromSiteUrl('http://anothersite.com');
+        $anothersiteDotCom = API::getInstance()->getSitesIdFromSiteUrl('http://anothersite.com');
         $this->assertEquals(1, count($anothersiteDotCom));
 
-        $whateverDotCom = Piwik_SitesManager_API::getInstance()->getSitesIdFromSiteUrl('http://whatever.com');
+        $whateverDotCom = API::getInstance()->getSitesIdFromSiteUrl('http://whatever.com');
         $this->assertEquals(1, count($whateverDotCom));
     }
 

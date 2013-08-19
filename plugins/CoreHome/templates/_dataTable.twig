@@ -1,0 +1,34 @@
+{% set summaryRowId = constant('Piwik\\DataTable::ID_SUMMARY_ROW') %}{# ID_SUMMARY_ROW #}
+{% set isSubtable = javascriptVariablesToSet.idSubtable is defined and javascriptVariablesToSet.idSubtable != 0 %}
+<div class="dataTable {{ visualizationCssClass }} {{ properties.datatable_css_class|default('') }} {% if isSubtable %}subDataTable{% endif %}"
+     data-table-type="{{ properties.datatable_js_type|default('dataTable') }}"
+     data-report="{{ properties.report_id }}"
+     data-props="{{ clientSidePropertiesToSet|json_encode }}"
+     data-params="{{ javascriptVariablesToSet|json_encode }}">
+    <div class="reportDocumentation">
+        {% if properties.documentation|default is not empty %}<p>{{ properties.documentation|raw }}</p>{% endif %}
+        {% if properties.metadata.archived_date is defined %}<span class='helpDate'>{{ properties.metadata.archived_date }}</span>{% endif %}
+    </div>
+    <div class="dataTableWrapper">
+        {% if error is defined %}
+            {{ error.message }}
+        {% else %}
+            {% if dataTable is empty or dataTable.getRowsCount() == 0 %}
+                <div class="pk-emptyDataTable">
+                {% if showReportDataWasPurgedMessage is defined and showReportDataWasPurgedMessage %}
+                    {{ 'CoreHome_DataForThisReportHasBeenPurged'|translate(deleteReportsOlderThan) }}
+                {% else %}
+                    {{ 'CoreHome_ThereIsNoDataForThisReport'|translate }}
+                {% endif %}
+                </div>
+            {% else %}
+                {{ visualization.render(dataTable, properties)|raw }}
+            {% endif %}
+
+            {% if properties.show_footer %}
+                {% include "@CoreHome/_dataTableFooter.twig" %}
+            {% endif %}
+            {% include "@CoreHome/_dataTableJS.twig" %}
+        {% endif %}
+    </div>
+</div>

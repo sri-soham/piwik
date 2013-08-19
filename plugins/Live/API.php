@@ -6,8 +6,29 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_Live
+ * @package Live
  */
+namespace Piwik\Plugins\Live;
+
+use Exception;
+use Piwik\Config;
+use Piwik\DataAccess\LogAggregator;
+use Piwik\DataTable\Filter\ColumnDelete;
+use Piwik\DataTable\Row;
+use Piwik\Period;
+use Piwik\Period\Range;
+use Piwik\Piwik;
+use Piwik\Common;
+use Piwik\Date;
+use Piwik\DataTable;
+use Piwik\Tracker;
+use Piwik\Segment;
+use Piwik\Site;
+use Piwik\Db;
+use Piwik\Tracker\Action;
+use Piwik\Tracker\GoalManager;
+use Piwik\Plugins\Live\Visitor;
+use Piwik\Plugins\SitesManager\API as SitesManagerAPI;
 
 /**
  * @see plugins/Referers/functions.php
@@ -33,14 +54,18 @@ require_once PIWIK_INCLUDE_PATH . '/plugins/Live/Visitor.php';
  * The method "getCounters" is used to return a simple counter: visits, number of actions, number of converted visits, in the last N minutes.
  *
  * See also the documentation about <a href='http://piwik.org/docs/real-time/' target='_blank'>Real time widget and visitor level reports</a> in Piwik.
- * @package Piwik_Live
+ * @package Live
  */
-class Piwik_Live_API
+class API
 {
+    const VISITOR_PROFILE_MAX_VISITS_TO_AGGREGATE = 100;
+    const VISITOR_PROFILE_MAX_VISITS_TO_SHOW = 10;
+    const VISITOR_PROFILE_DATE_FORMAT = '%day% %shortMonth% %longYear%';
+    
     static private $instance = null;
 
     /**
-     * @return Piwik_Live_API
+     * @return \Piwik\Plugins\Live\API
      */
     static public function getInstance()
     {
@@ -53,9 +78,9 @@ class Piwik_Live_API
     /**
      * This will return simple counters, for a given website ID, for visits over the last N minutes
      *
-     * @param int Id Site
-     * @param int Number of minutes to look back at
-     *
+     * @param int $idSite Id Site
+     * @param int $lastMinutes Number of minutes to look back at
+     * @param bool|string $segment
      * @return array( visits => N, actions => M, visitsConverted => P )
      */
     public function getCounters($idSite, $lastMinutes, $segment = false)
@@ -76,18 +101,22 @@ class Piwik_Live_API
 
         $bind = array(
             $idSite,
-            Piwik_Date::factory(time() - $lastMinutes * 60)->toString('Y-m-d H:i:s')
+            Date::factory(time() - $lastMinutes * 60)->toString('Y-m-d H:i:s')
         );
 
-        $segment = new Piwik_Segment($segment, $idSite);
+        $segment = new Segment($segment, $idSite);
         $query = $segment->getSelectQuery($select, $from, $where, $bind);
 
         $LogVisit = Piwik_Db_Factory::getDAO('log_visit');
         $data = $LogVisit->getCounters($query['sql'], $query['bind']);
 
         // These could be unset for some reasons, ensure they are set to 0
-        empty($data[0]['actions']) ? $data[0]['actions'] = 0 : '';
-        empty($data[0]['visitsConverted']) ? $data[0]['visitsConverted'] = 0 : '';
+        if (empty($data[0]['actions'])) {
+            $data[0]['actions'] = 0;
+        }
+        if (empty($data[0]['visitsConverted'])) {
+            $data[0]['visitsConverted'] = 0;
+        }
         return $data;
     }
 
@@ -101,7 +130,7 @@ class Piwik_Live_API
      * @param int $filter_limit
      * @param bool $flat Whether to flatten the visitor details array
      *
-     * @return Piwik_DataTable
+     * @return DataTable
      */
     public function getLastVisitsForVisitor($visitorId, $idSite, $filter_limit = 10, $flat = false)
     {
@@ -122,8 +151,9 @@ class Piwik_Live_API
      * @param bool|int $filter_limit (optional) Only return X visits
      * @param bool|int $filter_offset (optional) Skip the first X visits (useful when paginating)
      * @param bool|int $minTimestamp (optional) Minimum timestamp to restrict the query to (useful when paginating or refreshing visits)
-     *
-     * @return Piwik_DataTable
+     * @param bool $flat
+     * @param bool $doNotFetchActions
+     * @return DataTable
      */
     public function getLastVisitsDetails($idSite, $period, $date, $segment = false, $filter_limit = false, $filter_offset = false, $minTimestamp = false, $flat = false, $doNotFetchActions = false)
     {
@@ -134,6 +164,169 @@ class Piwik_Live_API
         $visitorDetails = $this->loadLastVisitorDetailsFromDatabase($idSite, $period, $date, $segment, $filter_limit, $filter_offset, $visitorId = false, $minTimestamp);
         $dataTable = $this->getCleanedVisitorsFromDetails($visitorDetails, $idSite, $flat, $doNotFetchActions);
         return $dataTable;
+    }
+
+    /**
+     * TODO
+     * TODO: add abandoned cart info.
+     * TODO: check for most recent vs. first visit
+     * TODO: make sure ecommerce is enabled for site, check for goals plugin, etc.
+     */
+    public function getVisitorProfile($idSite, $period, $date, $idVisitor, $segment = false)
+    {
+        if ($segment !== false) {
+            $segment .= ';';
+        }
+        $segment .= 'visitorId==' . $idVisitor; // TODO what happens when visitorId is in the segment?
+
+        $visits = $this->getLastVisitsDetails($idSite, $period, $date, $segment, $filter_limit = self::VISITOR_PROFILE_MAX_VISITS_TO_AGGREGATE);
+        if ($visits->getRowsCount() == 0) {
+            return array();
+        }
+
+        $isEcommerceEnabled = Site::isEcommerceEnabledFor($idSite);
+
+        $result = array();
+        $result['totalVisits'] = 0;
+        $result['totalVisitDuration'] = 0;
+        $result['totalActionCount'] = 0;
+        $result['totalGoalConversions'] = 0;
+        $result['totalConversionsByGoal'] = array();
+
+        if ($isEcommerceEnabled) {
+            $result['totalEcommerceConversions'] = 0;
+            $result['totalEcommerceRevenue'] = 0;
+            $result['totalEcommerceItems'] = 0;
+            $result['totalAbandonedCarts'] = 0;
+            $result['totalAbandonedCartsRevenue'] = 0;
+            $result['totalAbandonedCartsItems'] = 0;
+        }
+
+        // aggregate all requested visits info for total_* info
+        foreach ($visits->getRows() as $visit) {
+            ++$result['totalVisits'];
+
+            $result['totalVisitDuration'] += $visit->getColumn('visitDuration');
+            $result['totalActionCount'] += $visit->getColumn('actions');
+            $result['totalGoalConversions'] += $visit->getColumn('goalConversions');
+
+            // individual goal conversions are stored in action details
+            foreach ($visit->getColumn('actionDetails') as $action) {
+                if ($action['type'] == 'goal') { // handle goal conversion
+                    $idGoal = $action['goalId'];
+
+                    if (!isset($result['totalConversionsByGoal'][$idGoal])) {
+                        $result['totalConversionsByGoal'][$idGoal] = 0;
+                    }
+                    ++$result['totalConversionsByGoal'][$idGoal];
+
+                    if (!empty($action['revenue'])) {
+                        if (!isset($result['totalRevenueByGoal'][$idGoal])) {
+                            $result['totalRevenueByGoal'][$idGoal] = 0;
+                        }
+                        $result['totalRevenueByGoal'][$idGoal] += $action['revenue'];
+                    }
+                } else if ($action['type'] == Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_ORDER // handle ecommerce order
+                           && $isEcommerceEnabled
+                ) {
+                    ++$result['totalEcommerceConversions'];
+                    $result['totalEcommerceRevenue'] += $action['revenue'];
+                    $result['totalEcommerceItems'] += $action['items'];
+                } else if ($action['type'] == Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_CART // handler abandoned cart
+                           && $isEcommerceEnabled
+                ) {
+                    ++$result['totalAbandonedCarts'];
+                    $result['totalAbandonedCartsRevenue'] += $action['revenue'];
+                    $result['totalAbandonedCartsItems'] += $action['items'];
+                }
+            }
+        }
+
+        $result['totalVisitDurationPretty'] = Piwik::getPrettyTimeFromSeconds($result['totalVisitDuration']);
+
+        // use requested visits for first/last visit info
+        $rows = $visits->getRows();
+        $result['firstVisit'] = $this->getVisitorProfileVisitSummary(end($rows));
+        $result['lastVisit'] = $this->getVisitorProfileVisitSummary(reset($rows));
+
+        // use N most recent visits for last_visits
+        $visits->deleteRowsOffset(self::VISITOR_PROFILE_MAX_VISITS_TO_SHOW);
+        $result['lastVisits'] = $visits;
+
+        // use the right date format for the pretty server date
+        $timezone = Site::getTimezoneFor($idSite);
+        foreach ($result['lastVisits']->getRows() as $visit) {
+            $dateTimeVisitFirstAction = Date::factory($visit->getColumn('firstActionTimestamp'), $timezone);
+            $dateTimePretty = $dateTimeVisitFirstAction->getLocalized(self::VISITOR_PROFILE_DATE_FORMAT);
+
+            $visit->setColumn('serverDatePrettyFirstAction', $dateTimePretty);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Returns visit data for a single visit.
+     * 
+     * @param string $idVisit
+     * @return array
+     */
+    public function getSingleVisitSummary($idVisit)
+    {
+        $sql = 'SELECT * from '.Common::prefixTable('log_visit').' WHERE idvisit = ?';
+        $bind = array($idVisit);
+
+        $visitorData = Db::fetchAll($sql, $bind);
+        $table = $this->getCleanedVisitorsFromDetails($visitorData, $visitorData[0]['idsite'], $flat = false, $doNotFetchActions = true);
+        return $table->getFirstRow()->getColumns();
+    }
+
+    /**
+     * Returns a summary for an important visit. Used to describe the first & last visits of a visitor.
+     * 
+     * @param Row $visit
+     * @return array
+     */
+    private function getVisitorProfileVisitSummary($visit)
+    {
+        $today = Date::today();
+
+        $serverDate = $visit->getColumn('serverDate');
+        return array(
+            'date' => $serverDate,
+            'prettyDate' => Date::factory($serverDate)->getLocalized(self::VISITOR_PROFILE_DATE_FORMAT),
+            'daysAgo' => (int)Date::secondsToDays($today->getTimestamp() - Date::factory($serverDate)->getTimestamp()),
+            'referralSummary' => $this->getReferrerSummaryForVisit($visit),
+        );
+    }
+
+    /**
+     * Returns a summary for a visit's referral.
+     * 
+     * @param Row $visit
+     * @return bool|mixed|string
+     */
+    private function getReferrerSummaryForVisit($visit)
+    {
+        $referrerType = $visit->getColumn('referrerType');
+        if ($referrerType === false
+            || $referrerType == 'direct'
+        ) {
+            $result = Piwik_Translate('Referers_DirectEntry');
+        } else if ($referrerType == 'search') {
+            $result = $visit->getColumn('referrerName');
+
+            $keyword = $visit->getColumn('referrerKeyword');
+            if ($keyword !== false) {
+                $result .= ' (' . $keyword . ')';
+            }
+        } else if ($referrerType == 'campaign') {
+            $result = Piwik_Translate('Referers_ColumnCampaign') . ' (' . $visit->getColumn('referrerName') . ')';
+        } else {
+            $result = $visit->getColumn('referrerName');
+        }
+
+        return $result;
     }
 
     /**
@@ -152,30 +345,30 @@ class Piwik_Live_API
      * @param bool $flat whether to flatten the array (eg. 'customVariables' names/values will appear in the root array rather than in 'customVariables' key
      * @param bool $doNotFetchActions If set to true, we only fetch visit info and not actions (much faster)
      *
-     * @return Piwik_DataTable
+     * @return DataTable
      */
     private function getCleanedVisitorsFromDetails($visitorDetails, $idSite, $flat = false, $doNotFetchActions = false)
     {
-        $actionsLimit = (int)Piwik_Config::getInstance()->General['visitor_log_maximum_actions_per_visit'];
+        $actionsLimit = (int)Config::getInstance()->General['visitor_log_maximum_actions_per_visit'];
 
-        $table = new Piwik_DataTable();
+        $table = new DataTable();
 
-        $site = new Piwik_Site($idSite);
+        $site = new Site($idSite);
         $timezone = $site->getTimezone();
-        $currencies = Piwik_SitesManager_API::getInstance()->getCurrencySymbols();
+        $currencies = SitesManagerAPI::getInstance()->getCurrencySymbols();
         foreach ($visitorDetails as $visitorDetail) {
             $this->cleanVisitorDetails($visitorDetail, $idSite);
-            $visitor = new Piwik_Live_Visitor($visitorDetail);
+            $visitor = new Visitor($visitorDetail);
             $visitorDetailsArray = $visitor->getAllVisitorDetails();
 
             $visitorDetailsArray['siteCurrency'] = $site->getCurrency();
             $visitorDetailsArray['siteCurrencySymbol'] = @$currencies[$site->getCurrency()];
             $visitorDetailsArray['serverTimestamp'] = $visitorDetailsArray['lastActionTimestamp'];
-            $dateTimeVisit = Piwik_Date::factory($visitorDetailsArray['lastActionTimestamp'], $timezone);
+            $dateTimeVisit = Date::factory($visitorDetailsArray['lastActionTimestamp'], $timezone);
             $visitorDetailsArray['serverTimePretty'] = $dateTimeVisit->getLocalized('%time%');
             $visitorDetailsArray['serverDatePretty'] = $dateTimeVisit->getLocalized(Piwik_Translate('CoreHome_ShortDateFormat'));
 
-            $dateTimeVisitFirstAction = Piwik_Date::factory($visitorDetailsArray['firstActionTimestamp'], $timezone);
+            $dateTimeVisitFirstAction = Date::factory($visitorDetailsArray['firstActionTimestamp'], $timezone);
             $visitorDetailsArray['serverDatePrettyFirstAction'] = $dateTimeVisitFirstAction->getLocalized(Piwik_Translate('CoreHome_ShortDateFormat'));
             $visitorDetailsArray['serverTimePrettyFirstAction'] = $dateTimeVisitFirstAction->getLocalized('%time%');
 
@@ -187,7 +380,7 @@ class Piwik_Live_API
             if ($flat) {
                 $visitorDetailsArray = $this->flattenVisitorDetailsArray($visitorDetailsArray);
             }
-            $table->addRowFromArray(array(Piwik_DataTable_Row::COLUMNS => $visitorDetailsArray));
+            $table->addRowFromArray(array(Row::COLUMNS => $visitorDetailsArray));
         }
         return $table;
     }
@@ -195,15 +388,14 @@ class Piwik_Live_API
     private function getCustomVariablePrettyKey($key)
     {
         $rename = array(
-            Piwik_Tracker_Action::CVAR_KEY_SEARCH_CATEGORY => Piwik_Translate('Actions_ColumnSearchCategory'),
-            Piwik_Tracker_Action::CVAR_KEY_SEARCH_COUNT    => Piwik_Translate('Actions_ColumnSearchResultsCount'),
+            Action::CVAR_KEY_SEARCH_CATEGORY => Piwik_Translate('Actions_ColumnSearchCategory'),
+            Action::CVAR_KEY_SEARCH_COUNT    => Piwik_Translate('Actions_ColumnSearchResultsCount'),
         );
         if (isset($rename[$key])) {
             return $rename[$key];
         }
         return $key;
     }
-
 
     /**
      * The &flat=1 feature is used by API.getSuggestedValuesForSegment
@@ -230,7 +422,7 @@ class Piwik_Live_API
             if (!empty($action['customVariables'])) {
                 foreach ($action['customVariables'] as $thisCustomVar) {
                     foreach ($thisCustomVar as $cvKey => $cvValue) {
-                        $flattenedKeyName = $cvKey . Piwik_DataTable_Filter_ColumnDelete::APPEND_TO_COLUMN_NAME_TO_KEEP . $count;
+                        $flattenedKeyName = $cvKey . ColumnDelete::APPEND_TO_COLUMN_NAME_TO_KEEP . $count;
                         $visitorDetailsArray[$flattenedKeyName] = $cvValue;
                         $count++;
                     }
@@ -240,9 +432,9 @@ class Piwik_Live_API
 
         // Flatten Goals
         $count = 1;
-        foreach($visitorDetailsArray['actionDetails'] as $action) {
-            if(!empty($action['goalId'])) {
-                $flattenedKeyName = 'visitConvertedGoalId' . Piwik_DataTable_Filter_ColumnDelete::APPEND_TO_COLUMN_NAME_TO_KEEP . $count;
+        foreach ($visitorDetailsArray['actionDetails'] as $action) {
+            if (!empty($action['goalId'])) {
+                $flattenedKeyName = 'visitConvertedGoalId' . ColumnDelete::APPEND_TO_COLUMN_NAME_TO_KEEP . $count;
                 $visitorDetailsArray[$flattenedKeyName] = $action['goalId'];
                 $count++;
             }
@@ -250,19 +442,19 @@ class Piwik_Live_API
 
         // Flatten Page Titles/URLs
         $count = 1;
-        foreach($visitorDetailsArray['actionDetails'] as $action) {
-            if(!empty($action['url'])) {
-                $flattenedKeyName = 'pageUrl' . Piwik_DataTable_Filter_ColumnDelete::APPEND_TO_COLUMN_NAME_TO_KEEP . $count;
+        foreach ($visitorDetailsArray['actionDetails'] as $action) {
+            if (!empty($action['url'])) {
+                $flattenedKeyName = 'pageUrl' . ColumnDelete::APPEND_TO_COLUMN_NAME_TO_KEEP . $count;
                 $visitorDetailsArray[$flattenedKeyName] = $action['url'];
             }
 
-            if(!empty($action['pageTitle'])) {
-                $flattenedKeyName = 'pageTitle' . Piwik_DataTable_Filter_ColumnDelete::APPEND_TO_COLUMN_NAME_TO_KEEP . $count;
+            if (!empty($action['pageTitle'])) {
+                $flattenedKeyName = 'pageTitle' . ColumnDelete::APPEND_TO_COLUMN_NAME_TO_KEEP . $count;
                 $visitorDetailsArray[$flattenedKeyName] = $action['pageTitle'];
             }
 
-            if(!empty($action['siteSearchKeyword'])) {
-                $flattenedKeyName = 'siteSearchKeyword' . Piwik_DataTable_Filter_ColumnDelete::APPEND_TO_COLUMN_NAME_TO_KEEP . $count;
+            if (!empty($action['siteSearchKeyword'])) {
+                $flattenedKeyName = 'siteSearchKeyword' . ColumnDelete::APPEND_TO_COLUMN_NAME_TO_KEEP . $count;
                 $visitorDetailsArray[$flattenedKeyName] = $action['siteSearchKeyword'];
             }
             $count++;
@@ -270,25 +462,25 @@ class Piwik_Live_API
 
         // Entry/exit pages
         $firstAction = $lastAction = false;
-        foreach($visitorDetailsArray['actionDetails'] as $action) {
-            if($action['type'] == 'action')  {
-                if(empty($firstAction)) {
+        foreach ($visitorDetailsArray['actionDetails'] as $action) {
+            if ($action['type'] == 'action') {
+                if (empty($firstAction)) {
                     $firstAction = $action;
                 }
                 $lastAction = $action;
             }
         }
 
-        if(!empty($firstAction['pageTitle'])) {
+        if (!empty($firstAction['pageTitle'])) {
             $visitorDetailsArray['entryPageTitle'] = $firstAction['pageTitle'];
         }
-        if(!empty($firstAction['url'])) {
+        if (!empty($firstAction['url'])) {
             $visitorDetailsArray['entryPageUrl'] = $firstAction['url'];
         }
-        if(!empty($lastAction['pageTitle'])) {
+        if (!empty($lastAction['pageTitle'])) {
             $visitorDetailsArray['exitPageTitle'] = $lastAction['pageTitle'];
         }
-        if(!empty($lastAction['url'])) {
+        if (!empty($lastAction['url'])) {
             $visitorDetailsArray['exitPageUrl'] = $lastAction['url'];
         }
 
@@ -319,7 +511,7 @@ class Piwik_Live_API
         $orderByParent = "sub.visit_last_action_time DESC";
         if (!empty($visitorId)) {
             $where[] = "log_visit.idvisitor = ? ";
-            $whereBind[] = @Piwik_Common::hex2bin($visitorId);
+            $whereBind[] = @Common::hex2bin($visitorId);
         }
 
         if (!empty($minTimestamp)) {
@@ -339,24 +531,24 @@ class Piwik_Live_API
 
         // SQL Filter with provided period
         if (!empty($period) && !empty($date)) {
-            $currentSite = new Piwik_Site($idSite);
+            $currentSite = new Site($idSite);
             $currentTimezone = $currentSite->getTimezone();
 
             $dateString = $date;
             if ($period == 'range') {
-                $processedPeriod = new Piwik_Period_Range('range', $date);
-                if ($parsedDate = Piwik_Period_Range::parseDateRange($date)) {
+                $processedPeriod = new Range('range', $date);
+                if ($parsedDate = Range::parseDateRange($date)) {
                     $dateString = $parsedDate[2];
                 }
             } else {
-                $processedDate = Piwik_Date::factory($date);
+                $processedDate = Date::factory($date);
                 if ($date == 'today'
                     || $date == 'now'
-                    || $processedDate->toString() == Piwik_Date::factory('now', $currentTimezone)->toString()
+                    || $processedDate->toString() == Date::factory('now', $currentTimezone)->toString()
                 ) {
                     $processedDate = $processedDate->subDay(1);
                 }
-                $processedPeriod = Piwik_Period::factory($period, $processedDate);
+                $processedPeriod = Period::factory($period, $processedDate);
             }
             $dateStart = $processedPeriod->getDateStart()->setTimezone($currentTimezone);
             $where[] = "log_visit.visit_last_action_time >= ?";
@@ -365,7 +557,7 @@ class Piwik_Live_API
             if (!in_array($date, array('now', 'today', 'yesterdaySameTime'))
                 && strpos($date, 'last') === false
                 && strpos($date, 'previous') === false
-                && Piwik_Date::factory($dateString)->toString('Y-m-d') != Piwik_Date::factory('now', $currentTimezone)->toString()
+                && Date::factory($dateString)->toString('Y-m-d') != Date::factory('now', $currentTimezone)->toString()
             ) {
                 $dateEnd = $processedPeriod->getDateEnd()->setTimezone($currentTimezone);
                 $where[] = " log_visit.visit_last_action_time <= ?";
@@ -381,7 +573,7 @@ class Piwik_Live_API
             $where = false;
         }
 
-        $segment = new Piwik_Segment($segment, $idSite);
+        $segment = new Segment($segment, $idSite);
 
         // Subquery to use the indexes for ORDER BY
         $LogVisit = Piwik_Db_Factory::getDAO('log_visit');
@@ -405,6 +597,8 @@ class Piwik_Live_API
      * Removes fields that are not meant to be displayed (md5 config hash)
      * Or that the user should only access if he is super user or admin (cookie, IP)
      *
+     * @param array $visitorDetails
+     * @param int $idSite
      * @return void
      */
     private function cleanVisitorDetails(&$visitorDetails, $idSite)
@@ -436,7 +630,7 @@ class Piwik_Live_API
         $idVisit = $visitorDetailsArray['idVisit'];
 
         $sqlCustomVariables = '';
-        for ($i = 1; $i <= Piwik_Tracker::MAX_CUSTOM_VARIABLES; $i++) {
+        for ($i = 1; $i <= Tracker::MAX_CUSTOM_VARIABLES; $i++) {
             $sqlCustomVariables .= ', custom_var_k' . $i . ', custom_var_v' . $i;
         }
         $actionDetails = $LogLinkVisitAction->getActionDetailsOfIdvisit($sqlCustomVariables, $idVisit, $actionsLimit);
@@ -444,7 +638,7 @@ class Piwik_Live_API
         foreach ($actionDetails as $actionIdx => &$actionDetail) {
             $actionDetail =& $actionDetails[$actionIdx];
             $customVariablesPage = array();
-            for ($i = 1; $i <= Piwik_Tracker::MAX_CUSTOM_VARIABLES; $i++) {
+            for ($i = 1; $i <= Tracker::MAX_CUSTOM_VARIABLES; $i++) {
                 if (!empty($actionDetail['custom_var_k' . $i])) {
                     $cvarKey = $actionDetail['custom_var_k' . $i];
                     $cvarKey = $this->getCustomVariablePrettyKey($cvarKey);
@@ -461,14 +655,13 @@ class Piwik_Live_API
             }
 
             // Reconstruct url from prefix
-            $actionDetail['url'] = Piwik_Tracker_Action::reconstructNormalizedUrl($actionDetail['url'], $actionDetail['url_prefix']);
+            $actionDetail['url'] = Action::reconstructNormalizedUrl($actionDetail['url'], $actionDetail['url_prefix']);
             unset($actionDetail['url_prefix']);
 
             // Set the time spent for this action (which is the timeSpentRef of the next action)
             if (isset($actionDetails[$actionIdx + 1])) {
                 $actionDetail['timeSpent'] = $actionDetails[$actionIdx + 1]['timeSpentRef'];
                 $actionDetail['timeSpentPretty'] = Piwik::getPrettyTimeFromSeconds($actionDetail['timeSpent']);
-
             }
             unset($actionDetails[$actionIdx]['timeSpentRef']); // not needed after timeSpent is added
 
@@ -479,7 +672,7 @@ class Piwik_Live_API
             unset($actionDetail['custom_float']);
 
             // Handle Site Search
-            if ($actionDetail['type'] == Piwik_Tracker_Action::TYPE_SITE_SEARCH) {
+            if ($actionDetail['type'] == Action::TYPE_SITE_SEARCH) {
                 $actionDetail['siteSearchKeyword'] = $actionDetail['pageTitle'];
                 unset($actionDetail['pageTitle']);
             }
@@ -490,7 +683,7 @@ class Piwik_Live_API
         $ecommerceDetails = $LogConversion->getEcommerceDetails($idVisit, $actionsLimit);
 
         foreach ($ecommerceDetails as &$ecommerceDetail) {
-            if ($ecommerceDetail['type'] == Piwik_Archive::LABEL_ECOMMERCE_CART) {
+            if ($ecommerceDetail['type'] == Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_CART) {
                 unset($ecommerceDetail['orderId']);
                 unset($ecommerceDetail['revenueSubTotal']);
                 unset($ecommerceDetail['revenueTax']);
@@ -528,23 +721,23 @@ class Piwik_Live_API
         foreach ($visitorDetailsArray['actionDetails'] as &$details) {
             switch ($details['type']) {
                 case 'goal':
-                    $details['icon'] = 'themes/default/images/goal.png';
+                    $details['icon'] = 'plugins/Zeitgeist/images/goal.png';
                     break;
-                case Piwik_Archive::LABEL_ECOMMERCE_ORDER:
-                case Piwik_Archive::LABEL_ECOMMERCE_CART:
-                    $details['icon'] = 'themes/default/images/' . $details['type'] . '.gif';
+                case Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_ORDER:
+                case Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_CART:
+                    $details['icon'] = 'plugins/Zeitgeist/images/' . $details['type'] . '.gif';
                     break;
-                case Piwik_Tracker_Action_Interface::TYPE_DOWNLOAD:
+                case Tracker\ActionInterface::TYPE_DOWNLOAD:
                     $details['type'] = 'download';
-                    $details['icon'] = 'themes/default/images/download.png';
+                    $details['icon'] = 'plugins/Zeitgeist/images/download.png';
                     break;
-                case Piwik_Tracker_Action_Interface::TYPE_OUTLINK:
+                case Tracker\ActionInterface::TYPE_OUTLINK:
                     $details['type'] = 'outlink';
-                    $details['icon'] = 'themes/default/images/link.gif';
+                    $details['icon'] = 'plugins/Zeitgeist/images/link.gif';
                     break;
-                case Piwik_Tracker_Action::TYPE_SITE_SEARCH:
+                case Action::TYPE_SITE_SEARCH:
                     $details['type'] = 'search';
-                    $details['icon'] = 'themes/default/images/search_ico.png';
+                    $details['icon'] = 'plugins/Zeitgeist/images/search_ico.png';
                     break;
                 default:
                     $details['type'] = 'action';
@@ -552,9 +745,8 @@ class Piwik_Live_API
                     break;
             }
             // Convert datetimes to the site timezone
-            $dateTimeVisit = Piwik_Date::factory($details['serverTimePretty'], $timezone);
+            $dateTimeVisit = Date::factory($details['serverTimePretty'], $timezone);
             $details['serverTimePretty'] = $dateTimeVisit->getLocalized(Piwik_Translate('CoreHome_ShortDateFormat') . ' %time%');
-
         }
         $visitorDetailsArray['goalConversions'] = count($goalDetails);
         return $visitorDetailsArray;

@@ -5,6 +5,21 @@
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
+
+use Piwik\ArchiveProcessor\Rules;
+use Piwik\Config;
+use Piwik\DataAccess\ArchiveTableCreator;
+use Piwik\Period;
+use Piwik\Piwik;
+use Piwik\Common;
+use Piwik\Access;
+use Piwik\Date;
+use Piwik\ArchiveProcessor;
+use Piwik\Plugins\SitesManager\API;
+use Piwik\Segment;
+use Piwik\Site;
+use Piwik\Db;
+
 class ArchiveProcessingTest extends DatabaseTestCase
 {
     public function setUp()
@@ -14,18 +29,18 @@ class ArchiveProcessingTest extends DatabaseTestCase
         // setup the access layer
         $pseudoMockAccess = new FakeAccess;
         FakeAccess::$superUser = true;
-        Zend_Registry::set('access', $pseudoMockAccess);
+        Access::setSingletonInstance($pseudoMockAccess);
     }
 
     /**
      * Creates a new website
      *
      * @param string $timezone
-     * @return Piwik_Site
+     * @return Site
      */
     private function _createWebsite($timezone = 'UTC')
     {
-        $idSite = Piwik_SitesManager_API::getInstance()->addSite(
+        $idSite = API::getInstance()->addSite(
             "site1",
             array("http://piwik.net"),
             $ecommerce = 0,
@@ -34,36 +49,37 @@ class ArchiveProcessingTest extends DatabaseTestCase
             $excludedQueryParameters = "",
             $timezone);
 
-        Piwik_Site::clearCache();
-        return new Piwik_Site($idSite);
+        Site::clearCache();
+        return new Site($idSite);
     }
 
     /**
-     * Creates a new ArchiveProcessing object
+     * Creates a new ArchiveProcessor object
      *
      * @param string $periodLabel
      * @param string $dateLabel
      * @param string $siteTimezone
-     * @return Piwik_ArchiveProcessing
+     * @return ArchiveProcessor
      */
-    private function _createArchiveProcessing($periodLabel, $dateLabel, $siteTimezone)
+    private function _createArchiveProcessor($periodLabel, $dateLabel, $siteTimezone)
     {
         $site = $this->_createWebsite($siteTimezone);
-        $date = Piwik_Date::factory($dateLabel);
-        $period = Piwik_Period::factory($periodLabel, $date);
+        $date = Date::factory($dateLabel);
+        $period = Period::factory($periodLabel, $date);
+        $segment = new Segment('', $site->getId());
 
-        $archiveProcessing = Piwik_ArchiveProcessing::factory($periodLabel);
-        $archiveProcessing->setSite($site);
-        $archiveProcessing->setPeriod($period);
-        $archiveProcessing->setSegment(new Piwik_Segment('', $site->getId()));
-        $archiveProcessing->init();
-        return $archiveProcessing;
+
+        if($period->getLabel() == 'day') {
+            return new ArchiveProcessor\Day($period, $site, $segment);
+        } else {
+            return new ArchiveProcessor\Period($period, $site, $segment);
+        }
     }
 
     /**
      * test of validity of an archive, for a month not finished
      * @group Core
-     * @group ArchiveProcessing
+     * @group ArchiveProcessor
      */
     public function testInitCurrentMonth()
     {
@@ -75,117 +91,121 @@ class ArchiveProcessingTest extends DatabaseTestCase
         }
 
         $dateLabel = date('Y-m-d', $now);
-        $archiveProcessing = $this->_createArchiveProcessing('month', $dateLabel, $siteTimezone);
-        $archiveProcessing->time = $now;
-
-        $minTimestamp = $archiveProcessing->getMinTimeArchivedProcessed();
-
+        $archiveProcessor = $this->_createArchiveProcessor('month', $dateLabel, $siteTimezone);
+        $archiveProcessor->time = $now;
 
         // min finished timestamp considered when looking at archive timestamp
-        $timeout = Piwik_ArchiveProcessing::getTodayArchiveTimeToLive();
+        $timeout = Rules::getTodayArchiveTimeToLive();
         $this->assertTrue($timeout >= 10);
         $dateMinArchived = $now - $timeout;
+        $this->compareTimestamps($dateMinArchived, $archiveProcessor->getMinTimeArchivedProcessed());
 
-        $this->assertEquals($minTimestamp, $dateMinArchived, Piwik_Date::factory($minTimestamp)->getDatetime() . " != " . Piwik_Date::factory($dateMinArchived)->getDatetime());
-        $this->assertTrue($archiveProcessing->isArchiveTemporary());
+        $this->assertTrue($archiveProcessor->isArchiveTemporary());
+    }
+
+
+    private function compareTimestamps($expected, $processed)
+    {
+        $messageIfFails = Date::factory($expected)->getDatetime() . " != " . Date::factory($processed)->getDatetime();
+        $this->assertTrue( $expected == $processed || $expected == ($processed + 1) || ($expected + 1) == $processed, $messageIfFails);
     }
 
     /**
      * test of validity of an archive, for a month in the past
      * @group Core
-     * @group ArchiveProcessing
+     * @group ArchiveProcessor
      */
     public function testInitDayInPast()
     {
-        $archiveProcessing = $this->_createArchiveProcessing('day', '2010-01-01', 'UTC');
+        $archiveProcessor = $this->_createArchiveProcessor('day', '2010-01-01', 'UTC');
 
         // min finished timestamp considered when looking at archive timestamp 
-        $dateMinArchived = Piwik_Date::factory('2010-01-02')->getTimestamp();
-        $this->assertEquals($archiveProcessing->getMinTimeArchivedProcessed() + 1, $dateMinArchived);
+        $dateMinArchived = Date::factory('2010-01-02')->getTimestamp();
+        $this->assertEquals($archiveProcessor->getMinTimeArchivedProcessed() + 1, $dateMinArchived);
 
-        $this->assertEquals('2010-01-01 00:00:00', $archiveProcessing->getStartDatetimeUTC());
-        $this->assertEquals('2010-01-01 23:59:59', $archiveProcessing->getEndDatetimeUTC());
-        $this->assertFalse($archiveProcessing->isArchiveTemporary());
+        $this->assertEquals('2010-01-01 00:00:00', $archiveProcessor->getDateStart()->getDateStartUTC());
+        $this->assertEquals('2010-01-01 23:59:59', $archiveProcessor->getDateEnd()->getDateEndUTC());
+        $this->assertFalse($archiveProcessor->isArchiveTemporary());
     }
 
     /**
      * test of validity of an archive, for a non UTC date in the past
      * @group Core
-     * @group ArchiveProcessing
+     * @group ArchiveProcessor
      */
     public function testInitDayInPastNonUTCWebsite()
     {
         $timezone = 'UTC+5.5';
-        $archiveProcessing = $this->_createArchiveProcessing('day', '2010-01-01', $timezone);
+        $archiveProcessor = $this->_createArchiveProcessor('day', '2010-01-01', $timezone);
         // min finished timestamp considered when looking at archive timestamp 
-        $dateMinArchived = Piwik_Date::factory('2010-01-01 18:30:00');
-        $this->assertEquals($archiveProcessing->getMinTimeArchivedProcessed() + 1, $dateMinArchived->getTimestamp());
+        $dateMinArchived = Date::factory('2010-01-01 18:30:00');
+        $this->assertEquals($archiveProcessor->getMinTimeArchivedProcessed() + 1, $dateMinArchived->getTimestamp());
 
-        $this->assertEquals('2009-12-31 18:30:00', $archiveProcessing->getStartDatetimeUTC());
-        $this->assertEquals('2010-01-01 18:29:59', $archiveProcessing->getEndDatetimeUTC());
-        $this->assertFalse($archiveProcessing->isArchiveTemporary());
+        $this->assertEquals('2009-12-31 18:30:00', $archiveProcessor->getDateStart()->getDateStartUTC());
+        $this->assertEquals('2010-01-01 18:29:59', $archiveProcessor->getDateEnd()->getDateEndUTC());
+        $this->assertFalse($archiveProcessor->isArchiveTemporary());
     }
 
     /**
      * test of validity of an archive, for a non UTC month in the past
      * @group Core
-     * @group ArchiveProcessing
+     * @group ArchiveProcessor
      */
     public function testInitMonthInPastNonUTCWebsite()
     {
         $timezone = 'UTC-5.5';
-        $archiveProcessing = $this->_createArchiveProcessing('month', '2010-01-02', $timezone);
+        $archiveProcessor = $this->_createArchiveProcessor('month', '2010-01-02', $timezone);
         // min finished timestamp considered when looking at archive timestamp 
-        $dateMinArchived = Piwik_Date::factory('2010-02-01 05:30:00');
-        $this->assertEquals($archiveProcessing->getMinTimeArchivedProcessed() + 1, $dateMinArchived->getTimestamp());
+        $dateMinArchived = Date::factory('2010-02-01 05:30:00');
+        $this->assertEquals($archiveProcessor->getMinTimeArchivedProcessed() + 1, $dateMinArchived->getTimestamp());
 
-        $this->assertEquals('2010-01-01 05:30:00', $archiveProcessing->getStartDatetimeUTC());
-        $this->assertEquals('2010-02-01 05:29:59', $archiveProcessing->getEndDatetimeUTC());
-        $this->assertFalse($archiveProcessing->isArchiveTemporary());
+        $this->assertEquals('2010-01-01 05:30:00', $archiveProcessor->getDateStart()->getDateStartUTC());
+        $this->assertEquals('2010-02-01 05:29:59', $archiveProcessor->getDateEnd()->getDateEndUTC());
+        $this->assertFalse($archiveProcessor->isArchiveTemporary());
     }
 
     /**
      * test of validity of an archive, for today's archive
      * @group Core
-     * @group ArchiveProcessing
+     * @group ArchiveProcessor
      */
     public function testInitToday()
     {
         $now = time();
         $siteTimezone = 'UTC-1';
-        $timestamp = Piwik_Date::factory('now', $siteTimezone)->getTimestamp();
+        $timestamp = Date::factory('now', $siteTimezone)->getTimestamp();
         $dateLabel = date('Y-m-d', $timestamp);
 
-        Piwik_ArchiveProcessing::setBrowserTriggerArchiving(true);
+        Rules::setBrowserTriggerArchiving(true);
 
-        $archiveProcessing = $this->_createArchiveProcessing('day', $dateLabel, $siteTimezone);
-        $archiveProcessing->time = $now;
+        $archiveProcessor = $this->_createArchiveProcessor('day', $dateLabel, $siteTimezone);
+        $archiveProcessor->time = $now;
 
         // we look at anything processed within the time to live range
-        $dateMinArchived = $now - Piwik_ArchiveProcessing::getTodayArchiveTimeToLive();
-        $this->assertEquals($dateMinArchived, $archiveProcessing->getMinTimeArchivedProcessed());
-        $this->assertTrue($archiveProcessing->isArchiveTemporary());
+        $dateMinArchived = $now - Rules::getTodayArchiveTimeToLive();
+        $this->compareTimestamps($dateMinArchived, $archiveProcessor->getMinTimeArchivedProcessed() );
+        $this->assertTrue($archiveProcessor->isArchiveTemporary());
 
-        // when browsers don't trigger archives, we force ArchiveProcessing 
+        // when browsers don't trigger archives, we force ArchiveProcessor
         // to fetch any of the most recent archive
-        Piwik_ArchiveProcessing::setBrowserTriggerArchiving(false);
+        Rules::setBrowserTriggerArchiving(false);
         // see isArchivingDisabled()
         // Running in CLI doesn't impact the time to live today's archive we are loading
         // From CLI, we will not return data that is 'stale' 
-        if (!Piwik_Common::isPhpCliMode()) {
+        if (!Common::isPhpCliMode()) {
             $dateMinArchived = 0;
         }
-        $this->assertEquals($archiveProcessing->getMinTimeArchivedProcessed(), $dateMinArchived);
+        $this->compareTimestamps($archiveProcessor->getMinTimeArchivedProcessed(), $dateMinArchived);
 
-        $this->assertEquals(date('Y-m-d', $timestamp) . ' 01:00:00', $archiveProcessing->getStartDatetimeUTC());
-        $this->assertEquals(date('Y-m-d', $timestamp + 86400) . ' 00:59:59', $archiveProcessing->getEndDatetimeUTC());
-        $this->assertTrue($archiveProcessing->isArchiveTemporary());
+        $this->assertEquals(date('Y-m-d', $timestamp) . ' 01:00:00', $archiveProcessor->getDateStart()->getDateStartUTC());
+        $this->assertEquals(date('Y-m-d', $timestamp + 86400) . ' 00:59:59', $archiveProcessor->getDateEnd()->getDateEndUTC());
+        $this->assertTrue($archiveProcessor->isArchiveTemporary());
     }
 
     /**
      * test of validity of an archive, for today's archive with european timezone
      * @group Core
-     * @group ArchiveProcessing
+     * @group ArchiveProcessor
      */
     public function testInitTodayEurope()
     {
@@ -195,43 +215,44 @@ class ArchiveProcessingTest extends DatabaseTestCase
 
         $now = time();
         $siteTimezone = 'Europe/Paris';
-        $timestamp = Piwik_Date::factory('now', $siteTimezone)->getTimestamp();
+        $timestamp = Date::factory('now', $siteTimezone)->getTimestamp();
         $dateLabel = date('Y-m-d', $timestamp);
 
-        Piwik_ArchiveProcessing::setBrowserTriggerArchiving(true);
+        Rules::setBrowserTriggerArchiving(true);
 
-        $archiveProcessing = $this->_createArchiveProcessing('day', $dateLabel, $siteTimezone);
-        $archiveProcessing->time = $now;
+        $archiveProcessor = $this->_createArchiveProcessor('day', $dateLabel, $siteTimezone);
+        $archiveProcessor->time = $now;
 
         // we look at anything processed within the time to live range
-        $dateMinArchived = $now - Piwik_ArchiveProcessing::getTodayArchiveTimeToLive();
-        $this->assertEquals($archiveProcessing->getMinTimeArchivedProcessed(), $dateMinArchived);
-        $this->assertTrue($archiveProcessing->isArchiveTemporary());
+        $dateMinArchived = $now - Rules::getTodayArchiveTimeToLive();
+        $minTimeArchivedProcessed = $archiveProcessor->getMinTimeArchivedProcessed();
+        $this->compareTimestamps($dateMinArchived, $minTimeArchivedProcessed);
+        $this->assertTrue($archiveProcessor->isArchiveTemporary());
 
-        // when browsers don't trigger archives, we force ArchiveProcessing
+        // when browsers don't trigger archives, we force ArchiveProcessor
         // to fetch any of the most recent archive
-        Piwik_ArchiveProcessing::setBrowserTriggerArchiving(false);
+        Rules::setBrowserTriggerArchiving(false);
         // see isArchivingDisabled()
         // Running in CLI doesn't impact the time to live today's archive we are loading
         // From CLI, we will not return data that is 'stale'
-        if (!Piwik_Common::isPhpCliMode()) {
+        if (!Common::isPhpCliMode()) {
             $dateMinArchived = 0;
         }
-        $this->assertEquals($archiveProcessing->getMinTimeArchivedProcessed(), $dateMinArchived);
+        $this->compareTimestamps($dateMinArchived, $archiveProcessor->getMinTimeArchivedProcessed());
 
         // this test varies with DST
-        $this->assertTrue($archiveProcessing->getStartDatetimeUTC() == date('Y-m-d', $timestamp - 86400) . ' 22:00:00' ||
-            $archiveProcessing->getStartDatetimeUTC() == date('Y-m-d', $timestamp - 86400) . ' 23:00:00');
-        $this->assertTrue($archiveProcessing->getEndDatetimeUTC() == date('Y-m-d', $timestamp) . ' 21:59:59' ||
-            $archiveProcessing->getEndDatetimeUTC() == date('Y-m-d', $timestamp) . ' 22:59:59');
+        $this->assertTrue($archiveProcessor->getDateStart()->getDateStartUTC() == date('Y-m-d', $timestamp - 86400) . ' 22:00:00' ||
+            $archiveProcessor->getDateStart()->getDateStartUTC() == date('Y-m-d', $timestamp - 86400) . ' 23:00:00');
+        $this->assertTrue($archiveProcessor->getDateEnd()->getDateEndUTC() == date('Y-m-d', $timestamp) . ' 21:59:59' ||
+            $archiveProcessor->getDateEnd()->getDateEndUTC() == date('Y-m-d', $timestamp) . ' 22:59:59');
 
-        $this->assertTrue($archiveProcessing->isArchiveTemporary());
+        $this->assertTrue($archiveProcessor->isArchiveTemporary());
     }
 
     /**
      * test of validity of an archive, for today's archive with toronto's timezone
      * @group Core
-     * @group ArchiveProcessing
+     * @group ArchiveProcessor
      */
     public function testInitTodayToronto()
     {
@@ -241,47 +262,47 @@ class ArchiveProcessingTest extends DatabaseTestCase
 
         $now = time();
         $siteTimezone = 'America/Toronto';
-        $timestamp = Piwik_Date::factory('now', $siteTimezone)->getTimestamp();
+        $timestamp = Date::factory('now', $siteTimezone)->getTimestamp();
         $dateLabel = date('Y-m-d', $timestamp);
 
-        Piwik_ArchiveProcessing::setBrowserTriggerArchiving(true);
+        Rules::setBrowserTriggerArchiving(true);
 
-        $archiveProcessing = $this->_createArchiveProcessing('day', $dateLabel, $siteTimezone);
-        $archiveProcessing->time = $now;
+        $archiveProcessor = $this->_createArchiveProcessor('day', $dateLabel, $siteTimezone);
+        $archiveProcessor->time = $now;
 
         // we look at anything processed within the time to live range
-        $dateMinArchived = $now - Piwik_ArchiveProcessing::getTodayArchiveTimeToLive();
-        $this->assertEquals($archiveProcessing->getMinTimeArchivedProcessed(), $dateMinArchived);
-        $this->assertTrue($archiveProcessing->isArchiveTemporary());
+        $dateMinArchived = $now - Rules::getTodayArchiveTimeToLive();
+        $this->compareTimestamps($dateMinArchived, $archiveProcessor->getMinTimeArchivedProcessed() );
+        $this->assertTrue($archiveProcessor->isArchiveTemporary());
 
-        // when browsers don't trigger archives, we force ArchiveProcessing
+        // when browsers don't trigger archives, we force ArchiveProcessor
         // to fetch any of the most recent archive
-        Piwik_ArchiveProcessing::setBrowserTriggerArchiving(false);
+        Rules::setBrowserTriggerArchiving(false);
         // see isArchivingDisabled()
         // Running in CLI doesn't impact the time to live today's archive we are loading
         // From CLI, we will not return data that is 'stale'
-        if (!Piwik_Common::isPhpCliMode()) {
+        if (!Common::isPhpCliMode()) {
             $dateMinArchived = 0;
         }
-        $this->assertEquals($archiveProcessing->getMinTimeArchivedProcessed(), $dateMinArchived);
+        $this->compareTimestamps($dateMinArchived, $archiveProcessor->getMinTimeArchivedProcessed());
 
         // this test varies with DST
-        $this->assertTrue($archiveProcessing->getStartDatetimeUTC() == date('Y-m-d', $timestamp) . ' 04:00:00' ||
-            $archiveProcessing->getStartDatetimeUTC() == date('Y-m-d', $timestamp) . ' 05:00:00');
-        $this->assertTrue($archiveProcessing->getEndDatetimeUTC() == date('Y-m-d', $timestamp + 86400) . ' 03:59:59' ||
-            $archiveProcessing->getEndDatetimeUTC() == date('Y-m-d', $timestamp + 86400) . ' 04:59:59');
+        $this->assertTrue($archiveProcessor->getDateStart()->getDateStartUTC() == date('Y-m-d', $timestamp) . ' 04:00:00' ||
+            $archiveProcessor->getDateStart()->getDateStartUTC() == date('Y-m-d', $timestamp) . ' 05:00:00');
+        $this->assertTrue($archiveProcessor->getDateEnd()->getDateEndUTC() == date('Y-m-d', $timestamp + 86400) . ' 03:59:59' ||
+            $archiveProcessor->getDateEnd()->getDateEndUTC() == date('Y-m-d', $timestamp + 86400) . ' 04:59:59');
 
-        $this->assertTrue($archiveProcessing->isArchiveTemporary());
+        $this->assertTrue($archiveProcessor->isArchiveTemporary());
     }
 
     /**
      * Testing batch insert
      * @group Core
-     * @group ArchiveProcessing
+     * @group ArchiveProcessor
      */
     public function testTableInsertBatch()
     {
-        $table = Piwik_Common::prefixTable('site_url');
+        $table = Common::prefixTable('site_url');
         $data = $this->_getDataInsert();
         try {
             $didWeUseBulk = Piwik::tableInsertBatch($table,
@@ -310,7 +331,7 @@ class ArchiveProcessingTest extends DatabaseTestCase
             && $skippedOnce === false
             // HACK: Only alert for MysqlI since PDO is often failing and Jenkins should always run MYSQLI + PDO
             // This helps "hiding" the warning on PDO Mysql but we have to make sure mysqli tests are always executed!
-            && Piwik_Config::getInstance()->database['adapter'] == 'MYSQLI'
+            && Config::getInstance()->database['adapter'] == 'MYSQLI'
         ) {
             $skippedOnce = true;
             $this->fail(
@@ -329,11 +350,11 @@ class ArchiveProcessingTest extends DatabaseTestCase
     /**
      * Testing plain inserts
      * @group Core
-     * @group ArchiveProcessing
+     * @group ArchiveProcessor
      */
     public function testTableInsertBatchIterate()
     {
-        $table = Piwik_Common::prefixTable('site_url');
+        $table = Common::prefixTable('site_url');
         $data = $this->_getDataInsert();
         Piwik::tableInsertBatchIterate($table, array('idsite', 'url'), $data);
         $this->_checkTableIsExpected($table, $data);
@@ -353,15 +374,13 @@ class ArchiveProcessingTest extends DatabaseTestCase
     /**
      * Testing batch insert (BLOB)
      * @group Core
-     * @group ArchiveProcessing
+     * @group ArchiveProcessor
      */
     public function testTableInsertBatchBlob()
     {
         $siteTimezone = 'America/Toronto';
         $dateLabel = '2011-03-31';
-        $archiveProcessing = $this->_createArchiveProcessing('day', $dateLabel, $siteTimezone);
-
-        $table = $archiveProcessing->getTableArchiveBlobName();
+        $table = ArchiveTableCreator::getBlobTable(Date::factory($dateLabel));
 
         $data = $this->_getBlobDataInsert();
         try {
@@ -388,15 +407,13 @@ class ArchiveProcessingTest extends DatabaseTestCase
     /**
      * Testing plain inserts (BLOB)
      * @group Core
-     * @group ArchiveProcessing
+     * @group ArchiveProcessor
      */
     public function testTableInsertBatchIterateBlob()
     {
         $siteTimezone = 'America/Toronto';
         $dateLabel = '2011-03-31';
-        $archiveProcessing = $this->_createArchiveProcessing('day', $dateLabel, $siteTimezone);
-
-        $table = $archiveProcessing->getTableArchiveBlobName();
+        $table = ArchiveTableCreator::getBlobTable(Date::factory($dateLabel));
 
         $data = $this->_getBlobDataInsert();
         Piwik::tableInsertBatchIterate($table, array('idarchive', 'name', 'idsite', 'date1', 'date2', 'period', 'ts_archived', 'value'), $data);
@@ -417,7 +434,7 @@ class ArchiveProcessingTest extends DatabaseTestCase
 
     protected function _checkTableIsExpected($table, $data)
     {
-        $fetched = Piwik_FetchAll('SELECT * FROM ' . $table);
+        $fetched = Db::fetchAll('SELECT * FROM ' . $table);
         foreach ($data as $id => $row) {
             $this->assertEquals($fetched[$id]['idsite'], $data[$id][0], "record $id is not {$data[$id][0]}");
             $this->assertEquals($fetched[$id]['url'], $data[$id][1], "Record $id bug, not {$data[$id][1]} BUT {$fetched[$id]['url']}");

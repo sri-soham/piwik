@@ -6,14 +6,21 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_Installation
+ * @package Installation
  */
+
+namespace Piwik\Plugins\Installation;
+use HTML_QuickForm2_Rule;
+use HTML_QuickForm2_DataSource_Array;
+use HTML_QuickForm2_Factory;
+use Piwik\QuickForm2;
+use Piwik\Plugins\SitesManager\API;
 
 /**
  *
- * @package Piwik_Installation
+ * @package Installation
  */
-class Piwik_Installation_FormFirstWebsiteSetup extends Piwik_QuickForm2
+class FormFirstWebsiteSetup extends QuickForm2
 {
     function __construct($id = 'websitesetupform', $method = 'post', $attributes = null, $trackSubmit = false)
     {
@@ -22,12 +29,12 @@ class Piwik_Installation_FormFirstWebsiteSetup extends Piwik_QuickForm2
 
     function init()
     {
-        HTML_QuickForm2_Factory::registerRule('checkTimezone', 'Piwik_Installation_FormFirstWebsiteSetup_Rule_isValidTimezone');
+        HTML_QuickForm2_Factory::registerRule('checkTimezone', 'Piwik\Plugins\Installation\Rule_isValidTimezone');
 
         $urlExample = 'http://example.org';
         $javascriptOnClickUrlExample = "javascript:if(this.value=='$urlExample'){this.value='http://';} this.style.color='black';";
 
-        $timezones = Piwik_SitesManager_API::getInstance()->getTimezonesList();
+        $timezones = API::getInstance()->getTimezonesList();
         $timezones = array_merge(array('No timezone' => Piwik_Translate('SitesManager_SelectACity')), $timezones);
 
         $this->addElement('text', 'siteName')
@@ -65,18 +72,18 @@ class Piwik_Installation_FormFirstWebsiteSetup extends Piwik_QuickForm2
 /**
  * Timezone validation rule
  *
- * @package Piwik_Installation
+ * @package Installation
  */
-class Piwik_Installation_FormFirstWebsiteSetup_Rule_isValidTimezone extends HTML_QuickForm2_Rule
+class Rule_isValidTimezone extends HTML_QuickForm2_Rule
 {
     function validateOwner()
     {
         try {
             $timezone = $this->owner->getValue();
             if (!empty($timezone)) {
-                Piwik_SitesManager_API::getInstance()->setDefaultTimezone($timezone);
+                API::getInstance()->setDefaultTimezone($timezone);
             }
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return false;
         }
         return true;

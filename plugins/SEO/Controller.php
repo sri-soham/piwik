@@ -6,35 +6,44 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_SEO
+ * @package SEO
  */
+namespace Piwik\Plugins\SEO;
+
+use Piwik\Common;
+use Piwik\DataTable\Renderer;
+use Piwik\Plugins\SEO\API;
+use Piwik\View;
+use Piwik\Site;
+use Piwik\Plugins\SEO\RankChecker;
 
 /**
- * @package Piwik_SEO
+ * @package SEO
  */
-class Piwik_SEO_Controller extends Piwik_Controller
+class Controller extends \Piwik\Controller
 {
     function getRank()
     {
-        $idSite = Piwik_Common::getRequestVar('idSite');
-        $site = new Piwik_Site($idSite);
+        $idSite = Common::getRequestVar('idSite');
+        $site = new Site($idSite);
 
-        $url = urldecode(Piwik_Common::getRequestVar('url', '', 'string'));
+        $url = urldecode(Common::getRequestVar('url', '', 'string'));
 
         if (!empty($url) && strpos($url, 'http://') !== 0 && strpos($url, 'https://') !== 0) {
             $url = 'http://' . $url;
         }
 
-        if (empty($url) || !Piwik_Common::isLookLikeUrl($url)) {
+        if (empty($url) || !Common::isLookLikeUrl($url)) {
             $url = $site->getMainUrl();
         }
 
-        $dataTable = Piwik_SEO_API::getInstance()->getRank($url);
+        $dataTable = API::getInstance()->getRank($url);
 
-        $view = Piwik_View::factory('index');
-        $view->urlToRank = Piwik_SEO_RankChecker::extractDomainFromUrl($url);
+        $view = new View('@SEO/getRank');
+        $view->urlToRank = RankChecker::extractDomainFromUrl($url);
 
-        $renderer = Piwik_DataTable_Renderer::factory('php');
+        /** @var \Piwik\DataTable\Renderer\Php $renderer */
+        $renderer = Renderer::factory('php');
         $renderer->setSerialize(false);
         $view->ranks = $renderer->render($dataTable);
         echo $view->render();

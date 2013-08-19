@@ -6,8 +6,12 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_Provider
+ * @package Provider
  */
+namespace Piwik\Plugins\Provider;
+
+use Piwik\Common;
+use Piwik\DataTable;
 
 /**
  * Return hostname portion of a domain name
@@ -15,7 +19,7 @@
  * @param string $in
  * @return string Host name, IP (if IP address didn't resolve), or Unknown
  */
-function Piwik_getHostnameName($in)
+function getHostnameName($in)
 {
     if (empty($in)) {
         return Piwik_Translate('General_Unknown');
@@ -35,9 +39,9 @@ function Piwik_getHostnameName($in)
  * @param string $in hostname
  * @return string URL
  */
-function Piwik_getHostnameUrl($in)
+function getHostnameUrl($in)
 {
-    if ($in == Piwik_DataTable::LABEL_SUMMARY_ROW) {
+    if ($in == DataTable::LABEL_SUMMARY_ROW) {
         return false;
     }
     if (empty($in)
@@ -61,11 +65,11 @@ function Piwik_getHostnameUrl($in)
  * @param string $in hostname
  * @return string Real ISP name, IP (if IP address didn't resolve), or Unknown
  */
-function Piwik_Provider_getPrettyProviderName( $in )
+function getPrettyProviderName( $in )
 {
-    $providerName = Piwik_getHostnameName($in);
+    $providerName = getHostnameName($in);
 
-    $prettyNames = Piwik_Common::getProviderNames();
+    $prettyNames = Common::getProviderNames();
 
     if(is_array($prettyNames)
         && array_key_exists(strtolower($providerName), $prettyNames))

@@ -116,7 +116,7 @@ class RegexFormat(object):
         line = file.readline()
         file.seek(0)
         return self.check_format_line(line)
-    
+
     def check_format_line(self, line):
         return re.match(self.regex, line)
 
@@ -158,7 +158,7 @@ class IisFormat(RegexFormat):
                 regex = '\S+'
             full_regex.append(regex)
         self.regex = re.compile(' '.join(full_regex))
-        
+
         start_pos = file.tell()
         nextline = file.readline()
         file.seek(start_pos)
@@ -763,6 +763,7 @@ class Piwik(object):
         elif not isinstance(data, basestring) and headers['Content-type'] == 'application/json':
             data = json.dumps(data)
 
+        headers['User-Agent'] = 'Piwik/LogImport'
         request = urllib2.Request(url + path, data, headers)
         response = urllib2.urlopen(request)
         result = response.read()
@@ -875,7 +876,7 @@ class StaticResolver(object):
             site = sites[0]
         except (IndexError, KeyError):
             logging.debug('response for SitesManager.getSiteFromId: %s', str(sites))
-            
+
             fatal_error(
                 "cannot get the main URL of this site: invalid site ID: %s" % site_id
             )
@@ -976,7 +977,7 @@ class DynamicResolver(object):
             return (site_id, self._cache['sites'][site_id]['main_url'])
         else:
             return (None, None)
-    
+
     def _resolve_by_host(self, hit):
         """
         Returns the site ID and site URL for a hit based on the hostname.
@@ -1132,10 +1133,13 @@ class Recorder(object):
         if hit.query_string and not config.options.strip_query_string:
             path += config.options.query_string_delimiter + hit.query_string
 
+        # only prepend main url if it's a path
+        url = (main_url if path.startswith('/') else '') + path[:1024]
+
         args = {
             'rec': '1',
             'apiv': '1',
-            'url': (main_url + path[:1024]).encode('utf8'),
+            'url': url.encode('utf8'),
             'urlref': hit.referrer[:1024].encode('utf8'),
             'cip': hit.ip,
             'cdt': self.date_to_piwik(hit.date),
@@ -1156,14 +1160,14 @@ class Recorder(object):
             args['_cvar'] = '{"1":["Not-Bot","%s"]}' % hit.user_agent
             args['bots'] = '1'
         if hit.is_error or hit.is_redirect:
-            args['_cvar'] = '{"2":["HTTP-code","%s"]}' % hit.status
+            args['cvar'] = '{"1":["HTTP-code","%s"]}' % hit.status
             args['action_name'] = '%s/URL = %s%s' % (
                 hit.status,
                 urllib.quote(args['url'], ''),
                 ("/From = %s" % urllib.quote(args['urlref'], '') if args['urlref'] != ''  else '')
             )
         if hit.generation_time_milli > 0:
-            args['generation_time_ms'] = hit.generation_time_milli
+            args['gt_ms'] = hit.generation_time_milli
         return args
 
     def _record_hits(self, hits):
@@ -1234,7 +1238,7 @@ class Hit(object):
         for key, value in kwargs.iteritems():
             setattr(self, key, value)
         super(Hit, self).__init__()
-        
+
         if config.options.force_lowercase_path:
             self.full_path = self.full_path.lower()
 
@@ -1330,14 +1334,14 @@ class Parser(object):
         Return the best matching format for this file, or None if none was found.
         """
         logging.debug('Detecting the log format')
-        
+
         format = None
         format_groups = 0
         for name, candidate_format in FORMATS.iteritems():
             match = candidate_format.check_format(file)
             if match:
                 logging.debug('Format %s matches', name)
-                
+
                 # if there's more info in this match, use this format
                 match_groups = len(match.groups())
                 if format_groups < match_groups:
@@ -1345,8 +1349,10 @@ class Parser(object):
                     format_groups = match_groups
             else:
                 logging.debug('Format %s does not match', name)
-        
-        logging.debug('Format %s is the best match', format.name)
+
+        if format:
+            logging.debug('Format %s is the best match', format.name)
+
         return format
 
     def parse(self, filename):

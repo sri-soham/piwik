@@ -5,11 +5,14 @@
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
+use Piwik\Date;
+use Piwik\Plugins\Goals\API as GoalsAPI;
+use Piwik\Plugins\SitesManager\API as SitesManagerAPI;
 
 /**
  * Reusable fixture. Tracks twelve thousand page views for 1000 sites on one day.
  */
-class Piwik_Test_Fixture_ThousandSitesTwelvePageViewsEachOneDay
+class Piwik_Test_Fixture_ThousandSitesTwelveVisitsEachOneDay
 {
     public $date = '2010-01-01';
     public $period = 'day';
@@ -17,13 +20,12 @@ class Piwik_Test_Fixture_ThousandSitesTwelvePageViewsEachOneDay
 
     public function setUp()
     {
-        $sitesManager = Piwik_SitesManager_API::getInstance();
-        $goals = Piwik_Goals_API::getInstance();
+        $goals = GoalsAPI::getInstance();
 
         // add one thousand sites
         $allIdSites = array();
         for ($i = 0; $i < 1000; ++$i) {
-            $allIdSites[] = IntegrationTestCase::createWebsite($this->date, $ecommerce = 1, $siteName = "Site #$i");
+            $allIdSites[] = Test_Piwik_BaseFixture::createWebsite($this->date, $ecommerce = 1, $siteName = "Site #$i");
         }
 
         // add goals to 500 sites
@@ -46,7 +48,7 @@ class Piwik_Test_Fixture_ThousandSitesTwelvePageViewsEachOneDay
         }
 
         $visitTimes = array();
-        $date = Piwik_Date::factory($this->date);
+        $date = Date::factory($this->date);
         for ($i = 0; $i != 4; ++$i) {
             $visitTimes[] = $date->addHour($i)->getDatetime();
         }
@@ -55,10 +57,11 @@ class Piwik_Test_Fixture_ThousandSitesTwelvePageViewsEachOneDay
         foreach ($visitTimes as $visitTime) {
             foreach ($allIdSites as $idSite) {
                 for ($visitor = 0; $visitor != 3; ++$visitor) {
-                    $t = BenchmarkTestCase::getLocalTracker($this->idSite);
+                    $t = BenchmarkTestCase::getLocalTracker($idSite);
 
                     $ip = "157.5.6." . ($visitor + 1);
                     $t->setIp($ip);
+                    $t->setNewVisitorId();
 
                     $t->setForceVisitDateTime($visitTime);
                     foreach ($urls as $url => $title) {

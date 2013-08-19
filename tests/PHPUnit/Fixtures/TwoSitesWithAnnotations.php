@@ -5,6 +5,9 @@
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
+use Piwik\Access;
+use Piwik\Date;
+use Piwik\Plugins\Annotations\API;
 
 /**
  * A fixture that adds two websites and annotations for each website.
@@ -31,20 +34,20 @@ class Test_Piwik_Fixture_TwoSitesWithAnnotations extends Test_Piwik_BaseFixture
         // create fake access for fake username
         $access = new FakeAccess();
         FakeAccess::$superUser = true;
-        Zend_Registry::set('access', $access);
+        Access::setSingletonInstance($access);
 
         // add two annotations per week for three months, starring every third annotation
         // first month in 2011, second two in 2012
         $count = 0;
-        $dateStart = Piwik_Date::factory('2011-12-01');
-        $dateEnd = Piwik_Date::factory('2012-03-01');
+        $dateStart = Date::factory('2011-12-01');
+        $dateEnd = Date::factory('2012-03-01');
         while ($dateStart->getTimestamp() < $dateEnd->getTimestamp()) {
             $starred = $count % 3 == 0 ? 1 : 0;
             $site1Text = "$count: Site 1 annotation for " . $dateStart->toString();
             $site2Text = "$count: Site 2 annotation for " . $dateStart->toString();
 
-            Piwik_Annotations_API::getInstance()->add($this->idSite1, $dateStart->toString(), $site1Text, $starred);
-            Piwik_Annotations_API::getInstance()->add($this->idSite2, $dateStart->toString(), $site2Text, $starred);
+            API::getInstance()->add($this->idSite1, $dateStart->toString(), $site1Text, $starred);
+            API::getInstance()->add($this->idSite2, $dateStart->toString(), $site2Text, $starred);
 
             $nextDay = $dateStart->addDay(1);
             ++$count;
@@ -53,8 +56,8 @@ class Test_Piwik_Fixture_TwoSitesWithAnnotations extends Test_Piwik_BaseFixture
             $site1Text = "$count: Site 1 annotation for " . $nextDay->toString();
             $site2Text = "$count: Site 2 annotation for " . $nextDay->toString();
 
-            Piwik_Annotations_API::getInstance()->add($this->idSite1, $nextDay->toString(), $site1Text, $starred);
-            Piwik_Annotations_API::getInstance()->add($this->idSite2, $nextDay->toString(), $site2Text, $starred);
+            API::getInstance()->add($this->idSite1, $nextDay->toString(), $site1Text, $starred);
+            API::getInstance()->add($this->idSite2, $nextDay->toString(), $site2Text, $starred);
 
             $dateStart = $dateStart->addPeriod(1, 'WEEK');
             ++$count;

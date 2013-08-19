@@ -37,36 +37,35 @@ class Piwik_Db_DAO_Segment extends Piwik_Db_DAO_Base
         return $this->db->lastInsertId();
     }
 
-    public function getSegmentsToAutoArchive($idSite = false)
-    {
-        $sqlRestrictSite = '';
-        $bind = array();
-        if ($idSite) {
-            $sqlRestrictSite = 'OR enable_only_idsite = ?';
-            $bind = array($idSite);
-        }
-        $sql = "SELECT * FROM {$this->table} 
-                WHERE auto_archive = 1 
-                  AND deleted = 0
-                  AND (enable_only_idsite IS NULL $sqlRestrictSite)";
-        $segments = $this->db->fetchAll($sql, $bind);
-
-        return $segments;
-    }
-
     public function getByIdsegment($idSegment)
     {
         $sql = "SELECT * FROM {$this->table} WHERE idsegment = ?";
         return $this->db->fetchRow($sql, array($idSegment));
     }
 
-    public function getAll($idSite, $login)
+    public function getAll($idSite, $login, $returnOnlyAutoArchived)
     {
-        $bind = array($idSite, $login);
+        $bind = array();
+
+        // Build basic segment filtering
+        $whereIdSite = '';
+        if (!empty($idSite)) {
+            $whereIdSite = 'enable_only_idsite = ? OR ';
+            $bind[] = $idSite;
+        }
+
+        $bind[] = Piwik::getCurrentUserLogin();
+
+        $extraWhere = '';
+        if ($returnOnlyAutoArchived) {
+            $extraWhere = ' AND auto_archive = 1';
+        }
+
         $sql = "SELECT * FROM {$this->table} 
-                 WHERE (enable_only_idsite = ? OR enable_only_idsite IS NULL)
+                 WHERE ($whereIdSite enable_only_idsite = 0)
                    AND (enable_all_users = 1 OR login = ?)
                    AND deleted = 0
+                   $extraWhere
               ORDER BY name ASC";
         
         return $this->db->fetchAll($sql, $bind);

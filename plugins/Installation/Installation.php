@@ -6,30 +6,26 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_Installation
+ * @package Installation
  */
+namespace Piwik\Plugins\Installation;
+
+use Piwik\Piwik;
+use Piwik\Common;
+use Piwik\Translate;
 
 /**
  *
- * @package Piwik_Installation
+ * @package Installation
  */
-class Piwik_Installation extends Piwik_Plugin
+class Installation extends \Piwik\Plugin
 {
-    protected $installationControllerName = 'Piwik_Installation_Controller';
+    protected $installationControllerName = '\\Piwik\\Plugins\\Installation\\Controller';
 
-    public function getInformation()
-    {
-        $info = array(
-            'description'     => Piwik_Translate('Installation_PluginDescription'),
-            'author'          => 'Piwik',
-            'author_homepage' => 'http://piwik.org/',
-            'version'         => Piwik_Version::VERSION,
-        );
-
-        return $info;
-    }
-
-    function getListHooksRegistered()
+    /**
+     * @see Piwik_Plugin::getListHooksRegistered
+     */
+    public function getListHooksRegistered()
     {
         $hooks = array(
             'FrontController.NoConfigurationFile'  => 'dispatch',
@@ -51,22 +47,21 @@ class Piwik_Installation extends Piwik_Plugin
     }
 
     /**
-     * @param Piwik_Event_Notification|null $notification  notification object
+     * @param \Exception|null $exception
      */
-    function dispatch($notification = null)
+    public function dispatch($exception = null)
     {
-        if ($notification) {
-            $exception = $notification->getNotificationObject();
+        if ($exception) {
             $message = $exception->getMessage();
         } else {
             $message = '';
         }
 
-        Piwik_Translate::getInstance()->loadCoreTranslation();
+        Translate::getInstance()->loadCoreTranslation();
 
-        Piwik_PostEvent('Installation.startInstallation', $this);
+        Piwik_PostEvent('Installation.startInstallation', array($this));
 
-        $step = Piwik_Common::getRequestVar('action', 'welcome', 'string');
+        $step = Common::getRequestVar('action', 'welcome', 'string');
         $controller = $this->getInstallationController();
         if (in_array($step, array_keys($controller->getInstallationSteps())) || $step == 'saveLanguage') {
             $controller->$step($message);
@@ -91,10 +86,8 @@ class Piwik_Installation extends Piwik_Plugin
     /**
      * Adds CSS files to list of CSS files for asset manager.
      */
-    public function getCss($notification)
+    public function getCss(&$cssFiles)
     {
-        $cssFiles = & $notification->getNotificationObject();
-
-        $cssFiles[] = "plugins/Installation/templates/systemCheckPage.css";
+        $cssFiles[] = "plugins/Installation/stylesheets/systemCheckPage.less";
     }
 }

@@ -6,25 +6,27 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_CoreAdminHome
+ * @package CoreAdminHome
  */
+namespace Piwik\Plugins\CoreAdminHome;
+
+use Piwik\DataAccess\ArchiveSelector;
+use Piwik\DataAccess\ArchiveTableCreator;
+use Piwik\Piwik;
+use Piwik\Date;
+use Piwik\ScheduledTask;
+use Piwik\Db;
+use Piwik\ScheduledTime\Daily;
 
 /**
  *
- * @package Piwik_CoreAdminHome
+ * @package CoreAdminHome
  */
-class Piwik_CoreAdminHome extends Piwik_Plugin
+class CoreAdminHome extends \Piwik\Plugin
 {
-    public function getInformation()
-    {
-        return array(
-            'description'     => Piwik_Translate('CoreAdminHome_PluginDescription'),
-            'author'          => 'Piwik',
-            'author_homepage' => 'http://piwik.org/',
-            'version'         => Piwik_Version::VERSION,
-        );
-    }
-
+    /**
+     * @see Piwik_Plugin::getListHooksRegistered
+     */
     public function getListHooksRegistered()
     {
         return array(
@@ -35,69 +37,53 @@ class Piwik_CoreAdminHome extends Piwik_Plugin
         );
     }
 
-    /**
-     * @param Piwik_Event_Notification $notification  notification object
-     */
-    function getScheduledTasks($notification)
+    public function getScheduledTasks(&$tasks)
     {
-        $tasks = & $notification->getNotificationObject();
-
         // general data purge on older archive tables, executed daily
-        $purgeArchiveTablesTask = new Piwik_ScheduledTask ($this,
+        $purgeArchiveTablesTask = new ScheduledTask ($this,
             'purgeOutdatedArchives',
             null,
-            new Piwik_ScheduledTime_Daily(),
-            Piwik_ScheduledTask::HIGH_PRIORITY);
+            new Daily(),
+            ScheduledTask::HIGH_PRIORITY);
         $tasks[] = $purgeArchiveTablesTask;
 
         // lowest priority since tables should be optimized after they are modified
-        $optimizeArchiveTableTask = new Piwik_ScheduledTask ($this,
+        $optimizeArchiveTableTask = new ScheduledTask ($this,
             'optimizeArchiveTable',
             null,
-            new Piwik_ScheduledTime_Daily(),
-            Piwik_ScheduledTask::LOWEST_PRIORITY);
+            new Daily(),
+            ScheduledTask::LOWEST_PRIORITY);
         $tasks[] = $optimizeArchiveTableTask;
     }
 
-    /**
-     * @param Piwik_Event_Notification $notification  notification object
-     */
-    function getCssFiles($notification)
+    public function getCssFiles(&$cssFiles)
     {
-        $cssFiles = & $notification->getNotificationObject();
-
         $cssFiles[] = "libs/jquery/themes/base/jquery-ui.css";
-        $cssFiles[] = "plugins/CoreAdminHome/templates/menu.css";
-        $cssFiles[] = "themes/default/common.css";
-        $cssFiles[] = "plugins/CoreAdminHome/templates/styles.css";
-        $cssFiles[] = "plugins/CoreHome/templates/donate.css";
+        $cssFiles[] = "plugins/CoreAdminHome/stylesheets/menu.less";
+        $cssFiles[] = "plugins/Zeitgeist/stylesheets/base.less";
+        $cssFiles[] = "plugins/CoreAdminHome/stylesheets/generalSettings.less";
     }
 
-    /**
-     * @param Piwik_Event_Notification $notification  notification object
-     */
-    function getJsFiles($notification)
+    public function getJsFiles(&$jsFiles)
     {
-        $jsFiles = & $notification->getNotificationObject();
-
         $jsFiles[] = "libs/jquery/jquery.js";
         $jsFiles[] = "libs/jquery/jquery-ui.js";
         $jsFiles[] = "libs/jquery/jquery.browser.js";
         $jsFiles[] = "libs/javascript/sprintf.js";
-        $jsFiles[] = "themes/default/common.js";
-        $jsFiles[] = "themes/default/ajaxHelper.js";
+        $jsFiles[] = "plugins/Zeitgeist/javascripts/piwikHelper.js";
+        $jsFiles[] = "plugins/Zeitgeist/javascripts/ajaxHelper.js";
         $jsFiles[] = "libs/jquery/jquery.history.js";
-        $jsFiles[] = "plugins/CoreHome/templates/broadcast.js";
-        $jsFiles[] = "plugins/CoreAdminHome/templates/generalSettings.js";
-        $jsFiles[] = "plugins/CoreHome/templates/donate.js";
+        $jsFiles[] = "plugins/CoreHome/javascripts/broadcast.js";
+        $jsFiles[] = "plugins/CoreAdminHome/javascripts/generalSettings.js";
+        $jsFiles[] = "plugins/CoreHome/javascripts/donate.js";
     }
 
     function addMenu()
     {
-        Piwik_AddAdminSubMenu('CoreAdminHome_MenuManage', NULL, "", Piwik::isUserHasSomeAdminAccess(), $order = 1);
-        Piwik_AddAdminSubMenu('CoreAdminHome_MenuCommunity', NULL, "", Piwik::isUserHasSomeAdminAccess(), $order = 3);
-        Piwik_AddAdminSubMenu('CoreAdminHome_MenuDiagnostic', NULL, "", Piwik::isUserHasSomeAdminAccess(), $order = 20);
-        Piwik_AddAdminSubMenu('General_Settings', NULL, "", Piwik::isUserHasSomeAdminAccess(), $order = 5);
+        Piwik_AddAdminSubMenu('CoreAdminHome_MenuManage', null, "", Piwik::isUserHasSomeAdminAccess(), $order = 1);
+        Piwik_AddAdminSubMenu('CoreAdminHome_MenuCommunity', null, "", Piwik::isUserHasSomeAdminAccess(), $order = 3);
+        Piwik_AddAdminSubMenu('CoreAdminHome_MenuDiagnostic', null, "", Piwik::isUserHasSomeAdminAccess(), $order = 20);
+        Piwik_AddAdminSubMenu('General_Settings', null, "", Piwik::isUserHasSomeAdminAccess(), $order = 5);
         Piwik_AddAdminSubMenu('General_Settings', 'CoreAdminHome_MenuGeneralSettings',
             array('module' => 'CoreAdminHome', 'action' => 'generalSettings'),
             Piwik::isUserHasSomeAdminAccess(),
@@ -106,22 +92,21 @@ class Piwik_CoreAdminHome extends Piwik_Plugin
             array('module' => 'CoreAdminHome', 'action' => 'trackingCodeGenerator'),
             Piwik::isUserHasSomeAdminAccess(),
             $order = 4);
-
     }
 
     function purgeOutdatedArchives()
     {
-        $archiveTables = Piwik::getTablesArchivesInstalled();
+        $archiveTables = ArchiveTableCreator::getTablesArchivesInstalled();
         foreach ($archiveTables as $table) {
-            if (strpos($table, 'numeric') !== false) {
-                Piwik_ArchiveProcessing_Period::doPurgeOutdatedArchives($table);
-            }
+            $date = ArchiveTableCreator::getDateFromTableName($table);
+            list($month, $year) = explode('_', $date);
+            ArchiveSelector::purgeOutdatedArchives(Date::factory("$year-$month-15"));
         }
     }
 
     function optimizeArchiveTable()
     {
-        $archiveTables = Piwik::getTablesArchivesInstalled();
+        $archiveTables = ArchiveTableCreator::getTablesArchivesInstalled();
         $Generic = Piwik_Db_Factory::getGeneric();
         $Generic->optimizeTables($archiveTables);
     }

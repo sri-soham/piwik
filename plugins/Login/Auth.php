@@ -6,14 +6,21 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_Login
+ * @package Login
  */
+namespace Piwik\Plugins\Login;
+
+use Piwik\Config;
+use Piwik\Common;
+use Piwik\AuthResult;
+use Piwik\Db;
+use Piwik\Plugins\UsersManager\API;
 
 /**
  *
- * @package Piwik_Login
+ * @package Login
  */
-class Piwik_Login_Auth implements Piwik_Auth
+class Auth implements \Piwik\Auth
 {
     protected $login = null;
     protected $token_auth = null;
@@ -31,23 +38,23 @@ class Piwik_Login_Auth implements Piwik_Auth
     /**
      * Authenticates user
      *
-     * @return Piwik_Auth_Result
+     * @return AuthResult
      */
     public function authenticate()
     {
-        $rootLogin = Piwik_Config::getInstance()->superuser['login'];
-        $rootPassword = Piwik_Config::getInstance()->superuser['password'];
-        $rootToken = Piwik_UsersManager_API::getInstance()->getTokenAuth($rootLogin, $rootPassword);
+        $rootLogin = Config::getInstance()->superuser['login'];
+        $rootPassword = Config::getInstance()->superuser['password'];
+        $rootToken = API::getInstance()->getTokenAuth($rootLogin, $rootPassword);
 
         $User = Piwik_Db_Factory::getDAO('user');
         if (is_null($this->login)) {
             if ($this->token_auth === $rootToken) {
-                return new Piwik_Auth_Result(Piwik_Auth_Result::SUCCESS_SUPERUSER_AUTH_CODE, $rootLogin, $this->token_auth);
+                return new AuthResult(AuthResult::SUCCESS_SUPERUSER_AUTH_CODE, $rootLogin, $this->token_auth);
             }
 
             $login = $User->getLoginByTokenAuth($this->token_auth);
             if (!empty($login)) {
-                return new Piwik_Auth_Result(Piwik_Auth_Result::SUCCESS, $login, $this->token_auth);
+                return new AuthResult(AuthResult::SUCCESS, $login, $this->token_auth);
             }
         } else if (!empty($this->login)) {
             if ($this->login === $rootLogin
@@ -55,7 +62,7 @@ class Piwik_Login_Auth implements Piwik_Auth
                 || $rootToken === $this->token_auth
             ) {
                 $this->setTokenAuth($rootToken);
-                return new Piwik_Auth_Result(Piwik_Auth_Result::SUCCESS_SUPERUSER_AUTH_CODE, $rootLogin, $this->token_auth);
+                return new AuthResult(AuthResult::SUCCESS_SUPERUSER_AUTH_CODE, $rootLogin, $this->token_auth);
             }
 
             $login = $this->login;
@@ -65,11 +72,11 @@ class Piwik_Login_Auth implements Piwik_Auth
                     || $userToken === $this->token_auth)
             ) {
                 $this->setTokenAuth($userToken);
-                return new Piwik_Auth_Result(Piwik_Auth_Result::SUCCESS, $login, $userToken);
+                return new AuthResult(AuthResult::SUCCESS, $login, $userToken);
             }
         }
 
-        return new Piwik_Auth_Result(Piwik_Auth_Result::FAILURE, $this->login, $this->token_auth);
+        return new AuthResult(AuthResult::FAILURE, $this->login, $this->token_auth);
     }
 
     /**

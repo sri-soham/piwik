@@ -1,10 +1,11 @@
 <?php
 /**
  * Proxy to index.php, but will use the Test DB
- * Currently only used only for the test: tests/PHPUnit/Integration/ImportLogsTest.php
- * since other integration tests do not call index.php via http but use the Piwik_API_Request object
- *
+ * Used by tests/PHPUnit/Integration/ImportLogsTest.php and tests/PHPUnit/Integration/UITest.php
  */
+
+// make sure the test environment is loaded
+use Piwik\Tracker\Cache;
 
 // Wrapping the request inside ob_start() calls to ensure that the Test
 // calling us waits for the full request to process before unblocking
@@ -15,31 +16,20 @@ define('PIWIK_USER_PATH', PIWIK_INCLUDE_PATH);
 
 require_once PIWIK_INCLUDE_PATH . '/libs/upgradephp/upgrade.php';
 require_once PIWIK_INCLUDE_PATH . '/core/Loader.php';
+require_once PIWIK_INCLUDE_PATH . '/core/EventDispatcher.php';
 
-Piwik_Tracker::setTestEnvironment();
-Piwik_Tracker_Cache::deleteTrackerCache();
+require_once realpath(dirname(__FILE__)) . '/../../../core/functions.php';
+require_once realpath(dirname(__FILE__)) . "/../../../tests/PHPUnit/TestingEnvironment.php";
+Piwik_TestingEnvironment::addHooks();
 
-class Piwik_FrontController_Test extends Piwik_FrontController
-{
-    protected function createConfigObject()
-    {
-        // Config files forced to use the test database
-        Piwik::createConfigObject();
-        Piwik_Config::getInstance()->setTestEnvironment();
-    }
-
-    protected function createAccessObject()
-    {
-        parent::createAccessObject();
-        Piwik::setUserIsSuperUser(true);
-    }
-}
+\Piwik\Tracker::setTestEnvironment();
+Cache::deleteTrackerCache();
 
 // Disable index.php dispatch since we do it manually below
 define('PIWIK_ENABLE_DISPATCH', false);
 include PIWIK_INCLUDE_PATH . '/index.php';
 
-$controller = new Piwik_FrontController_Test;
+$controller = new \Piwik\FrontController;
 $controller->init();
 $controller->dispatch();
 

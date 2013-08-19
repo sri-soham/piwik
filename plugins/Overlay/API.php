@@ -6,17 +6,29 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_Overlay
+ * @package Overlay
  */
+namespace Piwik\Plugins\Overlay;
 
-class Piwik_Overlay_API
+use Exception;
+use Piwik\Config;
+use Piwik\Piwik;
+use Piwik\Access;
+use Piwik\DataTable;
+use Piwik\Tracker\Action;
+use Piwik\Plugins\SitesManager\SitesManager;
+use Piwik\Plugins\SitesManager\API as SitesManagerAPI;
+use Piwik\Plugins\Transitions\API as TransitionsAPI;
+
+
+class API
 {
 
     private static $instance = null;
 
     /**
      * Get Singleton instance
-     * @return Piwik_Overlay_API
+     * @return \Piwik\Plugins\Overlay\API
      */
     public static function getInstance()
     {
@@ -51,11 +63,11 @@ class Piwik_Overlay_API
     {
         $this->authenticate($idSite);
 
-        $sitesManager = Piwik_SitesManager_API::getInstance();
+        $sitesManager = SitesManagerAPI::getInstance();
         $site = $sitesManager->getSiteFromId($idSite);
 
         try {
-            return Piwik_SitesManager::getTrackerExcludedQueryParameters($site);
+            return SitesManager::getTrackerExcludedQueryParameters($site);
         } catch (Exception $e) {
             // an exception is thrown when the user has no view access.
             // do not throw the exception to the outside.
@@ -74,14 +86,14 @@ class Piwik_Overlay_API
     {
         $this->authenticate($idSite);
 
-        $url = Piwik_Tracker_Action::excludeQueryParametersFromUrl($url, $idSite);
+        $url = Action::excludeQueryParametersFromUrl($url, $idSite);
         // we don't unsanitize $url here. it will be done in the Transitions plugin.
 
-        $resultDataTable = new Piwik_DataTable;
+        $resultDataTable = new DataTable;
 
         try {
-            $limitBeforeGrouping = Piwik_Config::getInstance()->General['overlay_following_pages_limit'];
-            $transitionsReport = Piwik_Transitions_API::getInstance()->getTransitionsForAction(
+            $limitBeforeGrouping = Config::getInstance()->General['overlay_following_pages_limit'];
+            $transitionsReport = TransitionsAPI::getInstance()->getTransitionsForAction(
                 $url, $type = 'url', $idSite, $period, $date, $segment, $limitBeforeGrouping,
                 $part = 'followingActions', $returnNormalizedUrls = true);
         } catch (Exception $e) {
@@ -106,10 +118,11 @@ class Piwik_Overlay_API
     private function authenticate($idSite)
     {
         $notification = null;
-        Piwik_PostEvent('FrontController.initAuthenticationObject', $notification, $allowCookieAuthentication = true);
+        Piwik_PostEvent('FrontController.initAuthenticationObject',
+            array(&$notification, $allowCookieAuthentication = true));
 
-        $auth = Zend_Registry::get('auth');
-        $success = Zend_Registry::get('access')->reloadAccess($auth);
+        $auth = \Zend_Registry::get('auth');
+        $success = Access::getInstance()->reloadAccess($auth);
 
         if (!$success) {
             throw new Exception('Authentication failed');
@@ -117,5 +130,4 @@ class Piwik_Overlay_API
 
         Piwik::checkUserHasViewAccess($idSite);
     }
-
 }

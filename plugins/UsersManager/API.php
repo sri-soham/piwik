@@ -6,8 +6,20 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_UsersManager
+ * @package UsersManager
  */
+namespace Piwik\Plugins\UsersManager;
+
+use Exception;
+use Piwik\Config;
+use Piwik\Piwik;
+use Piwik\Common;
+use Piwik\Access;
+use Piwik\Date;
+use Piwik\Site;
+use Piwik\Db;
+use Piwik\Tracker\Cache;
+use Piwik\Plugins\UsersManager\UsersManager;
 
 /**
  * The UsersManager API lets you Manage Users and their permissions to access specific websites.
@@ -20,13 +32,13 @@
  * or you can list all users and websites for a given permission via "getUsersSitesFromAccess". Permissions are set and updated
  * via the method "setUserAccess".
  * See also the documentation about <a href='http://piwik.org/docs/manage-users/' target='_blank'>Managing Users</a> in Piwik.
- * @package Piwik_UsersManager
+ * @package UsersManager
  */
-class Piwik_UsersManager_API
+class API
 {
     const PREFERENCE_DEFAULT_REPORT = 'defaultReport';
     const PREFERENCE_DEFAULT_REPORT_DATE = 'defaultReportDate';
-    
+
     static private $instance = null;
 
     /**
@@ -34,23 +46,23 @@ class Piwik_UsersManager_API
      * Example of how you would overwrite the UsersManager_API with your own class:
      * Call the following in your plugin __construct() for example:
      *
-     * Zend_Registry::set('UsersManager_API',Piwik_MyCustomUsersManager_API::getInstance());
+     * \Zend_Registry::set('UsersManager_API',Piwik_MyCustomUsersManager_API::getInstance());
      *
      * @throws Exception
-     * @return Piwik_UsersManager_API
+     * @return \Piwik\Plugins\UsersManager\API
      */
     static public function getInstance()
     {
         try {
-            $instance = Zend_Registry::get('UsersManager_API');
-            if (!($instance instanceof Piwik_UsersManager_API)) {
+            $instance = \Zend_Registry::get('UsersManager_API');
+            if (!($instance instanceof API)) {
                 // Exception is caught below and corrected
-                throw new Exception('UsersManager_API must inherit Piwik_UsersManager_API');
+                throw new Exception('UsersManager_API must inherit API');
             }
             self::$instance = $instance;
         } catch (Exception $e) {
             self::$instance = new self;
-            Zend_Registry::set('UsersManager_API', self::$instance);
+            \Zend_Registry::set('UsersManager_API', self::$instance);
         }
         return self::$instance;
     }
@@ -77,7 +89,7 @@ class Piwik_UsersManager_API
     public function getUserPreference($userLogin, $preferenceName)
     {
         Piwik::checkUserIsSuperUserOrTheUser($userLogin);
-        
+
         $optionValue = Piwik_GetOption($this->getPreferenceId($userLogin, $preferenceName));
         if ($optionValue !== false) {
             return $optionValue;
@@ -89,15 +101,15 @@ class Piwik_UsersManager_API
     {
         return $login . '_' . $preference;
     }
-    
+
     private function getDefaultUserPreference($preferenceName, $login)
     {
         switch ($preferenceName) {
             case self::PREFERENCE_DEFAULT_REPORT:
-                $viewableSiteIds = Piwik_SitesManager_API::getInstance()->getSitesIdWithAtLeastViewAccess($login);
+                $viewableSiteIds = \Piwik\Plugins\SitesManager\API::getInstance()->getSitesIdWithAtLeastViewAccess($login);
                 return reset($viewableSiteIds);
             case self::PREFERENCE_DEFAULT_REPORT_DATE:
-                return Piwik_Config::getInstance()->General['default_day'];
+                return Config::getInstance()->General['default_day'];
             default:
                 return false;
         }
@@ -171,7 +183,6 @@ class Piwik_UsersManager_API
             $return[$user['login']][] = $user['idsite'];
         }
         return $return;
-
     }
 
     /**
@@ -179,7 +190,7 @@ class Piwik_UsersManager_API
      * If a user doesn't have any access to the $idSite ('noaccess'),
      * the user will not be in the returned array.
      *
-     * @param string website ID
+     * @param int $idSite website ID
      *
      * @return array    The returned array has the format
      *                    array(
@@ -228,7 +239,7 @@ class Piwik_UsersManager_API
      * this website will not be in the returned array.
      * If the user doesn't have any access, the returned array will be an empty array.
      *
-     * @param string User that has to be valid
+     * @param string $userLogin User that has to be valid
      *
      * @return array    The returned array has the format
      *                    array(
@@ -259,7 +270,7 @@ class Piwik_UsersManager_API
     /**
      * Returns the user information (login, password md5, alias, email, date_registered, etc.)
      *
-     * @param string the user login
+     * @param string $userLogin the user login
      *
      * @return array the user information
      */
@@ -276,7 +287,7 @@ class Piwik_UsersManager_API
     /**
      * Returns the user information (login, password md5, alias, email, date_registered, etc.)
      *
-     * @param string the user email
+     * @param string $userEmail the user email
      *
      * @return array the user information
      */
@@ -340,11 +351,11 @@ class Piwik_UsersManager_API
         $this->checkUserIsNotSuperUser($userLogin);
         $this->checkEmail($email);
 
-        $password = Piwik_Common::unsanitizeInputValue($password);
-        Piwik_UsersManager::checkPassword($password);
+        $password = Common::unsanitizeInputValue($password);
+        UsersManager::checkPassword($password);
 
         $alias = $this->getCleanAlias($alias, $userLogin);
-        $passwordTransformed = Piwik_UsersManager::getPasswordHash($password);
+        $passwordTransformed = UsersManager::getPasswordHash($password);
 
         $token_auth = $this->getTokenAuth($userLogin, $passwordTransformed);
 
@@ -355,14 +366,14 @@ class Piwik_UsersManager_API
             $alias,
             $email,
             $token_auth,
-            Piwik_Date::now()->getDateTime()
+            Date::now()->getDateTime()
         );
 
         // we reload the access list which doesn't yet take in consideration this new user
-        Zend_Registry::get('access')->reloadAccess();
-        Piwik_Tracker_Cache::deleteTrackerCache();
+        Access::getInstance()->reloadAccess();
+        Cache::deleteTrackerCache();
 
-        Piwik_PostEvent('UsersManager.addUser', $userLogin);
+        Piwik_PostEvent('UsersManager.addUser', array($userLogin));
     }
 
     /**
@@ -384,10 +395,10 @@ class Piwik_UsersManager_API
         if (empty($password)) {
             $password = $userInfo['password'];
         } else {
-            $password = Piwik_Common::unsanitizeInputValue($password);
+            $password = Common::unsanitizeInputValue($password);
             if (!$_isPasswordHashed) {
-                Piwik_UsersManager::checkPassword($password);
-                $password = Piwik_UsersManager::getPasswordHash($password);
+                UsersManager::checkPassword($password);
+                $password = UsersManager::getPasswordHash($password);
             }
         }
 
@@ -415,9 +426,9 @@ class Piwik_UsersManager_API
             $userLogin
         );
 
-        Piwik_Tracker_Cache::deleteTrackerCache();
+        Cache::deleteTrackerCache();
 
-        Piwik_PostEvent('UsersManager.updateUser', $userLogin);
+        Piwik_PostEvent('UsersManager.updateUser', array($userLogin));
     }
 
     /**
@@ -440,12 +451,13 @@ class Piwik_UsersManager_API
 
         $this->deleteUserOnly($userLogin);
         $this->deleteUserAccess($userLogin);
-        Piwik_Tracker_Cache::deleteTrackerCache();
+        Cache::deleteTrackerCache();
     }
 
     /**
      * Returns true if the given userLogin is known in the database
      *
+     * @param string $userLogin
      * @return bool true if the user is known
      */
     public function userExists($userLogin)
@@ -458,6 +470,7 @@ class Piwik_UsersManager_API
     /**
      * Returns true if user with given email (userEmail) is known in the database, or the super user
      *
+     * @param string $userEmail
      * @return bool true if the user is known
      */
     public function userEmailExists($userEmail)
@@ -467,7 +480,7 @@ class Piwik_UsersManager_API
         $count = $dao->getCountByEmail($userEmail);
 
         return $count != 0
-            || Piwik_Config::getInstance()->superuser['email'] == $userEmail;
+            || Config::getInstance()->superuser['email'] == $userEmail;
     }
 
     /**
@@ -502,10 +515,10 @@ class Piwik_UsersManager_API
         // in case idSites is null we grant access to all the websites on which the current connected user
         // has an 'admin' access
         if ($idSites === 'all') {
-            $idSites = Piwik_SitesManager_API::getInstance()->getSitesIdWithAdminAccess();
+            $idSites = \Piwik\Plugins\SitesManager\API::getInstance()->getSitesIdWithAdminAccess();
         } // in case the idSites is an integer we build an array
         else {
-            $idSites = Piwik_Site::getIdSitesFromIdSitesString($idSites);
+            $idSites = Site::getIdSitesFromIdSitesString($idSites);
         }
 
         if (empty($idSites)) {
@@ -525,8 +538,8 @@ class Piwik_UsersManager_API
         }
 
         // we reload the access list which doesn't yet take in consideration this new user access
-        Zend_Registry::get('access')->reloadAccess();
-        Piwik_Tracker_Cache::deleteTrackerCache();
+        Access::getInstance()->reloadAccess();
+        Cache::deleteTrackerCache();
     }
 
     /**
@@ -571,7 +584,7 @@ class Piwik_UsersManager_API
 
     private function checkAccessType($access)
     {
-        $accessList = Piwik_Access::getListAccess();
+        $accessList = Access::getListAccess();
 
         // do not allow to set the superUser access
         unset($accessList[array_search("superuser", $accessList)]);
@@ -585,7 +598,7 @@ class Piwik_UsersManager_API
      * Delete a user given its login.
      * The user's access are not deleted.
      *
-     * @param string the user login.
+     * @param string $userLogin the user login.
      *
      */
     private function deleteUserOnly($userLogin)
@@ -593,16 +606,15 @@ class Piwik_UsersManager_API
         $dao = Piwik_Db_Factory::getDAO('user');
         $dao->deleteByLogin($userLogin);
 
-        Piwik_PostEvent('UsersManager.deleteUser', $userLogin);
+        Piwik_PostEvent('UsersManager.deleteUser', array($userLogin));
     }
-
 
     /**
      * Delete the user access for the given websites.
      * The array of idsite must be either null OR the values must have been checked before for their validity!
      *
-     * @param string the user login
-     * @param array array of idsites on which to delete the access. If null then delete all the access for this user.
+     * @param string $userLogin the user login
+     * @param array $idSites array of idsites on which to delete the access. If null then delete all the access for this user.
      *
      * @return bool true on success
      */

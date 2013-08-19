@@ -5,6 +5,12 @@
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
+use Piwik\Access;
+use Piwik\IP;
+use Piwik\Plugins\SitesManager\API;
+use Piwik\Tracker\VisitExcluded;
+use Piwik\Tracker\Request;
+
 class Tracker_VisitTest extends DatabaseTestCase
 {
     public function setUp()
@@ -14,9 +20,9 @@ class Tracker_VisitTest extends DatabaseTestCase
         // setup the access layer
         $pseudoMockAccess = new FakeAccess;
         FakeAccess::$superUser = true;
-        Zend_Registry::set('access', $pseudoMockAccess);
+        Access::setSingletonInstance($pseudoMockAccess);
 
-        Piwik_PluginsManager::getInstance()->loadPlugins(array('SitesManager'));
+        \Piwik\PluginsManager::getInstance()->loadPlugins(array('SitesManager'));
     }
 
     /**
@@ -69,15 +75,17 @@ class Tracker_VisitTest extends DatabaseTestCase
      */
     public function testIsVisitorIpExcluded($excludedIp, $tests)
     {
-        $visit = new Test_Piwik_TrackerVisit_public();
-        $idsite = Piwik_SitesManager_API::getInstance()->addSite("name", "http://piwik.net/", $ecommerce = 0,
+        $idsite = API::getInstance()->addSite("name", "http://piwik.net/", $ecommerce = 0,
             $siteSearch = 1, $searchKeywordParameters = null, $searchCategoryParameters = null, $excludedIp);
-        $visit->setRequest(array('idsite' => $idsite));
+
+        $request = new Request(array('idsite' => $idsite));
 
         // test that IPs within the range, or the given IP, are excluded
         foreach ($tests as $ip => $expected) {
-            $testIpIsExcluded = Piwik_IP::P2N($ip);
-            $this->assertSame($expected, $visit->public_isVisitorIpExcluded($testIpIsExcluded));
+            $testIpIsExcluded = IP::P2N($ip);
+
+            $excluded = new VisitExcluded_public($request, $testIpIsExcluded);
+            $this->assertSame($expected, $excluded->public_isVisitorIpExcluded($testIpIsExcluded));
         }
     }
 
@@ -114,23 +122,25 @@ class Tracker_VisitTest extends DatabaseTestCase
      */
     public function testIsVisitorUserAgentExcluded($excludedUserAgent, $tests)
     {
-        Piwik_SitesManager_API::getInstance()->setSiteSpecificUserAgentExcludeEnabled(true);
+        API::getInstance()->setSiteSpecificUserAgentExcludeEnabled(true);
 
-        $visit = new Test_Piwik_TrackerVisit_public();
-        $idsite = Piwik_SitesManager_API::getInstance()->addSite("name", "http://piwik.net/", $ecommerce = 0,
+        $idsite = API::getInstance()->addSite("name", "http://piwik.net/", $ecommerce = 0,
             $siteSearch = 1, $searchKeywordParameters = null, $searchCategoryParameters = null, $excludedIp = null,
             $excludedQueryParameters = null, $timezone = null, $currency = null, $group = null, $startDate = null,
             $excludedUserAgent);
-        $visit->setRequest(array('idsite' => $idsite));
 
+        $request = new Request(array('idsite' => $idsite));
+        
         // test that user agents that contain excluded user agent strings are excluded
         foreach ($tests as $ua => $expected) {
-            $this->assertSame($expected, $visit->public_isUserAgentExcluded($ua), "Result if isUserAgentExcluded('$ua') was not " . ($expected ? 'true' : 'false') . ".");
+            $excluded = new VisitExcluded_public($request, $ip = false, $ua);
+            
+            $this->assertSame($expected, $excluded->public_isUserAgentExcluded($ua), "Result if isUserAgentExcluded('$ua') was not " . ($expected ? 'true' : 'false') . ".");
         }
     }
 }
 
-class Test_Piwik_TrackerVisit_public extends Piwik_Tracker_Visit
+class VisitExcluded_public extends VisitExcluded
 {
     public function public_isVisitorIpExcluded($ip)
     {

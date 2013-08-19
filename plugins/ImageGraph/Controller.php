@@ -6,20 +6,26 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_ImageGraph
+ * @package ImageGraph
  */
+namespace Piwik\Plugins\ImageGraph;
 
-class Piwik_ImageGraph_Controller extends Piwik_Controller
+use Piwik\Piwik;
+use Piwik\Common;
+use Piwik\View;
+use Piwik\Plugins\API\API;
+
+class Controller extends \Piwik\Controller
 {
     // Call metadata reports, and draw the default graph for each report.
     public function index()
     {
         Piwik::checkUserHasSomeAdminAccess();
-        $idSite = Piwik_Common::getRequestVar('idSite', 1, 'int');
-        $period = Piwik_Common::getRequestVar('period', 'day', 'string');
-        $date = Piwik_Common::getRequestVar('date', 'today', 'string');
+        $idSite = Common::getRequestVar('idSite', 1, 'int');
+        $period = Common::getRequestVar('period', 'day', 'string');
+        $date = Common::getRequestVar('date', 'today', 'string');
         $_GET['token_auth'] = Piwik::getCurrentUserTokenAuth();
-        $reports = Piwik_API_API::getInstance()->getReportMetadata($idSite, $period, $date);
+        $reports = API::getInstance()->getReportMetadata($idSite, $period, $date);
         $plot = array();
         foreach ($reports as $report) {
             if (!empty($report['imageGraphUrl'])) {
@@ -31,7 +37,7 @@ class Piwik_ImageGraph_Controller extends Piwik_Controller
                 );
             }
         }
-        $view = Piwik_View::factory('index');
+        $view = new View('@ImageGraph/index');
         $view->titleAndUrls = $plot;
         echo $view->render();
     }
@@ -41,14 +47,14 @@ class Piwik_ImageGraph_Controller extends Piwik_Controller
     {
         Piwik::checkUserIsSuperUser();
 
-        $view = Piwik_View::factory('debug_graphs_all_sizes');
+        $view = new View('@ImageGraph/testAllSizes');
         $this->setGeneralVariablesView($view);
 
-        $period = Piwik_Common::getRequestVar('period', 'day', 'string');
-        $date = Piwik_Common::getRequestVar('date', 'today', 'string');
+        $period = Common::getRequestVar('period', 'day', 'string');
+        $date = Common::getRequestVar('date', 'today', 'string');
 
         $_GET['token_auth'] = Piwik::getCurrentUserTokenAuth();
-        $availableReports = Piwik_API_API::getInstance()->getReportMetadata($this->idSite, $period, $date);
+        $availableReports = API::getInstance()->getReportMetadata($this->idSite, $period, $date);
         $view->availableReports = $availableReports;
         $view->graphTypes = array(
             '', // default graph type
@@ -60,7 +66,6 @@ class Piwik_ImageGraph_Controller extends Piwik_Controller
         );
         $view->graphSizes = array(
             array(null, null), // default graph size
-            array(Piwik_ReportRenderer::IMAGE_GRAPH_WIDTH, Piwik_ReportRenderer::IMAGE_GRAPH_HEIGHT), // PDF/HTML reports
             array(460, 150), // standard phone
             array(300, 150), // standard phone 2
             array(240, 150), // smallest mobile display
@@ -69,5 +74,4 @@ class Piwik_ImageGraph_Controller extends Piwik_Controller
         );
         echo $view->render();
     }
-
 }

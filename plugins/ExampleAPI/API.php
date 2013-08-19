@@ -8,6 +8,12 @@
  * @category Piwik_Plugins
  * @package Piwik_ExampleAPI
  */
+namespace Piwik\Plugins\ExampleAPI;
+
+use Piwik\DataTable;
+use Piwik\DataTable\Row;
+use Piwik\Piwik;
+use Piwik\Version;
 
 /**
  * The ExampleAPI is useful to developers building a custom Piwik plugin.
@@ -15,7 +21,7 @@
  * Please see the <a href='http://dev.piwik.org/trac/browser/trunk/plugins/ExampleAPI/API.php#L1' target='_blank'>source code in in the file plugins/ExampleAPI/API.php</a> for more documentation.
  * @package Piwik_ExampleAPI
  */
-class Piwik_ExampleAPI_API
+class API
 {
     /**
      *  * This is an example of a basic API file. Each plugin can have one public API.
@@ -34,14 +40,14 @@ class Piwik_ExampleAPI_API
      *
      * It is highly recommended that all the plugin logic is done inside API implementations, and the
      * Controller and other objects would all call the API internally using, eg.
-     *  Piwik_ExampleAPI_API::getInstance()->getSum(1, 2);
+     *  API::getInstance()->getSum(1, 2);
      *
      */
     static private $instance = null;
 
     /**
      * Singleton
-     * @return Piwik_ExampleAPI_API
+     * @return \Piwik\Plugins\ExampleAPI\API
      */
     static public function getInstance()
     {
@@ -58,7 +64,7 @@ class Piwik_ExampleAPI_API
     public function getPiwikVersion()
     {
         Piwik::checkUserHasSomeViewAccess();
-        return Piwik_Version::VERSION;
+        return Version::VERSION;
     }
 
     /**
@@ -76,11 +82,11 @@ class Piwik_ExampleAPI_API
      * If used internally, the data structure can be returned untouched by using
      * the API parameter 'format=original'
      *
-     * @return Piwik_MagicObject Will return a standard Piwik error when called from the Web APIs
+     * @return MagicObject Will return a standard Piwik error when called from the Web APIs
      */
     public function getObject()
     {
-        return new Piwik_MagicObject();
+        return new MagicObject();
     }
 
     /**
@@ -89,8 +95,8 @@ class Piwik_ExampleAPI_API
      * when the API function is called. You can also use default values
      * as shown in this example.
      *
-     * @param float $a
-     * @param float $b
+     * @param float|int $a
+     * @param float|int $b
      * @return float
      */
     public function getSum($a = 0, $b = 0)
@@ -125,13 +131,13 @@ class Piwik_ExampleAPI_API
      * This data table will be converted to all available formats
      * when requested in the API request.
      *
-     * @return Piwik_DataTable
+     * @return DataTable
      */
     public function getCompetitionDatatable()
     {
-        $dataTable = new Piwik_DataTable();
+        $dataTable = new DataTable();
 
-        $row1 = new Piwik_DataTable_Row();
+        $row1 = new Row();
         $row1->setColumns(array('name' => 'piwik', 'license' => 'GPL'));
 
         // Rows Metadata is useful to store non stats data for example (logos, urls, etc.)
@@ -176,9 +182,9 @@ class Piwik_ExampleAPI_API
 /**
  * Magic Object
  *
- * @package Piwik_ExamplePlugin
+ * @package ExamplePlugin
  */
-class Piwik_MagicObject
+class MagicObject
 {
     function Incredible()
     {

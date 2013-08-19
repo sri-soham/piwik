@@ -8,18 +8,22 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik;
+use Exception;
+use Piwik\Config;
+use Piwik\Common;
 
 /**
  * @package Piwik
  */
-class Piwik_Translate
+class Translate
 {
     static private $instance = null;
     static private $languageToLoad = null;
     private $loadedLanguage = false;
 
     /**
-     * @return Piwik_Translate
+     * @return \Piwik\Translate
      */
     static public function getInstance()
     {
@@ -31,7 +35,7 @@ class Piwik_Translate
 
     public function loadEnglishTranslation()
     {
-        $this->loadTranslation('en');
+        $this->loadCoreTranslationFile('en');
     }
 
     public function unloadEnglishTranslation()
@@ -47,7 +51,7 @@ class Piwik_Translate
         $this->unloadEnglishTranslation();
         $this->loadEnglishTranslation();
         $this->loadCoreTranslation($language);
-        Piwik_PluginsManager::getInstance()->loadPluginTranslations($language);
+        PluginsManager::getInstance()->loadPluginTranslations($language);
     }
 
     /**
@@ -64,13 +68,14 @@ class Piwik_Translate
         if ($this->loadedLanguage == $language) {
             return;
         }
-        $this->loadTranslation($language);
+        $this->loadCoreTranslationFile($language);
     }
 
-    private function loadTranslation($language)
+    private function loadCoreTranslationFile($language)
     {
+        $translations = array();
         $path = PIWIK_INCLUDE_PATH . '/lang/' . $language . '.php';
-        if (!Piwik_Common::isValidFilename($language) || !is_readable($path)) {
+        if (!Common::isValidFilename($language) || !is_readable($path)) {
             throw new Exception(Piwik_TranslateException('General_ExceptionLanguageFileNotFound', array($language)));
         }
         require $path;
@@ -95,9 +100,9 @@ class Piwik_Translate
     public function getLanguageToLoad()
     {
         if (is_null(self::$languageToLoad)) {
-            $lang = Piwik_Common::getRequestVar('language', '', 'string');
+            $lang = Common::getRequestVar('language', '', 'string');
 
-            Piwik_PostEvent('Translate.getLanguageToLoad', $lang);
+            Piwik_PostEvent('Translate.getLanguageToLoad', array(&$lang));
 
             self::$languageToLoad = $lang;
         }
@@ -118,7 +123,7 @@ class Piwik_Translate
 
     public function getLanguageDefault()
     {
-        return Piwik_Config::getInstance()->General['default_language'];
+        return Config::getInstance()->General['default_language'];
     }
 
     /**
@@ -177,40 +182,3 @@ class Piwik_Translate
     }
 }
 
-/**
- * Returns translated string or given message if translation is not found.
- *
- * @param string $string Translation string index
- * @param array $args sprintf arguments
- * @return string
- */
-function Piwik_Translate($string, $args = array())
-{
-    if (!is_array($args)) {
-        $args = array($args);
-    }
-    if (isset($GLOBALS['Piwik_translations'][$string])) {
-        $string = $GLOBALS['Piwik_translations'][$string];
-    }
-    if (count($args) == 0) {
-        return $string;
-    }
-    return vsprintf($string, $args);
-}
-
-/**
- * Returns translated string or given message if translation is not found.
- * This function does not throw any exception. Use it to translate exceptions.
- *
- * @param string $message Translation string index
- * @param array $args sprintf arguments
- * @return string
- */
-function Piwik_TranslateException($message, $args = array())
-{
-    try {
-        return Piwik_Translate($message, $args);
-    } catch (Exception $e) {
-        return $message;
-    }
-}

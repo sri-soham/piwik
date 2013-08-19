@@ -6,8 +6,14 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik
- * @package Piwik_ReportRenderer
+ * @package ReportRenderer
  */
+namespace Piwik\ReportRenderer;
+
+use Piwik\Common;
+use Piwik\TCPDF;
+use Piwik\ReportRenderer;
+use Piwik\Plugins\API\API;
 
 /**
  * @see libs/tcpdf
@@ -18,9 +24,9 @@ require_once PIWIK_INCLUDE_PATH . '/core/TCPDF.php';
 
 /**
  *
- * @package Piwik_ReportRenderer
+ * @package ReportRenderer
  */
-class Piwik_ReportRenderer_Pdf extends Piwik_ReportRenderer
+class Pdf extends ReportRenderer
 {
     const IMAGE_GRAPH_WIDTH_LANDSCAPE = 1050;
     const IMAGE_GRAPH_WIDTH_PORTRAIT = 760;
@@ -66,22 +72,23 @@ class Piwik_ReportRenderer_Pdf extends Piwik_ReportRenderer
     private $displayGraph;
     private $evolutionGraph;
     private $displayTable;
+    private $segment;
     private $reportColumns;
     private $reportRowsMetadata;
     private $currentPage = 0;
-    private $reportFont = Piwik_ReportRenderer::DEFAULT_REPORT_FONT;
+    private $reportFont = ReportRenderer::DEFAULT_REPORT_FONT;
     private $TCPDF;
     private $orientation = self::PORTRAIT;
 
     public function __construct()
     {
-        $this->TCPDF = new Piwik_TCPDF();
-        $this->headerTextColor = preg_split("/,/", Piwik_ReportRenderer::REPORT_TITLE_TEXT_COLOR);
-        $this->reportTextColor = preg_split("/,/", Piwik_ReportRenderer::REPORT_TEXT_COLOR);
-        $this->tableHeaderBackgroundColor = preg_split("/,/", Piwik_ReportRenderer::TABLE_HEADER_BG_COLOR);
-        $this->tableHeaderTextColor = preg_split("/,/", Piwik_ReportRenderer::TABLE_HEADER_TEXT_COLOR);
-        $this->tableCellBorderColor = preg_split("/,/", Piwik_ReportRenderer::TABLE_CELL_BORDER_COLOR);
-        $this->tableBackgroundColor = preg_split("/,/", Piwik_ReportRenderer::TABLE_BG_COLOR);
+        $this->TCPDF = new TCPDF();
+        $this->headerTextColor = preg_split("/,/", ReportRenderer::REPORT_TITLE_TEXT_COLOR);
+        $this->reportTextColor = preg_split("/,/", ReportRenderer::REPORT_TEXT_COLOR);
+        $this->tableHeaderBackgroundColor = preg_split("/,/", ReportRenderer::TABLE_HEADER_BG_COLOR);
+        $this->tableHeaderTextColor = preg_split("/,/", ReportRenderer::TABLE_HEADER_TEXT_COLOR);
+        $this->tableCellBorderColor = preg_split("/,/", ReportRenderer::TABLE_CELL_BORDER_COLOR);
+        $this->tableBackgroundColor = preg_split("/,/", ReportRenderer::TABLE_BG_COLOR);
     }
 
     public function setLocale($locale)
@@ -109,7 +116,7 @@ class Piwik_ReportRenderer_Pdf extends Piwik_ReportRenderer
 
             case 'en':
             default:
-                $reportFont = Piwik_ReportRenderer::DEFAULT_REPORT_FONT;
+                $reportFont = ReportRenderer::DEFAULT_REPORT_FONT;
                 break;
         }
         $this->reportFont = $reportFont;
@@ -117,8 +124,8 @@ class Piwik_ReportRenderer_Pdf extends Piwik_ReportRenderer
 
     public function sendToDisk($filename)
     {
-        $filename = Piwik_ReportRenderer::appendExtension($filename, self::PDF_CONTENT_TYPE);
-        $outputFilename = Piwik_ReportRenderer::getOutputPath($filename);
+        $filename = ReportRenderer::appendExtension($filename, self::PDF_CONTENT_TYPE);
+        $outputFilename = ReportRenderer::getOutputPath($filename);
 
         $this->TCPDF->Output($outputFilename, 'F');
 
@@ -127,13 +134,13 @@ class Piwik_ReportRenderer_Pdf extends Piwik_ReportRenderer
 
     public function sendToBrowserDownload($filename)
     {
-        $filename = Piwik_ReportRenderer::appendExtension($filename, self::PDF_CONTENT_TYPE);
+        $filename = ReportRenderer::appendExtension($filename, self::PDF_CONTENT_TYPE);
         $this->TCPDF->Output($filename, 'D');
     }
 
     public function sendToBrowserInline($filename)
     {
-        $filename = Piwik_ReportRenderer::appendExtension($filename, self::PDF_CONTENT_TYPE);
+        $filename = ReportRenderer::appendExtension($filename, self::PDF_CONTENT_TYPE);
         $this->TCPDF->Output($filename, 'I');
     }
 
@@ -142,35 +149,51 @@ class Piwik_ReportRenderer_Pdf extends Piwik_ReportRenderer
         return $this->TCPDF->Output(null, 'S');
     }
 
-    public function renderFrontPage($reportTitle, $prettyDate, $description, $reportMetadata)
+    public function renderFrontPage($reportTitle, $prettyDate, $description, $reportMetadata, $segment)
     {
         $reportTitle = $this->formatText($reportTitle);
         $dateRange = $this->formatText(Piwik_Translate('General_DateRange') . " " . $prettyDate);
 
-        //Setup Footer font and data
+        // footer
         $this->TCPDF->SetFooterFont(array($this->reportFont, $this->reportFontStyle, $this->reportSimpleFontSize));
         $this->TCPDF->SetFooterContent($reportTitle . " | " . $dateRange . " | ");
 
+        // add first page
         $this->TCPDF->setPrintHeader(false);
-        //		$this->SetMargins($left = , $top, $right=-1, $keepmargins=true)
         $this->TCPDF->AddPage(self::PORTRAIT);
         $this->TCPDF->AddFont($this->reportFont, '', '', false);
         $this->TCPDF->SetFont($this->reportFont, $this->reportFontStyle, $this->reportSimpleFontSize);
-        //Image($file, $x='', $y='', $w=0, $h=0, $type='', $link='', $align='', $resize=false, $dpi=300, $palign='', $ismask=false, $imgmask=false, $border=0, $fitbox=false, $hidden=false, $fitonpage=false) {
         $this->TCPDF->Bookmark(Piwik_Translate('PDFReports_FrontPage'));
-        $this->TCPDF->Image(Piwik_API_API::getInstance()->getLogoUrl(true), $this->logoImagePosition[0], $this->logoImagePosition[1], 180 / $factor = 2, 0, $type = '', $link = '', $align = '', $resize = false, $dpi = 300);
+
+        // logo
+        $this->TCPDF->Image(API::getInstance()->getLogoUrl(true), $this->logoImagePosition[0], $this->logoImagePosition[1], 180 / $factor = 2, 0, $type = '', $link = '', $align = '', $resize = false, $dpi = 300);
         $this->TCPDF->Ln(8);
 
+        // report title
         $this->TCPDF->SetFont($this->reportFont, '', $this->reportHeaderFontSize + 5);
         $this->TCPDF->SetTextColor($this->headerTextColor[0], $this->headerTextColor[1], $this->headerTextColor[2]);
         $this->TCPDF->Cell(40, 210, $reportTitle);
         $this->TCPDF->Ln(8 * 4);
 
+        // date and period
         $this->TCPDF->SetFont($this->reportFont, '', $this->reportHeaderFontSize);
         $this->TCPDF->SetTextColor($this->reportTextColor[0], $this->reportTextColor[1], $this->reportTextColor[2]);
         $this->TCPDF->Cell(40, 210, $dateRange);
         $this->TCPDF->Ln(8 * 20);
+
+        // description
         $this->TCPDF->Write(1, $this->formatText($description));
+
+        // segment
+        if ($segment != null) {
+
+            $this->TCPDF->Ln();
+            $this->TCPDF->Ln();
+            $this->TCPDF->SetFont($this->reportFont, '', $this->reportHeaderFontSize - 2);
+            $this->TCPDF->SetTextColor($this->headerTextColor[0], $this->headerTextColor[1], $this->headerTextColor[2]);
+            $this->TCPDF->Write(1, $this->formatText(Piwik_Translate('PDFReports_CustomVisitorSegment') . ' ' . $segment['name']));
+        }
+
         $this->TCPDF->Ln(8);
         $this->TCPDF->SetFont($this->reportFont, '', $this->reportHeaderFontSize);
         $this->TCPDF->Ln();
@@ -270,6 +293,7 @@ class Piwik_ReportRenderer_Pdf extends Piwik_ReportRenderer
         $this->displayGraph = $processedReport['displayGraph'];
         $this->evolutionGraph = $processedReport['evolutionGraph'];
         $this->displayTable = $processedReport['displayTable'];
+        $this->segment = $processedReport['segment'];
         list($this->report, $this->reportColumns) = self::processTableFormat($this->reportMetadata, $processedReport['reportData'], $processedReport['columns']);
 
         $this->paintReportHeader();
@@ -295,7 +319,7 @@ class Piwik_ReportRenderer_Pdf extends Piwik_ReportRenderer
 
     private function formatText($text)
     {
-        return Piwik_Common::unsanitizeInputValue($text);
+        return Common::unsanitizeInputValue($text);
     }
 
     private function paintReportTable()
@@ -354,7 +378,7 @@ class Piwik_ReportRenderer_Pdf extends Piwik_ReportRenderer
                         if ($logoHeight < 16) {
                             $topMargin = 2;
                         }
-                        $path = Piwik_Common::getPathToPiwikRoot() . "/" . $rowMetadata['logo'];
+                        $path = Common::getPathToPiwikRoot() . "/" . $rowMetadata['logo'];
                         if (file_exists($path)) {
                             $this->TCPDF->Image($path, $posX + ($leftMargin = 2), $posY + $topMargin, $logoWidth / 4);
                         }
@@ -388,7 +412,8 @@ class Piwik_ReportRenderer_Pdf extends Piwik_ReportRenderer
             $this->reportMetadata,
             $this->orientation == self::PORTRAIT ? self::IMAGE_GRAPH_WIDTH_PORTRAIT : self::IMAGE_GRAPH_WIDTH_LANDSCAPE,
             self::IMAGE_GRAPH_HEIGHT,
-            $this->evolutionGraph
+            $this->evolutionGraph,
+            $this->segment
         );
 
         $this->TCPDF->Image(

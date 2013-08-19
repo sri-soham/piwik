@@ -6,8 +6,12 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_ExampleUI
+ * @package ExampleUI
  */
+namespace Piwik\Plugins\ExampleUI;
+
+use Piwik\Period\Range;
+use Piwik\DataTable;
 
 /**
  * ExampleUI API is also an example API useful if you are developing a Piwik plugin.
@@ -15,12 +19,15 @@
  * The functions listed in this API are returning the data used in the Controller to draw graphs and
  * display tables. See also the ExampleAPI plugin for an introduction to Piwik APIs.
  *
- * @package Piwik_ExampleUI
+ * @package ExampleUI
  */
-class Piwik_ExampleUI_API
+class API
 {
     static private $instance = null;
 
+    /**
+     * @return \Piwik\Plugins\ExampleUI\API
+     */
     static public function getInstance()
     {
         if (self::$instance == null) {
@@ -31,7 +38,7 @@ class Piwik_ExampleUI_API
 
     public function getTemperaturesEvolution($date, $period)
     {
-        $period = new Piwik_Period_Range($period, 'last30');
+        $period = new Range($period, 'last30');
         $dateStart = $period->getDateStart()->toString('Y-m-d'); // eg. "2009-04-01"
         $dateEnd = $period->getDateEnd()->toString('Y-m-d'); // eg. "2009-04-30"
 
@@ -42,7 +49,7 @@ class Piwik_ExampleUI_API
 						AND date < ?
 					GROUP BY date
 					ORDER BY date ASC";
-        //$result = Piwik_FetchAll($query, array($dateStart, $dateEnd));
+        //$result = Db::fetchAll($query, array($dateStart, $dateEnd));
         // to keep things simple, we generate the data
         foreach ($period->getSubperiods() as $subPeriod) {
             $server1 = mt_rand(50, 90);
@@ -50,11 +57,7 @@ class Piwik_ExampleUI_API
             $value = array('server1' => $server1, 'server2' => $server2);
             $temperatures[$subPeriod->getLocalizedShortString()] = $value;
         }
-
-        // convert this array to a DataTable object
-        $dataTable = new Piwik_DataTable();
-        $dataTable->addRowsFromArrayWithIndexLabel($temperatures);
-        return $dataTable;
+        return DataTable::makeFromIndexedArray($temperatures);
     }
 
     // we generate an array of random server temperatures
@@ -71,10 +74,7 @@ class Piwik_ExampleUI_API
             $temperatures[$xAxisLabel] = $temperatureValues[$i];
         }
 
-        // convert this array to a DataTable object
-        $dataTable = new Piwik_DataTable();
-        $dataTable->addRowsFromArrayWithIndexLabel($temperatures);
-        return $dataTable;
+        return DataTable::makeFromIndexedArray($temperatures);
     }
 
     public function getPlanetRatios()
@@ -90,9 +90,7 @@ class Piwik_ExampleUI_API
             'Neptune' => 3.883,
         );
         // convert this array to a DataTable object
-        $dataTable = new Piwik_DataTable();
-        $dataTable->addRowsFromArrayWithIndexLabel($planetRatios);
-        return $dataTable;
+        return DataTable::makeFromIndexedArray($planetRatios);
     }
 
     public function getPlanetRatiosWithLogos()

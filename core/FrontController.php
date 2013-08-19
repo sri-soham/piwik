@@ -9,14 +9,17 @@
  * @package Piwik
  */
 
-/**
- * @see core/PluginsManager.php
- * @see core/Translate.php
- * @see core/Option.php
- */
-require_once PIWIK_INCLUDE_PATH . '/core/PluginsManager.php';
-require_once PIWIK_INCLUDE_PATH . '/core/Translate.php';
-require_once PIWIK_INCLUDE_PATH . '/core/Option.php';
+namespace Piwik;
+use Piwik\NoAccessException;
+use Exception;
+use Piwik\API\Request;
+use Piwik\API\ResponseBuilder;
+use Piwik\Session;
+use Piwik\Timer;
+use Piwik\Url;
+use Piwik\Log;
+use Piwik\PluginsManager;
+use Zend_Registry;
 
 /**
  * Front controller.
@@ -26,9 +29,9 @@ require_once PIWIK_INCLUDE_PATH . '/core/Option.php';
  * For a detailed explanation, see the documentation on http://piwik.org/docs/plugins/framework-overview
  *
  * @package Piwik
- * @subpackage Piwik_FrontController
+ * @subpackage FrontController
  */
-class Piwik_FrontController
+class FrontController
 {
     /**
      * Set to false and the Front Controller will not dispatch the request
@@ -42,7 +45,7 @@ class Piwik_FrontController
     /**
      * returns singleton
      *
-     * @return Piwik_FrontController
+     * @return \Piwik\FrontController
      */
     public static function getInstance()
     {
@@ -55,12 +58,12 @@ class Piwik_FrontController
     /**
      * Dispatches the request to the right plugin and executes the requested action on the plugin controller.
      *
-     * @throws Exception|Piwik_FrontController_PluginDeactivatedException in case the plugin doesn't exist, the action doesn't exist, there is not enough permission, etc.
+     * @throws Exception|\Piwik\PluginDeactivatedException in case the plugin doesn't exist, the action doesn't exist, there is not enough permission, etc.
      *
      * @param string $module
      * @param string $action
      * @param array $parameters
-     * @return mixed The returned value of the calls, often nothing as the module print but don't return data
+     * @return void|mixed  The returned value of the calls, often nothing as the module print but don't return data
      * @see fetchDispatch()
      */
     public function dispatch($module = null, $action = null, $parameters = null)
@@ -71,17 +74,17 @@ class Piwik_FrontController
 
         if (is_null($module)) {
             $defaultModule = 'CoreHome';
-            $module = Piwik_Common::getRequestVar('module', $defaultModule, 'string');
+            $module = Common::getRequestVar('module', $defaultModule, 'string');
         }
 
         if (is_null($action)) {
-            $action = Piwik_Common::getRequestVar('action', false);
+            $action = Common::getRequestVar('action', false);
         }
 
-        if (!Piwik_Session::isFileBasedSessions()
+        if (!Session::isFileBasedSessions()
             && ($module !== 'API' || ($action && $action !== 'index'))
         ) {
-            Piwik_Session::start();
+            Session::start();
         }
 
         if (is_null($parameters)) {
@@ -92,11 +95,11 @@ class Piwik_FrontController
             throw new Exception("Invalid module name '$module'");
         }
 
-        if (!Piwik_PluginsManager::getInstance()->isPluginActivated($module)) {
-            throw new Piwik_FrontController_PluginDeactivatedException($module);
+        if (!PluginsManager::getInstance()->isPluginActivated($module)) {
+            throw new PluginDeactivatedException($module);
         }
 
-        $controllerClassName = 'Piwik_' . $module . '_Controller';
+        $controllerClassName = $this->getClassNameController( $module );
 
         // FrontController's autoloader
         if (!class_exists($controllerClassName, false)) {
@@ -107,7 +110,9 @@ class Piwik_FrontController
             require_once $moduleController; // prefixed by PIWIK_INCLUDE_PATH
         }
 
-        $controller = new $controllerClassName();
+        $class = $this->getClassNameController($module);
+        /** @var $controller Controller */
+        $controller = new $class;
         if ($action === false) {
             $action = $controller->getDefaultAction();
         }
@@ -123,13 +128,18 @@ class Piwik_FrontController
 
         try {
             return call_user_func_array(array($params[0], $params[1]), $params[2]);
-        } catch (Piwik_Access_NoAccessException $e) {
-            Piwik_PostEvent('FrontController.NoAccessException', $e);
+        } catch (NoAccessException $e) {
+            Piwik_PostEvent('FrontController.NoAccessException', array($e), $pending = true);
         } catch (Exception $e) {
             $debugTrace = $e->getTraceAsString();
-            $message = Piwik_Common::sanitizeInputValue($e->getMessage());
+            $message = Common::sanitizeInputValue($e->getMessage());
             Piwik_ExitWithMessage($message, '' /* $debugTrace */, true);
         }
+    }
+
+    protected function getClassNameController($module)
+    {
+        return "\\Piwik\\Plugins\\$module\\Controller";
     }
 
     /**
@@ -175,8 +185,8 @@ class Piwik_FrontController
         // which load the HTML page of the installer with the error.
         // This is at least required for misc/cron/archive.php and useful to all other scripts
         return (defined('PIWIK_ENABLE_DISPATCH') && !PIWIK_ENABLE_DISPATCH)
-            || Piwik_Common::isPhpCliMode()
-            || Piwik_Common::isArchivePhpTriggered();
+            || Common::isPhpCliMode()
+            || Common::isArchivePhpTriggered();
     }
 
     /**
@@ -185,21 +195,16 @@ class Piwik_FrontController
      *
      * @return Exception
      */
-    protected function createConfigObject()
+    static public function createConfigObject()
     {
         $exceptionToThrow = false;
         try {
-            Piwik::createConfigObject();
+            Config::getInstance();
         } catch (Exception $e) {
-            Piwik_PostEvent('FrontController.NoConfigurationFile', $e, $info = array(), $pending = true);
+            Piwik_PostEvent('FrontController.NoConfigurationFile', array($e), $pending = true);
             $exceptionToThrow = $e;
         }
         return $exceptionToThrow;
-    }
-
-    protected function createAccessObject()
-    {
-        Piwik::createAccessObject();
     }
 
     /**
@@ -221,9 +226,8 @@ class Piwik_FrontController
         }
         $initialized = true;
 
-
         try {
-            Zend_Registry::set('timer', new Piwik_Timer);
+            \Zend_Registry::set('timer', new Timer);
 
             $directoriesToCheck = array(
                 '/tmp/',
@@ -233,22 +237,23 @@ class Piwik_FrontController
                 '/tmp/tcpdf/'
             );
 
-            Piwik::checkDirectoriesWritableOrDie($directoriesToCheck);
-            Piwik_Common::assignCliParametersToRequest();
+            Piwik::dieIfDirectoriesNotWritable($directoriesToCheck);
+            Common::assignCliParametersToRequest();
 
-            Piwik_Translate::getInstance()->loadEnglishTranslation();
+            Translate::getInstance()->loadEnglishTranslation();
 
-            $exceptionToThrow = $this->createConfigObject();
+            $exceptionToThrow = self::createConfigObject();
 
-            if (Piwik_Session::isFileBasedSessions()) {
-                Piwik_Session::start();
+            if (Session::isFileBasedSessions()) {
+                Session::start();
             }
 
             $this->handleMaintenanceMode();
             $this->handleSSLRedirection();
 
-            $pluginsManager = Piwik_PluginsManager::getInstance();
-            $pluginsToLoad = Piwik_Config::getInstance()->Plugins['Plugins'];
+            $pluginsManager = PluginsManager::getInstance();
+            $pluginsToLoad = Config::getInstance()->Plugins['Plugins'];
+
             $pluginsManager->loadPlugins($pluginsToLoad);
 
             if ($exceptionToThrow) {
@@ -261,43 +266,43 @@ class Piwik_FrontController
                 if (self::shouldRethrowException()) {
                     throw $e;
                 }
-                Piwik_PostEvent('FrontController.badConfigurationFile', $e, $info = array(), $pending = true);
+                Piwik_PostEvent('FrontController.badConfigurationFile', array($e), $pending = true);
                 throw $e;
             }
 
-            Piwik::createLogObject();
+            Log::make();
 
-            // creating the access object, so that core/Updates/* can enforce Super User and use some APIs
-            $this->createAccessObject();
+            // Init the Access object, so that eg. core/Updates/* can enforce Super User and use some APIs
+            Access::getInstance();
+
             Piwik_PostEvent('FrontController.dispatchCoreAndPluginUpdatesScreen');
 
-            Piwik_PluginsManager::getInstance()->installLoadedPlugins();
-            Piwik::install();
+            PluginsManager::getInstance()->installLoadedPlugins();
 
             // ensure the current Piwik URL is known for later use
-            if (method_exists('Piwik', 'getPiwikUrl')) {
+            if (method_exists('Piwik\Piwik', 'getPiwikUrl')) {
                 $host = Piwik::getPiwikUrl();
             }
 
             Piwik_PostEvent('FrontController.initAuthenticationObject');
             try {
-                $authAdapter = Zend_Registry::get('auth');
+                $authAdapter = \Zend_Registry::get('auth');
             } catch (Exception $e) {
                 throw new Exception("Authentication object cannot be found in the Registry. Maybe the Login plugin is not activated?
-									<br />You can activate the plugin by adding:<br />
-									<code>Plugins[] = Login</code><br />
-									under the <code>[Plugins]</code> section in your config/config.ini.php");
+                                <br />You can activate the plugin by adding:<br />
+                                <code>Plugins[] = Login</code><br />
+                                under the <code>[Plugins]</code> section in your config/config.ini.php");
             }
-            Zend_Registry::get('access')->reloadAccess($authAdapter);
+            Access::getInstance()->reloadAccess($authAdapter);
 
             // Force the auth to use the token_auth if specified, so that embed dashboard
             // and all other non widgetized controller methods works fine
-            if (($token_auth = Piwik_Common::getRequestVar('token_auth', false, 'string')) !== false) {
-                Piwik_API_Request::reloadAuthUsingTokenAuth();
+            if (($token_auth = Common::getRequestVar('token_auth', false, 'string')) !== false) {
+                Request::reloadAuthUsingTokenAuth();
             }
             Piwik::raiseMemoryLimitIfNecessary();
 
-            Piwik_Translate::getInstance()->reloadLanguage();
+            Translate::getInstance()->reloadLanguage();
             $pluginsManager->postLoadPlugins();
 
             Piwik_PostEvent('FrontController.checkForUpdates');
@@ -307,21 +312,22 @@ class Piwik_FrontController
                 throw $e;
             }
 
-            Piwik_ExitWithMessage($e->getMessage(), false, true);
+            $trace = $e->getTraceAsString();
+            Piwik_ExitWithMessage($e->getMessage(), false /* $debugTrace */, true);
         }
     }
 
     protected function handleMaintenanceMode()
     {
-        if (Piwik_Config::getInstance()->General['maintenance_mode'] == 1
-            && !Piwik_Common::isPhpCliMode()
+        if (Config::getInstance()->General['maintenance_mode'] == 1
+            && !Common::isPhpCliMode()
         ) {
-            $format = Piwik_Common::getRequestVar('format', '');
+            $format = Common::getRequestVar('format', '');
 
             $message = "Piwik is in scheduled maintenance. Please come back later."
                 . " The administrator can disable maintenance by editing the file piwik/config/config.ini.php and removing the following: "
                 . " maintenance_mode=1 ";
-            if (Piwik_Config::getInstance()->Tracker['record_statistics'] == 0) {
+            if (Config::getInstance()->Tracker['record_statistics'] == 0) {
                 $message .= ' and record_statistics=0';
             }
 
@@ -331,7 +337,7 @@ class Piwik_FrontController
             if (empty($format)) {
                 throw $exception;
             }
-            $response = new Piwik_API_ResponseBuilder($format);
+            $response = new ResponseBuilder($format);
             echo $response->getResponseException($exception);
             exit;
         }
@@ -339,31 +345,31 @@ class Piwik_FrontController
 
     protected function handleSSLRedirection()
     {
-        if (!Piwik_Common::isPhpCliMode()
-            && Piwik_Config::getInstance()->General['force_ssl'] == 1
+        if (!Common::isPhpCliMode()
+            && Config::getInstance()->General['force_ssl'] == 1
             && !Piwik::isHttps()
             // Specifically disable for the opt out iframe
-            && !(Piwik_Common::getRequestVar('module', '') == 'CoreAdminHome'
-                && Piwik_Common::getRequestVar('action', '') == 'optOut')
+            && !(Common::getRequestVar('module', '') == 'CoreAdminHome'
+                && Common::getRequestVar('action', '') == 'optOut')
         ) {
-            $url = Piwik_Url::getCurrentUrl();
+            $url = Url::getCurrentUrl();
             $url = str_replace("http://", "https://", $url);
-            Piwik_Url::redirectToUrl($url);
+            Url::redirectToUrl($url);
         }
     }
 }
+
 
 /**
  * Exception thrown when the requested plugin is not activated in the config file
  *
  * @package Piwik
- * @subpackage Piwik_FrontController
+ * @subpackage FrontController
  */
-class Piwik_FrontController_PluginDeactivatedException extends Exception
+class PluginDeactivatedException extends Exception
 {
     public function __construct($module)
     {
         parent::__construct("The plugin $module is not enabled. You can activate the plugin on Settings > Plugins page in Piwik.");
     }
 }
-

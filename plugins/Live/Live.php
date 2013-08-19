@@ -6,65 +6,89 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_Live
+ * @package Live
  */
+namespace Piwik\Plugins\Live;
+
+use Piwik\Common;
+use Piwik\WidgetsList;
 
 /**
  *
- * @package Piwik_Live
+ * @package Live
  */
-class Piwik_Live extends Piwik_Plugin
+class Live extends \Piwik\Plugin
 {
-    public function getInformation()
+    /**
+     * @see Piwik_Plugin::getListHooksRegistered
+     */
+    public function getListHooksRegistered()
     {
         return array(
-            'description'     => Piwik_Translate('Live_PluginDescription'),
-            'author'          => 'Piwik',
-            'author_homepage' => 'http://piwik.org/',
-            'version'         => Piwik_Version::VERSION,
+            'AssetManager.getJsFiles'                  => 'getJsFiles',
+            'AssetManager.getCssFiles'                 => 'getCssFiles',
+            'WidgetsList.add'                          => 'addWidget',
+            'Menu.add'                                 => 'addMenu',
+            'ViewDataTable.getReportDisplayProperties' => 'getReportDisplayProperties',
         );
     }
 
-    function getListHooksRegistered()
+    public function getCssFiles(&$cssFiles)
     {
-        return array(
-            'AssetManager.getJsFiles'  => 'getJsFiles',
-            'AssetManager.getCssFiles' => 'getCssFiles',
-            'WidgetsList.add'          => 'addWidget',
-            'Menu.add'                 => 'addMenu',
-        );
+        $cssFiles[] = "plugins/Live/stylesheets/live.less";
+        $cssFiles[] = "plugins/Live/stylesheets/visitor_profile.less";
     }
 
-    /**
-     * @param Piwik_Event_Notification $notification  notification object
-     */
-    function getCssFiles($notification)
+    public function getJsFiles(&$jsFiles)
     {
-        $cssFiles = & $notification->getNotificationObject();
-
-        $cssFiles[] = "plugins/Live/templates/live.css";
-    }
-
-    /**
-     * @param Piwik_Event_Notification $notification  notification object
-     */
-    function getJsFiles($notification)
-    {
-        $jsFiles = & $notification->getNotificationObject();
-
-        $jsFiles[] = "plugins/Live/templates/scripts/live.js";
+        $jsFiles[] = "plugins/Live/javascripts/live.js";
     }
 
     function addMenu()
     {
-        Piwik_AddMenu('General_Visitors', 'Live_VisitorLog', array('module' => 'Live', 'action' => 'getVisitorLog'), true, $order = 5);
+        Piwik_AddMenu('General_Visitors', 'Live_VisitorLog', array('module' => 'Live', 'action' => 'indexVisitorLog'), true, $order = 5);
     }
 
     public function addWidget()
     {
-        Piwik_AddWidget('Live!', 'Live_VisitorsInRealTime', 'Live', 'widget');
-        Piwik_AddWidget('Live!', 'Live_VisitorLog', 'Live', 'getVisitorLog');
-        Piwik_AddWidget('Live!', 'Live_RealTimeVisitorCount', 'Live', 'getSimpleLastVisitCount');
+        WidgetsList::add('Live!', 'Live_VisitorsInRealTime', 'Live', 'widget');
+        WidgetsList::add('Live!', 'Live_VisitorLog', 'Live', 'getVisitorLog');
+        WidgetsList::add('Live!', 'Live_RealTimeVisitorCount', 'Live', 'getSimpleLastVisitCount');
     }
 
+    public function getReportDisplayProperties(&$properties)
+    {
+        $properties['Live.getLastVisitsDetails'] = $this->getDisplayPropertiesForGetLastVisitsDetails();
+    }
+
+    private function getDisplayPropertiesForGetLastVisitsDetails()
+    {
+        return array(
+            'datatable_template'          => "@Live/getVisitorLog.twig",
+            'disable_generic_filters'     => true,
+            'enable_sort'                 => false,
+            'filter_sort_column'          => 'idVisit',
+            'filter_sort_order'           => 'asc',
+            'show_search'                 => false,
+            'filter_limit'                => 20,
+            'show_offset_information'     => false,
+            'show_exclude_low_population' => false,
+            'show_all_views_icons' => false,
+            'show_table_all_columns' => false,
+            'show_export_as_rss_feed' => false,
+            'documentation' => Piwik_Translate('Live_VisitorLogDocumentation', array('<br />', '<br />')),
+            'custom_parameters' => array(
+                // set a very high row count so that the next link in the footer of the data table is always shown
+                'totalRows'         => 10000000,
+
+                'filterEcommerce'   => Common::getRequestVar('filterEcommerce', 0, 'int'),
+                'pageUrlNotDefined' => Piwik_Translate('General_NotDefined', Piwik_Translate('Actions_ColumnPageURL'))
+            ),
+            'visualization_properties' => array(
+                'table' => array(
+                    'disable_row_actions' => true,
+                )
+            )
+        );
+    }
 }

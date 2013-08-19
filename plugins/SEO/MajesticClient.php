@@ -6,15 +6,19 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_SEO
+ * @package SEO
  */
+namespace Piwik\Plugins\SEO;
+
+use Piwik\Common;
+use Piwik\Http;
 
 /**
  * Client for Majestic SEO's HTTP API.
  *
  * Hides the HTTP request sending logic.
  */
-class Piwik_SEO_MajesticClient
+class MajesticClient
 {
     const API_BASE = 'http://simpleapi.majesticseo.com/sapi/';
     const API_KEY = 'ETHPYY'; // please only use this key within Piwik
@@ -56,14 +60,14 @@ class Piwik_SEO_MajesticClient
             'items' => '1',
             'item0' => $siteDomain
         ));
-        $apiResponse = Piwik_Http::sendHttpRequest($apiUrl, $timeout);
+        $apiResponse = Http::sendHttpRequest($apiUrl, $timeout);
 
         $result = array(
             'backlink_count'         => false,
             'referrer_domains_count' => false
         );
 
-        $apiResponse = Piwik_Common::json_decode($apiResponse, $assoc = true);
+        $apiResponse = Common::json_decode($apiResponse, $assoc = true);
         if (!empty($apiResponse)
             && !empty($apiResponse['Data'])
         ) {

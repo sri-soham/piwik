@@ -8,16 +8,24 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik\ScheduledTime;
+
+use Exception;
+use Piwik\ScheduledTime;
 
 /**
- * Piwik_ScheduledTime_Daily class is used to schedule tasks every day.
+ * Daily class is used to schedule tasks every day.
  *
- * @see Piwik_ScheduledTask
+ * @see ScheduledTask
  * @package Piwik
- * @subpackage Piwik_ScheduledTime
+ * @subpackage ScheduledTime
  */
-class Piwik_ScheduledTime_Daily extends Piwik_ScheduledTime
+class Daily extends ScheduledTime
 {
+    /**
+     * @see ScheduledTime::getRescheduledTime
+     * @return int
+     */
     public function getRescheduledTime()
     {
         $currentTime = $this->getTime();
@@ -37,6 +45,11 @@ class Piwik_ScheduledTime_Daily extends Piwik_ScheduledTime
         return $rescheduledTime;
     }
 
+    /**
+     * @see ScheduledTime::setDay
+     * @param int $_day
+     * @throws \Exception
+     */
     public function setDay($_day)
     {
         throw new Exception ("Method not supported");

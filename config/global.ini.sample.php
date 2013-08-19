@@ -143,9 +143,16 @@ time_before_today_archive_considered_outdated = 10
 ; to trigger the Piwik archiving process.
 enable_browser_archiving_triggering = 1
 
+<<<<<<< HEAD:config/global.ini.sample.php
 ; If set to 1, nested reports will be archived with parent references in the datatables
 ; At the moment, this is not needed in core but it can be handy for plugins
 enable_archive_parents_of_datatable = 0
+=======
+; By default Piwik runs OPTIMIZE TABLE SQL queries to free spaces after deleting some data.
+; If your Piwik tracks millions of pages, the OPTIMIZE TABLE queries might run for hours (seen in "SHOW FULL PROCESSLIST \g")
+; so you can disable these special queries here:
+enable_sql_optimize_queries = 1
+>>>>>>> piwik-master:config/global.ini.php
 
 ; MySQL minimum required version
 ; note: timezone support added in 4.1.3
@@ -219,16 +226,25 @@ feedback_email_address = "hello@piwik.org"
 
 ; during archiving, Piwik will limit the number of results recorded, for performance reasons
 ; maximum number of rows for any of the Referers tables (keywords, search engines, campaigns, etc.)
-; this limit will also be applied to the Custom Variables names and values reports
 datatable_archiving_maximum_rows_referers = 1000
 ; maximum number of rows for any of the Referers subtable (search engines by keyword, keyword by campaign, etc.)
 datatable_archiving_maximum_rows_subtable_referers = 50
 
+; maximum number of rows for the Custom Variables names report
+datatable_archiving_maximum_rows_custom_variables = 1000
+; maximum number of rows for the Custom Variables values reports
+datatable_archiving_maximum_rows_subtable_custom_variables = 1000
+
 ; maximum number of rows for any of the Actions tables (pages, downloads, outlinks)
 datatable_archiving_maximum_rows_actions = 500
 ; maximum number of rows for pages in categories (sub pages, when clicking on the + for a page category)
+<<<<<<< HEAD:config/global.ini.sample.php
 ; note: should not exceed the display limit in Piwik_Actions_Controller::ACTIONS_REPORT_ROWS_DISPLAY
 ;       because each subdirectory doesn't have paging at the bottom, so all data should be displayed if possible.
+=======
+; note: should not exceed the display limit in Piwik\Actions\Controller::ACTIONS_REPORT_ROWS_DISPLAY
+; because each subdirectory doesn't have paging at the bottom, so all data should be displayed if possible.
+>>>>>>> piwik-master:config/global.ini.php
 datatable_archiving_maximum_rows_subtable_actions = 100
 
 ; maximum number of rows for other tables (Providers, User settings configurations)
@@ -247,6 +263,7 @@ live_widget_refresh_after_seconds = 5
 ; the page will automatically refresh every 5 minutes. Set to 0 to disable automatic refresh
 multisites_refresh_after_seconds = 300
 
+<<<<<<< HEAD:config/global.ini.sample.php
 ; by default, Piwik uses self-hosted AJAX libraries.
 ; If set to 1, Piwik uses a Content Distribution Network
 use_ajax_cdn = 0
@@ -256,6 +273,8 @@ jquery_version = 1.7.2
 jqueryui_version = 1.8.22
 swfobject_version = 2.2
 
+=======
+>>>>>>> piwik-master:config/global.ini.php
 ; Set to 1 if you're using https on your Piwik server and Piwik can't detect it,
 ; e.g., a reverse proxy using https-to-http, or a web server that doesn't
 ; set the HTTPS environment variable.
@@ -312,6 +331,13 @@ graphs_default_period_to_plot_when_period_range = day
 ; the visit ID cookie will be set on the Piwik server domain as well
 ; this is useful when you want to do cross websites analysis
 use_third_party_id_cookie = 0
+
+; There is a feature in the Tracking API that lets you create new visit at any given time, for example if you know that a different user/customer is using
+; the app then you would want to tell Piwik to create a new visit (even though both users are using the same browser/computer).
+; To prevent abuse and easy creation of fake visits, this feature requires admin token_auth by default
+; If you wish to use this feature using the Javascript tracker, you can set the setting new_visit_api_requires_admin=0, and in Javascript write:
+; _paq.push(['appendToTrackingUrl', 'new_visit=1']);
+new_visit_api_requires_admin = 1
 
 ; This setting should only be set to 1 in an intranet setting, where most users have the same configuration (browsers, OS)
 ; and the same IP. If left to 0 in this setting, all visitors will be counted as one single visitor.
@@ -375,7 +401,7 @@ page_maximum_length = 1024;
 ip_address_mask_length = 1
 
 ; DO NOT USE THIS SETTING ON PUBLICLY AVAILABLE PIWIK SERVER
-; !!! Security risk: if set to 0, it would allow anyone to push data to Piwik with custom dates in the past/future and with fake IPs !!!
+; !!! Security risk: if set to 0, it would allow anyone to push data to Piwik with custom dates in the past/future and even with fake IPs!
 ; When using the Tracking API, to override either the datetime and/or the visitor IP, 
 ; token_auth with an "admin" access is required. If you set this setting to 0, the token_auth will not be required anymore.
 ; DO NOT USE THIS SETTING ON PUBLIC PIWIK SERVERS
@@ -449,6 +475,7 @@ logger_file_path		= tmp/logs
 ; disabled by default as it can cause serious overhead and should only be used wisely
 ;logger_api_call[]		= file
 
+<<<<<<< HEAD:config/global.ini.sample.php
 [smarty]
 ; the list of directories in which to look for templates
 template_dir[]	= plugins
@@ -504,6 +531,53 @@ Plugins[]		= CustomVariables
 Plugins[]		= PrivacyManager
 Plugins[]		= ImageGraph
 Plugins[]		= DoNotTrack
+=======
+[Plugins]
+Plugins[] = CorePluginsAdmin
+Plugins[] = CoreAdminHome
+Plugins[] = CoreHome
+Plugins[] = CoreVisualizations
+Plugins[] = Proxy
+Plugins[] = API
+Plugins[] = Widgetize
+Plugins[] = Transitions
+Plugins[] = LanguagesManager
+Plugins[] = Actions
+Plugins[] = Dashboard
+Plugins[] = MultiSites
+Plugins[] = Referers
+Plugins[] = UserSettings
+Plugins[] = Goals
+Plugins[] = SEO
+
+Plugins[] = UserCountry
+Plugins[] = VisitsSummary
+Plugins[] = VisitFrequency
+Plugins[] = VisitTime
+Plugins[] = VisitorInterest
+Plugins[] = ExampleAPI
+Plugins[] = ExamplePlugin
+Plugins[] = ExampleRssWidget
+Plugins[] = Provider
+Plugins[] = Feedback
+
+Plugins[] = Login
+Plugins[] = UsersManager
+Plugins[] = SitesManager
+Plugins[] = Installation
+Plugins[] = CoreUpdater
+Plugins[] = PDFReports
+Plugins[] = UserCountryMap
+Plugins[] = Live
+Plugins[] = CustomVariables
+Plugins[] = PrivacyManager
+Plugins[] = ImageGraph
+Plugins[] = DoNotTrack
+Plugins[] = Annotations
+Plugins[] = MobileMessaging
+Plugins[] = Overlay
+Plugins[] = SegmentEditor
+>>>>>>> piwik-master:config/global.ini.php
 
 [PluginsInstalled]
 PluginsInstalled[] = Login

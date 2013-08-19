@@ -9,11 +9,16 @@
  * @package Piwik
  */
 
+namespace Piwik;
+use Exception;
+use Piwik\Date;
+use Piwik\Plugins\SitesManager\API;
+
 /**
  *
  * @package Piwik
  */
-class Piwik_Site
+class Site
 {
     /**
      * @var int|null
@@ -32,7 +37,7 @@ class Piwik_Site
     {
         $this->id = (int)$idsite;
         if (!isset(self::$infoSites[$this->id])) {
-            self::$infoSites[$this->id] = Piwik_SitesManager_API::getInstance()->getSiteFromId($this->id);
+            self::$infoSites[$this->id] = API::getInstance()->getSiteFromId($this->id);
         }
     }
 
@@ -122,12 +127,12 @@ class Piwik_Site
     /**
      * Returns the creation date of the site
      *
-     * @return Piwik_Date
+     * @return Date
      */
     public function getCreationDate()
     {
         $date = $this->get('ts_created');
-        return Piwik_Date::factory($date);
+        return Date::factory($date);
     }
 
     /**
@@ -204,12 +209,13 @@ class Piwik_Site
      * Checks the given string for valid site ids and returns them as an array
      *
      * @param string $ids comma separated idSite list
+     * @param bool|string $_restrictSitesToLogin Used only when running as a scheduled task.
      * @return array of valid integer
      */
-    public static function getIdSitesFromIdSitesString($ids)
+    static public function getIdSitesFromIdSitesString($ids, $_restrictSitesToLogin = false)
     {
         if ($ids === 'all') {
-            return Piwik_SitesManager_API::getInstance()->getSitesIdWithAtLeastViewAccess();
+            return API::getInstance()->getSitesIdWithAtLeastViewAccess($_restrictSitesToLogin);
         }
 
         if (!is_array($ids)) {
@@ -250,7 +256,7 @@ class Piwik_Site
         $idsite = (int)$idsite;
 
         if (!isset(self::$infoSites[$idsite])) {
-            self::$infoSites[$idsite] = Piwik_SitesManager_API::getInstance()->getSiteFromId($idsite);
+            self::$infoSites[$idsite] = API::getInstance()->getSiteFromId($idsite);
         }
 
         return self::$infoSites[$idsite][$field];

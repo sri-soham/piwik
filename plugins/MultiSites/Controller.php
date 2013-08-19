@@ -6,14 +6,25 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_MultiSites
+ * @package MultiSites
  */
+namespace Piwik\Plugins\MultiSites;
+
+use Piwik\Period;
+use Piwik\Piwik;
+use Piwik\Common;
+use Piwik\Config;
+use Piwik\Date;
+use Piwik\Plugins\MultiSites\API as MultiSitesAPI;
+use Piwik\View;
+use Piwik\Site;
+use Piwik\Plugins\SitesManager\API as SitesManagerAPI;
 
 /**
  *
- * @package Piwik_MultiSites
+ * @package MultiSites
  */
-class Piwik_MultiSites_Controller extends Piwik_Controller
+class Controller extends \Piwik\Controller
 {
     protected $orderBy = 'visits';
     protected $order = 'desc';
@@ -27,7 +38,7 @@ class Piwik_MultiSites_Controller extends Piwik_Controller
     {
         parent::__construct();
 
-        $this->limit = Piwik_Config::getInstance()->General['all_websites_website_per_page'];
+        $this->limit = Config::getInstance()->General['all_websites_website_per_page'];
     }
 
     function index()
@@ -40,38 +51,36 @@ class Piwik_MultiSites_Controller extends Piwik_Controller
         $this->getSitesInfo($isWidgetized = true);
     }
 
-
-    public function getSitesInfo($isWidgetized)
+    public function getSitesInfo($isWidgetized = false)
     {
         Piwik::checkUserHasSomeViewAccess();
-        $displayRevenueColumn = Piwik_Common::isGoalPluginEnabled();
+        $displayRevenueColumn = Common::isGoalPluginEnabled();
 
-        $date = Piwik_Common::getRequestVar('date', 'today');
-        $period = Piwik_Common::getRequestVar('period', 'day');
-        $siteIds = Piwik_SitesManager_API::getInstance()->getSitesIdWithAtLeastViewAccess();
+        $date = Common::getRequestVar('date', 'today');
+        $period = Common::getRequestVar('period', 'day');
+        $siteIds = SitesManagerAPI::getInstance()->getSitesIdWithAtLeastViewAccess();
         list($minDate, $maxDate) = $this->getMinMaxDateAcrossWebsites($siteIds);
 
         // overwrites the default Date set in the parent controller
         // Instead of the default current website's local date,
         // we set "today" or "yesterday" based on the default Piwik timezone
-        $piwikDefaultTimezone = Piwik_SitesManager_API::getInstance()->getDefaultTimezone();
+        $piwikDefaultTimezone = SitesManagerAPI::getInstance()->getDefaultTimezone();
         if ($period != 'range') {
             $date = $this->getDateParameterInTimezone($date, $piwikDefaultTimezone);
             $this->setDate($date);
             $date = $date->toString();
         }
-        $dataTable = Piwik_MultiSites_API::getInstance()->getAll($period, $date, $segment = false);
-
+        $dataTable = MultiSitesAPI::getInstance()->getAll($period, $date, $segment = false);
 
         // put data into a form the template will understand better
         $digestableData = array();
         foreach ($siteIds as $idSite) {
-            $isEcommerceEnabled = Piwik_Site::isEcommerceEnabledFor($idSite);
+            $isEcommerceEnabled = Site::isEcommerceEnabledFor($idSite);
 
             $digestableData[$idSite] = array(
                 'idsite'    => $idSite,
-                'main_url'  => Piwik_Site::getMainUrlFor($idSite),
-                'name'      => Piwik_Site::getNameFor($idSite),
+                'main_url'  => Site::getMainUrlFor($idSite),
+                'name'      => Site::getNameFor($idSite),
                 'visits'    => 0,
                 'pageviews' => 0
             );
@@ -116,7 +125,7 @@ class Piwik_MultiSites_Controller extends Piwik_Controller
 
         $this->applyPrettyMoney($digestableData);
 
-        $view = new Piwik_View("MultiSites/templates/index.tpl");
+        $view = new View("@MultiSites/getSitesInfo");
         $view->isWidgetized = $isWidgetized;
         $view->sitesData = array_values($digestableData);
         $view->evolutionBy = $this->evolutionBy;
@@ -137,7 +146,7 @@ class Piwik_MultiSites_Controller extends Piwik_Controller
         }
 
         if ($period != 'range') {
-            $lastPeriod = Piwik_Period::factory($period, $dataTable->getMetadata('last_period_date'));
+            $lastPeriod = Period::factory($period, $dataTable->getMetadata('last_period_date'));
             $view->pastPeriodPretty = self::getCalendarPrettyDate($lastPeriod);
         }
 
@@ -148,16 +157,16 @@ class Piwik_MultiSites_Controller extends Piwik_Controller
         // if the current date is today, or yesterday,
         // in case the website is set to UTC-12), or today in UTC+14, we refresh the page every 5min
         if (in_array($date, array('today', date('Y-m-d'),
-                                  'yesterday', Piwik_Date::factory('yesterday')->toString('Y-m-d'),
-                                  Piwik_Date::factory('now', 'UTC+14')->toString('Y-m-d')))
+                                  'yesterday', Date::factory('yesterday')->toString('Y-m-d'),
+                                  Date::factory('now', 'UTC+14')->toString('Y-m-d')))
         ) {
 
-            $view->autoRefreshTodayReport = Piwik_Config::getInstance()->General['multisites_refresh_after_seconds'];
+            $view->autoRefreshTodayReport = Config::getInstance()->General['multisites_refresh_after_seconds'];
         }
         $this->setGeneralVariablesView($view);
         $this->setMinDateView($minDate, $view);
         $this->setMaxDateView($maxDate, $view);
-        $view->show_sparklines = Piwik_Config::getInstance()->General['show_multisites_sparklines'];
+        $view->show_sparklines = Config::getInstance()->General['show_multisites_sparklines'];
 
         echo $view->render();
     }
@@ -166,32 +175,32 @@ class Piwik_MultiSites_Controller extends Piwik_Controller
      * The Multisites reports displays the first calendar date as the earliest day available for all websites.
      * Also, today is the later "today" available across all timezones.
      * @param array $siteIds Array of IDs for each site being displayed.
-     * @return array of two Piwik_Date instances. First is the min-date & the second
+     * @return array of two Date instances. First is the min-date & the second
      *               is the max date.
      */
     private function getMinMaxDateAcrossWebsites($siteIds)
     {
-        $now = Piwik_Date::now();
+        $now = Date::now();
 
         $minDate = null;
         $maxDate = $now->subDay(1)->getTimestamp();
         foreach ($siteIds as $idsite) {
             // look for 'now' in the website's timezone
-            $timezone = Piwik_Site::getTimezoneFor($idsite);
-            $date = Piwik_Date::adjustForTimezone($now->getTimestamp(), $timezone);
+            $timezone = Site::getTimezoneFor($idsite);
+            $date = Date::adjustForTimezone($now->getTimestamp(), $timezone);
             if ($date > $maxDate) {
                 $maxDate = $date;
             }
 
             // look for the absolute minimum date
-            $creationDate = Piwik_Site::getCreationDateFor($idsite);
-            $date = Piwik_Date::adjustForTimezone(strtotime($creationDate), $timezone);
+            $creationDate = Site::getCreationDateFor($idsite);
+            $date = Date::adjustForTimezone(strtotime($creationDate), $timezone);
             if (is_null($minDate) || $date < $minDate) {
                 $minDate = $date;
             }
         }
 
-        return array(Piwik_Date::factory($minDate), Piwik_Date::factory($maxDate));
+        return array(Date::factory($minDate), Date::factory($maxDate));
     }
 
     protected function applyPrettyMoney(&$sites)
@@ -208,7 +217,7 @@ class Piwik_MultiSites_Controller extends Piwik_Controller
     public function getEvolutionGraph($fetch = false, $columns = false)
     {
         if (empty($columns)) {
-            $columns = Piwik_Common::getRequestVar('columns');
+            $columns = Common::getRequestVar('columns');
         }
         $api = "API.get";
 
@@ -216,7 +225,7 @@ class Piwik_MultiSites_Controller extends Piwik_Controller
             $api = "Goals.get";
         }
         $view = $this->getLastUnitGraph($this->pluginName, __FUNCTION__, $api);
-        $view->setColumnsToDisplay($columns);
+        $view->columns_to_display = $columns;
         return $this->renderView($view, $fetch);
     }
 }

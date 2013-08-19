@@ -8,11 +8,15 @@
  * @category Piwik
  * @package Updates
  */
+use Piwik\Piwik;
+use Piwik\Plugins\SitesManager\API;
+use Piwik\Tracker\Cache;
+use Piwik\Updates;
 
 /**
  * @package Updates
  */
-class Piwik_Updates_0_6_2 extends Piwik_Updates
+class Piwik_Updates_0_6_2 extends Updates
 {
     static function update()
     {
@@ -36,7 +40,7 @@ class Piwik_Updates_0_6_2 extends Piwik_Updates
 
         // force regeneration of cache files
         Piwik::setUserIsSuperUser();
-        $allSiteIds = Piwik_SitesManager_API::getInstance()->getAllSitesId();
-        Piwik_Tracker_Cache::regenerateCacheWebsiteAttributes($allSiteIds);
+        $allSiteIds = API::getInstance()->getAllSitesId();
+        Cache::regenerateCacheWebsiteAttributes($allSiteIds);
     }
 }

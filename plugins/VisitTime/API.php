@@ -6,15 +6,28 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_VisitTime
+ * @package VisitTime
  */
+namespace Piwik\Plugins\VisitTime;
+
+use Exception;
+use Piwik\Archive;
+use Piwik\Metrics;
+use Piwik\Period;
+use Piwik\Piwik;
+use Piwik\Date;
+use Piwik\DataTable;
+use Piwik\Site;
+use Piwik\Plugins\VisitTime\Archiver;
+
+require_once PIWIK_INCLUDE_PATH . '/plugins/VisitTime/functions.php';
 
 /**
  * VisitTime API lets you access reports by Hour (Server time), and by Hour Local Time of your visitors.
  *
- * @package Piwik_VisitTime
+ * @package VisitTime
  */
-class Piwik_VisitTime_API
+class API
 {
     static private $instance = null;
 
@@ -29,22 +42,22 @@ class Piwik_VisitTime_API
     protected function getDataTable($name, $idSite, $period, $date, $segment)
     {
         Piwik::checkUserHasViewAccess($idSite);
-        $archive = Piwik_Archive::build($idSite, $period, $date, $segment);
+        $archive = Archive::build($idSite, $period, $date, $segment);
         $dataTable = $archive->getDataTable($name);
         $dataTable->filter('Sort', array('label', 'asc', true));
-        $dataTable->queueFilter('ColumnCallbackReplace', array('label', 'Piwik_getTimeLabel'));
+        $dataTable->queueFilter('ColumnCallbackReplace', array('label', __NAMESPACE__ .'\getTimeLabel'));
         $dataTable->queueFilter('ReplaceColumnNames');
         return $dataTable;
     }
 
     public function getVisitInformationPerLocalTime($idSite, $period, $date, $segment = false)
     {
-        return $this->getDataTable('VisitTime_localTime', $idSite, $period, $date, $segment);
+        return $this->getDataTable(Archiver::LOCAL_TIME_RECORD_NAME, $idSite, $period, $date, $segment);
     }
 
     public function getVisitInformationPerServerTime($idSite, $period, $date, $segment = false, $hideFutureHoursWhenToday = false)
     {
-        $table = $this->getDataTable('VisitTime_serverTime', $idSite, $period, $date, $segment);
+        $table = $this->getDataTable(Archiver::SERVER_TIME_RECORD_NAME, $idSite, $period, $date, $segment);
         if ($hideFutureHoursWhenToday) {
             $table = $this->removeHoursInFuture($table, $idSite, $period, $date);
         }
@@ -57,31 +70,34 @@ class Piwik_VisitTime_API
      * @param string $idSite The site ID. Cannot refer to multiple sites.
      * @param string $period The period type: day, week, year, range...
      * @param string $date The start date of the period. Cannot refer to multiple dates.
-     * @param string $segment The segment.
-     * @return Piwik_DataTable
+     * @param bool|string $segment The segment.
+     * @throws Exception
+     * @return DataTable
      */
     public function getByDayOfWeek($idSite, $period, $date, $segment = false)
     {
+
         Piwik::checkUserHasViewAccess($idSite);
 
-        // disabled for multiple sites/dates
-        if (Piwik_Archive::isMultipleSites($idSite)) {
-            throw new Exception("VisitTime.getByDayOfWeek does not support multiple sites.");
-        }
+        // metrics to query
+        $metrics = Metrics::getVisitsMetricNames();
+        unset($metrics[Metrics::INDEX_MAX_ACTIONS]);
 
-        if (Piwik_Archive::isMultiplePeriod($date, $period)) {
+        // disabled for multiple dates
+        if (Period::isMultiplePeriod($date, $period)) {
             throw new Exception("VisitTime.getByDayOfWeek does not support multiple dates.");
         }
 
-        // metrics to query
-        $metrics = Piwik_ArchiveProcessing::getCoreMetrics();
-
         // get metric data for every day within the supplied period
-        $oSite = new Piwik_Site($idSite);
-        $oPeriod = Piwik_Archive::makePeriodFromQueryParams($oSite, $period, $date);
+        $oPeriod = Period::makePeriodFromQueryParams(Site::getTimezoneFor($idSite), $period, $date);
         $dateRange = $oPeriod->getDateStart()->toString() . ',' . $oPeriod->getDateEnd()->toString();
+        $archive = Archive::build($idSite, 'day', $dateRange, $segment);
 
-        $archive = Piwik_Archive::build($idSite, 'day', $dateRange, $segment);
+        // disabled for multiple sites
+        if (count($archive->getParams()->getIdSites()) > 1) {
+            throw new Exception("VisitTime.getByDayOfWeek does not support multiple sites.");
+        }
+
         $dataTable = $archive->getDataTableFromNumeric($metrics)->mergeChildren();
 
         // if there's no data for this report, don't bother w/ anything else
@@ -90,15 +106,14 @@ class Piwik_VisitTime_API
         }
 
         // group by the day of the week (see below for dayOfWeekFromDate function)
-        $dataTable->filter('GroupBy', array('label', 'Piwik_VisitTime_dayOfWeekFromDate'));
+        $dataTable->filter('GroupBy', array('label', __NAMESPACE__ . '\dayOfWeekFromDate'));
 
         // create new datatable w/ empty rows, then add calculated datatable
         $rows = array();
         foreach (array(1, 2, 3, 4, 5, 6, 7) as $day) {
             $rows[] = array('label' => $day, 'nb_visits' => 0);
         }
-
-        $result = new Piwik_DataTable();
+        $result = new DataTable();
         $result->addRowsFromSimpleArray($rows);
         $result->addDataTable($dataTable);
 
@@ -106,7 +121,7 @@ class Piwik_VisitTime_API
         $result->filter('ColumnCallbackAddMetadata', array('label', 'day_of_week'));
 
         // translate labels
-        $result->filter('ColumnCallbackReplace', array('label', 'Piwik_VisitTime_translateDayOfWeek'));
+        $result->filter('ColumnCallbackReplace', array('label', __NAMESPACE__ . '\translateDayOfWeek'));
 
         // set datatable metadata for period start & finish
         $result->setMetadata('date_start', $oPeriod->getDateStart());
@@ -115,15 +130,22 @@ class Piwik_VisitTime_API
         return $result;
     }
 
+    /**
+     * @param DataTable $table
+     * @param int       $idSite
+     * @param string    $period
+     * @param string    $date
+     * @return mixed
+     */
     protected function removeHoursInFuture($table, $idSite, $period, $date)
     {
-        $site = new Piwik_Site($idSite);
+        $site = new Site($idSite);
 
         if ($period == 'day'
             && ($date == 'today'
-                || $date == Piwik_Date::factory('now', $site->getTimezone())->toString())
+                || $date == Date::factory('now', $site->getTimezone())->toString())
         ) {
-            $currentHour = Piwik_Date::factory('now', $site->getTimezone())->toString('G');
+            $currentHour = Date::factory('now', $site->getTimezone())->toString('G');
             // If no data for today, this is an exception to the API output rule, as we normally return nothing:
             // we shall return all hours of the day, with nb_visits = 0
             if ($table->getRowsCount() == 0) {
@@ -144,32 +166,4 @@ class Piwik_VisitTime_API
         }
         return $table;
     }
-}
-
-function Piwik_getTimeLabel($label)
-{
-    return sprintf(Piwik_Translate('VisitTime_NHour'), $label);
-}
-
-/**
- * Returns the day of the week for a date string, without creating a new
- * Piwik_Date instance.
- *
- * @param string $dateStr
- * @return int The day of the week (1-7)
- */
-function Piwik_VisitTime_dayOfWeekFromDate($dateStr)
-{
-    return date('N', strtotime($dateStr));
-}
-
-/**
- * Returns translated long name of a day of the week.
- *
- * @param int $dayOfWeek 1-7, for Sunday-Saturday
- * @return string
- */
-function Piwik_VisitTime_translateDayOfWeek($dayOfWeek)
-{
-    return Piwik_Translate('General_LongDay_' . $dayOfWeek);
 }

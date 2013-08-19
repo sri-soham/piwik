@@ -6,8 +6,14 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_SEO
+ * @package SEO
  */
+namespace Piwik\Plugins\SEO;
+
+use Exception;
+use Piwik\Piwik;
+use Piwik\Http;
+use Piwik\Plugins\SEO\MajesticClient;
 
 /**
  * The functions below are derived/adapted from GetRank.org's
@@ -16,9 +22,9 @@
  * @copyright Copyright (C) 2007 - 2010 GetRank.Org  All rights reserved.
  * @link http://www.getrank.org/free-pagerank-script/
  * @license GPL
- * @package Piwik_SEO
+ * @package SEO
  */
-class Piwik_SEO_RankChecker
+class RankChecker
 {
     private $url;
     private $majesticInfo = null;
@@ -55,7 +61,7 @@ class Piwik_SEO_RankChecker
     private function getPage($url)
     {
         try {
-            return str_replace('&nbsp;', ' ', Piwik_Http::sendHttpRequest($url, $timeout = 10, @$_SERVER['HTTP_USER_AGENT']));
+            return str_replace('&nbsp;', ' ', Http::sendHttpRequest($url, $timeout = 10, @$_SERVER['HTTP_USER_AGENT']));
         } catch (Exception $e) {
             return '';
         }
@@ -114,8 +120,9 @@ class Piwik_SEO_RankChecker
     {
         $url = 'http://www.google.com/search?hl=en&q=site%3A' . urlencode($this->url);
         $data = $this->getPage($url);
-        if (preg_match('#about ([0-9\,]+) results#i', $data, $p)) {
-            return (int)str_replace(',', '', $p[1]);
+        if (preg_match('#([0-9\,]+) results#i', $data, $p)) {
+            $indexedPages = (int)str_replace(',', '', $p[1]);
+            return $indexedPages;
         }
         return 0;
     }
@@ -179,8 +186,13 @@ class Piwik_SEO_RankChecker
      */
     public function getExternalBacklinkCount()
     {
-        $majesticInfo = $this->getMajesticInfo();
-        return $majesticInfo['backlink_count'];
+        try {
+            $majesticInfo = $this->getMajesticInfo();
+            return $majesticInfo['backlink_count'];
+        } catch (Exception $e) {
+            Piwik::log($e->getMessage());
+            return 0;
+        }
     }
 
     /**
@@ -190,8 +202,13 @@ class Piwik_SEO_RankChecker
      */
     public function getReferrerDomainCount()
     {
-        $majesticInfo = $this->getMajesticInfo();
-        return $majesticInfo['referrer_domains_count'];
+        try {
+            $majesticInfo = $this->getMajesticInfo();
+            return $majesticInfo['referrer_domains_count'];
+        } catch (Exception $e) {
+            Piwik::log($e->getMessage());
+            return 0;
+        }
     }
 
     /**
@@ -353,7 +370,7 @@ class Piwik_SEO_RankChecker
     private function getMajesticInfo()
     {
         if ($this->majesticInfo === null) {
-            $client = new Piwik_SEO_MajesticClient();
+            $client = new MajesticClient();
             $this->majesticInfo = $client->getBacklinkStats($this->url);
         }
 

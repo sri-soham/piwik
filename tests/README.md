@@ -25,10 +25,15 @@ Integration tests allow to test how major Piwik components interact together.
 A test will typically generate hits to the Tracker (record visits and page views)
 and then test all API responses and for each API output. It then checks that they match expected XML (or CSV, json, etc.).
 If a test fails, you can compare the processed/ and expected/ directories in a graphical 
-text compare tool, such as WinMerge on Win, to easily view changes between files.
+text compare tool, such as WinMerge on Win, or MELD on Linux, to easily view changes between files.
+
+For example using Meld, click on "Start new comparison", "Directory comparison",
+in "Original" select "path/to/piwik/tests/PHPUnit/Integration/expected"
+in "Mine" select "path/to/piwik/tests/PHPUnit/Integration/processed"
+
 If changes are expected due to the code changes you make, simply copy the file from processed/ to 
-expected/, and test will then pass. Otherwise, if you didn't expect to modify the API outputs, 
-it might be that your changes are breaking some features unexpectedly.
+expected/, and test will then pass. Copying files is done easily using Meld (ALT+LEFT).
+Otherwise, if you didn't expect to modify the API outputs, it might be that your changes are breaking some features unexpectedly.
 
 ## PHPUnit Tests
 
@@ -49,8 +54,12 @@ it might be that your changes are breaking some features unexpectedly.
 		<server name="HTTP_HOST" value="localhost"/>
 		<server name="REQUEST_URI" value="/path/to/piwik/"/>
 
+3.	Ensure the `[database_tests]` section in `piwik/config/config.php.ini` is set up correctly, 
+	i.e. with the correct password to prevent the following error:
+	`SQLSTATE[28000] [1045] Access denied for user 'root'@'localhost' (using password: NO)`
 
-3. 	Run the tests (see the next section to run tests in the browser)
+
+4. 	Run the tests (see the next section to run tests in the browser)
 
 		$ cd /path/to/piwik/tests/PHPUnit
 		$ phpunit
@@ -63,7 +72,7 @@ it might be that your changes are breaking some features unexpectedly.
 	to run all Core Piwik tests. You may also combine groups like
 	`phpunit --group Core,Plugins`
 
-4.	Write more tests :)
+5.	Write more tests :)
 	See ["Writing Unit tests with PHPUnit"](http://www.phpunit.de/manual/current/en/writing-tests-for-phpunit.html)
 
 ## JavaScript Tests
@@ -125,6 +134,38 @@ work altered the expected images. The standard procedure described in the INTEGR
 
  - set up the vagrant piwik vm (which is used by the integration server) or
  - retrieve the files from the integration server.
+
+## UI Tests
+
+In the UI subdirectory are tests for Piwik's UI. Piwik's UI tests work by taking a screenshot
+of a URL and comparing it with an expected screenshot. If the screenshots do not match, there
+is a bug somewhere.
+
+**Requirements:**
+
+In order to run UI tests, you need to have CutyCapt installed on your machine. If you're
+using Ubuntu, you can install it with the following command:
+
+  $ sudo apt-get install cutycapt
+  
+If you're on a server without the X window system, you can still run UI tests, but you
+will need xvfb to do so. On Ubuntu, you can install xvfb with:
+
+  $ sudo apt-get install xvfb
+
+**Running Tests**
+
+Unfortunately, since different machines result in different screenshots, there is no expected
+set of screenshots. You must generate these yourself using an older commit. To do this, first
+find a commit where you know the UI works. Then run:
+
+  $ cd PHPUnit
+  $ ./populate-expected-screenshots.sh $commit_hash
+
+Once you have expected screenshots, you can test the UI by running:
+
+  $ cd PHPUnit
+  $ phpunit UI
 
 ## Continuous Integration
 
@@ -219,6 +260,7 @@ First, XHProf must be built (this guide assumes you're using a linux variant):
     
  * 	Build XHProf.
 
+		$ phpize
 		$ ./configure
 		$ make
     

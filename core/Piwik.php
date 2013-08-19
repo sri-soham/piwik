@@ -8,6 +8,27 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik;
+
+use Exception;
+use Piwik\Access;
+use Piwik\NoAccessException;
+use Piwik\AssetManager;
+use Piwik\Common;
+use Piwik\Config;
+use Piwik\Plugin;
+use Piwik\Site;
+use Piwik\Db\Adapter;
+use Piwik\Db\Schema;
+use Piwik\Session;
+use Piwik\Tracker;
+use Piwik\Tracker\Cache;
+use Piwik\Tracker\GoalManager;
+use Piwik\Url;
+use Piwik\Plugins\UsersManager\API;
+use Piwik\View;
+use Piwik\Log\ScreenFormatter;
+use Zend_Registry;
 
 /**
  * @see core/Translate.php
@@ -22,7 +43,6 @@ require_once PIWIK_INCLUDE_PATH . '/core/Translate.php';
  */
 class Piwik
 {
-    const CLASSES_PREFIX = 'Piwik_';
     const COMPRESSED_FILE_LOCATION = '/tmp/assets/';
 
     /**
@@ -30,12 +50,22 @@ class Piwik
      * @var array
      */
     public static $idPeriods = array(
-        'day'   => 1,
-        'week'  => 2,
+        'day' => 1,
+        'week' => 2,
         'month' => 3,
-        'year'  => 4,
+        'year' => 4,
         'range' => 5,
     );
+
+    /**
+     * @see getKnownSegmentsToArchive
+     *
+     * @var array
+     */
+    public static $cachedKnownSegmentsToArchive = null;
+
+    const LABEL_ID_GOAL_IS_ECOMMERCE_CART = 'ecommerceAbandonedCart';
+    const LABEL_ID_GOAL_IS_ECOMMERCE_ORDER = 'ecommerceOrder';
 
     /**
      * Should we process and display Unique Visitors?
@@ -47,7 +77,7 @@ class Piwik
      */
     static public function isUniqueVisitorsEnabled($periodLabel)
     {
-        $generalSettings = Piwik_Config::getInstance()->General;
+        $generalSettings = Config::getInstance()->General;
 
         $settingName = "enable_processing_unique_visitors_$periodLabel";
         $result = !empty($generalSettings[$settingName]) && $generalSettings[$settingName] == 1;
@@ -63,40 +93,14 @@ class Piwik
     }
 
     /**
-     * Prefix class name (if needed)
+     * Returns true if Segmentation is allowed for this user
      *
-     * @param string $class
-     * @return string
+     * @return bool
      */
-    static public function prefixClass($class)
+    public static function isSegmentationEnabled()
     {
-        if (!strncmp($class, Piwik::CLASSES_PREFIX, strlen(Piwik::CLASSES_PREFIX))) {
-            return $class;
-        }
-        return Piwik::CLASSES_PREFIX . $class;
-    }
-
-    /**
-     * Unprefix class name (if needed)
-     *
-     * @param string $class
-     * @return string
-     */
-    static public function unprefixClass($class)
-    {
-        $lenPrefix = strlen(Piwik::CLASSES_PREFIX);
-        if (!strncmp($class, Piwik::CLASSES_PREFIX, $lenPrefix)) {
-            return substr($class, $lenPrefix);
-        }
-        return $class;
-    }
-
-    /**
-     * Installation helper
-     */
-    static public function install()
-    {
-        Piwik_Common::mkdir(PIWIK_USER_PATH . '/' . Piwik_Config::getInstance()->smarty['compile_dir']);
+        return !Piwik::isUserIsAnonymous()
+        || Config::getInstance()->General['anonymous_user_enable_use_segments_API'];
     }
 
     /**
@@ -104,7 +108,7 @@ class Piwik
      */
     static public function uninstall()
     {
-        Piwik_Db_Schema::getInstance()->dropTables();
+        Schema::getInstance()->dropTables();
     }
 
     /**
@@ -117,7 +121,7 @@ class Piwik
     static public function isInstalled()
     {
         try {
-            return Piwik_Db_Schema::getInstance()->hasTables();
+            return Schema::getInstance()->hasTables();
         } catch (Exception $e) {
             return false;
         }
@@ -129,9 +133,9 @@ class Piwik
      */
     static public function deleteAllCacheOnUpdate()
     {
-        Piwik_AssetManager::removeMergedAssets();
-        Piwik_View::clearCompiledTemplates();
-        Piwik_Tracker_Cache::deleteTrackerCache();
+        AssetManager::removeMergedAssets();
+        View::clearCompiledTemplates();
+        Cache::deleteTrackerCache();
     }
 
     /**
@@ -159,22 +163,22 @@ class Piwik
 
         $key = 'piwikUrl';
         $url = Piwik_GetOption($key);
-        if (Piwik_Common::isPhpCliMode()
+        if (Common::isPhpCliMode()
             // in case archive.php is triggered with domain localhost
-            || Piwik_Common::isArchivePhpTriggered()
+            || Common::isArchivePhpTriggered()
             || defined('PIWIK_MODE_ARCHIVE')
         ) {
             return $url;
         }
 
-        $currentUrl = Piwik_Common::sanitizeInputValue(Piwik_Url::getCurrentUrlWithoutFileName());
+        $currentUrl = Common::sanitizeInputValue(Url::getCurrentUrlWithoutFileName());
 
         if (empty($url)
             // if URL changes, always update the cache
             || $currentUrl != $url
         ) {
             if (strlen($currentUrl) >= strlen('http://a/')) {
-                Piwik_SetOption($key, $currentUrl, $autoload = true);
+                Piwik_SetOption($key, $currentUrl, $autoLoad = true);
             }
             $url = $currentUrl;
         }
@@ -188,7 +192,7 @@ class Piwik
      */
     static public function isHttps()
     {
-        return Piwik_Url::getCurrentScheme() === 'https';
+        return Url::getCurrentScheme() === 'https';
     }
 
     /**
@@ -234,8 +238,8 @@ class Piwik
     }
 
     /*
- * File and directory operations
- */
+     * File and directory operations
+     */
 
     /**
      * Copy recursively from $source to $target.
@@ -247,7 +251,7 @@ class Piwik
     static public function copyRecursive($source, $target, $excludePhp = false)
     {
         if (is_dir($source)) {
-            Piwik_Common::mkdir($target, false);
+            Common::mkdir($target, false);
             $d = dir($source);
             while (false !== ($entry = $d->read())) {
                 if ($entry == '.' || $entry == '..') {
@@ -279,7 +283,7 @@ class Piwik
      */
     static public function copy($source, $dest, $excludePhp = false)
     {
-        static $phpExtensions = array('php', 'tpl');
+        static $phpExtensions = array('php', 'tpl', 'twig');
 
         if ($excludePhp) {
             $path_parts = pathinfo($source);
@@ -292,7 +296,7 @@ class Piwik
             @chmod($dest, 0755);
             if (!@copy($source, $dest)) {
                 $message = "Error while creating/copying file to <code>$dest</code>. <br />"
-                    . self::getErrorMessageMissingPermissions(Piwik_Common::getPathToPiwikRoot());
+                    . self::getErrorMessageMissingPermissions(Common::getPathToPiwikRoot());
                 throw new Exception($message);
             }
         }
@@ -309,12 +313,12 @@ class Piwik
     {
         $message = "Please check that the web server has enough permission to write to these files/directories:<br />";
 
-        if (Piwik_Common::isWindows()) {
-            $message .= "On Windows, check that the folder is not read only and is writable. 
-                        You can try to execute:<br />";
+        if (Common::isWindows()) {
+            $message .= "On Windows, check that the folder is not read only and is writable.
+						You can try to execute:<br />";
         } else {
-            $message .= "For example, on a Linux server if your Apache httpd user 
-                        is www-data, you can try to execute:<br />"
+            $message .= "For example, on a Linux server if your Apache httpd user
+						is www-data, you can try to execute:<br />"
                 . "<code>chown -R www-data:www-data " . $path . "</code><br />";
         }
 
@@ -361,11 +365,15 @@ class Piwik
      */
     public static function globr($sDir, $sPattern, $nFlags = null)
     {
-        if (($aFiles = _glob("$sDir/$sPattern", $nFlags)) == false) {
+        if (($aFiles = \_glob("$sDir/$sPattern", $nFlags)) == false) {
             $aFiles = array();
         }
-        if (($aDirs = _glob("$sDir/*", GLOB_ONLYDIR)) != false) {
+        if (($aDirs = \_glob("$sDir/*", GLOB_ONLYDIR)) != false) {
             foreach ($aDirs as $sSubDir) {
+                if (is_link($sSubDir)) {
+                    continue;
+                }
+
                 $aSubFiles = self::globr($sSubDir, $sPattern, $nFlags);
                 $aFiles = array_merge($aFiles, $aSubFiles);
             }
@@ -381,7 +389,7 @@ class Piwik
      */
     static private function getMakeWritableCommand($realpath)
     {
-        if (Piwik_Common::isWindows()) {
+        if (Common::isWindows()) {
             return "<code>cacls $realpath /t /g " . get_current_user() . ":f</code><br />";
         }
         return "<code>chmod -R 0755 $realpath</code><br />";
@@ -393,7 +401,7 @@ class Piwik
      *
      * @param array $directoriesToCheck  Array of directory names to check
      */
-    static public function checkDirectoriesWritableOrDie($directoriesToCheck = null)
+    static public function dieIfDirectoriesNotWritable($directoriesToCheck = null)
     {
         $resultCheck = Piwik::checkDirectoriesWritable($directoriesToCheck);
         if (array_search(false, $resultCheck) === false) {
@@ -402,21 +410,21 @@ class Piwik
 
         $directoryList = '';
         foreach ($resultCheck as $dir => $bool) {
-            $realpath = Piwik_Common::realpath($dir);
+            $realpath = Common::realpath($dir);
             if (!empty($realpath) && $bool === false) {
                 $directoryList .= self::getMakeWritableCommand($realpath);
             }
         }
 
         // Also give the chown since the chmod is only 755
-        if (!Piwik_Common::isWindows()) {
-            $realpath = Piwik_Common::realpath(PIWIK_INCLUDE_PATH . '/');
+        if (!Common::isWindows()) {
+            $realpath = Common::realpath(PIWIK_INCLUDE_PATH . '/');
             $directoryList = "<code>chown -R www-data:www-data " . $realpath . "</code><br/>" . $directoryList;
         }
 
         // The error message mentions chmod 777 in case users can't chown
-        $directoryMessage = "<p><b>Piwik couldn't write to some directories</b>.</p> 
-                            <p>Try to Execute the following commands on your server, to allow Write access on these directories:</p>"
+        $directoryMessage = "<p><b>Piwik couldn't write to some directories</b>.</p>
+							<p>Try to Execute the following commands on your server, to allow Write access on these directories:</p>"
             . "<blockquote>$directoryList</blockquote>"
             . "<p>If this doesn't work, you can try to create the directories with your FTP software, and set the CHMOD to 0755 (or 0777 if 0755 is not enough). To do so with your FTP software, right click on the directories then click permissions.</p>"
             . "<p>After applying the modifications, you can <a href='index.php'>refresh the page</a>.</p>"
@@ -431,32 +439,21 @@ class Piwik
      * @param array $directoriesToCheck  array of directories to check - if not given default Piwik directories that needs write permission are checked
      * @return array  directory name => true|false (is writable)
      */
-    static public function checkDirectoriesWritable($directoriesToCheck = null)
+    static public function checkDirectoriesWritable($directoriesToCheck)
     {
-        if ($directoriesToCheck == null) {
-            $directoriesToCheck = array(
-                '/config/',
-                '/tmp/',
-                '/tmp/templates_c/',
-                '/tmp/cache/',
-                '/tmp/assets/',
-                '/tmp/latest/',
-                '/tmp/tcpdf/',
-                '/tmp/sessions/',
-            );
-        }
-
         $resultCheck = array();
         foreach ($directoriesToCheck as $directoryToCheck) {
             if (!preg_match('/^' . preg_quote(PIWIK_USER_PATH, '/') . '/', $directoryToCheck)) {
                 $directoryToCheck = PIWIK_USER_PATH . $directoryToCheck;
             }
 
-            if (!file_exists($directoryToCheck)) {
-                Piwik_Common::mkdir($directoryToCheck);
+            // Create an empty directory
+            $isFile = strpos($directoryToCheck, '.') !== false;
+            if (!$isFile && !file_exists($directoryToCheck)) {
+                Common::mkdir($directoryToCheck);
             }
 
-            $directory = Piwik_Common::realpath($directoryToCheck);
+            $directory = Common::realpath($directoryToCheck);
             $resultCheck[$directory] = false;
             if ($directory !== false // realpath() returns FALSE on failure
                 && is_writable($directoryToCheck)
@@ -492,7 +489,7 @@ class Piwik
      */
     static public function getAutoUpdateMakeWritableMessage()
     {
-        $realpath = Piwik_Common::realpath(PIWIK_INCLUDE_PATH . '/');
+        $realpath = Common::realpath(PIWIK_INCLUDE_PATH . '/');
         $message = '';
         $message .= "<code>chown -R www-data:www-data " . $realpath . "</code><br />";
         $message .= "<code>chmod -R 0755 " . $realpath . "</code><br />";
@@ -531,7 +528,7 @@ class Piwik
             '/tmp',
         );
         foreach ($directoriesToProtect as $directoryToProtect) {
-            Piwik_Common::createHtAccess(PIWIK_INCLUDE_PATH . $directoryToProtect, $overwrite = true);
+            Common::createHtAccess(PIWIK_INCLUDE_PATH . $directoryToProtect, $overwrite = true);
         }
 
         // Allow/Deny lives in different modules depending on the Apache version
@@ -541,16 +538,17 @@ class Piwik
         // more selective allow/deny filters
         $allowAny = "<Files \"*\">\n" . $allow . "Satisfy any\n</Files>\n";
         $allowStaticAssets = "<Files ~ \"\\.(test\.php|gif|ico|jpg|png|svg|js|css|swf)$\">\n" . $allow . "Satisfy any\n</Files>\n";
-        $denyDirectPhp = "<Files ~ \"\\.(php|php4|php5|inc|tpl|in)$\">\n" . $deny . "</Files>\n";
+        $denyDirectPhp = "<Files ~ \"\\.(php|php4|php5|inc|tpl|in|twig)$\">\n" . $deny . "</Files>\n";
 
         $directoriesToProtect = array(
-            '/js'      => $allowAny,
-            '/libs'    => $denyDirectPhp . $allowStaticAssets,
+            '/js' => $allowAny,
+            '/libs' => $denyDirectPhp . $allowStaticAssets,
+            '/vendor' => $denyDirectPhp . $allowStaticAssets,
             '/plugins' => $denyDirectPhp . $allowStaticAssets,
-            '/themes'  => $denyDirectPhp . $allowStaticAssets,
+            '/misc/user' => $denyDirectPhp . $allowStaticAssets,
         );
         foreach ($directoriesToProtect as $directoryToProtect => $content) {
-            Piwik_Common::createHtAccess(PIWIK_INCLUDE_PATH . $directoryToProtect, $overwrite = true, $content);
+            Common::createHtAccess(PIWIK_INCLUDE_PATH . $directoryToProtect, $overwrite = true, $content);
         }
     }
 
@@ -575,6 +573,7 @@ class Piwik
         </hiddenSegments>
         <fileExtensions>
           <add fileExtension=".tpl" allowed="false" />
+          <add fileExtension=".twig" allowed="false" />
           <add fileExtension=".php4" allowed="false" />
           <add fileExtension=".php5" allowed="false" />
           <add fileExtension=".inc" allowed="false" />
@@ -595,6 +594,7 @@ class Piwik
         // deny direct access to .php files
         $directoriesToProtect = array(
             '/libs',
+            '/vendor',
             '/plugins',
         );
         foreach ($directoriesToProtect as $directoryToProtect) {
@@ -624,15 +624,10 @@ class Piwik
         $messages = array();
         $messages[] = true;
 
-        // ignore dev environments
-        if (file_exists(PIWIK_INCLUDE_PATH . '/.git')) {
-            $messages[] = Piwik_Translate('General_WarningFileIntegritySkipped');
-            return $messages;
-        }
-
         $manifest = PIWIK_INCLUDE_PATH . '/config/manifest.inc.php';
         if (!file_exists($manifest)) {
-            $messages[] = Piwik_Translate('General_WarningFileIntegrityNoManifest');
+            $suffix = " If you are deploying Piwik from Git, this message is normal.";
+            $messages[] = Piwik_Translate('General_WarningFileIntegrityNoManifest') . $suffix;
             return $messages;
         }
 
@@ -698,10 +693,10 @@ class Piwik
         $autoAppendFile = ini_get('auto_append_file');
 
         return !empty($zlibOutputCompression) ||
-            !empty($outputHandler) ||
-            !empty($obHandlers) ||
-            !empty($autoPrependFile) ||
-            !empty($autoAppendFile);
+        !empty($outputHandler) ||
+        !empty($obHandlers) ||
+        !empty($autoPrependFile) ||
+        !empty($autoAppendFile);
     }
 
     /**
@@ -879,8 +874,8 @@ class Piwik
     }
 
     /*
- * PHP environment settings
- */
+     * PHP environment settings
+     */
 
     /**
      * Set maximum script execution time.
@@ -901,7 +896,7 @@ class Piwik
      * compile-time default, so ini_get('memory_limit') may return false.
      *
      * @see http://www.php.net/manual/en/faq.using.php#faq.using.shorthandbytes
-     * @return int|false  memory limit in megabytes, or false if there is no limit
+     * @return int|bool  memory limit in megabytes, or false if there is no limit
      */
     static public function getMemoryLimitValue()
     {
@@ -957,14 +952,14 @@ class Piwik
         if ($memoryLimit === false) {
             return false;
         }
-        $minimumMemoryLimit = Piwik_Config::getInstance()->General['minimum_memory_limit'];
+        $minimumMemoryLimit = Config::getInstance()->General['minimum_memory_limit'];
 
-        if (Piwik_Common::isArchivePhpTriggered()
+        if (Common::isArchivePhpTriggered()
             && Piwik::isUserIsSuperUser()
         ) {
             // archive.php: no time limit, high memory limit
             self::setMaxExecutionTime(0);
-            $minimumMemoryLimitWhenArchiving = Piwik_Config::getInstance()->General['minimum_memory_limit_when_archiving'];
+            $minimumMemoryLimitWhenArchiving = Config::getInstance()->General['minimum_memory_limit_when_archiving'];
             if ($memoryLimit < $minimumMemoryLimitWhenArchiving) {
                 return self::setMemoryLimit($minimumMemoryLimitWhenArchiving);
             }
@@ -976,10 +971,11 @@ class Piwik
         return false;
     }
 
-    /*
- * Logging and error handling
- */
-
+    /**
+     * Logging and error handling
+     *
+     * @var bool|null
+     */
     public static $shouldLog = null;
 
     /**
@@ -992,16 +988,16 @@ class Piwik
         if (is_null(self::$shouldLog)) {
             self::$shouldLog = self::shouldLoggerLog();
             // It is possible that the logger is not setup:
-            // - Tracker request, and debug disabled, 
-            // - and some scheduled tasks call code that tries and log something  
+            // - Tracker request, and debug disabled,
+            // - and some scheduled tasks call code that tries and log something
             try {
-                Zend_Registry::get('logger_message');
+                \Zend_Registry::get('logger_message');
             } catch (Exception $e) {
                 self::$shouldLog = false;
             }
         }
         if (self::$shouldLog) {
-            Zend_Registry::get('logger_message')->logEvent($message);
+            \Zend_Registry::get('logger_message')->logEvent($message);
         }
     }
 
@@ -1012,10 +1008,10 @@ class Piwik
     static public function shouldLoggerLog()
     {
         try {
-            $shouldLog = (Piwik_Common::isPhpCliMode()
-                || Piwik_Config::getInstance()->log['log_only_when_cli'] == 0)
+            $shouldLog = (Common::isPhpCliMode()
+                    || Config::getInstance()->log['log_only_when_cli'] == 0)
                 &&
-                (Piwik_Config::getInstance()->log['log_only_when_debug_parameter'] == 0
+                (Config::getInstance()->log['log_only_when_debug_parameter'] == 0
                     || isset($_REQUEST['debug']));
         } catch (Exception $e) {
             $shouldLog = false;
@@ -1043,16 +1039,16 @@ class Piwik
     {
         $output = "<style>a{color:red;}</style>\n" .
             "<div style='color:red;font-family:Georgia;font-size:120%'>" .
-            "<p><img src='themes/default/images/error_medium.png' style='vertical-align:middle; float:left;padding:20 20 20 20' />" .
+            "<p><img src='plugins/Zeitgeist/images/error_medium.png' style='vertical-align:middle; float:left;padding:20 20 20 20' />" .
             $message .
             "</p></div>";
-        print(Piwik_Log_Formatter_ScreenFormatter::getFormattedString($output));
+        print(ScreenFormatter::getFormattedString($output));
         exit;
     }
 
     /*
- * Profiling
- */
+     * Profiling
+     */
 
     /**
      * Get total number of queries
@@ -1061,7 +1057,7 @@ class Piwik
      */
     static public function getQueryCount()
     {
-        $profiler = Zend_Registry::get('db')->getProfiler();
+        $profiler = \Zend_Registry::get('db')->getProfiler();
         return $profiler->getTotalNumQueries();
     }
 
@@ -1072,7 +1068,7 @@ class Piwik
      */
     static public function getDbElapsedSecs()
     {
-        $profiler = Zend_Registry::get('db')->getProfiler();
+        $profiler = \Zend_Registry::get('db')->getProfiler();
         return $profiler->getTotalElapsedSecs();
     }
 
@@ -1086,22 +1082,21 @@ class Piwik
         Piwik::log(sprintf("Total queries = %d (total sql time = %.2fs)", $queryCount, $totalTime));
     }
 
+
+    static function maxSumMsFirst($a, $b)
+    {
+        return $a['sum_time_ms'] < $b['sum_time_ms'];
+    }
+
     /**
      * Print profiling report for the tracker
      *
-     * @param Piwik_Tracker_Db $db  Tracker database object (or null)
+     * @param Db $db  Tracker database object (or null)
      */
     static public function printSqlProfilingReportTracker($db = null)
     {
-        if (!function_exists('maxSumMsFirst')) {
-            function maxSumMsFirst($a, $b)
-            {
-                return $a['sum_time_ms'] < $b['sum_time_ms'];
-            }
-        }
-
         if (is_null($db)) {
-            $db = Piwik_Tracker::getDatabase();
+            $db = Tracker::getDatabase();
         }
 
         $LogProfiling = Piwik_Db_Factory::getDAO('log_profiling', $db);
@@ -1109,7 +1104,7 @@ class Piwik
         if ($all === false) {
             return;
         }
-        uasort($all, 'maxSumMsFirst');
+        uasort($all, 'self::maxSumMsFirst');
 
         $infoIndexedByQuery = array();
         foreach ($all as $infoQuery) {
@@ -1121,14 +1116,20 @@ class Piwik
         Piwik::getSqlProfilingQueryBreakdownOutput($infoIndexedByQuery);
     }
 
+    static private function sortTimeDesc($a, $b)
+    {
+        return $a['sumTimeMs'] < $b['sumTimeMs'];
+    }
+
     /**
      * Outputs SQL Profiling reports
      * It is automatically called when enabling the SQL profiling in the config file enable_sql_profiler
+     *
      * @throws Exception
      */
     static function printSqlProfilingReportZend()
     {
-        $profiler = Zend_Registry::get('db')->getProfiler();
+        $profiler = \Zend_Registry::get('db')->getProfiler();
 
         if (!$profiler->getEnabled()) {
             throw new Exception("To display the profiler you should enable enable_sql_profiler on your config/config.ini.php file");
@@ -1141,20 +1142,14 @@ class Piwik
             } else {
                 $existing = array('count' => 0, 'sumTimeMs' => 0);
             }
-            $new = array('count'     => $existing['count'] + 1,
-                         'sumTimeMs' => $existing['count'] + $query->getElapsedSecs() * 1000);
+            $new = array('count' => $existing['count'] + 1,
+                'sumTimeMs' => $existing['count'] + $query->getElapsedSecs() * 1000);
             $infoIndexedByQuery[$query->getQuery()] = $new;
         }
 
-        if (!function_exists('sortTimeDesc')) {
-            function sortTimeDesc($a, $b)
-            {
-                return $a['sumTimeMs'] < $b['sumTimeMs'];
-            }
-        }
-        uasort($infoIndexedByQuery, 'sortTimeDesc');
+        uasort($infoIndexedByQuery, 'self::sortTimeDesc');
 
-        $str = '<hr /><b>SQL Profiler</b><hr /><b>Summary</b><br/>';
+        $str = '<hr /><strong>SQL Profiler</strong><hr /><strong>Summary</strong><br/>';
         $totalTime = $profiler->getTotalElapsedSecs();
         $queryCount = $profiler->getTotalNumQueries();
         $longestTime = 0;
@@ -1180,7 +1175,7 @@ class Piwik
      */
     static private function getSqlProfilingQueryBreakdownOutput($infoIndexedByQuery)
     {
-        $output = '<hr /><b>Breakdown by query</b><br/>';
+        $output = '<hr /><strong>Breakdown by query</strong><br/>';
         foreach ($infoIndexedByQuery as $query => $queryInfo) {
             $timeMs = round($queryInfo['sumTimeMs'], 1);
             $count = $queryInfo['count'];
@@ -1212,7 +1207,7 @@ class Piwik
     static public function printMemoryLeak($prefix = '', $suffix = '<br />')
     {
         echo $prefix;
-        echo Zend_Registry::get('timer')->getMemoryLeak();
+        echo \Zend_Registry::get('timer')->getMemoryLeak();
         echo $suffix;
     }
 
@@ -1237,8 +1232,8 @@ class Piwik
     }
 
     /*
- * Amounts, Percentages, Currency, Time, Math Operations, and Pretty Printing
- */
+     * Amounts, Percentages, Currency, Time, Math Operations, and Pretty Printing
+     */
 
     /**
      * Returns a list of currency symbols
@@ -1296,7 +1291,7 @@ class Piwik
     static public function getCurrency($idSite)
     {
         $symbols = self::getCurrencyList();
-        $site = new Piwik_Site($idSite);
+        $site = new Site($idSite);
         $currency = $site->getCurrency();
         if (isset($symbols[$currency])) {
             return $symbols[$currency][0];
@@ -1311,7 +1306,6 @@ class Piwik
      * @param string $columnName
      * @param mixed $value
      * @param bool $htmlAllowed
-     * @param string $timeAsSentence
      * @return string
      */
     static public function getPrettyValue($idSite, $columnName, $value, $htmlAllowed)
@@ -1367,7 +1361,7 @@ class Piwik
                 // 0.0 => 0
                 $value = round($value);
             } else {
-                $precision = Piwik_Tracker_GoalManager::REVENUE_PRECISION;
+                $precision = GoalManager::REVENUE_PRECISION;
                 $value = sprintf("%01." . $precision . "f", $value);
             }
         }
@@ -1483,12 +1477,12 @@ class Piwik
      */
     static public function getJavascriptCode($idSite, $piwikUrl)
     {
-        $jsCode = file_get_contents(PIWIK_INCLUDE_PATH . "/core/Tracker/javascriptCode.tpl");
+        $jsCode = file_get_contents(PIWIK_INCLUDE_PATH . "/plugins/Zeitgeist/templates/javascriptCode.tpl");
         $jsCode = htmlentities($jsCode);
         preg_match('~^(http|https)://(.*)$~D', $piwikUrl, $matches);
         $piwikUrl = @$matches[2];
         $jsCode = str_replace('{$idSite}', $idSite, $jsCode);
-        $jsCode = str_replace('{$piwikUrl}', Piwik_Common::sanitizeInputValue($piwikUrl), $jsCode);
+        $jsCode = str_replace('{$piwikUrl}', Common::sanitizeInputValue($piwikUrl), $jsCode);
         return $jsCode;
     }
 
@@ -1511,7 +1505,7 @@ class Piwik
             'Free Web Analytics',
             'Analytics Platform',
         );
-        $id = abs(intval(md5(Piwik_Url::getCurrentHost())));
+        $id = abs(intval(md5(Url::getCurrentHost())));
         $title = $titles[$id % count($titles)];
         return $title;
     }
@@ -1523,8 +1517,8 @@ class Piwik
      */
     static public function getWebsitesCountToDisplay()
     {
-        $count = max(Piwik_Config::getInstance()->General['site_selector_max_sites'],
-            Piwik_Config::getInstance()->General['autocomplete_min_sites']);
+        $count = max(Config::getInstance()->General['site_selector_max_sites'],
+            Config::getInstance()->General['autocomplete_min_sites']);
         return (int)$count;
     }
 
@@ -1535,29 +1529,28 @@ class Piwik
      */
     static public function getKnownSegmentsToArchive()
     {
-        static $cachedResult = null;
+        if (self::$cachedKnownSegmentsToArchive === null) {
+            $segments = Config::getInstance()->Segments;
+            $cachedResult = isset($segments['Segments']) ? $segments['Segments'] : array();
 
-        if (is_null($cachedResult)) {
-            $segments = Piwik_Config::getInstance()->Segments;
-            $cachedResult = isset($segments['Segments']) ? $segments['Segments'] : '';
+            Piwik_PostEvent('Piwik.getKnownSegmentsToArchiveAllSites', array(&$cachedResult));
 
-            Piwik_PostEvent('Piwik.getKnownSegmentsToArchiveAllSites', $cachedResult);
-
+            self::$cachedKnownSegmentsToArchive = array_unique($cachedResult);
         }
 
-        return $cachedResult;
+        return self::$cachedKnownSegmentsToArchive;
     }
 
     static public function getKnownSegmentsToArchiveForSite($idSite)
     {
         $segments = array();
-        Piwik_PostEvent('Piwik.getKnownSegmentsToArchiveForSite', $segments, $idSite);
+        Piwik_PostEvent('Piwik.getKnownSegmentsToArchiveForSite', array(&$segments, $idSite));
         return $segments;
     }
 
     /*
- * Access
- */
+     * Access
+     */
 
     /**
      * Get current user email address
@@ -1567,7 +1560,7 @@ class Piwik
     static public function getCurrentUserEmail()
     {
         if (!Piwik::isUserIsSuperUser()) {
-            $user = Piwik_UsersManager_API::getInstance()->getUser(Piwik::getCurrentUserLogin());
+            $user = API::getInstance()->getUser(Piwik::getCurrentUserLogin());
             return $user['email'];
         }
         return self::getSuperUserEmail();
@@ -1580,7 +1573,7 @@ class Piwik
      */
     static public function getSuperUserLogin()
     {
-        return Zend_Registry::get('access')->getSuperUserLogin();
+        return Access::getInstance()->getSuperUserLogin();
     }
 
     /**
@@ -1590,7 +1583,7 @@ class Piwik
      */
     static public function getSuperUserEmail()
     {
-        $superuser = Piwik_Config::getInstance()->superuser;
+        $superuser = Config::getInstance()->superuser;
         return $superuser['email'];
     }
 
@@ -1601,7 +1594,7 @@ class Piwik
      */
     static public function getCurrentUserLogin()
     {
-        return Zend_Registry::get('access')->getLogin();
+        return Access::getInstance()->getLogin();
     }
 
     /**
@@ -1611,7 +1604,7 @@ class Piwik
      */
     static public function getCurrentUserTokenAuth()
     {
-        return Zend_Registry::get('access')->getTokenAuth();
+        return Access::getInstance()->getTokenAuth();
     }
 
     /**
@@ -1635,7 +1628,7 @@ class Piwik
      * Check that current user is either the specified user or the superuser
      *
      * @param string $theUser
-     * @throws Piwik_Access_NoAccessException  if the user is neither the super user nor the user $theUser
+     * @throws NoAccessException  if the user is neither the super user nor the user $theUser
      */
     static public function checkUserIsSuperUserOrTheUser($theUser)
     {
@@ -1644,8 +1637,8 @@ class Piwik
                 // or to the super user
                 Piwik::checkUserIsSuperUser();
             }
-        } catch (Piwik_Access_NoAccessException $e) {
-            throw new Piwik_Access_NoAccessException(Piwik_Translate('General_ExceptionCheckUserIsSuperUserOrTheUser', array($theUser)));
+        } catch (NoAccessException $e) {
+            throw new NoAccessException(Piwik_Translate('General_ExceptionCheckUserIsSuperUserOrTheUser', array($theUser)));
         }
     }
 
@@ -1677,12 +1670,12 @@ class Piwik
     /**
      * Checks if user is not the anonymous user.
      *
-     * @throws Piwik_Access_NoAccessException  if user is anonymous.
+     * @throws NoAccessException  if user is anonymous.
      */
     static public function checkUserIsNotAnonymous()
     {
         if (self::isUserIsAnonymous()) {
-            throw new Piwik_Access_NoAccessException(Piwik_Translate('General_YouMustBeLoggedIn'));
+            throw new NoAccessException(Piwik_Translate('General_YouMustBeLoggedIn'));
         }
     }
 
@@ -1694,7 +1687,7 @@ class Piwik
      */
     static public function setUserIsSuperUser($bool = true)
     {
-        Zend_Registry::get('access')->setSuperUser($bool);
+        Access::getInstance()->setSuperUser($bool);
     }
 
     /**
@@ -1704,7 +1697,7 @@ class Piwik
      */
     static public function checkUserIsSuperUser()
     {
-        Zend_Registry::get('access')->checkUserIsSuperUser();
+        Access::getInstance()->checkUserIsSuperUser();
     }
 
     /**
@@ -1731,7 +1724,7 @@ class Piwik
      */
     static public function checkUserHasAdminAccess($idSites)
     {
-        Zend_Registry::get('access')->checkUserHasAdminAccess($idSites);
+        Access::getInstance()->checkUserHasAdminAccess($idSites);
     }
 
     /**
@@ -1756,7 +1749,7 @@ class Piwik
      */
     static public function checkUserHasSomeAdminAccess()
     {
-        Zend_Registry::get('access')->checkUserHasSomeAdminAccess();
+        Access::getInstance()->checkUserHasSomeAdminAccess();
     }
 
     /**
@@ -1783,7 +1776,7 @@ class Piwik
      */
     static public function checkUserHasViewAccess($idSites)
     {
-        Zend_Registry::get('access')->checkUserHasViewAccess($idSites);
+        Access::getInstance()->checkUserHasViewAccess($idSites);
     }
 
     /**
@@ -1808,12 +1801,12 @@ class Piwik
      */
     static public function checkUserHasSomeViewAccess()
     {
-        Zend_Registry::get('access')->checkUserHasSomeViewAccess();
+        Access::getInstance()->checkUserHasSomeViewAccess();
     }
 
     /*
- * Current module, action, plugin
- */
+     * Current module, action, plugin
+     */
 
     /**
      * Returns the name of the Login plugin currently being used.
@@ -1824,17 +1817,17 @@ class Piwik
      */
     static public function getLoginPluginName()
     {
-        return Zend_Registry::get('auth')->getName();
+        return \Zend_Registry::get('auth')->getName();
     }
 
     /**
      * Returns the plugin currently being used to display the page
      *
-     * @return Piwik_Plugin
+     * @return Plugin
      */
     static public function getCurrentPlugin()
     {
-        return Piwik_PluginsManager::getInstance()->getLoadedPlugin(Piwik::getModule());
+        return \Piwik\PluginsManager::getInstance()->getLoadedPlugin(Piwik::getModule());
     }
 
     /**
@@ -1844,7 +1837,7 @@ class Piwik
      */
     static public function getModule()
     {
-        return Piwik_Common::getRequestVar('module', '', 'string');
+        return Common::getRequestVar('module', '', 'string');
     }
 
     /**
@@ -1854,7 +1847,7 @@ class Piwik
      */
     static public function getAction()
     {
-        return Piwik_Common::getRequestVar('action', '', 'string');
+        return Common::getRequestVar('action', '', 'string');
     }
 
     /**
@@ -1868,12 +1861,15 @@ class Piwik
      */
     static public function getArrayFromApiParameter($columns)
     {
-        return $columns === false
-            ? array()
-            : (is_array($columns)
-                ? $columns
-                : explode(',', $columns)
-            );
+        if (empty($columns)) {
+            return array();
+        }
+        if (is_array($columns)) {
+            return $columns;
+        }
+        $array = explode(',', $columns);
+        $array = array_unique($array);
+        return $array;
     }
 
     /**
@@ -1886,16 +1882,16 @@ class Piwik
      */
     static public function redirectToModule($newModule, $newAction = '', $parameters = array())
     {
-        $newUrl = 'index.php' . Piwik_Url::getCurrentQueryStringWithParametersModified(
-            array('module' => $newModule, 'action' => $newAction)
+        $newUrl = 'index.php' . Url::getCurrentQueryStringWithParametersModified(
+                array('module' => $newModule, 'action' => $newAction)
                 + $parameters
-        );
-        Piwik_Url::redirectToUrl($newUrl);
+            );
+        Url::redirectToUrl($newUrl);
     }
 
     /*
- * Global database object
- */
+     * Global database object
+     */
 
     /**
      * Create database object and connect to database
@@ -1903,23 +1899,23 @@ class Piwik
      */
     static public function createDatabaseObject($dbInfos = null)
     {
-        $config = Piwik_Config::getInstance();
+        $config = Config::getInstance();
 
         if (is_null($dbInfos)) {
             $dbInfos = $config->database;
         }
 
-        Piwik_PostEvent('Reporting.getDatabaseConfig', $dbInfos);
+        Piwik_PostEvent('Reporting.getDatabaseConfig', array(&$dbInfos));
 
         $dbInfos['profiler'] = $config->Debug['enable_sql_profiler'];
 
         $db = null;
-        Piwik_PostEvent('Reporting.createDatabase', $db);
+        Piwik_PostEvent('Reporting.createDatabase', array(&$db));
         if (is_null($db)) {
             $adapter = $dbInfos['adapter'];
-            $db = @Piwik_Db_Adapter::factory($adapter, $dbInfos);
+            $db = @Adapter::factory($adapter, $dbInfos);
         }
-        Zend_Registry::set('db', $db);
+        \Zend_Registry::set('db', $db);
     }
 
     /**
@@ -1927,7 +1923,7 @@ class Piwik
      */
     static public function disconnectDatabase()
     {
-        Zend_Registry::get('db')->closeConnection();
+        \Zend_Registry::get('db')->closeConnection();
     }
 
     /**
@@ -1940,7 +1936,7 @@ class Piwik
      */
     static public function checkDatabaseVersion()
     {
-        Zend_Registry::get('db')->checkServerVersion();
+        \Zend_Registry::get('db')->checkServerVersion();
     }
 
     /**
@@ -1950,94 +1946,16 @@ class Piwik
      */
     static public function isDatabaseConnectionUTF8()
     {
-        return Zend_Registry::get('db')->isConnectionUTF8();
+        return \Zend_Registry::get('db')->isConnectionUTF8();
     }
 
     /*
- * Global log object
- */
-
-    /**
-     * Create log object
-     * @throws Exception
+     * Global log object
      */
-    static public function createLogObject()
-    {
-        $configAPI = Piwik_Config::getInstance()->log;
-
-        $aLoggers = array(
-            'logger_api_call'  => new Piwik_Log_APICall,
-            'logger_exception' => new Piwik_Log_Exception,
-            'logger_error'     => new Piwik_Log_Error,
-            'logger_message'   => new Piwik_Log_Message,
-        );
-
-        foreach ($configAPI as $loggerType => $aRecordTo) {
-            if (isset($aLoggers[$loggerType])) {
-                $logger = $aLoggers[$loggerType];
-
-                foreach ($aRecordTo as $recordTo) {
-                    switch ($recordTo) {
-                        case 'screen':
-                            $logger->addWriteToScreen();
-                            break;
-
-                        case 'database':
-                            $logger->addWriteToDatabase();
-                            break;
-
-                        case 'file':
-                            $logger->addWriteToFile();
-                            break;
-
-                        default:
-                            throw new Exception("'$recordTo' is not a valid Log type. Valid logger types are: screen, database, file.");
-                            break;
-                    }
-                }
-            }
-        }
-
-        foreach ($aLoggers as $loggerType => $logger) {
-            if ($logger->getWritersCount() == 0) {
-                $logger->addWriteToNull();
-            }
-            Zend_Registry::set($loggerType, $logger);
-        }
-    }
 
     /*
- * Global config object
- */
-
-    /**
-     * Create configuration object
+     * User input validation
      */
-    static public function createConfigObject()
-    {
-        // for backward compatibility
-        Zend_Registry::set('config', new Piwik_Config_Compat());
-
-        // instantiate the singleton
-        $config = Piwik_Config::getInstance();
-        $config->init();
-    }
-
-    /*
- * Global access object
- */
-
-    /**
-     * Create access object
-     */
-    static public function createAccessObject()
-    {
-        Zend_Registry::set('access', new Piwik_Access());
-    }
-
-    /*
- * User input validation
- */
 
     /**
      * Returns true if the email is a valid email
@@ -2083,7 +2001,7 @@ class Piwik
      */
     static public function isChecksEnabled()
     {
-        return Piwik_Config::getInstance()->General['disable_checks_usernames_attributes'] == 0;
+        return Config::getInstance()->General['disable_checks_usernames_attributes'] == 0;
     }
 
     /**
@@ -2102,8 +2020,8 @@ class Piwik
     }
 
     /*
- * Date / Timezone
- */
+     * Date / Timezone
+     */
 
     /**
      * Determine if this php version/build supports timezone manipulation
@@ -2123,8 +2041,8 @@ class Piwik
     }
 
     /*
- * Database and table definition methods
- */
+     * Database and table definition methods
+     */
 
     /**
      * Is the schema available?
@@ -2133,7 +2051,7 @@ class Piwik
      */
     static public function isAvailable()
     {
-        return Piwik_Db_Schema::getInstance()->isAvailable();
+        return Schema::getInstance()->isAvailable();
     }
 
     /**
@@ -2144,7 +2062,7 @@ class Piwik
      */
     static public function getTableCreateSql($tableName)
     {
-        return Piwik_Db_Schema::getInstance()->getTableCreateSql($tableName);
+        return Schema::getInstance()->getTableCreateSql($tableName);
     }
 
     /**
@@ -2154,7 +2072,7 @@ class Piwik
      */
     static public function getTablesCreateSql()
     {
-        return Piwik_Db_Schema::getInstance()->getTablesCreateSql();
+        return Schema::getInstance()->getTablesCreateSql();
     }
 
     /**
@@ -2164,7 +2082,7 @@ class Piwik
      */
     static public function createDatabase($dbName = null)
     {
-        Piwik_Db_Schema::getInstance()->createDatabase($dbName);
+        Schema::getInstance()->createDatabase($dbName);
     }
 
     /**
@@ -2172,7 +2090,7 @@ class Piwik
      */
     static public function dropDatabase()
     {
-        Piwik_Db_Schema::getInstance()->dropDatabase();
+        Schema::getInstance()->dropDatabase();
     }
 
     /**
@@ -2180,7 +2098,7 @@ class Piwik
      */
     static public function createTables()
     {
-        Piwik_Db_Schema::getInstance()->createTables();
+        Schema::getInstance()->createTables();
     }
 
     /**
@@ -2188,7 +2106,7 @@ class Piwik
      */
     static public function createAnonymousUser()
     {
-        Piwik_Db_Schema::getInstance()->createAnonymousUser();
+        Schema::getInstance()->createAnonymousUser();
     }
 
     /**
@@ -2196,7 +2114,7 @@ class Piwik
      */
     static public function truncateAllTables()
     {
-        Piwik_Db_Schema::getInstance()->truncateAllTables();
+        Schema::getInstance()->truncateAllTables();
     }
 
     /**
@@ -2206,7 +2124,7 @@ class Piwik
      */
     static public function dropTables($doNotDelete = array())
     {
-        Piwik_Db_Schema::getInstance()->dropTables($doNotDelete);
+        Schema::getInstance()->dropTables($doNotDelete);
     }
 
     /**
@@ -2217,7 +2135,7 @@ class Piwik
      */
     static public function getTablesNames()
     {
-        return Piwik_Db_Schema::getInstance()->getTablesNames();
+        return Schema::getInstance()->getTablesNames();
     }
 
     /**
@@ -2228,33 +2146,16 @@ class Piwik
      */
     static public function getTablesInstalled($forceReload = true)
     {
-        return Piwik_Db_Schema::getInstance()->getTablesInstalled($forceReload);
-    }
-
-    /**
-     * Returns all table names archive_*
-     *
-     * @return array
-     */
-    static public function getTablesArchivesInstalled()
-    {
-        $archiveTables = array();
-        $tables = Piwik::getTablesInstalled();
-        foreach ($tables as $table) {
-            if (strpos($table, 'archive_') !== false) {
-                $archiveTables[] = $table;
-            }
-        }
-        return $archiveTables;
+        return Schema::getInstance()->getTablesInstalled($forceReload);
     }
 
     /**
      * Batch insert into table from CSV (or other delimited) file.
      *
      * @param string $tableName  Name of table
-     * @param array  $fields     Field names
+     * @param array $fields     Field names
      * @param string $filePath   Path name of a file.
-     * @param array  $fileSpec   File specifications (delimiter, line terminator, etc)
+     * @param array $fileSpec   File specifications (delimiter, line terminator, etc)
      *
      * @throws Exception
      * @return bool  True if successful; false otherwise
@@ -2262,7 +2163,7 @@ class Piwik
     static public function createTableFromCSVFile($tableName, $fields, $filePath, $fileSpec)
     {
         // On Windows, MySQL expects forward slashes as directory separators
-        if (Piwik_Common::isWindows()) {
+        if (Common::isWindows()) {
             $filePath = str_replace('\\', '/', $filePath);
         }
 
@@ -2317,7 +2218,7 @@ class Piwik
             try {
                 $queryStart = 'LOAD DATA ' . $keyword . 'INFILE ';
                 $sql = $queryStart . $query;
-                $result = @Piwik_Exec($sql);
+                $result = @Db::exec($sql);
                 if (empty($result) || $result < 0) {
                     continue;
                 }
@@ -2343,7 +2244,7 @@ class Piwik
      * Performs a batch insert into a specific table using either LOAD DATA INFILE or plain INSERTs,
      * as a fallback. On MySQL, LOAD DATA INFILE is 20x faster than a series of plain INSERTs.
      *
-     * @param string $tableName  PREFIXED table name! you must call Piwik_Common::prefixTable() before passing the table name
+     * @param string $tableName  PREFIXED table name! you must call Common::prefixTable() before passing the table name
      * @param array $fields     array of unquoted field names
      * @param array $values     array of data to be inserted
      * @param bool $throwException Whether to throw an exception that was caught while trying
@@ -2353,23 +2254,23 @@ class Piwik
      */
     static public function tableInsertBatch($tableName, $fields, $values, $throwException = false)
     {
-        $filePath = PIWIK_USER_PATH . '/' . Piwik_AssetManager::MERGED_FILE_DIR . $tableName . '-' . Piwik_Common::generateUniqId() . '.csv';
+        $filePath = PIWIK_USER_PATH . '/' . AssetManager::MERGED_FILE_DIR . $tableName . '-' . Common::generateUniqId() . '.csv';
 
         if (Zend_Registry::get('db')->hasBulkLoader()) {
             try {
 //              throw new Exception('');
 
                 $fileSpec = array(
-                    'delim'            => "\t",
-                    'quote'            => '"', // chr(34)
-                    'escape'           => '\\\\', // chr(92)
+                    'delim' => "\t",
+                    'quote' => '"', // chr(34)
+                    'escape' => '\\\\', // chr(92)
                     'escapespecial_cb' => create_function('$str', 'return str_replace(array(chr(92), chr(34)), array(chr(92).chr(92), chr(92).chr(34)), $str);'),
-                    'eol'              => "\r\n",
-                    'null'             => 'NULL',
+                    'eol' => "\r\n",
+                    'null' => 'NULL',
                 );
 
                 // hack for charset mismatch
-                if (!self::isDatabaseConnectionUTF8() && !isset(Piwik_Config::getInstance()->database['charset'])) {
+                if (!self::isDatabaseConnectionUTF8() && !isset(Config::getInstance()->database['charset'])) {
                     $fileSpec['charset'] = 'latin1';
                 }
 
@@ -2404,7 +2305,7 @@ class Piwik
      *
      * NOTE: you should use tableInsertBatch() which will fallback to this function if LOAD DATA INFILE not available
      *
-     * @param string $tableName            PREFIXED table name! you must call Piwik_Common::prefixTable() before passing the table name
+     * @param string $tableName            PREFIXED table name! you must call Common::prefixTable() before passing the table name
      * @param array $fields               array of unquoted field names
      * @param array $values               array of data to be inserted
      * @param bool $ignoreWhenDuplicate  Ignore new rows that contain unique key values that duplicate old rows
@@ -2441,8 +2342,7 @@ class Piwik
      */
     static public function isLockPrivilegeGranted()
     {
-        if (is_null(self::$lockPrivilegeGranted))
-        {
+        if (is_null(self::$lockPrivilegeGranted)) {
             $generic = Piwik_Db_Factory::getGeneric();
             self::$lockPrivilegeGranted = $generic->isLockPrivilegeGranted();
         }
@@ -2521,7 +2421,7 @@ class Piwik
      */
     public static function checkIfFileSystemIsNFS()
     {
-        $sessionsPath = Piwik_Session::getSessionsDirectory();
+        $sessionsPath = Session::getSessionsDirectory();
 
         // this command will display details for the filesystem that holds the $sessionsPath
         // path, but only if its type is NFS. if not NFS, df will return one or less lines
@@ -2554,4 +2454,29 @@ class Piwik
         return false; // not NFS, or we can't run a program to find out
     }
 
+    /**
+     * Returns the option name of the option that stores the time the archive.php
+     * script was last run.
+     *
+     * @param string $period
+     * @param string $idSite
+     * @return string
+     */
+    public static function getArchiveCronLastRunOptionName($period, $idSite)
+    {
+        return "lastRunArchive" . $period . "_" . $idSite;
+    }
+
+    /**
+     * Returns the class name of an object without its namespace.
+     * 
+     * @param mixed|string $object
+     * @return string
+     */
+    public static function getUnnamespacedClassName($object)
+    {
+        $className = is_string($object) ? $object : get_class($object);
+        $parts = explode('\\', $className);
+        return end($parts);
+    }
 }

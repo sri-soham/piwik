@@ -1,5 +1,9 @@
 <?php
 
+use Piwik\Config;
+use Piwik\Tracker;
+use Piwik\Tracker\Cache;
+
 $GLOBALS['PIWIK_TRACKER_DEBUG'] = false;
 $GLOBALS['PIWIK_TRACKER_DEBUG_FORCE_SCHEDULED_TASKS'] = false;
 if (!defined('PIWIK_ENABLE_TRACKING')) {
@@ -40,26 +44,24 @@ class Piwik_LocalTracker extends PiwikTracker
         }
 
         // unset cached values
-        Piwik_Tracker_Cache::$trackerCache = null;
-        Piwik_Tracker::setForceIp(null);
-        Piwik_Tracker::setForceDateTime(null);
-        Piwik_Tracker::setForceVisitorId(null);
+        Cache::$trackerCache = null;
+        Tracker::setForceIp(null);
+        Tracker::setForceDateTime(null);
+        Tracker::setForceVisitorId(null);
 
         // save some values
-        $plugins = Piwik_Config::getInstance()->Plugins['Plugins'];
-        $pluginsTracker = Piwik_Config::getInstance()->Plugins_Tracker['Plugins_Tracker'];
-        $oldTrackerConfig = Piwik_Config::getInstance()->Tracker;
-        try {
-            Piwik_PluginsManager::getInstance()->unloadPlugins();
-        } catch(Exception $e) {
-            // this fails for SegmentEditor for some reasons
-        }
+        $plugins = Config::getInstance()->Plugins['Plugins'];
+        $plugins[] = 'DevicesDetection';
+        $pluginsTracker = Config::getInstance()->Plugins_Tracker['Plugins_Tracker'];
+        $oldTrackerConfig = Config::getInstance()->Tracker;
+
+        \Piwik\PluginsManager::getInstance()->unloadPlugins();
 
         // modify config
         $GLOBALS['PIWIK_TRACKER_MODE'] = true;
         $GLOBALS['PIWIK_TRACKER_LOCAL_TRACKING'] = true;
-        Piwik_Tracker::$initTrackerMode = false;
-        Piwik_Tracker::setTestEnvironment($testEnvironmentArgs, $method);
+        Tracker::$initTrackerMode = false;
+        Tracker::setTestEnvironment($testEnvironmentArgs, $method);
 
         // set language
         $oldLang = isset($_SERVER['HTTP_ACCEPT_LANGUAGE']) ? $_SERVER['HTTP_ACCEPT_LANGUAGE'] : '';
@@ -76,7 +78,7 @@ class Piwik_LocalTracker extends PiwikTracker
         // do tracking and capture output
         ob_start();
 
-        $localTracker = new Piwik_Tracker();
+        $localTracker = new Tracker();
         $localTracker->main($requests);
 
         $output = ob_get_contents();
@@ -84,8 +86,8 @@ class Piwik_LocalTracker extends PiwikTracker
         ob_end_clean();
 
         // restore vars
-        Piwik_Config::getInstance()->Plugins_Tracker['Plugins_Tracker'] = $pluginsTracker;
-        Piwik_Config::getInstance()->Tracker = $oldTrackerConfig;
+        Config::getInstance()->Plugins_Tracker['Plugins_Tracker'] = $pluginsTracker;
+        Config::getInstance()->Tracker = $oldTrackerConfig;
         $_SERVER['HTTP_ACCEPT_LANGUAGE'] = $oldLang;
         $_SERVER['HTTP_USER_AGENT'] = $oldUserAgent;
         $_COOKIE = $oldCookie;
@@ -94,7 +96,7 @@ class Piwik_LocalTracker extends PiwikTracker
         unset($_GET['bots']);
 
         // reload plugins
-        Piwik_PluginsManager::getInstance()->loadPlugins($plugins);
+        \Piwik\PluginsManager::getInstance()->loadPlugins($plugins);
 
         return $output;
     }

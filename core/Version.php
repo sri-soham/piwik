@@ -9,16 +9,18 @@
  * @package Piwik
  */
 
+namespace Piwik;
+
 /**
  * Piwik version information.
  *
  * @package Piwik
  */
-final class Piwik_Version
+final class Version
 {
     /**
      * Current Piwik version
      * @var string
      */
-    const VERSION = '1.12-b14';
+    const VERSION = '2.0-a1';
 }

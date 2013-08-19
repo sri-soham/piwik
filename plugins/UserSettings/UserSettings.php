@@ -6,27 +6,24 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_UserSettings
+ * @package UserSettings
  */
+namespace Piwik\Plugins\UserSettings;
+
+use Piwik\ArchiveProcessor;
+use Piwik\Plugins\UserSettings\Archiver;
+use Piwik\WidgetsList;
 
 /**
  *
- * @package Piwik_UserSettings
+ * @package UserSettings
  */
-class Piwik_UserSettings extends Piwik_Plugin
+class UserSettings extends \Piwik\Plugin
 {
-    public function getInformation()
-    {
-        return array(
-            'description'     => Piwik_Translate('UserSettings_PluginDescription'),
-            'author'          => 'Piwik',
-            'author_homepage' => 'http://piwik.org/',
-            'version'         => Piwik_Version::VERSION,
-        );
-    }
-
-    /*
+    /**
      * Mapping between the browser family shortcode and the displayed name
+     *
+     * @type array
      */
     static public $browserType_display = array(
         'ie'     => 'Trident (IE)',
@@ -36,12 +33,14 @@ class Piwik_UserSettings extends Piwik_Plugin
         'opera'  => 'Presto (Opera)',
     );
 
-    /*
+    /**
      * Defines API reports.
      * Also used to define Widgets.
      *
-     * @array Category, Report Name, API Module, API action, Translated column name,
-     * 			$segment, $sqlSegment, $acceptedValues, $sqlFilter
+     * @type array
+     *
+     * Category, Report Name, API Module, API action, Translated column name,
+     * $segment, $sqlSegment, $acceptedValues, $sqlFilter
      */
     protected $reportMetadata = array(
         array('UserSettings_VisitorSettings',
@@ -159,31 +158,200 @@ class Piwik_UserSettings extends Piwik_Plugin
               null),
     );
 
-    /*
-     * List of hooks
+    /**
+     * @see Piwik_Plugin::getListHooksRegistered
      */
-    function getListHooksRegistered()
+    public function getListHooksRegistered()
     {
         $hooks = array(
-            'ArchiveProcessing_Day.compute'    => 'archiveDay',
-            'ArchiveProcessing_Period.compute' => 'archivePeriod',
-            'WidgetsList.add'                  => 'addWidgets',
-            'Menu.add'                         => 'addMenu',
-            'API.getReportMetadata'            => 'getReportMetadata',
-            'API.getSegmentsMetadata'          => 'getSegmentsMetadata',
+            'ArchiveProcessing_Day.compute'            => 'archiveDay',
+            'ArchiveProcessing_Period.compute'         => 'archivePeriod',
+            'WidgetsList.add'                          => 'addWidgets',
+            'Menu.add'                                 => 'addMenu',
+            'API.getReportMetadata'                    => 'getReportMetadata',
+            'API.getSegmentsMetadata'                  => 'getSegmentsMetadata',
+            'ViewDataTable.getReportDisplayProperties' => 'getReportDisplayProperties',
         );
         return $hooks;
     }
 
-    /*
+    public function getReportDisplayProperties(&$properties)
+    {
+        $properties['UserSettings.getResolution'] = $this->getDisplayPropertiesForGetResolution();
+        $properties['UserSettings.getConfiguration'] = $this->getDisplayPropertiesForGetConfiguration();
+        $properties['UserSettings.getOS'] = $this->getDisplayPropertiesForGetOS();
+        $properties['UserSettings.getOSFamily'] = $this->getDisplayPropertiesForGetOSFamily();
+        $properties['UserSettings.getBrowserVersion'] = $this->getDisplayPropertiesForGetBrowserVersion();
+        $properties['UserSettings.getBrowser'] = $this->getDisplayPropertiesForGetBrowser();
+        $properties['UserSettings.getBrowserType'] = $this->getDisplayPropertiesForGetBrowserType();
+        $properties['UserSettings.getWideScreen'] = $this->getDisplayPropertiesForGetWideScreen();
+        $properties['UserSettings.getMobileVsDesktop'] = $this->getDisplayPropertiesForGetMobileVsDesktop();
+        $properties['UserSettings.getPlugin'] = $this->getDisplayPropertiesForGetPlugin();
+        $properties['UserSettings.getLanguage'] = $this->getDisplayPropertiesForGetLanguage();
+    }
+
+    private function getDisplayPropertiesForGetResolution()
+    {
+        return array_merge($this->getBasicUserSettingsDisplayProperties(), array(
+            'translations' => array('label' => Piwik_Translate('UserSettings_ColumnResolution'))
+        ));
+    }
+
+    private function getDisplayPropertiesForGetConfiguration()
+    {
+        return array_merge($this->getBasicUserSettingsDisplayProperties(), array(
+            'filter_limit' => 3,
+            'translations' => array('label' => Piwik_Translate('UserSettings_ColumnConfiguration'))
+        ));
+    }
+
+    private function getDisplayPropertiesForGetOS()
+    {
+        return array_merge($this->getBasicUserSettingsDisplayProperties(), array(
+            'translations'   => array('label' => Piwik_Translate('UserSettings_ColumnOperatingSystem')),
+            'title'          => Piwik_Translate('UserSettings_OperatingSystems'),
+            'related_reports' => $this->getOsRelatedReports()
+        ));
+    }
+
+    private function getDisplayPropertiesForGetOSFamily()
+    {
+        return array_merge($this->getBasicUserSettingsDisplayProperties(), array(
+            'translations'   => array('label' => Piwik_Translate('UserSettings_OperatingSystemFamily')),
+            'title'          => Piwik_Translate('UserSettings_OperatingSystemFamily'),
+            'related_reports' => $this->getOsRelatedReports()
+        ));
+    }
+
+    private function getDisplayPropertiesForGetBrowserVersion()
+    {
+        $result = array_merge($this->getBasicUserSettingsDisplayProperties(), array(
+            'translations'   => array('label' => Piwik_Translate('UserSettings_ColumnBrowserVersion')),
+            'title'          => Piwik_Translate('UserSettings_ColumnBrowserVersion'),
+            'related_reports' => $this->getBrowserRelatedReports()
+        ));
+        $result['visualization_properties']['graph']['max_graph_elements'] = 7;
+        return $result;
+    }
+
+    private function getDisplayPropertiesForGetBrowser()
+    {
+        $result = array_merge($this->getBasicUserSettingsDisplayProperties(), array(
+            'translations'   => array('label' => Piwik_Translate('UserSettings_ColumnBrowser')),
+            'title'          => Piwik_Translate('UserSettings_Browsers'),
+            'related_reports' => $this->getBrowserRelatedReports()
+        ));
+        $result['visualization_properties']['graph']['max_graph_elements'] = 7;
+        return $result;
+    }
+
+    private function getDisplayPropertiesForGetBrowserType()
+    {
+        return array_merge($this->getBasicUserSettingsDisplayProperties(), array(
+            'translations'            => array('label' => Piwik_Translate('UserSettings_ColumnBrowserFamily')),
+            'show_offset_information' => false,
+            'show_pagination_control' => false,
+            'default_view_type'       => 'graphPie',
+        ));
+    }
+
+    private function getDisplayPropertiesForGetWideScreen()
+    {
+        return array_merge($this->getBasicUserSettingsDisplayProperties(), array(
+            'translations'            => array('label' => Piwik_Translate('UserSettings_ColumnTypeOfScreen')),
+            'show_offset_information' => false,
+            'show_pagination_control' => false,
+            'title'                   => Piwik_Translate('UserSettings_ColumnTypeOfScreen'),
+            'related_reports'          => $this->getWideScreenDeviceTypeRelatedReports()
+        ));
+    }
+
+    private function getDisplayPropertiesForGetMobileVsDesktop()
+    {
+        return array_merge($this->getBasicUserSettingsDisplayProperties(), array(
+            'translations'            => array('label' => Piwik_Translate('UserSettings_MobileVsDesktop')),
+            'title'                   => Piwik_Translate('UserSettings_MobileVsDesktop'),
+            'related_reports'          => $this->getWideScreenDeviceTypeRelatedReports()
+        ));
+    }
+
+    private function getDisplayPropertiesForGetPlugin()
+    {
+        return array_merge($this->getBasicUserSettingsDisplayProperties(), array(
+            'translations'             => array(
+                'label'                => Piwik_Translate('UserSettings_ColumnPlugin'),
+                'nb_visits_percentage' =>
+                    str_replace(' ', '&nbsp;', Piwik_Translate('General_ColumnPercentageVisits'))
+            ),
+            'show_offset_information'  => false,
+            'show_pagination_control'  => false,
+            'show_all_views_icons'     => false,
+            'show_table_all_columns'   => false,
+            'columns_to_display'       => array('label', 'nb_visits_percentage', 'nb_visits'),
+            'filter_sort_column'       => 'nb_visits_percentage',
+            'filter_sort_order'        => 'desc',
+            'filter_limit'             => 10,
+            'show_footer_message'      => Piwik_Translate('UserSettings_PluginDetectionDoesNotWorkInIE'),
+        ));
+    }
+
+    private function getDisplayPropertiesForGetLanguage()
+    {
+        return array(
+            'translations'  => array('label' => Piwik_Translate('General_Language')),
+            'filter_sort_column'          => 'nb_visits',
+            'filter_sort_order'           => 'desc',
+            'show_search'                 => false,
+            'columns_to_display'          => array('label', 'nb_visits'),
+            'show_exclude_low_population' => false,
+        );
+    }
+
+    private function getWideScreenDeviceTypeRelatedReports()
+    {
+        return array(
+            'UserSettings.getMobileVsDesktop' => Piwik_Translate('UserSettings_MobileVsDesktop'),
+            'UserSettings.getWideScreen' => Piwik_Translate('UserSettings_ColumnTypeOfScreen')
+        );
+    }
+
+    private function getBrowserRelatedReports()
+    {
+        return array(
+            'UserSettings.getBrowser' => Piwik_Translate('UserSettings_Browsers'),
+            'UserSettings.getBrowserVersion' => Piwik_Translate('UserSettings_ColumnBrowserVersion')
+        );
+    }
+
+    private function getOsRelatedReports()
+    {
+        return array(
+            'UserSettings.getOSFamily' => Piwik_Translate('UserSettings_OperatingSystemFamily'),
+            'UserSettings.getOS'       => Piwik_Translate('UserSettings_OperatingSystems')
+        );
+    }
+
+    private function getBasicUserSettingsDisplayProperties()
+    {
+        return array(
+            'show_search'                 => false,
+            'show_exclude_low_population' => false,
+            'filter_limit'                => 5,
+            'visualization_properties' => array(
+                'graph' => array(
+                    'max_graph_elements' => 5
+                )
+            )
+        );
+    }
+
+    /**
      * Registers reports metadata
      *
-     * @param Piwik_Event_Notification $notification  notification object
+     * @param array $reports
      */
-    public function getReportMetadata($notification)
+    public function getReportMetadata(&$reports)
     {
-        $reports = & $notification->getNotificationObject();
-
         $i = 0;
         foreach ($this->reportMetadata as $report) {
             list($category, $name, $apiModule, $apiAction, $columnName) = $report;
@@ -221,18 +389,15 @@ class Piwik_UserSettings extends Piwik_Plugin
 
     /**
      * Get segments meta data
-     *
-     * @param Piwik_Event_Notification $notification  notification object
      */
-    public function getSegmentsMetadata($notification)
+    public function getSegmentsMetadata(&$segments)
     {
-        $segments =& $notification->getNotificationObject();
         foreach ($this->reportMetadata as $report) {
             @list($category, $name, $apiModule, $apiAction, $columnName, $segment, $sqlSegment, $acceptedValues, $sqlFilter) = $report;
             if (empty($segment)) continue;
             $segments[] = array(
                 'type'           => 'dimension',
-                'category'       => 'Visit',
+                'category'       => Piwik_Translate('General_Visit'),
                 'name'           => $columnName,
                 'segment'        => $segment,
                 'acceptedValues' => $acceptedValues,
@@ -251,7 +416,7 @@ class Piwik_UserSettings extends Piwik_Plugin
         foreach ($this->reportMetadata as $report) {
             list($category, $name, $controllerName, $controllerAction) = $report;
             if ($category == false) continue;
-            Piwik_AddWidget($category, $name, $controllerName, $controllerAction);
+            WidgetsList::add($category, $name, $controllerName, $controllerAction);
         }
     }
 
@@ -267,195 +432,23 @@ class Piwik_UserSettings extends Piwik_Plugin
      * Daily archive of User Settings report. Processes reports for Visits by Resolution,
      * by Browser, Browser family, etc. Some reports are built from the logs, some reports
      * are superset of an existing report (eg. Browser family is built from the Browser report)
-     *
-     * @param Piwik_Event_Notification $notification  notification object
-     * @return void
      */
-    function archiveDay($notification)
+    public function archiveDay(ArchiveProcessor\Day $archiveProcessor)
     {
-        require_once PIWIK_INCLUDE_PATH . '/plugins/UserSettings/functions.php';
-        $maximumRowsInDataTable = Piwik_Config::getInstance()->General['datatable_archiving_maximum_rows_standard'];
-        $columnToSortByBeforeTruncation = Piwik_Archive::INDEX_NB_VISITS;
-
-        $archiveProcessing = $notification->getNotificationObject();
-
-        if (!$archiveProcessing->shouldProcessReportsForPlugin($this->getPluginName())) return;
-
-        $this->archiveProcessing = $archiveProcessing;
-
-        $recordName = 'UserSettings_configuration';
-        $labelSQL = "CONCAT(log_visit.config_os, ';', log_visit.config_browser_name, ';', log_visit.config_resolution)";
-        $interestByConfiguration = $archiveProcessing->getArrayInterestForLabel($labelSQL);
-
-        $tableConfiguration = $archiveProcessing->getDataTableFromArray($interestByConfiguration);
-        $archiveProcessing->insertBlobRecord($recordName, $tableConfiguration->getSerialized($maximumRowsInDataTable, null, $columnToSortByBeforeTruncation));
-        destroy($tableConfiguration);
-
-        $recordName = 'UserSettings_os';
-        $labelSQL = "log_visit.config_os";
-        $interestByOs = $archiveProcessing->getArrayInterestForLabel($labelSQL);
-        $tableOs = $archiveProcessing->getDataTableFromArray($interestByOs);
-        $archiveProcessing->insertBlobRecord($recordName, $tableOs->getSerialized($maximumRowsInDataTable, null, $columnToSortByBeforeTruncation));
-        destroy($tableOs);
-
-        $recordName = 'UserSettings_browser';
-        $labelSQL = "CONCAT(log_visit.config_browser_name, ';', log_visit.config_browser_version)";
-        $interestByBrowser = $archiveProcessing->getArrayInterestForLabel($labelSQL);
-        $tableBrowser = $archiveProcessing->getDataTableFromArray($interestByBrowser);
-        $archiveProcessing->insertBlobRecord($recordName, $tableBrowser->getSerialized($maximumRowsInDataTable, null, $columnToSortByBeforeTruncation));
-
-        $recordName = 'UserSettings_browserType';
-        $tableBrowserType = $this->getTableBrowserByType($tableBrowser);
-        $archiveProcessing->insertBlobRecord($recordName, $tableBrowserType->getSerialized());
-        destroy($tableBrowser);
-        destroy($tableBrowserType);
-
-        $recordName = 'UserSettings_resolution';
-        $labelSQL = "log_visit.config_resolution";
-        $interestByResolution = $archiveProcessing->getArrayInterestForLabel($labelSQL);
-        $tableResolution = $archiveProcessing->getDataTableFromArray($interestByResolution);
-        $tableResolution->filter('ColumnCallbackDeleteRow', array('label', 'Piwik_UserSettings_keepStrlenGreater'));
-        $archiveProcessing->insertBlobRecord($recordName, $tableResolution->getSerialized($maximumRowsInDataTable, null, $columnToSortByBeforeTruncation));
-
-        $recordName = 'UserSettings_wideScreen';
-        $tableWideScreen = $this->getTableWideScreen($tableResolution);
-        $archiveProcessing->insertBlobRecord($recordName, $tableWideScreen->getSerialized());
-        destroy($tableResolution);
-        destroy($tableWideScreen);
-
-        $recordName = 'UserSettings_plugin';
-        $tablePlugin = $this->getDataTablePlugin();
-        $archiveProcessing->insertBlobRecord($recordName, $tablePlugin->getSerialized());
-        destroy($tablePlugin);
-
-        $recordName = 'UserSettings_language';
-        $tableLanguage = $this->getDataTableLanguages();
-        $archiveProcessing->insertBlobRecord($recordName, $tableLanguage->getSerialized($maximumRowsInDataTable, null, $columnToSortByBeforeTruncation));
+        $archiving = new Archiver($archiveProcessor);
+        if ($archiving->shouldArchive()) {
+            $archiving->archiveDay();
+        }
     }
 
     /**
      * Period archiving: simply sums up daily archives
-     *
-     * @param Piwik_Event_Notification $notification  notification object
-     * @return void
      */
-    function archivePeriod($notification)
+    public function archivePeriod(ArchiveProcessor\Period $archiveProcessor)
     {
-        $archiveProcessing = $notification->getNotificationObject();
-
-        if (!$archiveProcessing->shouldProcessReportsForPlugin($this->getPluginName())) return;
-
-        $maximumRowsInDataTable = Piwik_Config::getInstance()->General['datatable_archiving_maximum_rows_standard'];
-
-        $dataTableToSum = array(
-            'UserSettings_configuration',
-            'UserSettings_os',
-            'UserSettings_browser',
-            'UserSettings_browserType',
-            'UserSettings_resolution',
-            'UserSettings_wideScreen',
-            'UserSettings_plugin',
-            'UserSettings_language',
-        );
-
-        $archiveProcessing->archiveDataTable($dataTableToSum, null, $maximumRowsInDataTable);
-    }
-
-    /**
-     * Returns the report Visits by Screen type given the Resolution table
-     *
-     * @param Piwik_DataTable $tableResolution
-     * @return Piwik_DataTable
-     */
-    protected function getTableWideScreen(Piwik_DataTable $tableResolution)
-    {
-        $nameToRow = array();
-        foreach ($tableResolution->getRows() as $row) {
-            $resolution = $row->getColumn('label');
-            $name = Piwik_getScreenTypeFromResolution($resolution);
-            if (!isset($nameToRow[$name])) {
-                $nameToRow[$name] = new Piwik_DataTable_Row();
-                $nameToRow[$name]->addColumn('label', $name);
-            }
-
-            $nameToRow[$name]->sumRow($row);
+        $archiving = new Archiver($archiveProcessor);
+        if ($archiving->shouldArchive()) {
+            $archiving->archivePeriod();
         }
-        $tableWideScreen = new Piwik_DataTable();
-        $tableWideScreen->addRowsFromArray($nameToRow);
-
-        return $tableWideScreen;
-    }
-
-    /**
-     * Returns the report Visits by Browser family given the Browser report
-     *
-     * @param Piwik_DataTable $tableBrowser
-     * @return Piwik_DataTable
-     */
-    protected function getTableBrowserByType(Piwik_DataTable $tableBrowser)
-    {
-        $nameToRow = array();
-        foreach ($tableBrowser->getRows() as $row) {
-            $browserLabel = $row->getColumn('label');
-            $familyNameToUse = Piwik_getBrowserFamily($browserLabel);
-            if (!isset($nameToRow[$familyNameToUse])) {
-                $nameToRow[$familyNameToUse] = new Piwik_DataTable_Row();
-                $nameToRow[$familyNameToUse]->addColumn('label', $familyNameToUse);
-            }
-            $nameToRow[$familyNameToUse]->sumRow($row);
-        }
-
-        $tableBrowserType = new Piwik_DataTable();
-        $tableBrowserType->addRowsFromArray($nameToRow);
-        return $tableBrowserType;
-    }
-
-    /**
-     * Returns SQL that processes stats for Plugins
-     *
-     * @return Piwik_DataTable_Simple
-     */
-    protected function getDataTablePlugin()
-    {
-        $toSelect = "sum(case log_visit.config_pdf when 1 then 1 else 0 end) as pdf,
-				sum(case log_visit.config_flash when 1 then 1 else 0 end) as flash,
-				sum(case log_visit.config_java when 1 then 1 else 0 end) as java,
-				sum(case log_visit.config_director when 1 then 1 else 0 end) as director,
-				sum(case log_visit.config_quicktime when 1 then 1 else 0 end) as quicktime,
-				sum(case log_visit.config_realplayer when 1 then 1 else 0 end) as realplayer,
-				sum(case log_visit.config_windowsmedia when 1 then 1 else 0 end) as windowsmedia,
-				sum(case log_visit.config_gears when 1 then 1 else 0 end) as gears,
-				sum(case log_visit.config_silverlight when 1 then 1 else 0 end) as silverlight,
-				sum(case log_visit.config_cookie when 1 then 1 else 0 end) as cookie	";
-        return $this->archiveProcessing->getSimpleDataTableFromSelect($toSelect, Piwik_Archive::INDEX_NB_VISITS);
-    }
-
-    protected function getDataTableLanguages()
-    {
-        $labelSQL = "log_visit.location_browser_lang";
-        $interestByLanguage = $this->archiveProcessing->getArrayInterestForLabel($labelSQL);
-
-        $languageCodes = array_keys(Piwik_Common::getLanguagesList());
-
-        foreach ($interestByLanguage as $lang => $count) {
-            // get clean language code
-            $code = Piwik_Common::extractLanguageCodeFromBrowserLanguage($lang, $languageCodes);
-            if ($code != $lang) {
-                if (!array_key_exists($code, $interestByLanguage)) {
-                    $interestByLanguage[$code] = array();
-                }
-                // Add the values to the primary language
-                foreach ($count as $key => $value) {
-                    if (array_key_exists($key, $interestByLanguage[$code])) {
-                        $interestByLanguage[$code][$key] += $value;
-                    } else {
-                        $interestByLanguage[$code][$key] = $value;
-                    }
-                }
-                unset($interestByLanguage[$lang]);
-            }
-        }
-        $tableLanguage = $this->archiveProcessing->getDataTableFromArray($interestByLanguage);
-        return $tableLanguage;
     }
 }

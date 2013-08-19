@@ -8,15 +8,55 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik;
+use Piwik\Common;
+use Piwik\Plugin\MetadataLoader;
 
 /**
- * Abstract class to define a Piwik_Plugin.
+ * @see Piwik\Plugin\MetadataLoader
+ */
+require_once PIWIK_INCLUDE_PATH . '/core/Plugin/MetadataLoader.php';
+
+/**
+ * Abstract class to define a Plugin.
  * Any plugin has to at least implement the abstract methods of this class.
  *
  * @package Piwik
  */
-abstract class Piwik_Plugin
+class Plugin
 {
+    /**
+     * Name of this plugin.
+     *
+     * @var string
+     */
+    protected $pluginName;
+
+    /**
+     * Holds plugin metadata.
+     *
+     * @var array
+     */
+    private $pluginInformation;
+
+    /**
+     * Constructor.
+     *
+     * @param string|bool $pluginName A plugin name to force. If not supplied, it is set
+     *                                to last part of the class name.
+     */
+    public function __construct($pluginName = false)
+    {
+        if (empty($pluginName)) {
+            $pluginName = explode('\\', get_class($this));
+            $pluginName = end($pluginName);
+        }
+        $this->pluginName = $pluginName;
+
+        $metadataLoader = new MetadataLoader($pluginName);
+        $this->pluginInformation = $metadataLoader->load();
+    }
+
     /**
      * Returns the plugin details
      * - 'description' => string        // 1-2 sentence description of the plugin
@@ -25,18 +65,30 @@ abstract class Piwik_Plugin
      * - 'homepage' => string           // plugin homepage URL
      * - 'license' => string            // plugin license
      * - 'license_homepage' => string   // license homepage URL
-     * - 'version' => string            // plugin version number; examples and 3rd party plugins must not use Piwik_Version::VERSION; 3rd party plugins must increment the version number with each plugin release
-     * - 'translationAvailable' => bool // is there a translation file in plugins/your-plugin/lang/* ?
-     * - 'TrackerPlugin' => bool        // should we load this plugin during the stats logging process?
+     * - 'version' => string            // plugin version number; examples and 3rd party plugins must not use Version::VERSION; 3rd party plugins must increment the version number with each plugin release
+     * - 'theme' => bool                // Whether this plugin is a theme (a theme is a plugin, but a plugin is not necessarily a theme)
      *
      * @return array
      */
-    abstract public function getInformation();
+    public function getInformation()
+    {
+        return $this->pluginInformation;
+    }
 
     /**
      * Returns the list of hooks registered with the methods names
      *
-     * @return array
+     * @return array eg, array(
+     *                       'API.getReportMetadata' => 'myPluginFunction',
+     *                       'Another.event'         => array(
+     *                                                      'function' => 'myOtherPluginFunction',
+     *                                                      'after'    => true // execute after callbacks w/o ordering
+     *                                                  )
+     *                       'Yet.Another.event'     => array(
+     *                                                      'function' => 'myOtherPluginFunction',
+     *                                                      'before'   => true // execute before callbacks w/o ordering
+     *                                                  )
+     *                   )
      */
     public function getListHooksRegistered()
     {
@@ -92,33 +144,31 @@ abstract class Piwik_Plugin
      *
      * @return string
      */
-    public function getVersion()
+    final public function getVersion()
     {
         $info = $this->getInformation();
         return $info['version'];
     }
 
     /**
+     * Whether this plugin is a theme
+     *
+     * @return bool
+     */
+    final public function isTheme()
+    {
+        $info = $this->getInformation();
+        return !empty($info['theme']) && (bool)$info['theme'];
+    }
+
+    /**
      * Returns the plugin's base class name without the "Piwik_" prefix,
-     * e.g., "UserCountry" when the plugin class is "Piwik_UserCountry"
+     * e.g., "UserCountry" when the plugin class is "UserCountry"
      *
      * @return string
      */
     final public function getPluginName()
     {
-        return Piwik::unprefixClass(get_class($this));
-    }
-
-    /**
-     * Returns the plugin's base class name without the "Piwik_" prefix,
-     * e.g., "UserCountry" when the plugin class is "Piwik_UserCountry"
-     *
-     * @deprecated since 1.2 - for backward compatibility
-     *
-     * @return string
-     */
-    final public function getClassName()
-    {
-        return $this->getPluginName();
+        return $this->pluginName;
     }
 }

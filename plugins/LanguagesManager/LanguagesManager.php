@@ -6,26 +6,31 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  * @category Piwik_Plugins
- * @package Piwik_LanguagesManager
+ * @package LanguagesManager
  *
  */
+namespace Piwik\Plugins\LanguagesManager;
+
+use Exception;
+use Piwik\Config;
+use Piwik\Piwik;
+use Piwik\Common;
+use Piwik\Cookie;
+use Piwik\Plugins\LanguagesManager\API;
+use Piwik\View;
+use Piwik\Db;
+use Piwik\Translate;
+use Zend_Registry;
 
 /**
  *
- * @package Piwik_LanguagesManager
+ * @package LanguagesManager
  */
-class Piwik_LanguagesManager extends Piwik_Plugin
+class LanguagesManager extends \Piwik\Plugin
 {
-    public function getInformation()
-    {
-        return array(
-            'description'     => Piwik_Translate('LanguagesManager_PluginDescription'),
-            'author'          => 'Piwik',
-            'author_homepage' => 'http://piwik.org/',
-            'version'         => Piwik_Version::VERSION,
-        );
-    }
-
+    /**
+     * @see Piwik_Plugin::getListHooksRegistered
+     */
     public function getListHooksRegistered()
     {
         return array(
@@ -38,29 +43,16 @@ class Piwik_LanguagesManager extends Piwik_Plugin
         );
     }
 
-    /**
-     * @param Piwik_Event_Notification $notification  notification object
-     */
-    public function getCssFiles($notification)
+    public function getCssFiles(&$cssFiles)
     {
-        $cssFiles = & $notification->getNotificationObject();
-
-        $cssFiles[] = "themes/default/styles.css";
+        $cssFiles[] = "plugins/Zeitgeist/stylesheets/base.less";
     }
 
-    /**
-     * @param Piwik_Event_Notification $notification  notification object
-     */
-    public function getJsFiles($notification)
+    public function getJsFiles(&$jsFiles)
     {
-        $jsFiles = & $notification->getNotificationObject();
-
-        $jsFiles[] = "plugins/LanguagesManager/templates/languageSelector.js";
+        $jsFiles[] = "plugins/LanguagesManager/javascripts/languageSelector.js";
     }
 
-    /**
-     * Show styled language selection drop-down list
-     */
     public function showLanguagesSelector()
     {
         Piwik_AddTopMenu('LanguageSelector', $this->getLanguagesSelector(), true, $order = 30, true);
@@ -68,17 +60,14 @@ class Piwik_LanguagesManager extends Piwik_Plugin
 
     /**
      * Adds the languages drop-down list to topbars other than the main one rendered
-     * in CoreHome/templates/top_bar.tpl. The 'other' topbars are on the Installation
+     * in CoreHome/templates/top_bar.twig. The 'other' topbars are on the Installation
      * and CoreUpdater screens.
-     *
-     * @param Piwik_Event_Notification $notification notification object
      */
-    public function addLanguagesManagerToOtherTopBar($notification)
+    public function addLanguagesManagerToOtherTopBar(&$str)
     {
-        $str =& $notification->getNotificationObject();
         // piwik object & scripts aren't loaded in 'other' topbars
         $str .= "<script type='text/javascript'>if (!window.piwik) window.piwik={};</script>";
-        $str .= "<script type='text/javascript' src='plugins/LanguagesManager/templates/languageSelector.js'></script>";
+        $str .= "<script type='text/javascript' src='plugins/LanguagesManager/javascripts/languageSelector.js'></script>";
         $str .= $this->getLanguagesSelector();
     }
 
@@ -89,34 +78,25 @@ class Piwik_LanguagesManager extends Piwik_Plugin
      */
     private function getLanguagesSelector()
     {
-        // don't use Piwik_View::factory() here
-        $view = new Piwik_View("LanguagesManager/templates/languages.tpl");
-        $view->languages = Piwik_LanguagesManager_API::getInstance()->getAvailableLanguageNames();
+        $view = new View("@LanguagesManager/getLanguagesSelector");
+        $view->languages = API::getInstance()->getAvailableLanguageNames();
         $view->currentLanguageCode = self::getLanguageCodeForCurrentUser();
         $view->currentLanguageName = self::getLanguageNameForCurrentUser();
         return $view->render();
     }
 
-    /**
-     * @param Piwik_Event_Notification $notification  notification object
-     */
-    public function getLanguageToLoad($notification)
+    function getLanguageToLoad(&$language)
     {
-        $language =& $notification->getNotificationObject();
         if (empty($language)) {
             $language = self::getLanguageCodeForCurrentUser();
         }
-        if (!Piwik_LanguagesManager_API::getInstance()->isLanguageAvailable($language)) {
-            $language = Piwik_Translate::getInstance()->getLanguageDefault();
+        if (!API::getInstance()->isLanguageAvailable($language)) {
+            $language = Translate::getInstance()->getLanguageDefault();
         }
     }
 
-    /**
-     * @param Piwik_Event_Notification $notification  notification object
-     */
-    public function deleteUserLanguage($notification)
+    public function deleteUserLanguage($userLogin)
     {
-        $userLogin = $notification->getNotificationObject();
         $UserLanguage = Piwik_Db_Factory::getDAO('user_language');
         $UserLanguage->deleteByLogin($userLogin);
     }
@@ -145,11 +125,11 @@ class Piwik_LanguagesManager extends Piwik_Plugin
     public static function getLanguageCodeForCurrentUser()
     {
         $languageCode = self::getLanguageFromPreferences();
-        if (!Piwik_LanguagesManager_API::getInstance()->isLanguageAvailable($languageCode)) {
-            $languageCode = Piwik_Common::extractLanguageCodeFromBrowserLanguage(Piwik_Common::getBrowserLanguage(), Piwik_LanguagesManager_API::getInstance()->getAvailableLanguages());
+        if (!API::getInstance()->isLanguageAvailable($languageCode)) {
+            $languageCode = Common::extractLanguageCodeFromBrowserLanguage(Common::getBrowserLanguage(), API::getInstance()->getAvailableLanguages());
         }
-        if (!Piwik_LanguagesManager_API::getInstance()->isLanguageAvailable($languageCode)) {
-            $languageCode = Piwik_Translate::getInstance()->getLanguageDefault();
+        if (!API::getInstance()->isLanguageAvailable($languageCode)) {
+            $languageCode = Translate::getInstance()->getLanguageDefault();
         }
         return $languageCode;
     }
@@ -160,7 +140,7 @@ class Piwik_LanguagesManager extends Piwik_Plugin
     public static function getLanguageNameForCurrentUser()
     {
         $languageCode = self::getLanguageCodeForCurrentUser();
-        $languages = Piwik_LanguagesManager_API::getInstance()->getAvailableLanguageNames();
+        $languages = API::getInstance()->getAvailableLanguageNames();
         foreach ($languages as $language) {
             if ($language['code'] === $languageCode) {
                 return $language['name'];
@@ -179,22 +159,21 @@ class Piwik_LanguagesManager extends Piwik_Plugin
 
         try {
             $currentUser = Piwik::getCurrentUserLogin();
-            return Piwik_LanguagesManager_API::getInstance()->getLanguageForUser($currentUser);
+            return API::getInstance()->getLanguageForUser($currentUser);
         } catch (Exception $e) {
             return false;
         }
     }
 
-
     /**
-     * Returns the langage for the session
+     * Returns the language for the session
      *
      * @return string|null
      */
     public static function getLanguageForSession()
     {
-        $cookieName = Piwik_Config::getInstance()->General['language_cookie_name'];
-        $cookie = new Piwik_Cookie($cookieName);
+        $cookieName = Config::getInstance()->General['language_cookie_name'];
+        $cookie = new Cookie($cookieName);
         if ($cookie->isCookieFound()) {
             return $cookie->get('language');
         }
@@ -209,12 +188,12 @@ class Piwik_LanguagesManager extends Piwik_Plugin
      */
     public static function setLanguageForSession($languageCode)
     {
-        if (!Piwik_LanguagesManager_API::getInstance()->isLanguageAvailable($languageCode)) {
+        if (!API::getInstance()->isLanguageAvailable($languageCode)) {
             return false;
         }
 
-        $cookieName = Piwik_Config::getInstance()->General['language_cookie_name'];
-        $cookie = new Piwik_Cookie($cookieName, 0);
+        $cookieName = Config::getInstance()->General['language_cookie_name'];
+        $cookie = new Cookie($cookieName, 0);
         $cookie->set('language', $languageCode);
         $cookie->save();
     }

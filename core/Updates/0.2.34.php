@@ -8,17 +8,21 @@
  * @category Piwik
  * @package Updates
  */
+use Piwik\Piwik;
+use Piwik\Plugins\SitesManager\API;
+use Piwik\Tracker\Cache;
+use Piwik\Updates;
 
 /**
  * @package Updates
  */
-class Piwik_Updates_0_2_34 extends Piwik_Updates
+class Piwik_Updates_0_2_34 extends Updates
 {
     static function update($schema = 'Myisam')
     {
         // force regeneration of cache files following #648
         Piwik::setUserIsSuperUser();
-        $allSiteIds = Piwik_SitesManager_API::getInstance()->getAllSitesId();
-        Piwik_Tracker_Cache::regenerateCacheWebsiteAttributes($allSiteIds);
+        $allSiteIds = API::getInstance()->getAllSitesId();
+        Cache::regenerateCacheWebsiteAttributes($allSiteIds);
     }
 }
