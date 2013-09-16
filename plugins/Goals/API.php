@@ -201,7 +201,7 @@ class API
         $dao = Factory::getDAO('goal');
         $dao->markAsDeleted($idSite, $idGoal);
         Factory::getGeneric()->deleteAll(
-            Piwik_Common::prefixTable('log_conversion'),
+            Common::prefixTable('log_conversion'),
             array(' idgoal = ? '),
             100000,
             array($idGoal)

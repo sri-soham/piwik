@@ -14,6 +14,7 @@ use Exception;
 use Piwik\Common;
 use Piwik\Config;
 use Piwik\Date;
+use Piwik\Db;
 use Piwik\Db\SchemaInterface;
 use Piwik\Piwik;
 use Zend_Registry;
@@ -539,11 +540,11 @@ class Pgsql implements SchemaInterface
             $dbName = Config::getInstance()->database['dbname'];
         }
         $sql = 'SELECT datname FROM pg_database where datname = ?';
-        $one = Piwik_FetchOne($sql, array($dbName));
+        $one = Db::fetchOne($sql, array($dbName));
         if (empty($one))
         {
-            Piwik_Exec("CREATE DATABASE ".$dbName." ENCODING 'UTF8'");
-            Piwik_Exec("ALTER DATABASE $dbName SET bytea_output TO 'escape'");
+            Db::exec("CREATE DATABASE ".$dbName." ENCODING 'UTF8'");
+            Db::exec("ALTER DATABASE $dbName SET bytea_output TO 'escape'");
         }
     }
 
@@ -620,7 +621,7 @@ class Pgsql implements SchemaInterface
         $tablesAlreadyInstalled = $this->getTablesInstalled($forceReload = true);
         foreach($tablesAlreadyInstalled as $table)
         {
-            Piwik_Query('TRUNCATE "'.$table.'"');
+            Db::query('TRUNCATE "'.$table.'"');
         }
     }
 

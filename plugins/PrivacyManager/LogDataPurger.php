@@ -77,7 +77,7 @@ class LogDataPurger
         $where = array('idvisit <= ?');
         foreach ($logTables as $logTable) {
             // deleting from log_action must be handled differently, so we do it later
-            if ($logTable != Piwik_Common::prefixTable('log_action')) {
+            if ($logTable != Common::prefixTable('log_action')) {
                 $Generic->deleteAll($logTable, $where, $this->maxRowsToDeletePerQuery, array($maxIdVisit));
             }
         }
@@ -111,8 +111,8 @@ class LogDataPurger
         if (!empty($maxIdVisit)) {
             foreach ($this->getDeleteTableLogTables() as $table) {
                 // getting an estimate for log_action is not supported since it can take too long
-                if ($table != Piwik_Common::prefixTable('log_action')) {
-                    $TableDAO = Factory::getDAO(Piwik_Common::unprefixTable($table));
+                if ($table != Common::prefixTable('log_action')) {
+                    $TableDAO = Factory::getDAO(Common::unprefixTable($table));
                     $rowCount = $TableDAO->getCountByIdvisit($maxIdVisit);
                     if ($rowCount > 0) {
                         $result[$table] = $rowCount;

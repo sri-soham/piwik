@@ -171,7 +171,7 @@ class UserCountry extends \Piwik\Plugin
             'segment'        => 'latitude',
             'sqlSegment'     => 'log_visit.location_latitude',
             'acceptedValues' => '-33.578, 40.830, etc.<br/>You can select visitors within a lat/long range using &segment=lat&gt;X;lat&lt;Y;long&gt;M;long&lt;N.',
-            'sqlFilter'      => array('Piwik_Common', 'dummyWhenNotNumeric'),
+            'sqlFilter'      => array('Piwik\Common', 'dummyWhenNotNumeric'),
         );
         $segments[] = array(
             'type'           => 'dimension',
@@ -180,7 +180,7 @@ class UserCountry extends \Piwik\Plugin
             'segment'        => 'longitude',
             'sqlSegment'     => 'log_visit.location_longitude',
             'acceptedValues' => '-70.664, 14.326, etc.',
-            'sqlFilter'      => array('Piwik_Common', 'dummyWhenNotNumeric'),
+            'sqlFilter'      => array('Piwik\Common', 'dummyWhenNotNumeric'),
         );
     }
 

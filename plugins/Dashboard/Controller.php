@@ -263,7 +263,7 @@ class Controller extends \Piwik\Controller
         $this->checkTokenInUrl();
 
         if (Piwik::isUserIsSuperUser()) {
-            $layout = Common::unsanitizeInputValue(Piwik_Common::getRequestVar('layout'));
+            $layout = Common::unsanitizeInputValue(Common::getRequestVar('layout'));
             $UserDashboard = Factory::getDAO('user_dashboard');
             $UserDashboard->saveLayout('', '1', $layout);
         }

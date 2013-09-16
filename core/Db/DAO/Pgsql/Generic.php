@@ -193,7 +193,7 @@ class Generic extends \Piwik\Db\DAO\Generic
      *
      * NOTE: you should use tableInsertBatch() which will fallback to this function if LOAD DATA INFILE not available
      *
-     * @param string  $tableName            PREFIXED table name! you must call Piwik_Common::prefixTable() before passing the table name
+     * @param string  $tableName            PREFIXED table name! you must call Piwik\Common::prefixTable() before passing the table name
      * @param array   $fields               array of unquoted field names
      * @param array   $values               array of data to be inserted
      * @param bool    $ignoreWhenDuplicate  Ignore new rows that contain unique key values that duplicate old rows

@@ -753,15 +753,15 @@ class PrivacyManagerTest extends IntegrationTestCase
                         VALUES (10000,?,1,?,?,?,?,?)";
 
         // one metric for jan & one for feb
-        Db::query(sprintf($sql, Piwik_Common::prefixTable($archiveTables['numeric'][0])),
+        Db::query(sprintf($sql, Common::prefixTable($archiveTables['numeric'][0])),
             array(self::GARBAGE_FIELD, $janDate1, $janDate1, $period, $tsArchived, 100));
-        Db::query(sprintf($sql, Piwik_Common::prefixTable($archiveTables['numeric'][1])),
+        Db::query(sprintf($sql, Common::prefixTable($archiveTables['numeric'][1])),
             array(self::GARBAGE_FIELD, $febDate1, $febDate1, $period, $tsArchived, 200));
 
         // add garbage reports
-        Db::query(sprintf($sql, Piwik_Common::prefixTable($archiveTables['blob'][0])),
+        Db::query(sprintf($sql, Common::prefixTable($archiveTables['blob'][0])),
             array(self::GARBAGE_FIELD, $janDate1, $janDate1, $period, $tsArchived, 'blobval'));
-        Db::query(sprintf($sql, Piwik_Common::prefixTable($archiveTables['blob'][1])),
+        Db::query(sprintf($sql, Common::prefixTable($archiveTables['blob'][1])),
             array(self::GARBAGE_FIELD, $febDate1, $febDate1, $period, $tsArchived, 'blobval'));
     }
 

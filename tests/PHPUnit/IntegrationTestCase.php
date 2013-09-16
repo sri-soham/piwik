@@ -1085,7 +1085,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         $result = array();
         foreach (Piwik::getTablesInstalled() as $tableName)
         {
-            $table = Piwik_Common::unprefixTable($tableName);
+            $table = Common::unprefixTable($tableName);
             if (strpos($table, 'archive_') === 0)
             {
                 $dao = Factory::getDAO('archive');
@@ -1138,7 +1138,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
                 continue;
             }
             
-            $no_prefix_table = Piwik_Common::unprefixTable($table);
+            $no_prefix_table = Common::unprefixTable($table);
             if (strpos($no_prefix_table, 'archive_') === 0)
             {
                 $dao = Factory::getDAO('archive');
