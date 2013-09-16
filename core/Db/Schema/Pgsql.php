@@ -8,6 +8,15 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik\Db\Schema;
+
+use Exception;
+use Piwik\Common;
+use Piwik\Config;
+use Piwik\Date;
+use Piwik\Db\SchemaInterface;
+use Piwik\Piwik;
+use Zend_Registry;
 
 /**
  * PgSql schema
@@ -16,7 +25,7 @@
  * @subpackage Piwik_Db
  */
 
-class Piwik_Db_Schema_Pgsql implements Piwik_Db_Schema_Interface
+class Pgsql implements SchemaInterface
 {
     private $tablesInstalled = null;
     
@@ -37,7 +46,7 @@ class Piwik_Db_Schema_Pgsql implements Piwik_Db_Schema_Interface
      */
     public function getTablesCreateSql()
     {
-        $config = Piwik_Config::getInstance();
+        $config = Config::getInstance();
         $prefixTables = $config->database['tables_prefix'];
         $tables = array(
             'user' => 'CREATE TABLE "'.$prefixTables.'user"(
@@ -373,7 +382,7 @@ class Piwik_Db_Schema_Pgsql implements Piwik_Db_Schema_Interface
      */
     public function getIndexesCreateSql()
     {
-        $config = Piwik_Config::getInstance();
+        $config = Config::getInstance();
         $prefix = $config->database['tables_prefix'];
 
         $indexes = array(
@@ -460,7 +469,7 @@ class Piwik_Db_Schema_Pgsql implements Piwik_Db_Schema_Interface
     public function getTablesNames()
     {
         $aTables = array_keys($this->getTablesCreateSql());
-        $config = Piwik_Config::getInstance();
+        $config = Config::getInstance();
         $prefixTables = $config->database['tables_prefix'];
         $return = array();
         foreach($aTables as $table)
@@ -482,7 +491,7 @@ class Piwik_Db_Schema_Pgsql implements Piwik_Db_Schema_Interface
             || $forceReload === true)
         {
             $db = Zend_Registry::get('db');
-            $config = Piwik_Config::getInstance();
+            $config = Config::getInstance();
             $prefixTables = $config->database['tables_prefix'];
 
             // '_' matches any character; force it to be literal
@@ -527,7 +536,7 @@ class Piwik_Db_Schema_Pgsql implements Piwik_Db_Schema_Interface
     {
         if(is_null($dbName))
         {
-            $dbName = Piwik_Config::getInstance()->database['dbname'];
+            $dbName = Config::getInstance()->database['dbname'];
         }
         $sql = 'SELECT datname FROM pg_database where datname = ?';
         $one = Piwik_FetchOne($sql, array($dbName));
@@ -556,7 +565,7 @@ class Piwik_Db_Schema_Pgsql implements Piwik_Db_Schema_Interface
     public function createTables()
     {
         $db = Zend_Registry::get('db');
-        $config = Piwik_Config::getInstance();
+        $config = Config::getInstance();
         $prefixTables = $config->database['tables_prefix'];
 
         $tablesAlreadyInstalled = $this->getTablesInstalled();
@@ -598,8 +607,8 @@ class Piwik_Db_Schema_Pgsql implements Piwik_Db_Schema_Interface
         // The anonymous user is the user that is assigned by default
         // note that the token_auth value is anonymous, which is assigned by default as well in the Login plugin
         $db = Zend_Registry::get('db');
-        $sql = 'INSERT INTO "' . Piwik_Common::prefixTable('user'). '" '
-             . "VALUES ('anonymous', '', 'anonymous', 'anonymous@example.org', 'anonymous', '".Piwik_Date::factory('now')->getDateTime()."' );";
+        $sql = 'INSERT INTO "' . Common::prefixTable('user'). '" '
+             . "VALUES ('anonymous', '', 'anonymous', 'anonymous@example.org', 'anonymous', '".Date::factory('now')->getDateTime()."' );";
         $db->query($sql);
     }
 

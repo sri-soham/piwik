@@ -8,13 +8,17 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik\Db\DAO\Mysql;
+
+use Piwik\Common;
+use Piwik\Db\DAO\Base;
 
 /**
  * @package Piwik
  * @subpackage Piwik_Db
  */
 
-class Piwik_Db_DAO_User extends Piwik_Db_DAO_Base
+class User extends Base
 {
     public function __construct($db, $table)
     {
@@ -28,7 +32,7 @@ class Piwik_Db_DAO_User extends Piwik_Db_DAO_Base
         $bind = array();
         if (!empty($userLogins)) {
             $userLogins = explode(',', $userLogins);
-            $where = 'WHERE login IN ('. Piwik_Common::getSqlStringFieldsArray($userLogins).')';
+            $where = 'WHERE login IN ('. Common::getSqlStringFieldsArray($userLogins).')';
             $bind = $userLogins;
         }
         $users = $this->db->fetchAll("SELECT * 

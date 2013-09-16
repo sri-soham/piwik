@@ -13,6 +13,7 @@ namespace Piwik\Tracker;
 use Exception;
 use PDOStatement;
 use Piwik\Common;
+use Piwik\Db\Factory;
 use Piwik\Timer;
 use Piwik\Tracker\Db\DbException;
 
@@ -100,7 +101,7 @@ abstract class Db
         // turn off the profiler so we don't profile the following queries
         self::$profiling = false;
 
-        $LogProfiling = Piwik_Db_Factory::getDAO('log_profiling', $this->connection);
+        $LogProfiling = Factory::getDAO('log_profiling', $this->connection);
         foreach ($this->queriesProfiling as $query => $info) {
             $time = $info['sum_time_ms'];
             $count = $info['count'];

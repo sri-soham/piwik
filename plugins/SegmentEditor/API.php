@@ -14,6 +14,7 @@ use Exception;
 use Piwik\Piwik;
 use Piwik\Common;
 use Piwik\Date;
+use Piwik\Db\Factory;
 use Piwik\Segment;
 
 /**
@@ -138,7 +139,7 @@ class API
         Piwik_PostEvent(self::DELETE_SEGMENT_EVENT, array(&$idSegment));
 
         $segment = $this->getSegmentOrFail($idSegment);
-        $dao = Piwik_Db_Factory::getDao('segment');
+        $dao = Factory::getDAO('segment');
         $dao->deleteByIdsegment($idSegment);
         return true;
     }
@@ -167,7 +168,7 @@ class API
         $autoArchive = $this->checkAutoArchive($autoArchive, $idSite);
 
         $segment = $this->getSegmentOrFail($idSegment);
-        $dao = Piwik_Db_Factory::getDao('segment');
+        $dao = Factory::getDAO('segment');
         $bind = array(
             'name'               => $name,
             'definition'         => $definition,
@@ -200,7 +201,7 @@ class API
         $enabledAllUsers = $this->checkEnabledAllUsers($enabledAllUsers);
         $autoArchive = $this->checkAutoArchive($autoArchive, $idSite);
 
-        $dao = Piwik_Db_Factory::getDao('segment');
+        $dao = Factory::getDAO('segment');
         $bind = array(
             'name'               => $name,
             'definition'         => $definition,
@@ -228,7 +229,7 @@ class API
         if (!is_numeric($idSegment)) {
             throw new Exception("idSegment should be numeric.");
         }
-        $dao = Piwik_Db_Factory::getDao('segment');
+        $dao = Factory::getDAO('segment');
         $segment = $dao->getByIdsegment($idSegment);
 
         if (empty($segment)) {
@@ -262,7 +263,7 @@ class API
             Piwik::checkUserHasSomeViewAccess();
         }
 
-        $dao = Piwik_Db_Factory::getDao('segment');
+        $dao = Factory::getDAO('segment');
         $segments = $dao->getAll($idSite, Piwik::getCurrentUserLogin(), $returnOnlyAutoArchived);
 
         return $segments;

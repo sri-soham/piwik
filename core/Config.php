@@ -8,9 +8,10 @@
  * @category Piwik
  * @package Piwik
  */
-
 namespace Piwik;
+
 use Exception;
+use Piwik\Db\Factory;
 
 /**
  * For general performance (and specifically, the Tracker), we use deferred (lazy) initialization
@@ -95,7 +96,7 @@ class Config
     public function setTestEnvironment($pathLocal = null, $pathGlobal = null)
     {
         $this->isTest = true;
-        Piwik_Db_Factory::setTest(true);
+        Factory::setTest(true);
 
         $this->clear();
 

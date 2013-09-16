@@ -16,6 +16,7 @@ use Piwik\FrontController;
 use Piwik\IP;
 use Piwik\ArchiveProcessor;
 use Piwik\Db;
+use Piwik\Db\Factory;
 use Piwik\Plugins\Provider\Archiver;
 use Piwik\WidgetsList;
 use Zend_Registry;
@@ -72,14 +73,14 @@ class Provider extends \Piwik\Plugin
     public function install()
     {
         // add column hostname / hostname ext in the visit table
-        $LogVisit = Piwik_Db_Factory::getDAO('log_visit');
+        $LogVisit = Factory::getDAO('log_visit');
         $LogVisit->addColLocationProvider();
     }
 
     public function uninstall()
     {
         // remove column hostname / hostname ext in the visit table
-        $LogVisit = Piwik_Db_Factory::getDAO('log_visit');
+        $LogVisit = Factory::getDAO('log_visit');
         $LogVisit->removeColLocationProvider();
     }
 

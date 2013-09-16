@@ -15,6 +15,7 @@ use Piwik\Piwik;
 use Piwik\Common;
 use Piwik\Site;
 use Piwik\Db;
+use Piwik\Db\Factory;
 use Piwik\WidgetsList;
 use Zend_Registry;
 
@@ -48,7 +49,7 @@ class Dashboard extends \Piwik\Plugin
      */
     public function getLayoutForUser($login, $idDashboard)
     {
-        $UserDashboard = Piwik_Db_Factory::getDAO('user_dashboard');
+        $UserDashboard = Factory::getDAO('user_dashboard');
         $return = $UserDashboard->getLayoutByLoginDashboard($login, $idDashboard);
 
         if (count($return) == 0) {
@@ -99,7 +100,7 @@ class Dashboard extends \Piwik\Plugin
 
     public function getAllDashboards($login)
     {
-        $UserDashboard = Piwik_Db_Factory::getDAO('user_dashboard');
+        $UserDashboard = Factory::getDAO('user_dashboard');
         $dashboards = $UserDashboard->getByLogin($login);
 
         $nameless = 1;
@@ -243,19 +244,19 @@ class Dashboard extends \Piwik\Plugin
     public function deleteDashboardLayout($userLogin)
     {
         $userLogin = $notification->getNotificationObject();
-        $UserDashboard = Piwik_Db_Factory::getDAO('user_dashboard');
+        $UserDashboard = Factory::getDAO('user_dashboard');
         $UserDashboard->deleteByLogin($userLogin);
     }
 
     public function install()
     {
-        $UserDashboard = Piwik_Db_Factory::getDAO('user_dashboard');
+        $UserDashboard = Factory::getDAO('user_dashboard');
         $UserDashboard->install();
     }
 
     public function uninstall()
     {
-        $UserDashboard = Piwik_Db_Factory::getDAO('user_dashboard');
+        $UserDashboard = Factory::getDAO('user_dashboard');
         $UserDashboard->uninstall();
     }
 }

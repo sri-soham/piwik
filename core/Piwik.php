@@ -19,6 +19,7 @@ use Piwik\Config;
 use Piwik\Plugin;
 use Piwik\Site;
 use Piwik\Db\Adapter;
+use Piwik\Db\Factory;
 use Piwik\Db\Schema;
 use Piwik\Session;
 use Piwik\Tracker;
@@ -1099,7 +1100,7 @@ class Piwik
             $db = Tracker::getDatabase();
         }
 
-        $LogProfiling = Piwik_Db_Factory::getDAO('log_profiling', $db);
+        $LogProfiling = Factory::getDAO('log_profiling', $db);
         $all = $LogProfiling->getAll();
         if ($all === false) {
             return;
@@ -2315,13 +2316,13 @@ class Piwik
         $isArchive = strpos($tableName, 'archive');
         if ($isArchive === false)
         {
-            $Generic = Piwik_Db_Factory::getGeneric();
+            $Generic = Factory::getGeneric();
             $Generic->insertIgnoreBatch($tableName, $fields, $values, $ignoreWhenDuplicate);
         }
         else
         {
             // archive_blob_* tables need special handling for the "value" column
-            $Archive = Piwik_Db_Factory::getDAO('archive');
+            $Archive = Factory::getDAO('archive');
             $Archive->insertIgnoreBatch($tableName, $fields, $values, $ignoreWhenDuplicate);
         }
     }
@@ -2343,7 +2344,7 @@ class Piwik
     static public function isLockPrivilegeGranted()
     {
         if (is_null(self::$lockPrivilegeGranted)) {
-            $generic = Piwik_Db_Factory::getGeneric();
+            $generic = Factory::getGeneric();
             self::$lockPrivilegeGranted = $generic->isLockPrivilegeGranted();
         }
 

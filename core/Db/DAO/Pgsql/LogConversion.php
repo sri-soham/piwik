@@ -5,12 +5,16 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik\Db\DAO\Pgsql;
+
+use Piwik\Common;
+use Piwik\Db\Factory;
 
 /**
  * @package Piwik
  * @subpackage Piwik_Db
  */
-class Piwik_Db_DAO_Pgsql_LogConversion extends Piwik_Db_DAO_LogConversion
+class LogConversion extends \Piwik\Db\DAO\Mysql\LogConversion
 {
     public function __construct($db, $table)
     {
@@ -24,7 +28,7 @@ class Piwik_Db_DAO_Pgsql_LogConversion extends Piwik_Db_DAO_LogConversion
      */
     public function fetchAll()
     {
-        $generic = Piwik_Db_Factory::getGeneric();
+        $generic = Factory::getGeneric();
         $generic->checkByteaOutput();
         $sql = 'SELECT *, idvisitor::text AS idvisitor_text FROM ' . $this->table;
         $rows = $this->db->fetchAll($sql);
@@ -44,7 +48,7 @@ class Piwik_Db_DAO_Pgsql_LogConversion extends Piwik_Db_DAO_LogConversion
      */
     protected function recordGoalInsert($goal)
     {
-        $Generic = Piwik_Db_Factory::getGeneric($this->db);
+        $Generic = Factory::getGeneric($this->db);
         // pg is throwing error when empty values are given for 'FLOAT' columns
         if (empty($goal['revenue'])) unset($goal['revenue']);
         if (empty($goal['revenue_subtotal'])) unset($goal['revenue_subtotal']);
@@ -52,7 +56,7 @@ class Piwik_Db_DAO_Pgsql_LogConversion extends Piwik_Db_DAO_LogConversion
         if (empty($goal['revenue_shipping'])) unset($goal['revenue_shipping']);
         if (empty($goal['revenue_discount'])) unset($goal['revenue_discount']);
         $fields = implode(', ', array_keys($goal));
-        $bindFields = Piwik_Common::getSqlStringFieldsArray($goal);
+        $bindFields = Common::getSqlStringFieldsArray($goal);
         $goal['idvisitor'] = $Generic->bin2db($goal['idvisitor']);
         $sql = 'INSERT INTO ' . $this->table . '( ' . $fields . ' ) '
              . 'VALUES ( ' . $bindFields . ' ) ';

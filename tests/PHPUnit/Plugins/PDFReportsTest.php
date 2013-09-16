@@ -41,7 +41,7 @@ class PDFReportsTest extends DatabaseTestCase
 
     public function tearDown()
     {
-        $Report = Piwik_Db_Factory::getDAO('report');
+        $Report = \Piwik\Db\Factory::getDAO('report');
         $Report->dropTable();
         parent::tearDown();
     }

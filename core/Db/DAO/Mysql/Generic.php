@@ -8,12 +8,16 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik\Db\DAO\Mysql;
+
+use Piwik\Common;
+use Piwik\Tracker\GoalManager;
 
 /**
  * @package Piwik
  * @subpackage Piwik_Db
  */
-class Piwik_Db_DAO_Mysql_Generic extends Piwik_Db_DAO_Generic
+class Generic extends \Piwik\Db\DAO\Generic
 {
     public function __construct($db)
     {
@@ -22,7 +26,7 @@ class Piwik_Db_DAO_Mysql_Generic extends Piwik_Db_DAO_Generic
 
     public function getSqlRevenue($field)
     {
-        return "ROUND(".$field.",".Piwik_Tracker_GoalManager::REVENUE_PRECISION.")";
+        return "ROUND(".$field.",".GoalManager::REVENUE_PRECISION.")";
     }
 
     public function deleteAll($table, $where, $maxRowsPerQuery, $parameters=array())
@@ -149,7 +153,7 @@ class Piwik_Db_DAO_Mysql_Generic extends Piwik_Db_DAO_Generic
     {
         $fieldList = '('.join(',', $fields).')';
         $ignore = $ignoreWhenDuplicate ? 'IGNORE' : '';
-        $params = Piwik_Common::getSqlStringFieldsArray($values[0]);
+        $params = Common::getSqlStringFieldsArray($values[0]);
 
         foreach ($values as $row) {
             $query = "INSERT $ignore INTO $tableName $fieldList VALUES ($params) \n";
@@ -234,7 +238,7 @@ class Piwik_Db_DAO_Mysql_Generic extends Piwik_Db_DAO_Generic
     {
         $granted = false;
         try {
-            $this->lockTables(Piwik_Common::prefixTable('log_visit'), array());
+            $this->lockTables(Common::prefixTable('log_visit'), array());
             $this->unlockAllTables();
             $granted = true;
         }

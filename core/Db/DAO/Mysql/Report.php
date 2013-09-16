@@ -8,13 +8,17 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik\Db\DAO\Mysql;
+
+use Piwik\Common;
+use Piwik\Db\DAO\Base;
 
 /**
  * @package Piwik
  * @subpackage Piwik_Db
  */
 
-class Piwik_Db_DAO_Report extends Piwik_Db_DAO_Base
+class Report extends Base
 {
     public function __construct($db, $table)
     {
@@ -65,7 +69,7 @@ class Piwik_Db_DAO_Report extends Piwik_Db_DAO_Base
         }
 
         $sql = 'SELECT * FROM ' . $this->table . ' '
-             . 'INNER JOIN ' . Piwik_Common::prefixTable('site') . ' '
+             . 'INNER JOIN ' . Common::prefixTable('site') . ' '
              . '    USING (idsite) '
              . 'WHERE deleted = 0 ' . $where;
 
@@ -127,7 +131,7 @@ class Piwik_Db_DAO_Report extends Piwik_Db_DAO_Base
         }
         if (!empty($idsite)) {
             // Joining with the site table to work around pre-1.3 where reports could still be linked to a deleted site
-            $where[] = Piwik_Common::prefixTable('site') . '.idsite = ? ';
+            $where[] = Common::prefixTable('site') . '.idsite = ? ';
             $params[] = $idsite;
         }
         if (!empty($idreport)) {

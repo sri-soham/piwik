@@ -4,6 +4,7 @@
 //$_SERVER['REQUEST_URI'] = '/piwik-master/index.php';
 //$_SERVER['HTTP_HOST'] = 'localhost';
 
+use Piwik\Config;
 use Piwik\Http;
 
 if (!defined("PIWIK_PATH_TEST_TO_ROOT")) {
@@ -78,7 +79,7 @@ foreach (glob(PIWIK_INCLUDE_PATH . '/tests/PHPUnit/Fixtures/*.php') as $file) {
 // For testing, database config has to be read from the globalConfig
 // setTestEnvironment makes sure that database config settings are read
 // from the globalConfig from "database_tests" settings
-Piwik_Config::getInstance()->setTestEnvironment();
+Config::getInstance()->setTestEnvironment();
 
 // General requirement checks & help: a webserver must be running for tests to work!
 checkPiwikSetupForTests();

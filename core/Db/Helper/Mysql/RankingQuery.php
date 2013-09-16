@@ -9,6 +9,9 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik\Db\Helper\Mysql;
+
+use Exception;
 
 /**
  * The ranking query class wraps an arbitrary SQL query with more SQL that limits 
@@ -39,7 +42,7 @@
  * 
  * @package Piwik
  */
-class Piwik_Db_Helper_Mysql_RankingQuery
+class RankingQuery
 {
  	protected $db;
 

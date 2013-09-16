@@ -9,6 +9,7 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik\Db\Helper\Pgsql;
 
 /**
  * The ranking query class wraps an arbitrary SQL query with more SQL that limits 
@@ -39,7 +40,7 @@
  * 
  * @package Piwik
  */
-class Piwik_Db_Helper_Pgsql_RankingQuery extends Piwik_Db_Helper_Mysql_RankingQuery
+class RankingQuery extends \Piwik\Db\Helper\Mysql\RankingQuery
 {
 	/**
 	 * Generate the SQL code that does the magic.

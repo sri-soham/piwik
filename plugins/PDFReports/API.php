@@ -20,6 +20,7 @@ use Piwik\ReportRenderer\Html;
 use Piwik\Site;
 use Piwik\Translate;
 use Piwik\Db;
+use Piwik\Db\Factory;
 use Piwik\Plugins\SegmentEditor\API as SegmentEditorAPI;
 use Zend_Mime;
 
@@ -110,7 +111,7 @@ class API
         // validation of requested reports
         $reports = self::validateRequestedReports($idSite, $reportType, $reports);
 
-        $dao = Piwik_Db_Factory::getDAO('report');
+        $dao = Factory::getDAO('report');
         $idReport = $dao->getMaxIdreport();
 
         if ($idReport == false) {
@@ -169,7 +170,7 @@ class API
         // validation of requested reports
         $reports = self::validateRequestedReports($idSite, $reportType, $reports);
 
-        $dao = Piwik_Db_Factory::getDAO('report');
+        $dao = Factory::getDAO('report');
         $dao->updateByIdreport(
             array(
                 'description' => $description,
@@ -198,7 +199,7 @@ class API
         $report = reset($pdfReports);
         Piwik::checkUserIsSuperUserOrTheUser($report['login']);
 
-        $dao = Piwik_Db_Factory::getDAO('report');
+        $dao = Factory::getDAO('report');
         $dao->updateByIdreport(array('deleted' => 1), $idReport);
         self::$cache = array();
     }
@@ -232,7 +233,7 @@ class API
             Piwik::checkUserHasViewAccess($idSite);
         }
 
-        $dao = Piwik_Db_Factory::getDAO('report');
+        $dao = Factory::getDAO('report');
         $reports = $dao->getAllActive(
                         $idSite,
                         $period,

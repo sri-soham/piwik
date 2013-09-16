@@ -8,13 +8,16 @@
  *  @category Piwik
  *  @package Piwik
  */
+namespace Piwik\Db\DAO\Pgsql;
+
+use Piwik\Db\Factory;
 
 /**
  *  @package Piwik
  *  @subpackage Piwik_Db
  */
 
-class Piwik_Db_DAO_Pgsql_UserLanguage extends Piwik_Db_DAO_UserLanguage
+class UserLanguage extends \Piwik\Db\DAO\Mysql\UserLanguage
 {
     public function __construct($db, $table)
     {
@@ -23,7 +26,7 @@ class Piwik_Db_DAO_Pgsql_UserLanguage extends Piwik_Db_DAO_UserLanguage
 
     public function setForUser($login, $languageCode)
     {
-        $generic = Piwik_Db_Factory::getGeneric($this->db);
+        $generic = Factory::getGeneric($this->db);
         $generic->beginTransaction();
         $sql = 'SELECT login, language FROM ' . $this->table . ' '
              . 'WHERE login = ?';

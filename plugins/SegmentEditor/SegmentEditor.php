@@ -16,6 +16,7 @@ use Piwik\Plugins\SegmentEditor\API;
 use Piwik\Plugins\SegmentEditor\Controller;
 use Piwik\Version;
 use Piwik\Db;
+use Piwik\Db\Factory;
 use Zend_Registry;
 
 /**
@@ -76,7 +77,7 @@ class SegmentEditor extends \Piwik\Plugin
 
     public function install()
     {
-        $dao = Piwik_Db_Factory::getDao('segment');
+        $dao = Factory::getDAO('segment');
         $dao->install();
     }
 

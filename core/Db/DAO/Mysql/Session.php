@@ -5,17 +5,20 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik\Db\DAO\Mysql;
+
+use Piwik\Db\DAO\Base;
 
 /**
- * Logger Message
+ * Session
  *
  * Doesn't add any functionality. This has been created so that the
  * getTablesWithData and restoreDbTables of the IntegrationTestCase
- * have some classes for the logger_message table.
+ * have some classes for the session table.
  *
  * @package Piwik
  * @subpackage Piwik_Db
  */
-class Piwik_Db_DAO_LoggerException extends Piwik_Db_DAO_Base
+class Session extends Base
 {
 }

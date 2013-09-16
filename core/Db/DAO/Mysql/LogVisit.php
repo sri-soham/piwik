@@ -8,13 +8,19 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik\Db\DAO\Mysql;
+
+use Piwik\Common;
+use Piwik\Db;
+use Piwik\Db\Factory;
+use Piwik\Db\DAO\Base;
 
 /**
  * @package Piwik
  * @subpackage Piwik_Db
  */
 
-class Piwik_Db_DAO_LogVisit extends Piwik_Db_DAO_Base
+class LogVisit extends Base
 { 
     // Used only with the "recognizeVisitor" function
     // To avoid passing in and out too many parameters.
@@ -58,12 +64,12 @@ class Piwik_Db_DAO_LogVisit extends Piwik_Db_DAO_Base
              . 'ORDER BY idvisit DESC '
              . 'LIMIT 1';
 
-        return Piwik_SegmentedFetchFirst($sql, $maxIdVisit, 0, $segmentSize);
+        return Db::segmentedFetchFirst($sql, $maxIdVisit, 0, $segmentSize);
     }
 
     public function update($sqlActionUpdate, $valuesToUpdate, $idsite, $idvisit)
     {
-        $Generic = Piwik_Db_Factory::getGeneric($this->db);
+        $Generic = Factory::getGeneric($this->db);
         $sql_parts = array();
         $bind      = array();
         $valuesToUpdate['idvisitor'] = $Generic->bin2db($valuesToUpdate['idvisitor']);
@@ -88,7 +94,7 @@ class Piwik_Db_DAO_LogVisit extends Piwik_Db_DAO_Base
     public function add($visitor_info)
     {
         $fields = implode(', ', array_keys($visitor_info));
-        $values = Piwik_Common::getSqlStringFieldsArray($visitor_info);
+        $values = Common::getSqlStringFieldsArray($visitor_info);
         $bind   = array_values($visitor_info);
 
         $sql = 'INSERT INTO ' . $this->table . '( ' . $fields . ') VALUES (' . $values . ')';
@@ -116,7 +122,7 @@ class Piwik_Db_DAO_LogVisit extends Piwik_Db_DAO_Base
                                      $shouldMatchOneFieldOnly, $matchVisitorId,
                                      $idSite, $configId, $idVisitor)
     {
-        $this->Generic = Piwik_Db_Factory::getGeneric($this->db);
+        $this->Generic = Factory::getGeneric($this->db);
 
         $this->recognize = array();
         $this->recognize['timeLookBack'] = $timeLookBack;

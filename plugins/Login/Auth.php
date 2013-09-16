@@ -14,6 +14,7 @@ use Piwik\Config;
 use Piwik\Common;
 use Piwik\AuthResult;
 use Piwik\Db;
+use Piwik\Db\Factory;
 use Piwik\Plugins\UsersManager\API;
 
 /**
@@ -46,7 +47,7 @@ class Auth implements \Piwik\Auth
         $rootPassword = Config::getInstance()->superuser['password'];
         $rootToken = API::getInstance()->getTokenAuth($rootLogin, $rootPassword);
 
-        $User = Piwik_Db_Factory::getDAO('user');
+        $User = Factory::getDAO('user');
         if (is_null($this->login)) {
             if ($this->token_auth === $rootToken) {
                 return new AuthResult(AuthResult::SUCCESS_SUPERUSER_AUTH_CODE, $rootLogin, $this->token_auth);

@@ -25,6 +25,7 @@ use Piwik\Version;
 use Piwik\Url;
 use Piwik\ProxyHeaders;
 use Piwik\Db;
+use Piwik\Db\Factory;
 use Piwik\Plugins\Installation\FormDatabaseSetup;
 use Piwik\Plugins\Installation\FormFirstWebsiteSetup;
 use Piwik\Plugins\Installation\FormGeneralSetup;
@@ -534,6 +535,7 @@ class Controller extends \Piwik\Controller\Admin
         $dbInfos = $this->session->db_infos;
         Config::getInstance()->database = $dbInfos;
         Piwik::createDatabaseObject($dbInfos);
+        Factory::refreshInstance();
     }
 
     /**

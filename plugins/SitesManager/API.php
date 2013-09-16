@@ -17,6 +17,7 @@ use Piwik\Access;
 use Piwik\Date;
 use Piwik\IP;
 use Piwik\Db;
+use Piwik\Db\Factory;
 use Piwik\Tracker\Cache;
 use Piwik\Url;
 use Piwik\TaskScheduler;
@@ -95,7 +96,7 @@ class API
         Piwik::checkUserIsSuperUser();
         $group = trim($group);
 
-        $dao = Piwik_Db_Factory::getDAO('site');
+        $dao = Factory::getDAO('site');
         $sites = $dao->getAllByGroup($group);
         return $sites;
     }
@@ -109,7 +110,7 @@ class API
     public function getSitesGroups()
     {
         Piwik::checkUserIsSuperUser();
-        $dao = Piwik_Db_Factory::getDAO('site');
+        $dao = Factory::getDAO('site');
         $groups = $dao->getAllGroups();
         $cleanedGroups = array();
         foreach ($groups as $group) {
@@ -129,7 +130,7 @@ class API
     public function getSiteFromId($idSite)
     {
         Piwik::checkUserHasViewAccess($idSite);
-        $dao = Piwik_Db_Factory::getDAO('site');
+        $dao = Factory::getDAO('site');
         $site = $dao->getByIdsite($idSite);
         return $site;
     }
@@ -143,7 +144,7 @@ class API
      */
     private function getAliasSiteUrlsFromId($idSite)
     {
-        $SiteUrl = Piwik_Db_Factory::getDAO('site_url');
+        $SiteUrl = Factory::getDAO('site_url');
         $result = $SiteUrl->getUrlByIdsite($idSite);
         $urls = array();
         foreach ($result as $url) {
@@ -175,7 +176,7 @@ class API
      */
     private function getSitesId()
     {
-        $dao = Piwik_Db_Factory::getDAO('site');
+        $dao = Factory::getDAO('site');
         $result = $dao->getAllIdsites();
         $idSites = array();
         foreach ($result as $idSite) {
@@ -192,7 +193,7 @@ class API
     public function getAllSites()
     {
         Piwik::checkUserIsSuperUser();
-        $dao = Piwik_Db_Factory::getDAO('site');
+        $dao = Factory::getDAO('site');
         $sites = $dao->getAll();
         $return = array();
         foreach ($sites as $site) {
@@ -233,7 +234,7 @@ class API
 
         $time = Date::factory((int)$timestamp)->getDatetime();
         $now = Date::now()->addHour(1)->getDateTime();
-        $dao = Piwik_Db_Factory::getDAO('site');
+        $dao = Factory::getDAO('site');
         $result = $dao->getIdsiteWithVisits($time, $now);
         $idSites = array();
         foreach ($result as $idSite) {
@@ -348,7 +349,7 @@ class API
             $limit = "LIMIT " . (int)$limit;
         }
 
-        $dao = Piwik_Db_Factory::getDAO('site');
+        $dao = Factory::getDAO('site');
         $sites = $dao->getByIdsites($idSites, $limit);
         return $sites;
     }
@@ -371,7 +372,7 @@ class API
      */
     public function getSitesIdFromSiteUrl($url)
     {
-        $dao = Piwik_Db_Factory::getDAO('site');
+        $dao = Factory::getDAO('site');
         $url = $this->removeTrailingSlash($url);
         list($url, $urlBis) = $this->getNormalizedUrls($url);
         if (Piwik::isUserIsSuperUser()) {
@@ -396,7 +397,7 @@ class API
         Piwik::checkUserIsSuperUser();
         $timezones = Piwik::getArrayFromApiParameter($timezones);
         $timezones = array_unique($timezones);
-        $dao = Piwik_Db_Factory::getDAO('site');
+        $dao = Factory::getDAO('site');
         $ids = $dao->getIdsitesByTimezones($timezones);
         $return = array();
         foreach ($ids as $id) {
@@ -473,12 +474,12 @@ class API
         $urls = array_slice($urls, 1);
 
         $ts_created = !is_null($startDate)
-                      ? Piwik_Date::factory($startDate)->getDatetime()
-                      : Piwik_Date::now()->getDatetime();
+                      ? Date::factory($startDate)->getDatetime()
+                      : Date::now()->getDatetime();
         $group = (!empty($group) && Piwik::isUserIsSuperUser())
                  ? trim($group) : '';
 
-        $dao = Piwik_Db_Factory::getDAO('site');
+        $dao = Factory::getDAO('site');
         $idSite = $dao->addRecord(
                     $siteName,
                     $url,
@@ -534,13 +535,13 @@ class API
             throw new Exception(Piwik_TranslateException("SitesManager_ExceptionDeleteSite"));
         }
 
-        $dao = Piwik_Db_Factory::getDAO('site');
+        $dao = Factory::getDAO('site');
         $dao->deleteByIdsite($idSite);
         
-        $SiteUrl = Piwik_Db_Factory::getDAO('site_url');
+        $SiteUrl = Factory::getDAO('site_url');
         $SiteUrl->deleteByIdsite($idSite);
         
-        $Access = Piwik_Db_Factory::getDAO('access');
+        $Access = Factory::getDAO('access');
         $Access->deleteByIdsite($idSite);
 
         // we do not delete logs here on purpose (you can run these queries on the log_ tables to delete all data)
@@ -996,7 +997,7 @@ class API
         $bind['sitesearch_category_parameters'] = $searchCategoryParameters;
 
         $bind['name'] = $siteName;
-        $dao = Piwik_Db_Factory::getDAO('site');
+        $dao = Factory::getDAO('site');
         $dao->updateByIdsite($bind, $idSite);
 
         // we now update the main + alias URLs
@@ -1122,7 +1123,7 @@ class API
     public function getUniqueSiteTimezones()
     {
         Piwik::checkUserIsSuperUser();
-        $dao = Piwik_Db_Factory::getDAO('site');
+        $dao = Factory::getDAO('site');
         $results = $dao->getDistinctTimezones();
         $timezones = array();
         foreach ($results as $result) {
@@ -1138,7 +1139,7 @@ class API
     private function insertSiteUrls($idSite, $urls)
     {
         if (count($urls) != 0) {
-            $SiteUrl = Piwik_Db_Factory::getDAO('site_url');
+            $SiteUrl = Factory::getDAO('site_url');
             $SiteUrl->addSiteUrls($urls, $idSite);
         }
     }
@@ -1148,7 +1149,7 @@ class API
      */
     private function deleteSiteAliasUrls($idsite)
     {
-        $SiteUrl = Piwik_Db_Factory::getDAO('site_url');
+        $SiteUrl = Factory::getDAO('site_url');
         $SiteUrl->deleteByIdsite($idsite);
     }
 
@@ -1283,7 +1284,7 @@ class API
         }
         $ids_str .= $id_val;
 
-        $dao = Piwik_Db_Factory::getDAO('site');
+        $dao = Factory::getDAO('site');
         $sites = $dao->getSitesByPattern($pattern, $ids_str, Piwik::getWebsitesCountToDisplay());
         return $sites;
     }

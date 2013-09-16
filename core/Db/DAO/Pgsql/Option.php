@@ -8,12 +8,15 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik\Db\DAO\Pgsql;
+
+use Piwik\Db\Factory;
 
 /**
  * @package Piwik
  * @subpackage Piwik_Db
  */
-class Piwik_Db_DAO_Pgsql_Option extends Piwik_Db_DAO_Option
+class Option extends \Piwik\Db\DAO\Mysql\Option
 {
     public function __construct($db, $table)
     {
@@ -22,7 +25,7 @@ class Piwik_Db_DAO_Pgsql_Option extends Piwik_Db_DAO_Option
 
     public function addRecord($name, $value, $autoload)
     {
-        $generic = Piwik_Db_Factory::getGeneric($this->db);
+        $generic = Factory::getGeneric($this->db);
 
         $generic->beginTransaction();
         $sql = 'SELECT * FROM ' . $this->table . ' WHERE option_name = ?';

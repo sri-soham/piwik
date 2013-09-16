@@ -8,13 +8,16 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik\Db\DAO\Pgsql;
+
+use Piwik\Db\Factory;
 
 /**
  * @package Piwik
  * @subpackage Piwik_Db
  */
 
-class Piwik_Db_DAO_Pgsql_LogProfiling extends Piwik_Db_DAO_LogProfiling
+class LogProfiling extends \Piwik\Db\DAO\Mysql\LogProfiling
 { 
     public function __construct($db, $table)
     {
@@ -36,7 +39,7 @@ class Piwik_Db_DAO_Pgsql_LogProfiling extends Piwik_Db_DAO_LogProfiling
      */
     public function recordProfiling($query, $count, $time)
     {
-        $generic = Piwik_Db_Factory::getGeneric($this->db);
+        $generic = Factory::getGeneric($this->db);
         $generic->beginTransaction();
         $sql = 'SELECT query, count, sum_time_ms '
              . 'FROM ' . $this->table . ' '

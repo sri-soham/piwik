@@ -8,13 +8,18 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik\Db\DAO;
+
+use Piwik\Common;
+use Piwik\Db;
+use Piwik\Tracker\GoalManager;
 
 /**
  * @package Piwik
  * @subpackage Piwik_Db
  */
 
-abstract class Piwik_Db_DAO_Base
+abstract class Base
 {
     protected $db;
     protected $table;
@@ -22,18 +27,18 @@ abstract class Piwik_Db_DAO_Base
     public function __construct($db, $table)
     {
         $this->db = $db;
-        $this->table = Piwik_Common::prefixTable($table);
+        $this->table = Common::prefixTable($table);
     }
 
     public function setTable($table)
     {
-        $table = Piwik_Common::unprefixTable($table);
-        $this->table = Piwik_Common::prefixTable($table);
+        $table = Common::unprefixTable($table);
+        $this->table = Common::prefixTable($table);
     }
 
     public function getSqlRevenue($field)
     {
-        return "ROUND(".$field.",".Piwik_Tracker_GoalManager::REVENUE_PRECISION.")";
+        return "ROUND(".$field.",".GoalManager::REVENUE_PRECISION.")";
     }
 
     public function getCount()
@@ -56,7 +61,7 @@ abstract class Piwik_Db_DAO_Base
     // Used primarily for the test case setup
     public function insertAll($rows)
     {
-        $generic = Piwik_Db_Factory::getGeneric();
+        $generic = Factory::getGeneric();
         $rowsSql = array();
         foreach ($rows as $row) {
             $values = array();

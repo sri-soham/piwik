@@ -8,6 +8,13 @@
  *  @category Piwik
  *  @package Piwik
  */
+namespace Piwik\Db\DAO\Mysql;
+
+use Piwik\ArchiveProcessor;
+use Piwik\Common;
+use Piwik\Config;
+use Piwik\Db\Factory;
+use Piwik\Db\DAO\Base;
 
 /**
  *  @package Piwik
@@ -22,7 +29,7 @@
 # This is kind of a place holder for queries that have to be run on tables
 # that begin with 'archive_'
 
-class Piwik_Db_DAO_Archive extends Piwik_Db_DAO_Base
+class Archive extends Base
 {
     public function __construct($db, $table)
     {
@@ -104,7 +111,7 @@ class Piwik_Db_DAO_Archive extends Piwik_Db_DAO_Base
 
     public function getByIdsNames($table, $archiveIds, $fields)
     {
-        $inNames = Piwik_Common::getSqlStringFieldsArray($fields);
+        $inNames = Common::getSqlStringFieldsArray($fields);
         $sql = 'SELECT value, name, idarchive, idsite FROM ' . $table . ' '
              . "WHERE idarchive IN ($archiveIds) "
              . "  AND name IN ($inNames)";
@@ -114,8 +121,8 @@ class Piwik_Db_DAO_Archive extends Piwik_Db_DAO_Base
     public function getIdsWithoutLaunching($table, $doneFlags, $idSites, $date1, $date2, $period)
     {
         $nameCondition = " (name IN ($doneFlags)) AND "
-                        .'(value = ' . Piwik_ArchiveProcessing::DONE_OK 
-                        .' OR value = ' . Piwik_ArchiveProcessing::DONE_OK_TEMPORARY 
+                        .'(value = ' . ArchiveProcessor::DONE_OK 
+                        .' OR value = ' . ArchiveProcessor::DONE_OK_TEMPORARY 
                         .' ) ';
         $sql = 'SELECT idsite, MAX(idarchive) AS idarchive '
              . 'FROM ' . $table . ' '
@@ -131,7 +138,7 @@ class Piwik_Db_DAO_Archive extends Piwik_Db_DAO_Base
     // this is only for archive_numeric_* tables
     public function getForNumericDataTable($table, $ids, $names)
     {
-        $inNames = Piwik_Common::getSqlStringFieldsArray($names);
+        $inNames = Common::getSqlStringFieldsArray($names);
         $startDate = $this->db->quoteIdentifier('startDate');
         $sql = "SELECT value, name, date1 AS $startDate "
              . 'FROM ' . $table . ' '
@@ -144,7 +151,7 @@ class Piwik_Db_DAO_Archive extends Piwik_Db_DAO_Base
     public function loadNextIdarchive($table, $alias, $locked, $idsite, $date)
     {
         $dbLockName = "loadNextIdArchive.$table";
-        $generic = Piwik_Db_Factory::getGeneric($this->db);
+        $generic = Factory::getGeneric($this->db);
 
         if ($generic->getDbLock($dbLockName, $maxRetries = 30) === false) {
             throw new Exception("loadNextIdArchive: Cannot get named lock for table $table");
@@ -174,8 +181,8 @@ class Piwik_Db_DAO_Archive extends Piwik_Db_DAO_Base
     // this is for archive_numeric_* tables only
     public function isArchived($table, $done, $doneAll, $minDate, $idSite, $date1, $date2, $period)
     {
-        $DONE_OK = Piwik_ArchiveProcessing::DONE_OK;
-        $DONE_OK_TEMPORARY = Piwik_ArchiveProcessing::DONE_OK_TEMPORARY;
+        $DONE_OK = ArchiveProcessor::DONE_OK;
+        $DONE_OK_TEMPORARY = ArchiveProcessor::DONE_OK_TEMPORARY;
 
         $bind = array($idSite, $date1, $date2, $period);
 
@@ -233,7 +240,7 @@ class Piwik_Db_DAO_Archive extends Piwik_Db_DAO_Base
                 .','
                 .$period->getDateEnd()->toString('Y-m-d');
 
-        $generic = Piwik_Db_Factory::getGeneric($this->db);
+        $generic = Factory::getGeneric($this->db);
 
         return $generic->getDbLock($lockName);
     }
@@ -252,20 +259,20 @@ class Piwik_Db_DAO_Archive extends Piwik_Db_DAO_Base
         $date = $period->getDateStart()->toString('Y-m-d')
                 .','
                 .$period->getDateEnd()->toString('Y-m-d');
-        $generic = Piwik_Db_Factory::getGeneric($this->db);
+        $generic = Factory::getGeneric($this->db);
 
         return $generic->releaseDbLock($lockName);
     }
 
     public function insertIgnoreBatch($tableName, $fields, $values, $ignoreWhenDuplicate)
     {
-        $Generic = Piwik_Db_Factory::getGeneric($this->db);
+        $Generic = Factory::getGeneric($this->db);
         $Generic->insertIgnoreBatch($tableName, $fields, $values, $ignoreWhenDuplicate);
     }
 
     public function insertRecord($tableName, $bindArray)
     {
-        $values = Piwik_Common::getSqlStringFieldsArray($bindArray);
+        $values = Common::getSqlStringFieldsArray($bindArray);
         $sql = 'INSERT IGNORE INTO ' . $tableName . '( '. implode(', ', array_keys($bindArray)) . ')'
              . ' VALUES ( ' . $values . ' ) ';
         $this->db->query($sql, array_values($bindArray));
@@ -281,7 +288,7 @@ class Piwik_Db_DAO_Archive extends Piwik_Db_DAO_Base
 
     protected function getPartitionTableSql($tableName, $generatedTableName)
     {
-        $config = Piwik_Config::getInstance();
+        $config = Config::getInstance();
         $prefix = $config->database['tables_prefix'];
         $sql = Piwik::getTableCreateSql($tableName);
         $sql = str_replace($prefix . $tableName, $generatedTableName, $sql);
@@ -300,7 +307,7 @@ class Piwik_Db_DAO_Archive extends Piwik_Db_DAO_Base
      */
     protected function getProcessingLockName($idsite, $period, $segment)
     {
-        $config = Piwik_Config::getInstance();
+        $config = Config::getInstance();
 
         $lockName = 'piwik.'
             . $config->database['dbname'] . '.'
@@ -310,7 +317,7 @@ class Piwik_Db_DAO_Archive extends Piwik_Db_DAO_Base
             . $period->getId() . '/'
             . $period->getDateStart()->toString('Y-m-d') . ','
             . $period->getDateEnd()->toString('Y-m-d');
-        $return = $lockName .'/'. md5($lockName . Piwik_Common::getSalt());
+        $return = $lockName .'/'. md5($lockName . Common::getSalt());
     
         return $return;
     }

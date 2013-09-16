@@ -103,7 +103,7 @@ class Adapter
             'Mysqli',
 
             // other adapters supported by Zend_Db
-            'Pdo_Pgsql',
+            'Pdo\Pgsql',
 //          'Pdo_Mssql',
 //          'Sqlsrv',
 //          'Pdo_Ibm',

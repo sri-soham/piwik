@@ -8,12 +8,16 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik\Db\DAO\Pgsql;
+
+use Piwik\Common;
+use Piwik\Tracker\GoalManager;
 
 /**
  * @package Piwik
  * @subpackage Piwik_Db
   */
-class Piwik_Db_DAO_Pgsql_Generic extends Piwik_Db_DAO_Generic
+class Generic extends \Piwik\Db\DAO\Generic
 {
     private $isByteaOutputHex;
 
@@ -27,7 +31,7 @@ class Piwik_Db_DAO_Pgsql_Generic extends Piwik_Db_DAO_Generic
 
     public function getSqlRevenue($field)
     {
-        return "ROUND(".$field."::numeric, ".Piwik_Tracker_GoalManager::REVENUE_PRECISION.")";
+        return "ROUND(".$field."::numeric, ".GoalManager::REVENUE_PRECISION.")";
     }
 
     // $where = array of the form
@@ -197,7 +201,7 @@ class Piwik_Db_DAO_Pgsql_Generic extends Piwik_Db_DAO_Generic
     public function insertIgnoreBatch($tableName, $fields, $values, $ignoreWhenDuplicate=true)
     {
         $fieldList = '('.join(',', $fields).')';
-        $params = Piwik_Common::getSqlStringFieldsArray($values[0]);
+        $params = Common::getSqlStringFieldsArray($values[0]);
         $sql = 'INSERT INTO ' . $tableName . $fieldList . ' VALUES (' . $params . ')';
         
         if ($ignoreWhenDuplicate) {
@@ -362,7 +366,7 @@ class Piwik_Db_DAO_Pgsql_Generic extends Piwik_Db_DAO_Generic
         $granted = false;
         try {
             $this->beginTransaction();
-            $this->lockTables(Piwik_Common::prefixTables('log_visit'), array());
+            $this->lockTables(Common::prefixTables('log_visit'), array());
             $this->rollback();
             $granted = true;
         }

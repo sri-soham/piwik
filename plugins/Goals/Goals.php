@@ -20,6 +20,7 @@ use Piwik\TranslationWriter;
 use Piwik\Site;
 use Piwik\WidgetsList;
 use Piwik\Db;
+use Piwik\Db\Factory;
 
 /**
  *
@@ -109,7 +110,7 @@ class Goals extends \Piwik\Plugin
      */
     function deleteSiteGoals($idSite)
     {
-        Piwik_Db_Factory::getDAO('goal')->deleteByIdsite($idSite);
+        Factory::getDAO('goal')->deleteByIdsite($idSite);
     }
 
     /**

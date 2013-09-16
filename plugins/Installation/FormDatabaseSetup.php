@@ -11,6 +11,7 @@
 namespace Piwik\Plugins\Installation;
 
 use Piwik\Db\Adapter;
+use Piwik\Db\Schema;
 use Piwik\Piwik;
 use Piwik\Common;
 use Piwik\QuickForm2;
@@ -97,8 +98,8 @@ class FormDatabaseSetup extends QuickForm2
         }
 
         $adapter = $this->getSubmitValue('adapter');
-        $port = Piwik_Db_Adapter::getDefaultPortForAdapter($adapter);
-        $schemas = Piwik_Db_Schema::getSchemas($adapter);
+        $port = Adapter::getDefaultPortForAdapter($adapter);
+        $schemas = Schema::getSchemas($adapter);
 
         # NOTE: Using the first schema by default. This will have to be
         #       changed if we intend to support different engines of Mysql
@@ -243,7 +244,7 @@ class Rule_checkUserPrivileges extends HTML_QuickForm2_Rule
     public static function getRequiredPrivileges($adapter=null)
     {
         switch ($adapter) {
-            case 'PDO_PGSQL':
+            case 'PDO\PGSQL':
                 $create = 'CREATE TABLE ' . self::TEST_TABLE_NAME . ' (
                             id SERIAL4 NOT NULL,
                             value INT,

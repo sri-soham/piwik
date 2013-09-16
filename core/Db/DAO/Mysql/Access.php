@@ -8,13 +8,17 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik\Db\DAO\Mysql;
+
+use Piwik\Common;
+use Piwik\Db\DAO\Base;
 
 /**
  * @package Piwik
  * @subpackage Piwik_Db
  */
 
-class Piwik_Db_DAO_Access extends Piwik_Db_DAO_Base
+class Access extends Base
 {
     public function __construct($db, $table)
     {
@@ -97,7 +101,7 @@ class Piwik_Db_DAO_Access extends Piwik_Db_DAO_Base
     public function sqlAccessSiteByLogin($select)
     {
         $sql = 'SELECT ' . $select . ' FROM ' . $this->table . ' as t1 '
-             . 'INNER JOIN ' . Piwik_Common::prefixTable('site') . ' as t2 USING(idsite) '
+             . 'INNER JOIN ' . Common::prefixTable('site') . ' as t2 USING(idsite) '
              . 'WHERE login = ?';
         return $sql;
     }

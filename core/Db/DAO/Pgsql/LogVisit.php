@@ -8,13 +8,17 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik\Db\DAO\Pgsql;
+
+use Piwik\Common;
+use Piwik\Db\Factory;
 
 /**
  * @package Piwik
  * @subpackage Piwik_Db
  */
 
-class Piwik_Db_DAO_Pgsql_LogVisit extends Piwik_Db_DAO_LogVisit
+class LogVisit extends \Piwik\Db\DAO\Mysql\LogVisit
 { 
     public function __construct($db, $table)
     {
@@ -45,7 +49,7 @@ class Piwik_Db_DAO_Pgsql_LogVisit extends Piwik_Db_DAO_LogVisit
     public function add($visitor_info)
     {
         $fields = implode(', ', array_keys($visitor_info));
-        $values = Piwik_Common::getSqlStringFieldsArray($visitor_info);
+        $values = Common::getSqlStringFieldsArray($visitor_info);
         $visitor_info['config_id'] = bin2hex($visitor_info['config_id']);
         $visitor_info['idvisitor'] = bin2hex($visitor_info['idvisitor']);
         $visitor_info['location_ip'] = bin2hex($visitor_info['location_ip']);
@@ -79,7 +83,7 @@ class Piwik_Db_DAO_Pgsql_LogVisit extends Piwik_Db_DAO_LogVisit
 
     public function loadLastVisitorDetails($subQuery, $sqlLimit, $orderByParent)
     {
-        $Generic = Piwik_Db_Factory::getGeneric($this->db);
+        $Generic = Factory::getGeneric($this->db);
         $Generic->checkByteaOutput();
 
         $sql = 'SELECT DISTINCT sub.* FROM ( '
@@ -148,7 +152,7 @@ class Piwik_Db_DAO_Pgsql_LogVisit extends Piwik_Db_DAO_LogVisit
      */
     public function fetchAll()
     {
-        $generic = Piwik_Db_Factory::getGeneric();
+        $generic = Factory::getGeneric();
         $generic->checkByteaOutput();
 
         $sql = 'SELECT *, idvisitor::text AS idvisitor_text, config_id::text as config_id_text,

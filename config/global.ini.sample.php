@@ -143,16 +143,10 @@ time_before_today_archive_considered_outdated = 10
 ; to trigger the Piwik archiving process.
 enable_browser_archiving_triggering = 1
 
-<<<<<<< HEAD:config/global.ini.sample.php
-; If set to 1, nested reports will be archived with parent references in the datatables
-; At the moment, this is not needed in core but it can be handy for plugins
-enable_archive_parents_of_datatable = 0
-=======
 ; By default Piwik runs OPTIMIZE TABLE SQL queries to free spaces after deleting some data.
 ; If your Piwik tracks millions of pages, the OPTIMIZE TABLE queries might run for hours (seen in "SHOW FULL PROCESSLIST \g")
 ; so you can disable these special queries here:
 enable_sql_optimize_queries = 1
->>>>>>> piwik-master:config/global.ini.php
 
 ; MySQL minimum required version
 ; note: timezone support added in 4.1.3
@@ -238,13 +232,8 @@ datatable_archiving_maximum_rows_subtable_custom_variables = 1000
 ; maximum number of rows for any of the Actions tables (pages, downloads, outlinks)
 datatable_archiving_maximum_rows_actions = 500
 ; maximum number of rows for pages in categories (sub pages, when clicking on the + for a page category)
-<<<<<<< HEAD:config/global.ini.sample.php
-; note: should not exceed the display limit in Piwik_Actions_Controller::ACTIONS_REPORT_ROWS_DISPLAY
-;       because each subdirectory doesn't have paging at the bottom, so all data should be displayed if possible.
-=======
 ; note: should not exceed the display limit in Piwik\Actions\Controller::ACTIONS_REPORT_ROWS_DISPLAY
 ; because each subdirectory doesn't have paging at the bottom, so all data should be displayed if possible.
->>>>>>> piwik-master:config/global.ini.php
 datatable_archiving_maximum_rows_subtable_actions = 100
 
 ; maximum number of rows for other tables (Providers, User settings configurations)
@@ -263,18 +252,6 @@ live_widget_refresh_after_seconds = 5
 ; the page will automatically refresh every 5 minutes. Set to 0 to disable automatic refresh
 multisites_refresh_after_seconds = 300
 
-<<<<<<< HEAD:config/global.ini.sample.php
-; by default, Piwik uses self-hosted AJAX libraries.
-; If set to 1, Piwik uses a Content Distribution Network
-use_ajax_cdn = 0
-
-; required AJAX library versions
-jquery_version = 1.7.2
-jqueryui_version = 1.8.22
-swfobject_version = 2.2
-
-=======
->>>>>>> piwik-master:config/global.ini.php
 ; Set to 1 if you're using https on your Piwik server and Piwik can't detect it,
 ; e.g., a reverse proxy using https-to-http, or a web server that doesn't
 ; set the HTTPS environment variable.
@@ -475,63 +452,6 @@ logger_file_path		= tmp/logs
 ; disabled by default as it can cause serious overhead and should only be used wisely
 ;logger_api_call[]		= file
 
-<<<<<<< HEAD:config/global.ini.sample.php
-[smarty]
-; the list of directories in which to look for templates
-template_dir[]	= plugins
-template_dir[]	= themes/default
-template_dir[]	= themes
-
-plugins_dir[]	= core/SmartyPlugins
-plugins_dir[] 	= libs/Smarty/plugins
-
-compile_dir		= tmp/templates_c
-cache_dir		= tmp/cache
-
-; error reporting inside Smarty
-error_reporting = E_ALL|E_NOTICE
-
-[Plugins]
-Plugins[] 		= CorePluginsAdmin
-Plugins[] 		= CoreAdminHome
-Plugins[] 		= CoreHome
-Plugins[] 		= Proxy
-Plugins[] 		= API
-Plugins[] 		= Widgetize
-Plugins[] 		= LanguagesManager
-Plugins[] 		= Actions
-Plugins[] 		= Dashboard
-Plugins[] 		= MultiSites
-Plugins[] 		= Referers
-Plugins[] 		= UserSettings
-Plugins[]		= Goals
-Plugins[]		= SEO
-
-Plugins[] 		= UserCountry
-Plugins[] 		= VisitsSummary
-Plugins[] 		= VisitFrequency
-Plugins[] 		= VisitTime
-Plugins[] 		= VisitorInterest
-Plugins[] 		= ExampleAPI
-Plugins[] 		= ExamplePlugin
-Plugins[]		= ExampleRssWidget
-Plugins[] 		= ExampleFeedburner
-Plugins[] 		= Provider
-Plugins[]		= Feedback
-
-Plugins[] 		= Login
-Plugins[] 		= UsersManager
-Plugins[] 		= SitesManager
-Plugins[] 		= Installation
-Plugins[] 		= CoreUpdater
-Plugins[]		= PDFReports
-Plugins[] 		= UserCountryMap
-Plugins[] 		= Live
-Plugins[]		= CustomVariables
-Plugins[]		= PrivacyManager
-Plugins[]		= ImageGraph
-Plugins[]		= DoNotTrack
-=======
 [Plugins]
 Plugins[] = CorePluginsAdmin
 Plugins[] = CoreAdminHome
@@ -577,7 +497,6 @@ Plugins[] = Annotations
 Plugins[] = MobileMessaging
 Plugins[] = Overlay
 Plugins[] = SegmentEditor
->>>>>>> piwik-master:config/global.ini.php
 
 [PluginsInstalled]
 PluginsInstalled[] = Login

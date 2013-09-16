@@ -14,6 +14,7 @@ use Piwik\API\Request;
 use Piwik\ArchiveProcessor;
 use Piwik\Piwik;
 use Piwik\Common;
+use Piwik\Db\Factory;
 use Piwik\Tracker\Action;
 use Piwik\ViewDataTable;
 use Piwik\WidgetsList;
@@ -162,7 +163,7 @@ class Actions extends \Piwik\Plugin
 
         $valueToMatch = Common::sanitizeInputValue(Common::unsanitizeInputValue($valueToMatch));
 
-        $LogAction = Piwik_Db_Factory::getDAO('log_action');
+        $LogAction = Factory::getDAO('log_action');
         // exact matches work by returning the id directly
         if ($matchType == SegmentExpression::MATCH_EQUAL
             || $matchType == SegmentExpression::MATCH_NOT_EQUAL

@@ -14,6 +14,7 @@ namespace Piwik\Plugins\LanguagesManager;
 use Piwik\Piwik;
 use Piwik\Common;
 use Piwik\Db;
+use Piwik\Db\Factory;
 
 /**
  * The LanguagesManager API lets you access existing Piwik translations, and change Users languages preferences.
@@ -164,7 +165,7 @@ class API
     {
         Piwik::checkUserIsSuperUserOrTheUser($login);
         Piwik::checkUserIsNotAnonymous();
-        $UserLanguage = Piwik_Db_Factory::getDAO('user_language');
+        $UserLanguage = Factory::getDAO('user_language');
         return $UserLanguage->getByLogin($login);
     }
 
@@ -182,7 +183,7 @@ class API
         if (!$this->isLanguageAvailable($languageCode)) {
             return false;
         }
-        $UserLanguage = Piwik_Db_Factory::getDAO('user_language');
+        $UserLanguage = Factory::getDAO('user_language');
         $UserLanguage->setForUser($login, $languageCode);
     }
 }

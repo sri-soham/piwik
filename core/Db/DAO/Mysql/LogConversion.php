@@ -8,12 +8,18 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik\Db\DAO\Mysql;
+
+use Piwik\Common;
+use Piwik\Db\DAO\Base;
+use Piwik\Db\Factory;
+use Piwik\Tracker\GoalManager;
 
 /**
  * @package Piwik
  * @subpackage Piwik_Db
  */
-class Piwik_Db_DAO_LogConversion extends Piwik_Db_DAO_Base
+class LogConversion extends Base
 {
     public function __construct($db, $table)
     {
@@ -33,7 +39,7 @@ class Piwik_Db_DAO_LogConversion extends Piwik_Db_DAO_Base
              . ' , lc.server_time AS ' . $this->db->quoteIdentifier('serverTimePretty') .' '
              . ' , lc.url AS url '
              . 'FROM ' . $this->table . ' AS lc '
-             . 'LEFT OUTER JOIN ' . Piwik_Common::prefixTable('goal') . ' AS g '
+             . 'LEFT OUTER JOIN ' . Common::prefixTable('goal') . ' AS g '
              . '    ON (g.idsite = lc.idsite AND g.idgoal = lc.idgoal) '
              . '   AND g.deleted = 0 '
              . 'WHERE lc.idvisit = ? AND lc.idgoal > 0 '
@@ -45,10 +51,10 @@ class Piwik_Db_DAO_LogConversion extends Piwik_Db_DAO_Base
 
     public function getEcommerceDetails($idvisit, $actionsLimit)
     {
-        $Generic = Piwik_Db_Factory::getGeneric($this->db);
+        $Generic = Factory::getGeneric($this->db);
         $sql = 'SELECT '
              . 'CASE idgoal '
-             . '  WHEN ' . Piwik_Tracker_GoalManager::IDGOAL_CART . ' '
+             . '  WHEN ' . GoalManager::IDGOAL_CART . ' '
              . "  THEN '" . Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_CART . "' "
              . "  ELSE '" . Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_ORDER . "' "
              . 'END AS type, '
@@ -62,7 +68,7 @@ class Piwik_Db_DAO_LogConversion extends Piwik_Db_DAO_Base
              . 'server_time AS ' . $this->db->quoteIdentifier('serverTimePretty') . ' '
              . 'FROM ' . $this->table . ' '
              . 'WHERE idvisit = ? '
-             . '  AND idgoal <= ' . Piwik_Tracker_GoalManager::IDGOAL_ORDER . ' '
+             . '  AND idgoal <= ' . GoalManager::IDGOAL_ORDER . ' '
              . 'ORDER BY ' . $this->db->quoteIdentifier('serverTimePretty') . ' '
              . "LIMIT $actionsLimit OFFSET 0";
 
@@ -99,7 +105,7 @@ class Piwik_Db_DAO_LogConversion extends Piwik_Db_DAO_Base
      */
     protected function recordGoalUpdate($goal, $updateWhere)
     {
-        $Generic = Piwik_Db_Factory::getGeneric($this->db);
+        $Generic = Factory::getGeneric($this->db);
     
         $updateParts = $sqlBind = $updateWhereParts = array();
         if (isset($goal['idvisitor'])) {
@@ -131,7 +137,7 @@ class Piwik_Db_DAO_LogConversion extends Piwik_Db_DAO_Base
     protected function recordGoalInsert($goal)
     {
         $fields = implode(', ', array_keys($goal));
-        $bindFields = Piwik_Common::getSqlStringFieldsArray($goal);
+        $bindFields = Common::getSqlStringFieldsArray($goal);
 
         $sql = 'INSERT IGNORE INTO ' . $this->table . '( ' . $fields . ' ) '
              . 'VALUES ( ' . $bindFields . ' ) ';

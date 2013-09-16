@@ -9,7 +9,9 @@
  * @package Piwik
  */
 namespace Piwik;
+
 use Piwik\Common;
+use Piwik\Db\Factory;
 
 /**
  * Option provides a very simple mechanism to save/retrieve key-values pair
@@ -70,7 +72,7 @@ class Option
             return $this->all[$name];
         }
         
-        $dao = Piwik_Db_Factory::getDAO('option');
+        $dao = Factory::getDAO('option');
         $value = $dao->getValueByName($name);
         if($value === false) {
             return false;
@@ -88,9 +90,9 @@ class Option
      */
     public function set($name, $value, $autoLoad = 0)
     {
-        $autoload = (int)$autoload;
-        $dao = Piwik_Db_Factory::getDAO('option');
-        $dao->addRecord($name, $value, $autoload);
+        $autoLoad = (int)$autoLoad;
+        $dao = Factory::getDAO('option');
+        $dao->addRecord($name, $value, $autoLoad);
         $this->all[$name] = $value;
     }
 
@@ -102,7 +104,7 @@ class Option
      */
     public function delete($name, $value = null)
     {
-        $dao = Piwik_Db_Factory::getDAO('option');
+        $dao = Factory::getDAO('option');
         $dao->delete($name, $value);
 
         $this->clearCache();
@@ -117,7 +119,7 @@ class Option
      */
     public function deleteLike($name, $value = null)
     {
-        $dao = Piwik_Db_Factory::getDAO('option');
+        $dao = Factory::getDAO('option');
         $dao->deleteLike($name, $value);
 
         $this->clearCache();
@@ -134,7 +136,7 @@ class Option
             return;
         }
 
-        $dao = Piwik_Db_Factory::getDAO('option');
+        $dao = Factory::getDAO('option');
         $all = $dao->getAllAutoload();
         foreach ($all as $option) {
             $this->all[$option['option_name']] = $option['option_value'];

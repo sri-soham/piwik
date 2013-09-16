@@ -19,6 +19,7 @@ use Piwik\Cookie;
 use Piwik\Plugins\LanguagesManager\API;
 use Piwik\View;
 use Piwik\Db;
+use Piwik\Db\Factory;
 use Piwik\Translate;
 use Zend_Registry;
 
@@ -97,7 +98,7 @@ class LanguagesManager extends \Piwik\Plugin
 
     public function deleteUserLanguage($userLogin)
     {
-        $UserLanguage = Piwik_Db_Factory::getDAO('user_language');
+        $UserLanguage = Factory::getDAO('user_language');
         $UserLanguage->deleteByLogin($userLogin);
     }
 
@@ -106,7 +107,7 @@ class LanguagesManager extends \Piwik\Plugin
      */
     public function install()
     {
-        $UserLanguage = Piwik_Db_Factory::getDAO('user_language');
+        $UserLanguage = Factory::getDAO('user_language');
         $UserLanguage->install();
     }
 
@@ -115,7 +116,7 @@ class LanguagesManager extends \Piwik\Plugin
      */
     public function uninstall()
     {
-        $UserLanguage = Piwik_Db_Factory::getDAO('user_language');
+        $UserLanguage = Factory::getDAO('user_language');
         $UserLanguage->uninstall();
     }
 

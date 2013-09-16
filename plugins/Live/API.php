@@ -25,6 +25,7 @@ use Piwik\Tracker;
 use Piwik\Segment;
 use Piwik\Site;
 use Piwik\Db;
+use Piwik\Db\Factory;
 use Piwik\Tracker\Action;
 use Piwik\Tracker\GoalManager;
 use Piwik\Plugins\Live\Visitor;
@@ -107,7 +108,7 @@ class API
         $segment = new Segment($segment, $idSite);
         $query = $segment->getSelectQuery($select, $from, $where, $bind);
 
-        $LogVisit = Piwik_Db_Factory::getDAO('log_visit');
+        $LogVisit = Factory::getDAO('log_visit');
         $data = $LogVisit->getCounters($query['sql'], $query['bind']);
 
         // These could be unset for some reasons, ensure they are set to 0
@@ -576,7 +577,7 @@ class API
         $segment = new Segment($segment, $idSite);
 
         // Subquery to use the indexes for ORDER BY
-        $LogVisit = Piwik_Db_Factory::getDAO('log_visit');
+        $LogVisit = Factory::getDAO('log_visit');
         $select = $LogVisit->loadLastVisitorDetailsSelect();
         $from = "log_visit";
         $subQuery = $segment->getSelectQuery($select, $from, $where, $whereBind, $orderBy);
@@ -623,9 +624,9 @@ class API
      */
     private function enrichVisitorArrayWithActions($visitorDetailsArray, $actionsLimit, $timezone)
     {
-        $LogConversion = Piwik_Db_Factory::getDAO('log_conversion', Piwik_Tracker::getDatabase());
-        $LogConversionItem = Piwik_Db_Factory::getDAO('log_conversion_item');
-        $LogLinkVisitAction = Piwik_Db_Factory::getDAO('log_link_visit_action');
+        $LogConversion = Factory::getDAO('log_conversion', Piwik_Tracker::getDatabase());
+        $LogConversionItem = Factory::getDAO('log_conversion_item');
+        $LogLinkVisitAction = Factory::getDAO('log_link_visit_action');
 
         $idVisit = $visitorDetailsArray['idVisit'];
 

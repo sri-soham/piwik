@@ -18,6 +18,7 @@ use Piwik\Common;
 use Piwik\DataTable;
 use Piwik\Site;
 use Piwik\Db;
+use Piwik\Db\Factory;
 use Piwik\Tracker\Cache;
 use Piwik\Tracker\GoalManager;
 use Piwik\Plugins\Goals\Goals;
@@ -73,7 +74,7 @@ class API
             return array();
         }
         Piwik::checkUserHasViewAccess($idSite);
-        $dao = Piwik_Db_Factory::getDAO('goal');
+        $dao = Factory::getDAO('goal');
         $goals = $dao->getAllForIdsites($idSite);
         $cleanedGoals = array();
         foreach ($goals as &$goal) {
@@ -109,7 +110,7 @@ class API
         $pattern = $this->checkPattern($pattern);
 
         // save in db
-        $dao = Piwik_Db_Factory::getDAO('goal');
+        $dao = Factory::getDAO('goal');
         $idGoal = $dao->getIdgoalForIdsite($idSite);
         if($idGoal == false) {
             $idGoal = 1;
@@ -152,7 +153,7 @@ class API
         $name = $this->checkName($name);
         $pattern = $this->checkPattern($pattern);
         $this->checkPatternIsValid($patternType, $pattern);
-        $dao = Piwik_Db_Factory::getDao('goal');
+        $dao = Factory::getDAO('goal');
         $dao->update(
             $name,
             $matchAttribute,
@@ -197,9 +198,9 @@ class API
     public function deleteGoal($idSite, $idGoal)
     {
         Piwik::checkUserHasAdminAccess($idSite);
-        $dao = Piwik_Db_Factory::getDao('goal');
+        $dao = Factory::getDAO('goal');
         $dao->markAsDeleted($idSite, $idGoal);
-        Piwik_Db_Factory::getGeneric()->deleteAll(
+        Factory::getGeneric()->deleteAll(
             Piwik_Common::prefixTable('log_conversion'),
             array(' idgoal = ? '),
             100000,

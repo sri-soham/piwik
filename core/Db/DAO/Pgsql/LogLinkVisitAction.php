@@ -8,12 +8,15 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik\Db\DAO\Pgsql;
+
+use Piwik\Db\Factory;
 
 /**
  * @package Piwik
  * @subpackage Piwik_Db
  */
-class Piwik_Db_DAO_Pgsql_LogLinkVisitAction extends Piwik_Db_DAO_LogLinkVisitAction
+class LogLinkVisitAction extends \Piwik\Db\DAO\Mysql\LogLinkVisitAction
 {
     public function __construct($db, $table)
     {
@@ -38,7 +41,7 @@ class Piwik_Db_DAO_Pgsql_LogLinkVisitAction extends Piwik_Db_DAO_LogLinkVisitAct
 
     public function fetchAll()
     {
-        $generic = Piwik_Db_Factory::getGeneric();
+        $generic = Factory::getGeneric();
         $generic->checkByteaOutput();
         $sql = 'SELECT *, idvisitor::text AS idvisitor_text FROM ' . $this->table;
         $rows = $this->db->fetchAll($sql);

@@ -443,7 +443,7 @@ class ArchiveProcessingTest extends DatabaseTestCase
 
     protected function _checkTableIsExpectedBlob($table, $data)
     {
-        $Archive = Piwik_Db_Factory::getDAO('archive');
+        $Archive = \Piwik\Db\Factory::getDAO('archive');
         $fetched = $Archive->fetchAllBlob($table);
         foreach($data as $id => $row) {
             $this->assertEquals($fetched[$id]['idarchive'], $data[$id][0], "record $id idarchive is not '{$data[$id][0]}'");

@@ -8,13 +8,14 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik\Db\DAO\Pgsql;
 
 /**
  * @package Piwik
  * @subpackage Piwik_Db
  */
 
-class Piwik_Db_DAO_Pgsql_Segment extends Piwik_Db_DAO_Segment
+class Segment extends \Piwik\Db\DAO\Mysql\Segment
 { 
     public function add($bind)
     {

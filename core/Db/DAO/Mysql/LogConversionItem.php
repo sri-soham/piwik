@@ -8,13 +8,20 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik\Db\DAO\Mysql;
+
+use Piwik\Archive;
+use Piwik\Common;
+use Piwik\Db\DAO\Base;
+use Piwik\Db\Factory;
+use Piwik\Tracker\GoalManager;
 
 /**
  * @package Piwik
  * @subpackage Piwik_Db
  */
 
-class Piwik_Db_DAO_LogConversionItem extends Piwik_Db_DAO_Base
+class LogConversionItem extends Base
 { 
     public function __construct($db, $table)
     {
@@ -23,9 +30,9 @@ class Piwik_Db_DAO_LogConversionItem extends Piwik_Db_DAO_Base
 
     public function getEcommerceDetails($idvisit, $conversion, $actionsLimit)
     {
-        $Generic = Piwik_Db_Factory::getGeneric($this->db);
+        $Generic = Factory::getGeneric($this->db);
 
-        $log_action = Piwik_Common::prefixTable('log_action');
+        $log_action = Common::prefixTable('log_action');
 
         $sql = 'SELECT log_action_sku.name AS ' . $this->db->quoteIdentifier('itemSKU') . ' '
              . '     , log_action_name.name AS ' . $this->db->quoteIdentifier('itemName') . ' '
@@ -45,19 +52,19 @@ class Piwik_Db_DAO_LogConversionItem extends Piwik_Db_DAO_Base
         $bind[] = $idvisit;
         $bind[] = isset($conversion['orderId']) 
                     ? $conversion['orderId']
-                    : Piwik_Tracker_GoalManager::ITEM_IDORDER_ABANDONED_CART;
+                    : GoalManager::ITEM_IDORDER_ABANDONED_CART;
 
         return $this->db->fetchAll($sql, $bind);
     }
 
     public function getEcommerceItems($field, $startTime, $endTime, $idsite)
     {
-        $Generic = Piwik_Db_Factory::getGeneric($this->db);
-        $revenue = $this->db->quoteIdentifier(Piwik_Archive::INDEX_ECOMMERCE_ITEM_REVENUE);
-        $quantity = $this->db->quoteIdentifier(Piwik_Archive::INDEX_ECOMMERCE_ITEM_QUANTITY);
-        $price = $this->db->quoteIdentifier(Piwik_Archive::INDEX_ECOMMERCE_ITEM_PRICE);
-        $orders = $this->db->quoteIdentifier(Piwik_Archive::INDEX_ECOMMERCE_ORDERS);
-        $nb_visits = $this->db->quoteIdentifier(Piwik_Archive::INDEX_NB_VISITS);
+        $Generic = Factory::getGeneric($this->db);
+        $revenue = $this->db->quoteIdentifier(Archive::INDEX_ECOMMERCE_ITEM_REVENUE);
+        $quantity = $this->db->quoteIdentifier(Archive::INDEX_ECOMMERCE_ITEM_QUANTITY);
+        $price = $this->db->quoteIdentifier(Archive::INDEX_ECOMMERCE_ITEM_PRICE);
+        $orders = $this->db->quoteIdentifier(Archive::INDEX_ECOMMERCE_ORDERS);
+        $nb_visits = $this->db->quoteIdentifier(Archive::INDEX_NB_VISITS);
 
         $ecommerceType = $this->db->quoteIdentifier('ecommerceType');
 
@@ -69,11 +76,11 @@ class Piwik_Db_DAO_LogConversionItem extends Piwik_Db_DAO_Base
              . '  , COUNT(DISTINCT idorder) AS ' . $orders . ' '
              . '  , COUNT(idvisit) AS ' . $nb_visits . ' '
              . '  , CASE idorder '
-             . "        WHEN '0' THEN " . Piwik_Tracker_GoalManager::IDGOAL_CART . ' '
-             . '        ELSE ' . Piwik_Tracker_GoalManager::IDGOAL_ORDER . ' '
+             . "        WHEN '0' THEN " . GoalManager::IDGOAL_CART . ' '
+             . '        ELSE ' . GoalManager::IDGOAL_ORDER . ' '
              . "    END AS $ecommerceType "
              . 'FROM ' . $this->table . ' '
-             . 'LEFT OUTER JOIN ' . Piwik_Common::prefixTable('log_action') . ' '
+             . 'LEFT OUTER JOIN ' . Common::prefixTable('log_action') . ' '
              . "    ON $field = idaction "
              . 'WHERE server_time >= ? '
              . '  AND server_time <= ? '
@@ -171,7 +178,7 @@ class Piwik_Db_DAO_LogConversionItem extends Piwik_Db_DAO_Base
         $bind = array();
         foreach ($itemsToInsert as $item) {
             $row = array_values($this->getItemRowEnriched($goal, $item));
-            $sql_parts[] = ' ( ' . Piwik_Common::getSqlStringFieldsArray($row) . ' ) ';
+            $sql_parts[] = ' ( ' . Common::getSqlStringFieldsArray($row) . ' ) ';
             $bind = array_merge($bind, $row);
         }
         
@@ -190,7 +197,7 @@ class Piwik_Db_DAO_LogConversionItem extends Piwik_Db_DAO_Base
 
     protected function getItemRowEnriched($goal, $item)
     {
-        $Generic = Piwik_Db_Factory::getGeneric($this->db);
+        $Generic = Factory::getGeneric($this->db);
 
         $class = 'Piwik_Tracker_GoalManager';
         $newRow = array(

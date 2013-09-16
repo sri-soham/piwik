@@ -14,6 +14,7 @@ use Piwik\DataAccess\ArchiveTableCreator;
 use Piwik\Piwik;
 use Piwik\Date;
 use Piwik\Db;
+use Piwik\Db\Factory;
 
 /**
  * Purges archived reports and metrics that are considered old.
@@ -103,7 +104,7 @@ class ReportsPurger
      */
     public function purgeData($optimize = false)
     {
-        $Generic = Piwik_Db_Factory::getGeneric();
+        $Generic = Factory::getGeneric();
         // find archive tables to purge
         list($oldNumericTables, $oldBlobTables) = $this->getArchiveTablesToPurge();
 
@@ -251,7 +252,7 @@ class ReportsPurger
 
     private function getNumericTableDeleteCount($table)
     {
-        $Generic = Piwik_Db_Factory::getGeneric();
+        $Generic = Factory::getGeneric();
         $maxIdArchive = $Generic->getMax($table, 'idarchive');
 
         $sql = "SELECT COUNT(*)
@@ -267,7 +268,7 @@ class ReportsPurger
 
     private function getBlobTableDeleteCount($oldNumericTables, $table)
     {
-        $Generic = Piwik_Db_Factory::getGeneric();
+        $Generic = Factory::getGeneric();
         $maxIdArchive = $Generic->getMax($table, 'idarchive');
 
         $sql = "SELECT COUNT(*)
@@ -311,7 +312,7 @@ class ReportsPurger
             return;
         }
 
-        $Generic = Piwik_Db_Factory::getGeneric();
+        $Generic = Factory::getGeneric();
         foreach ($numericTables as $table) {
             $tableDate = ArchiveTableCreator::getDateFromTableName($table);
 

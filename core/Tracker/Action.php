@@ -13,6 +13,7 @@ namespace Piwik\Tracker;
 use Exception;
 use Piwik\Common;
 use Piwik\Config;
+use Piwik\Db\Factory;
 use Piwik\Tracker;
 use Piwik\Tracker\Cache;
 use Piwik\Tracker\Request;
@@ -438,7 +439,7 @@ class Action implements ActionInterface
      */
     static public function loadActionId($actionNamesAndTypes)
     {
-        $LogAction = Piwik_Db_Factory::getDAO('log_action', Tracker::getDatabase());
+        $LogAction = Factory::getDAO('log_action', Tracker::getDatabase());
         return $LogAction->loadActionId($actionNamesAndTypes);
     }
 
@@ -550,7 +551,7 @@ class Action implements ActionInterface
 
         $customVariables = $this->getCustomVariables();
 
-        $LogLinkVisitAction = Piwik_Db_Factory::getDAO('log_link_visit_action', Tracker::getDatabase());
+        $LogLinkVisitAction = Factory::getDAO('log_link_visit_action', Tracker::getDatabase());
         $this->idLinkVisitAction = $LogLinkVisitAction->record(
             $idVisit,
             $this->idSite,

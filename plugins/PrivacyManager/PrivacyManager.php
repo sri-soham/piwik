@@ -20,6 +20,7 @@ use Piwik\Plugins\Goals\Archiver;
 use Piwik\Plugins\PrivacyManager\LogDataPurger;
 use Piwik\ScheduledTask;
 use Piwik\Db;
+use Piwik\Db\Factory;
 use Piwik\ScheduledTime\Daily;
 use Piwik\Tracker\GoalManager;
 use Piwik\Plugins\PrivacyManager\ReportsPurger;
@@ -399,7 +400,7 @@ class PrivacyManager extends \Piwik\Plugin
 
     private static function getMaxGoalId()
     {
-        return Piwik_Db_Factory::getDAO('goal')->getMaxIdgoal();
+        return Factory::getDAO('goal')->getMaxIdgoal();
     }
 }
 

@@ -8,12 +8,13 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik\Db\DAO;
 
 /**
  * @package Piwik
  * @subpackage Piwik_Db
   */
-class Piwik_Db_DAO_Generic
+class Generic
 {
     protected $db;
 

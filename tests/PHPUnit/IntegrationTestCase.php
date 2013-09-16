@@ -23,6 +23,7 @@ use Piwik\Site;
 use Piwik\Tracker\Cache;
 use Piwik\Translate;
 use Piwik\Db;
+use Piwik\Db\Factory;
 use Piwik\Visualization\Cloud;
 
 require_once PIWIK_INCLUDE_PATH . '/libs/PiwikTracker/PiwikTracker.php';
@@ -1087,12 +1088,12 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
             $table = Piwik_Common::unprefixTable($tableName);
             if (strpos($table, 'archive_') === 0)
             {
-                $dao = Piwik_Db_Factory::getDAO('archive');
+                $dao = Factory::getDAO('archive');
                 $dao->setTable($tableName);
             }
             else
             {
-                $dao = Piwik_Db_Factory::getDAO($table);
+                $dao = Factory::getDAO($table);
             }
 
             if (strpos($table, 'archive_blob_') === 0)
@@ -1140,12 +1141,12 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
             $no_prefix_table = Piwik_Common::unprefixTable($table);
             if (strpos($no_prefix_table, 'archive_') === 0)
             {
-                $dao = Piwik_Db_Factory::getDAO('archive');
+                $dao = Factory::getDAO('archive');
                 $dao->setTable($table);
             }
             else
             {
-                $dao = Piwik_Db_Factory::getDAO($no_prefix_table);
+                $dao = Factory::getDAO($no_prefix_table);
             }
             $dao->insertAll($rows);
         }

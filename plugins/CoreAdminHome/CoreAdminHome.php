@@ -16,6 +16,7 @@ use Piwik\Piwik;
 use Piwik\Date;
 use Piwik\ScheduledTask;
 use Piwik\Db;
+use Piwik\Db\Factory;
 use Piwik\ScheduledTime\Daily;
 
 /**
@@ -107,7 +108,7 @@ class CoreAdminHome extends \Piwik\Plugin
     function optimizeArchiveTable()
     {
         $archiveTables = ArchiveTableCreator::getTablesArchivesInstalled();
-        $Generic = Piwik_Db_Factory::getGeneric();
+        $Generic = Factory::getGeneric();
         $Generic->optimizeTables($archiveTables);
     }
 }

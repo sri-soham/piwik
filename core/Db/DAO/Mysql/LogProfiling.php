@@ -8,13 +8,16 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik\Db\DAO\Mysql;
+
+use Piwik\Db\DAO\Base;
 
 /**
  * @package Piwik
  * @subpackage Piwik_Db
  */
 
-class Piwik_Db_DAO_LogProfiling extends Piwik_Db_DAO_Base
+class LogProfiling extends Base
 { 
     public function __construct($db, $table)
     {

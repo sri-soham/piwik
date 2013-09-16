@@ -15,6 +15,7 @@ use Piwik\Common;
 use Piwik\Auth;
 use Piwik\Site;
 use Piwik\Db;
+use Piwik\Db\Factory;
 
 /**
  * Class to handle User Access:
@@ -186,7 +187,7 @@ class Access
 
     public function getRawSitesWithSomeViewAccess($login)
     {
-		$Access = Piwik_Db_Factory::getDAO('access');
+		$Access = Factory::getDAO('access');
 		return $Access->getAccessSiteByLogin($login);
     }
 

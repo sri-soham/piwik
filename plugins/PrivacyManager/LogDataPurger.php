@@ -14,6 +14,7 @@ use Piwik\Piwik;
 use Piwik\Common;
 use Piwik\Date;
 use Piwik\Db;
+use Piwik\Db\Factory;
 
 /**
  * Purges the log_visit, log_conversion and related tables of old visit data.
@@ -70,7 +71,7 @@ class LogDataPurger
         }
 
         $logTables = self::getDeleteTableLogTables();
-        $Generic = Piwik_Db_Factory::getGeneric();
+        $Generic = Factory::getGeneric();
 
         // delete data from log tables
         $where = array('idvisit <= ?');
@@ -111,7 +112,7 @@ class LogDataPurger
             foreach ($this->getDeleteTableLogTables() as $table) {
                 // getting an estimate for log_action is not supported since it can take too long
                 if ($table != Piwik_Common::prefixTable('log_action')) {
-                    $TableDAO = Piwik_Db_Factory::getDAO(Piwik_Common::unprefixTable($table));
+                    $TableDAO = Factory::getDAO(Piwik_Common::unprefixTable($table));
                     $rowCount = $TableDAO->getCountByIdvisit($maxIdVisit);
                     if ($rowCount > 0) {
                         $result[$table] = $rowCount;
@@ -128,7 +129,7 @@ class LogDataPurger
      */
     private function purgeUnusedLogActions()
     {
-        $LogAction = Piwik_Db_Factory::getDAO('log_action');
+        $LogAction = Factory::getDAO('log_action');
         $LogAction->purgeUnused();
     }
 
@@ -138,7 +139,7 @@ class LogDataPurger
      */
     private function getDeleteIdVisitOffset()
     {
-        $LogVisit = Piwik_Db_Factory::getDAO('log_visit');
+        $LogVisit = Factory::getDAO('log_visit');
 
         // get max idvisit
         $maxIdVisit = $LogVisit->getMaxIdvisit();

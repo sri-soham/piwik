@@ -13,6 +13,7 @@ namespace Piwik\Plugins\VisitTime;
 use Exception;
 use Piwik\ArchiveProcessor;
 use Piwik\Common;
+use Piwik\Db\Factory;
 use Piwik\Period;
 use Piwik\Plugins\VisitTime\Archiver;
 use Piwik\Site;
@@ -101,7 +102,7 @@ class VisitTime extends \Piwik\Plugin
 
     public function getSegmentsMetadata(&$segments)
     {
-        $Generic = Piwik_Db_Factory::getGeneric();
+        $Generic = Factory::getGeneric();
 
         $acceptedValues = "0, 1, 2, 3, ..., 20, 21, 22, 23";
         $segments[] = array(

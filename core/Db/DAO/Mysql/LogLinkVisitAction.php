@@ -8,12 +8,18 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik\Db\DAO\Mysql;
+
+use Piwik\Common;
+use Piwik\Db\DAO\Base;
+use Piwik\Db\Factory;
+use Piwik\Tracker\Action;
 
 /**
  * @package Piwik
  * @subpackage Piwik_Db
  */
-class Piwik_Db_DAO_LogLinkVisitAction extends Piwik_Db_DAO_Base
+class LogLinkVisitAction extends Base
 {
     public function __construct($db, $table)
     {
@@ -45,9 +51,9 @@ class Piwik_Db_DAO_LogLinkVisitAction extends Piwik_Db_DAO_Base
              . ' , log_link_visit_action.custom_float '
              . $customVariables . ' '
              . 'FROM ' . $this->table . ' AS log_link_visit_action '
-             . 'LEFT OUTER JOIN ' . Piwik_Common::prefixTable('log_action') . ' AS log_action '
+             . 'LEFT OUTER JOIN ' . Common::prefixTable('log_action') . ' AS log_action '
              . '    ON log_link_visit_action.idaction_url = log_action.idaction '
-             . 'LEFT OUTER JOIN ' . Piwik_Common::prefixTable('log_action') . ' AS log_action_title '
+             . 'LEFT OUTER JOIN ' . Common::prefixTable('log_action') . ' AS log_action_title '
              . '    ON log_link_visit_action.idaction_name = log_action_title.idaction '
              . 'WHERE log_link_visit_action.idvisit = ? '
              . 'ORDER BY ' . $serverTimePretty . ', ' . $pageId . ' '
@@ -76,7 +82,7 @@ class Piwik_Db_DAO_LogLinkVisitAction extends Piwik_Db_DAO_Base
                         $idaction_url, $idaction_url_ref, $idaction_name,
                         $idaction_name_ref, $time_spent_ref_action)
     {
-        $Generic = Piwik_Db_Factory::getGeneric($this->db);
+        $Generic = Factory::getGeneric($this->db);
 
         $sql = 'INSERT INTO ' . $this->table . ' (idsite '
              . ', idvisitor '
@@ -118,7 +124,7 @@ class Piwik_Db_DAO_LogLinkVisitAction extends Piwik_Db_DAO_Base
                         $time_generation, $custom_variables
                         )
     {
-        $Generic = Piwik_Db_Factory::getGeneric($this->db);
+        $Generic = Factory::getGeneric($this->db);
         $insert = array(
             'idvisit'   => $idvisit,
             'idsite'    => $idsite,
@@ -131,7 +137,7 @@ class Piwik_Db_DAO_LogLinkVisitAction extends Piwik_Db_DAO_Base
             'time_spent_ref_action' => $time_spent
         );
         if (!empty($time_generation)) {
-            $insert[Piwik_Tracker_Action::DB_COLUMN_TIME_GENERATION] = $time_generation;
+            $insert[Action::DB_COLUMN_TIME_GENERATION] = $time_generation;
         }
 
         $insert = array_merge($insert, $custom_variables);
@@ -146,8 +152,8 @@ class Piwik_Db_DAO_LogLinkVisitAction extends Piwik_Db_DAO_Base
 
         $fields = implode(', ', array_keys($insertWithoutNulls));
         $bind   = array_values($insertWithoutNulls);
-        $values = Piwik_Common::getSqlStringFieldsArray($insertWithoutNulls);
-        Piwik_Common::printDebug($insertWithoutNulls);
+        $values = Common::getSqlStringFieldsArray($insertWithoutNulls);
+        Common::printDebug($insertWithoutNulls);
 
         $sql = 'INSERT INTO ' . $this->table . '( ' . $fields . ') VALUES ( ' . $values . ')';
 

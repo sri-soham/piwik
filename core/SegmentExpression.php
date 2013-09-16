@@ -10,7 +10,9 @@
  */
 
 namespace Piwik;
+
 use Exception;
+use Piwik\Db\Factory;
 
 /**
  *
@@ -140,7 +142,7 @@ class SegmentExpression
         $this->valuesBind = array();
         $this->joins = array();
         
-        $Generic = Piwik_Db_Factory::getGeneric();
+        $Generic = Factory::getGeneric();
         $possible_keys = array('log_visit.idvisitor',
                                'log_visit.config_id',
                                'log_visit.location_ip',
@@ -188,7 +190,7 @@ class SegmentExpression
      */
     protected function getSqlMatchFromDefinition($def, &$availableTables)
     {
-        $Generic = Piwik_Db_Factory::getGeneric();
+        $Generic = Factory::getGeneric();
 
         $field = $def[0];
         $matchType = $def[1];
@@ -277,7 +279,7 @@ class SegmentExpression
      */
     private function checkFieldIsAvailable($field, &$availableTables)
     {
-        $Generic = Piwik_Db_Factory::getGeneric();
+        $Generic = Factory::getGeneric();
 
         $fieldParts = explode('.', $field);
 

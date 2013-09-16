@@ -8,17 +8,20 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik\Db\DAO\Pgsql;
+
+use Piwik\Db\Factory;
 
 /**
  * @package Piwik
  * @subpackage Piwik_Db
  */
 
-class Piwik_Db_DAO_Pgsql_LogConversionItem extends Piwik_Db_DAO_LogConversionItem
+class LogConversionItem extends \Piwik\Db\DAO\Mysql\LogConversionItem
 { 
     public function fetchAll()
     {
-        $generic = Piwik_Db_Factory::getGeneric();
+        $generic = Factory::getGeneric();
         $generic->checkByteaOutput();
         $sql = 'SELECT *, idvisitor::text AS idvisitor_text FROM ' . $this->table;
         $rows = $this->db->fetchAll($sql);

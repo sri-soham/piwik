@@ -18,6 +18,7 @@ use Piwik\Access;
 use Piwik\Date;
 use Piwik\Site;
 use Piwik\Db;
+use Piwik\Db\Factory;
 use Piwik\Tracker\Cache;
 use Piwik\Plugins\UsersManager\UsersManager;
 
@@ -124,7 +125,7 @@ class API
     public function getUsers($userLogins = '')
     {
         Piwik::checkUserHasSomeAdminAccess();
-        $dao = Piwik_Db_Factory::getDAO('user');
+        $dao = Factory::getDAO('user');
         $users = $dao->getAll($userLogins);
 
         // Non Super user can only access login & alias
@@ -145,7 +146,7 @@ class API
     {
         Piwik::checkUserHasSomeAdminAccess();
 
-        $dao = Piwik_Db_Factory::getDAO('user');
+        $dao = Factory::getDAO('user');
         $users = $dao->getAllLogins();
         $return = array();
         foreach ($users as $login) {
@@ -175,7 +176,7 @@ class API
 
         $this->checkAccessType($access);
 
-        $Access = Piwik_Db_Factory::getDAO('access');
+        $Access = Factory::getDAO('access');
         $users = $Access->getAllByAccess($access);
 
         $return = array();
@@ -204,7 +205,7 @@ class API
     {
         Piwik::checkUserHasAdminAccess($idSite);
 
-        $Access = Piwik_Db_Factory::getDAO('access');
+        $Access = Factory::getDAO('access');
         $users = $Access->getAllByIdsite($idSite);
 
         $return = array();
@@ -219,7 +220,7 @@ class API
         Piwik::checkUserHasAdminAccess($idSite);
         $this->checkAccessType($access);
 
-        $Access = Piwik_Db_Factory::getDAO('access');
+        $Access = Factory::getDAO('access');
         $users = $Access->getAllByIdsiteAndAccess($idSite, $access);
 
         $logins = array();
@@ -255,7 +256,7 @@ class API
         $this->checkUserExists($userLogin);
         $this->checkUserIsNotSuperUser($userLogin);
 
-        $Access = Piwik_Db_Factory::getDAO('access');
+        $Access = Factory::getDAO('access');
         $users = $Access->getAllByLogin($userLogin);
         $return = array();
         foreach ($users as $user) {
@@ -280,7 +281,7 @@ class API
         $this->checkUserExists($userLogin);
         $this->checkUserIsNotSuperUser($userLogin);
 
-        $dao = Piwik_Db_Factory::getDAO('user');
+        $dao = Factory::getDAO('user');
         return $dao->getUserByLogin($userLogin);
     }
 
@@ -296,7 +297,7 @@ class API
         Piwik::checkUserIsSuperUser();
         $this->checkUserEmailExists($userEmail);
 
-        $dao = Piwik_Db_Factory::getDAO('user');
+        $dao = Factory::getDAO('user');
         return $dao->getUserByEmail($userEmail);
     }
 
@@ -359,7 +360,7 @@ class API
 
         $token_auth = $this->getTokenAuth($userLogin, $passwordTransformed);
 
-        $dao = Piwik_Db_Factory::getDAO('user');
+        $dao = Factory::getDAO('user');
         $dao->add(
             $userLogin,
             $passwordTransformed,
@@ -417,7 +418,7 @@ class API
         $alias = $this->getCleanAlias($alias, $userLogin);
         $token_auth = $this->getTokenAuth($userLogin, $password);
 
-        $dao = Piwik_Db_Factory::getDAO('user');
+        $dao = Factory::getDAO('user');
         $dao->update(
             $password,
             $alias,
@@ -462,7 +463,7 @@ class API
      */
     public function userExists($userLogin)
     {
-        $dao = Piwik_Db_Factory::getDAO('user');
+        $dao = Factory::getDAO('user');
         $count = $dao->getCountByLogin($userLogin);
         return $count != 0;
     }
@@ -476,7 +477,7 @@ class API
     public function userEmailExists($userEmail)
     {
         Piwik::checkUserIsNotAnonymous();
-        $dao = Piwik_Db_Factory::getDAO('user');
+        $dao = Factory::getDAO('user');
         $count = $dao->getCountByEmail($userEmail);
 
         return $count != 0
@@ -533,7 +534,7 @@ class API
         // if the access is noaccess then we don't save it as this is the default value
         // when no access are specified
         if ($access != 'noaccess') {
-            $Access = Piwik_Db_Factory::getDAO('access');
+            $Access = Factory::getDAO('access');
             $Access->addIdSites($idSites, $userLogin, $access);
         }
 
@@ -603,7 +604,7 @@ class API
      */
     private function deleteUserOnly($userLogin)
     {
-        $dao = Piwik_Db_Factory::getDAO('user');
+        $dao = Factory::getDAO('user');
         $dao->deleteByLogin($userLogin);
 
         Piwik_PostEvent('UsersManager.deleteUser', array($userLogin));
@@ -620,7 +621,7 @@ class API
      */
     private function deleteUserAccess($userLogin, $idSites = null)
     {
-        $Access = Piwik_Db_Factory::getDAO('access');
+        $Access = Factory::getDAO('access');
 
         if (is_null($idSites)) {
             $Access->deleteByLogin($userLogin);

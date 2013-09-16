@@ -13,6 +13,7 @@ namespace Piwik\Tracker;
 use Exception;
 use Piwik\Config;
 use Piwik\Common;
+use Piwik\Db\Factory;
 use Piwik\Tracker;
 use Piwik\Tracker\Action;
 use Piwik\Tracker\Cache;
@@ -452,7 +453,7 @@ class GoalManager
 
         // Select all items currently in the Cart if any
 
-        $LogConversionItem = Piwik_Db_Factory::getDAO('log_conversion_item');
+        $LogConversionItem = Factory::getDAO('log_conversion_item');
 
         $order = isset($goal['idorder']) ? $goal['idorder'] : self::ITEM_IDORDER_ABANDONED_CART;
         $itemsInDb = $LogConversionItem->getAllByVisitAndOrder(
@@ -660,7 +661,7 @@ class GoalManager
         Common::printDebug("Goal data used to update ecommerce items:");
         Common::printDebug($goal);
 
-        $LogConversionItem = Piwik_Db_Factory::getDAO('log_conversion_item', Tracker::getDatabase());
+        $LogConversionItem = Factory::getDAO('log_conversion_item', Tracker::getDatabase());
         foreach($itemsToUpdate as $item) {
             $LogConversionItem->updateByGoalAndItem($goal, $item);
         }
@@ -683,7 +684,7 @@ class GoalManager
         Common::printDebug("Ecommerce items that are added to the cart/order");
         Common::printDebug($itemsToInsert);
 
-        $LogConversionItem = Piwik_Db_Factory::getDAO('log_conversion_item', Tracker::getDatabase());
+        $LogConversionItem = Factory::getDAO('log_conversion_item', Tracker::getDatabase());
         $LogConversionItem->insertEcommerceItems($goal, $itemsToInsert);
     }
 
@@ -733,7 +734,7 @@ class GoalManager
         $newGoalDebug['idvisitor'] = bin2hex($newGoalDebug['idvisitor']);
         Common::printDebug($newGoalDebug);
 
-        $LogConversion = Piwik_Db_Factory::getDAO('log_conversion', Tracker::getDatabase());
+        $LogConversion = Factory::getDAO('log_conversion', Tracker::getDatabase());
         return $LogConversion->recordGoal($newGoal, $mustUpdateNotInsert, $updateWhere);
     }
 

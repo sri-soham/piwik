@@ -8,13 +8,16 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik\Db\DAO\Pgsql;
+
+use Piwik\Common;
 
 /**
  * @package Piwik
  * @subpackage Piwik_Db
  */
 
-class Piwik_Db_DAO_Pgsql_Report extends Piwik_Db_DAO_Report
+class Report extends \Piwik\Db\DAO\Mysql\Report
 {
     public function __construct($db, $table)
     {
@@ -63,7 +66,7 @@ class Piwik_Db_DAO_Pgsql_Report extends Piwik_Db_DAO_Report
             $where = ' AND ' . implode(' AND ', $where) . ' ';
         }
         $sql = 'SELECT * FROM ' . $this->table . ' '
-             . 'INNER JOIN ' . Piwik_Common::prefixTable('site') . ' '
+             . 'INNER JOIN ' . Common::prefixTable('site') . ' '
              . '    USING(idsite) '
              . 'WHERE deleted = \'0\' ' . $where;
 

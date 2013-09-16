@@ -24,6 +24,7 @@ use Piwik\ScheduledTask;
 use Piwik\ReportRenderer;
 use Piwik\Site;
 use Piwik\Db;
+use Piwik\Db\Factory;
 use Piwik\Plugins\SegmentEditor\API as SegmentEditorAPI;
 use Piwik\Plugins\UsersManager\API as UsersManagerAPI;
 use Zend_Mime;
@@ -522,14 +523,14 @@ class PDFReports extends \Piwik\Plugin
 
     public function deleteUserReport($userLogin)
     {
-        $Report = Piwik_Db_Factory::getDAO('report');
+        $Report = Factory::getDAO('report');
         $Report->deleteByLogin($userLogin);
         Db::query('DELETE FROM ' . Common::prefixTable('report') . ' WHERE login = ?', $userLogin);
     }
 
     public function install()
     {
-        $Report = Piwik_Db_Factory::getDAO('report');
+        $Report = Factory::getDAO('report');
         $Report->createTable();
     }
 

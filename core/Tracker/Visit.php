@@ -30,6 +30,7 @@ interface VisitInterface
 
 use Piwik\Config;
 use Piwik\Common;
+use Piwik\Db\Factory;
 use Piwik\IP;
 use Piwik\Tracker;
 use Piwik\Tracker\Action;
@@ -335,7 +336,7 @@ class Visit implements Tracker\VisitInterface
             $this->visitorInfo[$name] = $value;
         }
 
-		$LogVisit = Piwik_Db_Factory::getDAO('log_visit', Tracker::getDatabase());
+		$LogVisit = Factory::getDAO('log_visit', Tracker::getDatabase());
 		list($row_count, $sqlQuery, $sqlBind)
 			= $LogVisit->update($sqlActionUpdate,
 					$valuesToUpdate,
@@ -586,7 +587,7 @@ class Visit implements Tracker\VisitInterface
         $this->visitorInfo['referer_keyword'] = substr($this->visitorInfo['referer_keyword'], 0, 255);
         $this->visitorInfo['config_resolution'] = substr($this->visitorInfo['config_resolution'], 0, 9);
 
-		$LogVisit = Piwik_Db_Factory::getDAO('log_visit', Tracker::getDatabase());
+		$LogVisit = Factory::getDAO('log_visit', Tracker::getDatabase());
 		$idVisit = $LogVisit->add($this->visitorInfo);
 
         $this->visitorInfo['idvisit'] = $idVisit;
@@ -663,7 +664,7 @@ class Visit implements Tracker\VisitInterface
 
         $shouldMatchOneFieldOnly = $this->shouldLookupOneVisitorFieldOnly($isVisitorIdToLookup);
 
-		$LogVisit = Piwik_Db_Factory::getDAO('log_visit', Tracker::getDatabase());
+		$LogVisit = Factory::getDAO('log_visit', Tracker::getDatabase());
 		list($visitRow, $selectCustomVariables)
 			= $LogVisit->recognizeVisitor(
 				$this->customVariablesSetFromRequest,

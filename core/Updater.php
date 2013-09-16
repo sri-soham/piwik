@@ -11,6 +11,7 @@
 namespace Piwik;
 
 use Piwik\Common;
+use Piwik\Db\Factory;
 use Piwik\Version;
 
 /**
@@ -116,7 +117,7 @@ class Updater
      */
     public function getSqlQueriesToExecute()
     {
-        $Option = Piwik_Db_Factory::getDAO('option');
+        $Option = Factory::getDAO('option');
         $queries = array();
         foreach ($this->componentsWithUpdateFile as $componentName => $componentUpdateInfo) {
             foreach ($componentUpdateInfo as $file => $fileVersion) {

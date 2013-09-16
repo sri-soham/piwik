@@ -8,13 +8,18 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik\Db\DAO\Pgsql;
+
+use Piwik\Common;
+use Piwik\Db\Factory;
+use Piwik\PrivacyManager\LogDataPurger;
 
 /**
  * @package Piwik
  * @subpackage Piwik_Db
  */
 
-class Piwik_Db_DAO_Pgsql_LogAction extends Piwik_Db_DAO_LogAction
+class LogAction extends \Piwik\Db\DAO\Mysql\LogAction
 { 
     const TEMP_TABLE_NAME = 'tmp_log_actions_to_keep';
 
@@ -63,7 +68,7 @@ class Piwik_Db_DAO_Pgsql_LogAction extends Piwik_Db_DAO_LogAction
     {
         $sql = 'INSERT INTO ' . $this->table . ' (name, hash, type, url_prefix) '
              . 'VALUES (?, ?, ?, ?)';
-        $this->db->query($sql, array($name, Piwik_Common::getCrc32($name), $type, $urlPrefix));
+        $this->db->query($sql, array($name, Common::getCrc32($name), $type, $urlPrefix));
 
         return $this->db->lastInsertId($this->table.'_idaction');
     }
@@ -75,7 +80,7 @@ class Piwik_Db_DAO_Pgsql_LogAction extends Piwik_Db_DAO_LogAction
      */
     public function deleteUnusedActions()
     {
-        $tempTable = Piwik_Common::prefixTable(self::TEMP_TABLE_NAME);
+        $tempTable = Common::prefixTable(self::TEMP_TABLE_NAME);
         $sql = 'DELETE FROM ' . $this->table . ' AS la WHERE NOT EXISTS '
              . '(SELECT * FROM ' . $tempTable. ' AS tmp WHERE tmp.idaction = la.idaction)';
         $this->db->query($sql);
@@ -85,7 +90,7 @@ class Piwik_Db_DAO_Pgsql_LogAction extends Piwik_Db_DAO_LogAction
     {
         // get current max visit ID in log tables w/ idaction references.
         $maxIds = $this->getMaxIdsInLogTables();
-        $this->generic = Piwik_Db_Factory::getGeneric($this->db);
+        $this->generic = Factory::getGeneric($this->db);
         $this->createTempTable();
 
         // do large insert (inserting everything before maxIds) w/o locking tables...
@@ -107,12 +112,12 @@ class Piwik_Db_DAO_Pgsql_LogAction extends Piwik_Db_DAO_LogAction
 
     protected function insertActionsToKeep($maxIds, $olderThan = true)
     {
-        $tempTable = Piwik_Common::prefixTable(self::TEMP_TABLE_NAME);
+        $tempTable = Common::prefixTable(self::TEMP_TABLE_NAME);
         $idColumns = $this->getTableIdColumns();
         foreach ($this->getIdActionColumns() as $table => $columns) {
             $idCol = $idColumns[$table];
             foreach ($columns as $col) {
-                $select = "SELECT $col from " . Piwik_Common::prefixTable($table) . " WHERE $idCol >= ? AND $idCol < ?";
+                $select = "SELECT $col from " . Common::prefixTable($table) . " WHERE $idCol >= ? AND $idCol < ?";
                 $sql = "INSERT INTO $tempTable $select";
                 if ($olderThan) {
                     $start = 0;
@@ -120,9 +125,9 @@ class Piwik_Db_DAO_Pgsql_LogAction extends Piwik_Db_DAO_LogAction
                 }
                 else {
                     $start = $maxIds[$table];
-                    $finish = $this->generic->getMax(Piwik_Common::prefixTable($table), $idCol);
+                    $finish = $this->generic->getMax(Common::prefixTable($table), $idCol);
                 }
-                $this->generic->segmentedQuery($sql, $start, $finish, Piwik_PrivacyManager_LogDataPurger::$selectSegmentSize);
+                $this->generic->segmentedQuery($sql, $start, $finish, LogDataPurger::$selectSegmentSize);
             }
         }
 
@@ -138,12 +143,12 @@ class Piwik_Db_DAO_Pgsql_LogAction extends Piwik_Db_DAO_LogAction
     protected function lockLogTables($generic)
     {
         $generic->lockTables(
-            $readLocks = Piwik_Common::prefixTables('log_conversion',
+            $readLocks = Common::prefixTables('log_conversion',
                                                     'log_link_visit_action',
                                                     'log_visit',
                                                     'log_conversion_item'
                                                     ),
-            $writeLocks = Piwik_Common::prefixTable('log_action')
+            $writeLocks = Common::prefixTable('log_action')
         );
     }
 
@@ -158,7 +163,7 @@ class Piwik_Db_DAO_Pgsql_LogAction extends Piwik_Db_DAO_LogAction
      */
     protected function createTempTable()
     {
-        $sql = 'CREATE TEMPORARY TABLE ' . Piwik_Common::prefixTable(self::TEMP_TABLE_NAME) . '( '
+        $sql = 'CREATE TEMPORARY TABLE ' . Common::prefixTable(self::TEMP_TABLE_NAME) . '( '
               .'  idaction INT'
               .' );';
         $this->db->query($sql);
@@ -166,8 +171,8 @@ class Piwik_Db_DAO_Pgsql_LogAction extends Piwik_Db_DAO_LogAction
 
     protected function deleteDuplicatesFromTempTable()
     {
-        $tempTempTable = Piwik_Common::prefixTable(self::TEMP_TABLE_NAME . '_tmp');
-        $tempTable = Piwik_Common::prefixTable(self::TEMP_TABLE_NAME);
+        $tempTempTable = Common::prefixTable(self::TEMP_TABLE_NAME . '_tmp');
+        $tempTable = Common::prefixTable(self::TEMP_TABLE_NAME);
         $sql = "CREATE TEMPORARY TABLE $tempTempTable AS SELECT idaction FROM $tempTable GROUP BY idaction";
         $this->db->query($sql);
         $this->db->query("TRUNCATE TABLE $tempTable");

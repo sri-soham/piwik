@@ -129,7 +129,7 @@ class PrivacyManagerTest extends IntegrationTestCase
         $tempTableName = Common::prefixTable(LogDataPurger::TEMP_TABLE_NAME);
         Db::query("DROP TABLE IF EXISTS " . $tempTableName);
 
-        $dao = Piwik_Db_Factory::getDao('segment');
+        $dao = \Piwik\Db\Factory::getDAO('segment');
         $dao->uninstall();
     }
 

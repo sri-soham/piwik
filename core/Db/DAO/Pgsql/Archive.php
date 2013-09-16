@@ -8,13 +8,18 @@
  *  @category Piwik
  *  @package Piwik
  */
+namespace Piwik\Db\DAO\Pgsql;
+
+use Piwik\Common;
+use Piwik\Db\Schema;
+use Piwik\Db\Factory;
 
 /**
  *  @package Piwik
  *  @subpackage Piwik_Db
  */
 
-class Piwik_Db_DAO_Pgsql_Archive extends Piwik_Db_DAO_Archive
+class Archive extends \Piwik\Db\DAO\Mysql\Archive
 {
     private $Generic;
     private $isBlobTable;
@@ -33,7 +38,7 @@ class Piwik_Db_DAO_Pgsql_Archive extends Piwik_Db_DAO_Archive
         $sql = $this->getPartitionTableSql($tableName, $generatedTableName);
         $this->db->query($sql);
 
-        $indexes = Piwik_Db_Schema::getInstance()->getIndexesCreateSql();
+        $indexes = Schema::getInstance()->getIndexesCreateSql();
         $indexes = $indexes[$tableName];
 
         foreach ($indexes as $index) {
@@ -45,7 +50,7 @@ class Piwik_Db_DAO_Pgsql_Archive extends Piwik_Db_DAO_Archive
     public function loadNextIdarchive($table, $alias, $locked, $idsite, $date)
     {
         $dbLockName = $this->lockNameForNextIdarchive($table);
-        $Generic = Piwik_Db_Factory::getGeneric($this->db);
+        $Generic = Factory::getGeneric($this->db);
 
         if ($Generic->getDbLock($dbLockName) === false) {
             throw new Exception('loadNextIdarchive: Cannot get lock on table '. $table);
@@ -96,7 +101,7 @@ class Piwik_Db_DAO_Pgsql_Archive extends Piwik_Db_DAO_Archive
     public function getByIdsNames($table, $archiveIds, $fields)
     {
         $valueCol = $this->prepareForBinary($table);
-        $inNames = Piwik_Common::getSqlStringFieldsArray($fields);
+        $inNames = Common::getSqlStringFieldsArray($fields);
         $sql = "SELECT $valueCol, name, idarchive, idsite FROM $table "
              . "WHERE idarchive IN ($archiveIds) "
              . "  AND name IN ($inNames)";
@@ -107,9 +112,9 @@ class Piwik_Db_DAO_Pgsql_Archive extends Piwik_Db_DAO_Archive
 
     public function insertRecord($tableName, $bind)
     {
-        $Generic = Piwik_Db_Factory::getGeneric($this->db);
+        $Generic = Factory::getGeneric($this->db);
 
-        $params = Piwik_Common::getSqlStringFieldsArray($bind);
+        $params = Common::getSqlStringFieldsArray($bind);
         $sql = 'INSERT INTO ' . $tableName . '( ' . implode(', ', array_keys($bind)) . ' ) '
              . ' VALUES ( ' . $params . ' ) ';
 
@@ -132,7 +137,7 @@ class Piwik_Db_DAO_Pgsql_Archive extends Piwik_Db_DAO_Archive
 
         }
         if ($this->isBlob($tableName) && $valueIndex !== false) {
-            $Generic = Piwik_Db_Factory::getGeneric($this->db);
+            $Generic = Factory::getGeneric($this->db);
             while (list($k, $row) = each($values)) {
                 $values[$k][$valueIndex] = $Generic->bin2db($row[$valueIndex]);
             }
@@ -232,7 +237,7 @@ class Piwik_Db_DAO_Pgsql_Archive extends Piwik_Db_DAO_Archive
 
     protected function prepareForBinary($table)
     {
-        $this->Generic = Piwik_Db_Factory::getGeneric($this->db);
+        $this->Generic = Factory::getGeneric($this->db);
         $this->isBlobTable = $this->isBlob($table);
         $this->Generic->checkByteaOutput();
 
@@ -265,7 +270,7 @@ class Piwik_Db_DAO_Pgsql_Archive extends Piwik_Db_DAO_Archive
 
     protected function lockNameForNextIdarchive($table)
     {
-        $hash = md5("loadNextIdArchive.$table" . Piwik_Common::getSalt());
+        $hash = md5("loadNextIdArchive.$table" . Common::getSalt());
 
         $lockName = (float)$this->md5_to_64bit($hash);
         $lockName = sprintf("%0.0f", $lockName);
@@ -276,7 +281,7 @@ class Piwik_Db_DAO_Pgsql_Archive extends Piwik_Db_DAO_Archive
     protected function insertBatch($tableName, $fields, $values)
     {
         $fieldList = '('.join(',', $fields).')';
-        $params = Piwik_Common::getSqlStringFieldsArray($values[0]);
+        $params = Common::getSqlStringFieldsArray($values[0]);
 
         $sql_base = 'INSERT INTO ' . $tableName . $fieldList . ' VALUES ';
         $count = 0;

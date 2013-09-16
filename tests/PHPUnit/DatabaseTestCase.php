@@ -53,7 +53,7 @@ class DatabaseTestCase extends PHPUnit_Framework_TestCase
             Piwik::createTables();
             \Piwik\Log::make();
 
-            Piwik_Db_Factory::setTest(true);
+            \Piwik\Db\Factory::setTest(true);
 //            \Piwik\PluginsManager::getInstance()->loadPlugins(array());
             IntegrationTestCase::loadAllPlugins();
             

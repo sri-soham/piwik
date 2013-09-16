@@ -8,30 +8,39 @@
  * @category Piwik
  * @package Piwik
  */
+ namespace Piwik\Db;
+
+ use Piwik\Tracker;
+ use Piwik\Config;
 
 /**
  * @package Piwik
  * @subpackage Piwik_Db
  */
-class Piwik_Db_Factory
+class Factory
 {
     private static $daos  = array();
     private static $is_test = false;
     private static $instance = null;
 
-    private $table;
     private $adapter;
     private $folder;
-    private $base;
-    private $derived;
-    private $base_path;
-    private $derived_path;
 
     private static function setInstance()
     {
         if (is_null(self::$instance)) {
             self::$instance = new self();
         }
+    }
+
+    # Used during installation. PDO_MYSQL is the default adapter. This is a
+    # singleton class. PDO_MYSQL is loaded as default adapter for loading
+    # the user language settings. After db settings are taken from user input
+    # and stored in session, the "adapter" and the "folder" values have to
+    # be changed.
+    public static function refreshInstance()
+    {
+        self::$instance = new self();
     }
 
     public static function getDAO($table, $db=null)
@@ -82,20 +91,15 @@ class Piwik_Db_Factory
 
         if (is_null($db)) {
             if(!empty($GLOBALS['PIWIK_TRACKER_MODE'])) {
-                $db = Piwik_Tracker::getDatabase();
+                $db = Tracker::getDatabase();
             }
             if($db === null) {
-                $db = Zend_Registry::get('db');
+                $db = \Zend_Registry::get('db');
             }
         }
 
-        $this->setPropertiesByTableName($table);
-        if (file_exists($this->derived_path)) {
-            $class = new $this->derived($db, $table);
-        }
-        else {
-            $class = new $this->base($db, $table);
-        }
+        $class_name = $this->getClassNameFromTableName($table);
+        $class = new $class_name($db, $table);
 
         self::$daos[$table] = $class;
 
@@ -117,14 +121,14 @@ class Piwik_Db_Factory
     {
         if (is_null($db)) {
             if(!empty($GLOBALS['PIWIK_TRACKER_MODE'])) {
-                $db = Piwik_Tracker::getDatabase();
+                $db = Tracker::getDatabase();
             }
             if($db === null) {
-                $db = Zend_Registry::get('db');
+                $db = \Zend_Registry::get('db');
             }
         }
 
-        $class_name = 'Piwik_Db_Helper_' . $this->folder . '_' . $class_name;
+        $class_name = 'Piwik\\Db\\Helper\\' . $this->folder . '\\' . $class_name;
         $class = new $class_name($db);
 
         return $class;
@@ -141,9 +145,9 @@ class Piwik_Db_Factory
      */
     public function generic($db)
     {
-        $name = 'Piwik_Db_DAO_' . $this->folder . '_Generic';
+        $name = 'Piwik\\Db\\DAO\\' . $this->folder . '\\Generic';
         if ($db == null) {
-            $db = Zend_Registry::get('db');
+            $db = \Zend_Registry::get('db');
         }
         $class = new $name($db);
 
@@ -151,26 +155,32 @@ class Piwik_Db_Factory
     }
 
     /**
-     *  set properties by table name
+     *  get class name from table name
      *
-     *  Sets the properties required to get the dao and table name
+     *  Returns the name of the dao class based on the table name and
+     *  
+     *  @param  String $table
+     *  @return string
      */
-    private function setPropertiesByTableName($table)
+    private function getClassNameFromTableName($table)
     {
-        $this->table = $table;
-        $class = $this->classFromTable();
-        $this->base = 'Piwik_Db_DAO_' . $class;
-        $this->derived = 'Piwik_Db_DAO_' . $this->folder . '_' . $class;
-        $this->base_path = $this->fullPathFromClassName($this->base);
-        $this->derived_path = $this->fullPathFromClassName($this->derived);
+        $class = $this->classFromTable($table);
+        $fullClass = 'Piwik\\Db\\DAO\\' . $this->folder . '\\' . $class;
+        $path = $this->fullPathFromClassName($fullClass);
+        if (!file_exists($path)) {
+            // dao classes of mysql are the base classes. If a dao class does
+            // not exist, use the mysql dao class.
+            $fullClass = 'Piwik\\Db\\DAO\\Mysql\\' . $class;
+        }
+        return $fullClass;
     }
 
     /**
      *  Returns the class name from the table name
      */
-    private function classFromTable()
+    private function classFromTable($table)
     {
-        $parts = explode('_', $this->table);
+        $parts = explode('_', $table);
 
         foreach ($parts as $k=>$v) {
             $parts[$k] = ucfirst($v);
@@ -185,10 +195,10 @@ class Piwik_Db_Factory
     {
         $adapter = strtolower($this->adapter);
         switch ($adapter) {
-            case 'pdo_pgsql':
+            case 'pdo\pgsql':
                 $ret = 'Pgsql';
             break;
-            case 'pdo_mysql':
+            case 'pdo\mysql':
             case 'mysqli':
             default:
                 $ret = 'Mysql';
@@ -203,19 +213,15 @@ class Piwik_Db_Factory
      */
     private function getAdapter()
     {
-        $config = Piwik_Config::getInstance();
+        $config = Config::getInstance();
         $database = $config->database;
         return $database['adapter'];
     }
 
-    /**
-     *  Full path from class name
-     */
-    private function fullPathFromClassName($class)
+    private function fullPathFromClassName($fullClassName)
     {
-        $parts = explode('_', $class);
+        $parts = explode('\\', $fullClassName);
         unset($parts[0]);
-
         return PIWIK_INCLUDE_PATH . '/core/' . implode(DIRECTORY_SEPARATOR, $parts) . '.php';
     }
 }

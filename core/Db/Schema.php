@@ -92,26 +92,26 @@ class Schema
 
         $adapterName = strtoupper($adapterName);
         switch ($adapterName) {
-            case 'PDO_MYSQL':
+            case 'PDO\MYSQL':
             case 'MYSQLI':
                 $adapterName = 'MYSQL';
                 break;
             
-            case 'PDO_PGSQL':
+            case 'PDO\PGSQL':
                 $adapterName = 'PGSQL';
                 break;
 
-            case 'PDO_MSSQL':
+            case 'PDO\MSSQL':
             case 'SQLSRV':
                 $adapterName = 'MSSQL';
                 break;
 
-            case 'PDO_IBM':
+            case 'PDO\IBM':
             case 'DB2':
                 $adapterName = 'IBM';
                 break;
 
-            case 'PDO_OCI':
+            case 'PDO\OCI':
             case 'ORACLE':
                 $adapterName = 'OCI';
                 break;

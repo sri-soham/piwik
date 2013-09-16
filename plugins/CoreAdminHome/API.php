@@ -21,6 +21,7 @@ use Piwik\Date;
 use Piwik\TaskScheduler;
 use Piwik\Site;
 use Piwik\Db;
+use Piwik\Db\Factory;
 
 /**
  * @package CoreAdminHome
@@ -116,7 +117,7 @@ class API
             $minimumDateWithLogs = Date::factory('today')->subDay($logsAreDeletedBeforeThisDate);
         }
 
-        $Archive = Piwik_Db_Factory::getDAO('archive');
+        $Archive = Factory::getDAO('archive');
 
         // Given the list of dates, process which tables they should be deleted from
         $minDate = false;
@@ -173,7 +174,7 @@ class API
         }
 
         // Update piwik_site.ts_created
-        $Site = Piwik_Db_Factory::getDAO('site');
+        $Site = Factory::getDAO('site');
         $Site->updateTSCreated($sqlIdSites, $minDate->subDay(1)->getDatetime());
 
         // Force to re-process data for these websites in the next archive.php cron run

@@ -8,13 +8,14 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik\Db\DAO\Pgsql;
 
 /**
  * @package Piwik
  * @subpackage Piwik_Db
  */
 
-class Piwik_Db_DAO_Pgsql_Site extends Piwik_Db_DAO_Site
+class Site extends \Piwik\Db\DAO\Mysql\Site
 { 
     public function __construct($db, $table)
     {

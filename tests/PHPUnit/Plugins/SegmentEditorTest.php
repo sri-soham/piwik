@@ -35,7 +35,7 @@ class SegmentEditorTest extends DatabaseTestCase
 
     public function tearDown()
     {
-        $dao = Piwik_Db_Factory::getDao('segment');
+        $dao = \Piwik\Db\Factory::getDAO('segment');
         $dao->uninstall();
         parent::tearDown();
     }

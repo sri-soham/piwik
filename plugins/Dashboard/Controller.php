@@ -16,6 +16,7 @@ use Piwik\Plugins\Dashboard\Dashboard;
 use Piwik\Session\SessionNamespace;
 use Piwik\View;
 use Piwik\Db;
+use Piwik\Db\Factory;
 use Piwik\WidgetsList;
 
 /**
@@ -115,7 +116,7 @@ class Controller extends \Piwik\Controller
      */
     protected function saveLayoutForUser($login, $idDashboard, $layout)
     {
-        $UserDashboard = Piwik_Db_Factory::getDAO('user_dashboard');
+        $UserDashboard = Factory::getDAO('user_dashboard');
         $UserDashboard->saveLayout($login, $idDashboard, $layout);
     }
 
@@ -128,7 +129,7 @@ class Controller extends \Piwik\Controller
      */
     protected function updateDashboardName($login, $idDashboard, $name)
     {
-        $UserDashboard = Piwik_Db_Factory::getDAO('user_dashboard');
+        $UserDashboard = Factory::getDAO('user_dashboard');
         $UserDashboard->updateName($name, $login, $idDashboard);
     }
 
@@ -147,7 +148,7 @@ class Controller extends \Piwik\Controller
 
         // first layout can't be removed
         if ($idDashboard != 1) {
-            $UserDashboard = Piwik_Db_Factory::getDAO('user_dashboard');
+            $UserDashboard = Factory::getDAO('user_dashboard');
             $UserDashboard->deleteByLoginDashboard(
                 Piwik::getCurrentUserLogin(),
                 $idDashboard
@@ -189,7 +190,7 @@ class Controller extends \Piwik\Controller
             return;
         }
         $user = Piwik::getCurrentUserLogin();
-        $UserDashboard = Piwik_Db_Factory::getDAO('user_dashboard');
+        $UserDashboard = Factory::getDAO('user_dashboard');
         $nextId = $UserDashboard->getNextIdByLogin($user);
 
         $name = urldecode(Common::getRequestVar('name', '', 'string'));
@@ -219,7 +220,7 @@ class Controller extends \Piwik\Controller
         $layout = $this->dashboard->getLayoutForUser($login, $idDashboard);
 
         if ($layout !== false) {
-            $UserDashboard = Piwik_Db_Factory::getDAO('user_dashboard');
+            $UserDashboard = Factory::getDAO('user_dashboard');
             $nextId = $UserDashboard->getNextIdByLogin($user);
 
             $UserDashboard->newDashboard($user, $nextId, $name, $layout);
@@ -263,7 +264,7 @@ class Controller extends \Piwik\Controller
 
         if (Piwik::isUserIsSuperUser()) {
             $layout = Common::unsanitizeInputValue(Piwik_Common::getRequestVar('layout'));
-            $UserDashboard = Piwik_Db_Factory::getDAO('user_dashboard');
+            $UserDashboard = Factory::getDAO('user_dashboard');
             $UserDashboard->saveLayout('', '1', $layout);
         }
     }

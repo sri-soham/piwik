@@ -8,13 +8,18 @@
  * @category Piwik
  * @package Piwik
  */
+namespace Piwik\Db\DAO\Mysql;
+
+use Piwik\Common;
+use Piwik\Db\DAO\Base;
+use Piwik\Db\Factory;
 
 /**
  * @package Piwik
  * @subpackage Piwik_Db
  */
 
-class Piwik_Db_DAO_Site extends Piwik_Db_DAO_Base
+class Site extends Base
 { 
     public function __construct($db, $table)
     {
@@ -59,7 +64,7 @@ class Piwik_Db_DAO_Site extends Piwik_Db_DAO_Base
              . 'FROM ' . $this->table . ' AS s '
              . 'WHERE EXISTS ( '
              . '    SELECT 1 '
-             . '    FROM ' . Piwik_Common::prefixTable('log_visit') . ' AS v '
+             . '    FROM ' . Common::prefixTable('log_visit') . ' AS v '
              . '    WHERE v.idsite = s.idsite '
              . '      AND visit_last_action_time > ? '
              . '      AND visit_last_action_time <= ? '
@@ -88,7 +93,7 @@ class Piwik_Db_DAO_Site extends Piwik_Db_DAO_Base
              . 'WHERE (main_url = ? OR main_url = ?) '
              . 'UNION '
              . 'SELECT idsite '
-             . 'FROM ' . Piwik_Common::prefixTable('site_url') . ' '
+             . 'FROM ' . Common::prefixTable('site_url') . ' '
              . 'WHERE (url = ? OR url = ?) ';
 
         return $this->db->fetchAll($sql, array($url, $urlBis, $url, $urlBis));
@@ -96,14 +101,14 @@ class Piwik_Db_DAO_Site extends Piwik_Db_DAO_Base
 
     public function getIdsiteByUrlForUser($url, $urlBis, $login)
     {
-        $Access = Piwik_Db_Factory::getDAO('access');
+        $Access = Factory::getDAO('access');
         $sql = 'SELECT idsite '
              . 'FROM ' . $this->table . ' '
              . 'WHERE (main_url = ? OR main_url = ?) '
              . 'AND idsite IN ( ' . $Access->sqlAccessSiteByLogin(' idsite ') . ' ) '
              . 'UNION '
              . 'SELECT idsite '
-             . 'FROM ' . Piwik_Common::prefixTable('site_url') . ' '
+             . 'FROM ' . Common::prefixTable('site_url') . ' '
              . 'WHERE (url = ? OR url = ?) '
              . '  AND idsite IN ( ' . $Access->sqlAccessSiteByLogin(' idsite ') . ' ) ';
 
@@ -113,7 +118,7 @@ class Piwik_Db_DAO_Site extends Piwik_Db_DAO_Base
     public function getIdsitesByTimezones($timezones)
     {
         $sql = 'SELECT idsite FROM ' . $this->table . ' '
-             . 'WHERE timezone in ( ' . Piwik_Common::getSqlStringFieldsArray($timezones) . ' ) '
+             . 'WHERE timezone in ( ' . Common::getSqlStringFieldsArray($timezones) . ' ) '
              . 'ORDER BY idsite ASC';
 
         return $this->db->fetchAll($sql, $timezones);
