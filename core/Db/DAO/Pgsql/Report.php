@@ -24,7 +24,7 @@ class Report extends \Piwik\Db\DAO\Mysql\Report
         parent::__construct($db, $table);
     }
 
-    public function insert($idreport, $idsite, $login, $description, $period, $hour,
+    public function insert($idreport, $idsite, $login, $description, $idsegment, $period, $hour,
                            $type, $format, $parameters, $reports, $ts_created, $deleted)
     {
         $deleted = ($deleted) ? '1' : '0';
@@ -34,6 +34,7 @@ class Report extends \Piwik\Db\DAO\Mysql\Report
                 'idsite'      => $idsite,
                 'login'       => $login,
                 'description' => $description,
+                'idsegment'   => $idsegment,
                 'period'      => $period,
                 'hour'        => $hour,
                 'type'        => $type,
@@ -56,9 +57,9 @@ class Report extends \Piwik\Db\DAO\Mysql\Report
         $this->db->update($this->table, $values, "idreport = $idreport");
     }
 
-    public function getAllActive($idSite, $period, $idReport, $ifSuperUserReturnOnlySuperUserReports)
+    public function getAllActive($idSite, $period, $idReport, $idSegment, $ifSuperUserReturnOnlySuperUserReports)
     {
-        list($where, $params) = $this->varsGetAllActive($idSite, $period, $idReport, $ifSuperUserReturnOnlySuperUserReports);
+        list($where, $params) = $this->varsGetAllActive($idSite, $period, $idReport, $idSegment, $ifSuperUserReturnOnlySuperUserReports);
         if (empty($where)) {
             $where = '';
         }

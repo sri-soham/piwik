@@ -12,7 +12,7 @@ namespace Piwik\Db\DAO\Pgsql;
 
 use Piwik\Common;
 use Piwik\Db\Factory;
-use Piwik\PrivacyManager\LogDataPurger;
+use Piwik\Plugins\PrivacyManager\LogDataPurger;
 
 /**
  * @package Piwik
@@ -46,7 +46,7 @@ class LogAction extends \Piwik\Db\DAO\Mysql\LogAction
                 $sql .= "(name NOT LIKE '%' || ? || '%' AND type = $actionType )";
                 break;
             default:
-                throw new Exception("This match type is not available for action-segments.");
+                throw new \Exception("This match type is not available for action-segments.");
                 break;
         }
 

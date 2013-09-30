@@ -63,7 +63,7 @@ class Site extends \Piwik\Db\DAO\Mysql\Site
         $sql = 'ALTER TABLE ' . $this->table . ' ADD COLUMN feedburner_name VARCHAR(100) DEFAULT NULL';
         try {
             $this->db->exec($sql);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // postgresql code error 42701: duplicate_column
             // if there is another error we throw the exception, otherwise it is OK as we are simply reinstalling the plugin
             if (!$this->db->isErrNo($e, '42701')) {

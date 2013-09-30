@@ -558,6 +558,14 @@ class Pgsql implements SchemaInterface
     public function dropDatabase()
     {
         $this->dropTables();
+
+        $config = Config::getInstance();
+        $prefix = $config->database['tables_prefix'];
+        $db = Zend_Registry::get('db');
+        $tables = array('report', 'segment');
+        foreach ($tables as $table) {
+            $db->query('DROP TABLE IF EXISTS "'.$prefix.$table.'"');
+        }
     }
 
     /**

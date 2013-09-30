@@ -554,9 +554,9 @@ class Action implements ActionInterface
         $LogLinkVisitAction = Factory::getDAO('log_link_visit_action', Tracker::getDatabase());
         $this->idLinkVisitAction = $LogLinkVisitAction->record(
             $idVisit,
-            $this->idSite,
+            $this->request->getIdSite(),
             $visitorIdCookie,
-            Tracker::getDatetimeFromTimestamp($this->timestamp),
+            Tracker::getDatetimeFromTimestamp($this->request->getCurrentTimestamp()),
             (int)$this->getIdActionUrl(),
             $idActionName,
             $idRefererActionUrl,

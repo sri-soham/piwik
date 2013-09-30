@@ -11,6 +11,7 @@
 namespace Piwik\Db\DAO\Mysql;
 
 use Piwik\Common;
+use Piwik\Config;
 use Piwik\Db;
 use Piwik\Db\Factory;
 use Piwik\Db\DAO\Base;
@@ -41,7 +42,7 @@ class LogVisit extends Base
         try {
             $this->db->exec($sql);
         }
-        catch(Exception $e) {
+        catch(\Exception $e) {
             if (!$this->db->isErrNo($e, '1060')) {
                 throw $e;
             }
@@ -118,19 +119,18 @@ class LogVisit extends Base
      *  @param int  $idVisitor
      *  @return array
      */
-    public function recognizeVisitor($customVariablesSet, $timeLookBack,
+    public function recognizeVisitor($customVariablesSet, $timeLookBack, $timeLookAhead,
                                      $shouldMatchOneFieldOnly, $matchVisitorId,
                                      $idSite, $configId, $idVisitor)
     {
         $this->Generic = Factory::getGeneric($this->db);
 
         $this->recognize = array();
-        $this->recognize['timeLookBack'] = $timeLookBack;
         $this->recognize['matchVisitorId'] = $matchVisitorId;
-        $this->recognize['idSite'] = $idSite;
         $this->recognize['configId'] = $configId;
         $this->recognize['idVisitor'] = $idVisitor;
-        $this->recognize['bind'] = array();
+        $this->recognize['whereCommon'] = ' visit_last_action_time >= ? AND visit_last_action_time <= ? AND idsite = ? ';
+        $this->recognize['bind'] = array($timeLookBack, $timeLookAhead, $idSite);
 
         $this->recognizeVisitorSelect($customVariablesSet);
 
@@ -193,6 +193,43 @@ class LogVisit extends Base
         return $this->db->fetchAll($sql, $bind);
     }
 
+    public function updateVisit($idVisit, $uaDetails)
+    {
+        $q = "UPDATE {$this->table} SET " .
+            "config_browser_name = '" . $uaDetails['config_browser_name'] . "' ," .
+            "config_browser_version = '" . $uaDetails['config_browser_version'] . "' ," .
+            "config_os = '" . $uaDetails['config_os'] . "' ," .
+            "config_os_version = '" . $uaDetails['config_os_version'] . "' ," .
+            "config_device_type =  " . (isset($uaDetails['config_device_type']) ? "'" . $uaDetails['config_device_type'] . "'" : "NULL") . " ," .
+            "config_device_model = " . (isset($uaDetails['config_device_model']) ? "'" . $uaDetails['config_device_model'] . "'" : "NULL") . " ," .
+            "config_device_brand = " . (isset($uaDetails['config_device_brand']) ? "'" . $uaDetails['config_device_brand'] . "'" : "NULL") . "
+                    WHERE idvisit = " . $idVisit;
+        $this->db->query($q);
+    }
+
+    public function devicesDetectionInstall()
+    {
+// we catch the exception
+        try {
+            $q1 = "ALTER TABLE `" . $this->table . "`
+                ADD `config_os_version` VARCHAR( 10 ) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL AFTER `config_os` ,
+                ADD `config_device_type` TINYINT( 10 ) NULL DEFAULT NULL AFTER `config_browser_version` ,
+                ADD `config_device_brand` VARCHAR( 100 ) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL AFTER `config_device_type` ,
+                ADD `config_device_model` VARCHAR( 100 ) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL AFTER `config_device_brand`";
+            $this->db->exec($q1);
+            // conditionaly add this column
+            if (@Config::getInstance()->Debug['store_user_agent_in_visit']) {
+                $q2 = "ALTER TABLE `" . $this->table . "`
+                ADD `config_debug_ua` VARCHAR( 512 ) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL AFTER `config_device_model`";
+                $this->db->exec($q2);
+            }
+        } catch (\Exception $e) {
+            if (!$this->db->isErrNo($e, '1060')) {
+                throw $e;
+            }
+        }
+    }
+
     protected function recognizeVisitorSelect($customVariablesSet)
     {
         if ($customVariablesSet) {
@@ -236,10 +273,8 @@ class LogVisit extends Base
 
     protected function recognizeVisitorOneField()
     {
-        $bind = array();
-        $where = ' visit_last_action_time >= ? AND idsite = ? ';
-        $bind[] = $this->recognize['timeLookBack'];
-        $bind[] = $this->recognize['idSite'];
+        $bind = $this->recognize['bind'];
+        $where = $this->recognize['whereCommon'];
 
         if ($this->recognize['matchVisitorId']) {
             $where .= ' AND idvisitor = ? ';
@@ -260,14 +295,10 @@ class LogVisit extends Base
 
     protected function recognizeVisitorTwoFields()
     {
-        $bind = array();
-        $whereSameBothQueries = "visit_last_action_time >= ? AND idsite = ?";
+        $bind = $this->recognize['bind'];
+        $whereSameBothQueries = $this->recognize['whereCommon'];
         
         
-        // will use INDEX index_idsite_config_datetime (idsite, config_id, visit_last_action_time)
-        $bind[] = $this->recognize['timeLookBack'];
-        $bind[] = $this->recognize['idSite'];
-        ;
         $where = ' AND config_id = ?';
         $bind[] = $this->Generic->bin2db($this->recognize['configId']);
         $configSql = $this->recognize['select']." ,
@@ -279,14 +310,14 @@ class LogVisit extends Base
         ";
     
         // will use INDEX index_idsite_idvisitor (idsite, idvisitor)
-        $bind[] = $this->recognize['timeLookBack'];
-        $bind[] = $this->recognize['idSite'];
+        $bind = array_merge($bind, $this->recognize['bind']);
         $where = ' AND idvisitor = ? ';
         $bind[] = $this->Generic->bin2db($this->recognize['idVisitor']);
         $visitorSql = "{$this->recognize['select']} ,
                 1 as priority
                 {$this->recognize['from']} 
                 WHERE $whereSameBothQueries $where
+                ORDER BY visit_last_action_time DESC
                 LIMIT 1
         ";
         

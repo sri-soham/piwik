@@ -13,6 +13,7 @@ namespace Piwik\Plugins\VisitTime;
 
 use Piwik\Date;
 use Piwik\DataArray;
+use Piwik\Db\Factory;
 use Piwik\PluginsArchiver;
 
 class Archiver extends PluginsArchiver
@@ -28,8 +29,13 @@ class Archiver extends PluginsArchiver
 
     protected function aggregateByServerTime()
     {
-        $array = $this->getProcessor()->getMetricsForDimension(array("label" => "HOUR(log_visit.visit_last_action_time)"));
-        $query = $this->getLogAggregator()->queryConversionsByDimension(array("label" => "HOUR(log_conversion.server_time)"));
+        $Generic = Factory::getGeneric();
+        $array = $this->getProcessor()->getMetricsForDimension(
+                    array("label" => $Generic->hour('log_visit.visit_last_action_time'))
+                 );
+        $query = $this->getLogAggregator()->queryConversionsByDimension(
+                    array("label" => $Generic->hour('log_conversion.server_time'))
+                 );
         if ($query === false) {
             return;
         }
@@ -45,7 +51,8 @@ class Archiver extends PluginsArchiver
 
     protected function aggregateByLocalTime()
     {
-        $array = $this->getProcessor()->getMetricsForDimension("HOUR(log_visit.visitor_localtime)");
+        $Generic = Factory::getGeneric();
+        $array = $this->getProcessor()->getMetricsForDimension($Generic->hour('log_visit.visitor_localtime'));
         $this->ensureAllHoursAreSet($array);
         $this->getProcessor()->insertBlobRecord(self::LOCAL_TIME_RECORD_NAME, $this->getProcessor()->getDataTableFromDataArray($array)->getSerialized());
     }

@@ -243,7 +243,6 @@ class Dashboard extends \Piwik\Plugin
 
     public function deleteDashboardLayout($userLogin)
     {
-        $userLogin = $notification->getNotificationObject();
         $UserDashboard = Factory::getDAO('user_dashboard');
         $UserDashboard->deleteByLogin($userLogin);
     }

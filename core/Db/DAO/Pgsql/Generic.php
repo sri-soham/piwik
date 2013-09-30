@@ -10,6 +10,7 @@
  */
 namespace Piwik\Db\DAO\Pgsql;
 
+use Exception;
 use Piwik\Common;
 use Piwik\Tracker\GoalManager;
 

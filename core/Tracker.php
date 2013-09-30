@@ -21,6 +21,7 @@ use Piwik\Tracker\Cache;
 use Piwik\Tracker\Db\DbException;
 use Piwik\Tracker\Db\Mysqli;
 use Piwik\Tracker\Db\Pdo\Mysql;
+use Piwik\Tracker\Db\Pdo\Pgsql;
 use Piwik\Tracker\Request;
 use Piwik\Tracker\Visit;
 use Piwik\Tracker\VisitInterface;
@@ -493,7 +494,10 @@ class Tracker
                 require_once PIWIK_INCLUDE_PATH . '/core/Tracker/Db/Mysqli.php';
                 return new Mysqli($configDb);
 
-            case 'PDO_PGSQL':
+            case 'PDO\PGSQL':
+                // Both Mysql.php and Pgsql.php have to be included as Pgsql 
+                // extends Mysql
+                require_once PIWIK_INCLUDE_PATH . '/core/Tracker/Db/Pdo/Mysql.php';
                 require_once PIWIK_INCLUDE_PATH .'/core/Tracker/Db/Pdo/Pgsql.php';
                 return new Pgsql($configDb);
         }

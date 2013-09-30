@@ -12,6 +12,7 @@ namespace Piwik\Db\DAO;
 
 use Piwik\Common;
 use Piwik\Db;
+use Piwik\Db\Factory;
 use Piwik\Tracker\GoalManager;
 
 /**

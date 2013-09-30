@@ -12,6 +12,7 @@ namespace Piwik\Db\DAO\Mysql;
 
 use Piwik\Common;
 use Piwik\Db\DAO\Base;
+use Piwik\Piwik;
 
 /**
  * @package Piwik
@@ -114,7 +115,7 @@ class Pdf extends Base
         try {
             $this->db->exec($sql);
         }
-        catch (Exception $e) {
+        catch (\Exception $e) {
             if (!$this->db->isErrNo($e, '1050')) {
                 throw $e;
             }

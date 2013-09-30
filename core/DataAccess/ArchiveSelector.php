@@ -22,6 +22,7 @@ use Piwik\Segment;
 use Piwik\Site;
 use Piwik\DataAccess\ArchiveTableCreator;
 use Piwik\Db;
+use Piwik\Db\Factory;
 
 /**
  * Data Access object used to query archives
@@ -45,35 +46,18 @@ class ArchiveSelector
 
     static public function getArchiveIdAndVisits(Site $site, Period $period, Segment $segment, $minDatetimeArchiveProcessedUTC, $requestedPlugin)
     {
-        $dateStart = $period->getDateStart();
-        $bindSQL = array($site->getId(),
-                         $dateStart->toString('Y-m-d'),
-                         $period->getDateEnd()->toString('Y-m-d'),
-                         $period->getId(),
-        );
-
-        $timeStampWhere = '';
-        if ($minDatetimeArchiveProcessedUTC) {
-            $timeStampWhere = " AND ts_archived >= ? ";
-            $bindSQL[] = Date::factory($minDatetimeArchiveProcessedUTC)->getDatetime();
-        }
-
         $pluginOrVisitsSummary = array("VisitsSummary", $requestedPlugin);
         $pluginOrVisitsSummary = array_unique($pluginOrVisitsSummary);
         $sqlWhereArchiveName = self::getNameCondition($pluginOrVisitsSummary, $segment);
 
-        $sqlQuery = "	SELECT idarchive, value, name, date1 as startDate
-						FROM " . ArchiveTableCreator::getNumericTable($dateStart) . "``
-						WHERE idsite = ?
-							AND date1 = ?
-							AND date2 = ?
-							AND period = ?
-							AND ( ($sqlWhereArchiveName)
-								  OR name = '" . self::NB_VISITS_RECORD_LOOKED_UP . "'
-								  OR name = '" . self::NB_VISITS_CONVERTED_RECORD_LOOKED_UP . "')
-							$timeStampWhere
-						ORDER BY idarchive DESC";
-        $results = Db::fetchAll($sqlQuery, $bindSQL);
+        $Archive = Factory::getDAO('archive');
+        $results = $Archive->getArchiveIdAndVisits(
+                        ArchiveTableCreator::getNumericTable($period->getDateStart()),
+                        $site,
+                        $period,
+                        $minDatetimeArchiveProcessedUTC,
+                        $sqlWhereArchiveName
+                   );
         if (empty($results)) {
             return false;
         }
@@ -148,14 +132,6 @@ class ArchiveSelector
      */
     static public function getArchiveIds($siteIds, $periods, $segment, $plugins)
     {
-        $getArchiveIdsSql = "SELECT idsite, name, date1, date2, MAX(idarchive) as idarchive
-                               FROM %s
-                              WHERE period = ?
-                                AND %s
-                                AND " . self::getNameCondition($plugins, $segment) . "
-                                AND idsite IN (" . implode(',', $siteIds) . ")
-                           GROUP BY idsite, date1, date2";
-
         $monthToPeriods = array();
         foreach ($periods as $period) {
             /** @var Period $period */
@@ -163,38 +139,12 @@ class ArchiveSelector
             $monthToPeriods[$table][] = $period;
         }
 
-        // for every month within the archive query, select from numeric table
-        $result = array();
-        foreach ($monthToPeriods as $table => $periods) {
-            $firstPeriod = reset($periods);
-
-            // if looking for a range archive. NOTE: we assume there's only one period if its a range.
-            $bind = array($firstPeriod->getId());
-            if ($firstPeriod instanceof Range) {
-                $dateCondition = "date1 = ? AND date2 = ?";
-                $bind[] = $firstPeriod->getDateStart()->toString('Y-m-d');
-                $bind[] = $firstPeriod->getDateEnd()->toString('Y-m-d');
-            } else { // if looking for a normal period
-                $dateStrs = array();
-                foreach ($periods as $period) {
-                    $dateStrs[] = $period->getDateStart()->toString('Y-m-d');
-                }
-
-                $dateCondition = "date1 IN ('" . implode("','", $dateStrs) . "')";
-            }
-
-            $sql = sprintf($getArchiveIdsSql, $table, $dateCondition);
-
-            // get the archive IDs
-            foreach (Db::fetchAll($sql, $bind) as $row) {
-                $archiveName = $row['name'];
-
-                //FIXMEA duplicate with Archive.php
-                $dateStr = $row['date1'] . "," . $row['date2'];
-
-                $result[$archiveName][$dateStr][] = $row['idarchive'];
-            }
-        }
+        $Archive = Factory::getDAO('archive');
+        $result = $Archive->getArchiveIds(
+                    $siteIds,
+                    $monthToPeriods,
+                    self::getNameCondition($plugins, $segment)
+                  );
 
         return $result;
     }
@@ -211,47 +161,13 @@ class ArchiveSelector
      */
     static public function getArchiveData($archiveIds, $recordNames, $archiveDataType, $loadAllSubtables)
     {
-        // create the SQL to select archive data
-        $inNames = Common::getSqlStringFieldsArray($recordNames);
-        if ($loadAllSubtables) {
-            $name = reset($recordNames);
-
-            // select blobs w/ name like "$name_[0-9]+" w/o using RLIKE
-            $nameEnd = strlen($name) + 2;
-            $whereNameIs = "(name = ?
-                            OR (name LIKE ?
-                                 AND SUBSTRING(name, $nameEnd, 1) >= '0'
-                                 AND SUBSTRING(name, $nameEnd, 1) <= '9') )";
-            $bind = array($name, $name . '%');
-        } else {
-            $whereNameIs = "name IN ($inNames)";
-            $bind = array_values($recordNames);
-        }
-
-        $getValuesSql = "SELECT value, name, idsite, date1, date2, ts_archived
-                                FROM %s
-                                WHERE idarchive IN (%s)
-                                  AND " . $whereNameIs;
-
-        // get data from every table we're querying
-        $rows = array();
-        foreach ($archiveIds as $period => $ids) {
-            if (empty($ids)) {
-                throw new Exception("Unexpected: id archive not found for period '$period' '");
-            }
-            // $period = "2009-01-04,2009-01-04",
-            $date = Date::factory(substr($period, 0, 10));
-            if ($archiveDataType == 'numeric') {
-                $table = ArchiveTableCreator::getNumericTable($date);
-            } else {
-                $table = ArchiveTableCreator::getBlobTable($date);
-            }
-            $sql = sprintf($getValuesSql, $table, implode(',', $ids));
-            $dataRows = Db::fetchAll($sql, $bind);
-            foreach ($dataRows as $row) {
-                $rows[] = $row;
-            }
-        }
+        $Archive = Factory::getDAO('archive');
+        $rows = $Archive->getArchiveData(
+                    $archiveIds,
+                    $recordNames,
+                    $archiveDataType,
+                    $loadAllSubtables
+                );
 
         return $rows;
     }
@@ -301,42 +217,25 @@ class ArchiveSelector
      */
     protected static function deleteArchivesWithPeriodRange(Date $date)
     {
-        $query = "DELETE FROM %s WHERE period = ? AND ts_archived < ?";
-
-        $yesterday = Date::factory('yesterday')->getDateTime();
-        $bind = array(Piwik::$idPeriods['range'], $yesterday);
-        $numericTable = ArchiveTableCreator::getNumericTable($date);
-        Db::query(sprintf($query, $numericTable), $bind);
-        Piwik::log("Purging Custom Range archives: done [ purged archives older than $yesterday from $numericTable / blob ]");
-        try {
-            Db::query(sprintf($query, ArchiveTableCreator::getBlobTable($date)), $bind);
-        } catch (Exception $e) {
-            // Individual blob tables could be missing
-        }
+        $Archive = Factory::getDAO('archive');
+        $Archive->deleteByPeriodRange($date);
     }
 
     protected static function deleteArchiveIds(Date $date, $idArchivesToDelete)
     {
-        $query = "DELETE FROM %s WHERE idarchive IN (" . implode(',', $idArchivesToDelete) . ")";
-
-        Db::query(sprintf($query, ArchiveTableCreator::getNumericTable($date)));
-        try {
-            Db::query(sprintf($query, ArchiveTableCreator::getBlobTable($date)));
-        } catch (Exception $e) {
-            // Individual blob tables could be missing
-        }
+        $Archive = Factory::getDAO('archive');
+        $Archive->deleteByArchiveIds($date, $idArchivesToDelete);
     }
 
     protected static function getTemporaryArchiveIdsOlderThan(Date $date, $purgeArchivesOlderThan)
     {
-        $query = "SELECT idarchive
-                FROM " . ArchiveTableCreator::getNumericTable($date) . "
-                WHERE name LIKE 'done%'
-                    AND ((  value = " . ArchiveProcessor::DONE_OK_TEMPORARY . "
-                            AND ts_archived < ?)
-                         OR value = " . ArchiveProcessor::DONE_ERROR . ")";
-
-        $result = Db::fetchAll($query, array($purgeArchivesOlderThan));
+        $Archive = Factory::getDAO('archive');
+        $result = $Archive->getIdarchiveByValueTS(
+                    ArchiveTableCreator::getNumericTable($date),
+                    ArchiveProcessor::DONE_OK_TEMPORARY,
+                    ArchiveProcessor::DONE_ERROR,
+                    $purgeArchivesOlderThan
+                  );
         $idArchivesToDelete = array();
         if (!empty($result)) {
             foreach ($result as $row) {

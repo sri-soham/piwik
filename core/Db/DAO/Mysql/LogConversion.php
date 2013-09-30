@@ -13,6 +13,7 @@ namespace Piwik\Db\DAO\Mysql;
 use Piwik\Common;
 use Piwik\Db\DAO\Base;
 use Piwik\Db\Factory;
+use Piwik\Piwik;
 use Piwik\Tracker\GoalManager;
 
 /**

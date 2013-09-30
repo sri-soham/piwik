@@ -10,11 +10,16 @@
  */
 namespace Piwik\Db\DAO\Mysql;
 
+use Exception;
 use Piwik\ArchiveProcessor;
 use Piwik\Common;
 use Piwik\Config;
+use Piwik\Date;
+use Piwik\DataAccess\ArchiveSelector;
+use Piwik\DataAccess\ArchiveTableCreator;
 use Piwik\Db\Factory;
 use Piwik\Db\DAO\Base;
+use Piwik\Piwik;
 
 /**
  *  @package Piwik
@@ -76,6 +81,18 @@ class Archive extends Base
         foreach ($tables as $table) {
             $sql = 'DELETE FROM ' . $table .' WHERE idarchive IN ( '.implode(', ', $idarchives).' ) ';
             $this->db->query($sql);
+        }
+    }
+
+    public function deleteByArchiveIds(Date $date, $idArchivesToDelete)
+    {
+        $query = "DELETE FROM %s WHERE idarchive IN (" . implode(',', $idArchivesToDelete) . ")";
+
+        $this->db->query(sprintf($query, ArchiveTableCreator::getNumericTable($date)));
+        try {
+            $this->db->query(sprintf($query, ArchiveTableCreator::getBlobTable($date)));
+        } catch (Exception $e) {
+            // Individual blob tables could be missing
         }
     }
 
@@ -157,6 +174,7 @@ class Archive extends Base
             throw new Exception("loadNextIdArchive: Cannot get named lock for table $table");
         }
 
+        $idsite = (int)$idsite;
         $sql = "INSERT INTO $table "
              . '   SELECT IFNULL(MAX(idarchive),0)+1 '
              . "        , '$locked' "
@@ -177,46 +195,156 @@ class Archive extends Base
         $sql = 'SELECT idarchive FROM ' . $table . ' WHERE name = ? LIMIT 1';
         return $this->db->fetchOne($sql, array($name));
     }
-    
-    // this is for archive_numeric_* tables only
-    public function isArchived($table, $done, $doneAll, $minDate, $idSite, $date1, $date2, $period)
-    {
-        $DONE_OK = ArchiveProcessor::DONE_OK;
-        $DONE_OK_TEMPORARY = ArchiveProcessor::DONE_OK_TEMPORARY;
-
-        $bind = array($idSite, $date1, $date2, $period);
-
-        if ($done != $doneAll) {
-            $sqlSegmentsFindArchiveAllPlugins = " OR (name = '$doneAll' AND value = $DONE_OK ) "
-                                              . " OR (name = '$doneAll' AND value = $DONE_OK_TEMPORARY ) ";
-        }
-        else {
-            $sqlSegmentsFindArchiveAllPlugins = '';
-        }
-
-        if ($minDate) {
-            $timestampWhere = ' AND ts_archived >= ? ';
-            $bind[] = $minDate;
+   
+    // used for *_numeric tables
+    public function getArchiveIdAndVisits($table, \Piwik\Site $site,
+                                          \Piwik\Period $period, $minDatetime,
+                                          $sqlWhereArchiveName) {
+        $bind = array($site->getId(),
+                      $period->getDateStart()->toString('Y-m-d'),
+                      $period->getDateEnd()->toString('Y-m-d'),
+                      $period->getId()
+                );
+        if ($minDatetime) {
+            $timestampWhere = ' AND ts_archived >= ?';
+            $bind[] = Date::factory($minDatetime)->getDatetime();
         }
         else {
             $timestampWhere = '';
         }
 
         $startDate = $this->db->quoteIdentifier('startDate');
-        $sql = "SELECT idarchive, value, name, date1 AS $startDate "
-             . 'FROM ' . $table . ' '
-             . 'WHERE idsite = ? '
-             . '  AND date1 = ? '
-             . '  AND date2 = ? '
-             . '  AND period = ? '
-             . "  AND (   (name='$done' AND value=$DONE_OK) "
-             . "       OR (name='$done' AND value=$DONE_OK_TEMPORARY) "
-             . "       $sqlSegmentsFindArchiveAllPlugins "
-             . "       OR name = 'nb_visits' "
-             . '    ) '
-             . $timestampWhere
-             . ' ORDER BY idarchive DESC';
+        $sql = "SELECT idarchive, value, name, date1 AS $startDate
+                FROM $table
+                WHERE idsite = ?
+                  AND date1 = ?
+                  AND date2 = ?
+                  AND period = ?
+                  AND ( ($sqlWhereArchiveName)
+                        OR name = '" . ArchiveSelector::NB_VISITS_RECORD_LOOKED_UP ."'
+                        OR name = '" . ArchiveSelector::NB_VISITS_CONVERTED_RECORD_LOOKED_UP . "'
+                     )
+                  $timestampWhere
+                ORDER BY idarchive DESC";
         return $this->db->fetchAll($sql, $bind);
+    }
+
+    public function getArchiveIds($siteIds, $monthToPeriods, $nameCondition) {
+        $sql = "SELECT idsite, name, date1, date2, MAX(idarchive) as idarchive
+                FROM %s
+                WHERE period = ?
+                  AND %s
+                  AND {$nameCondition}
+                  AND idsite IN (" . implode(',', $siteIds) . ")
+                GROUP BY idsite, name, date1, date2";
+
+        // for every month within the archive query, select from numeric table
+        $result = array();
+        foreach ($monthToPeriods as $table => $periods) {
+            $firstPeriod = reset($periods);
+
+            // if looking for a range archive. NOTE: we assume there's only one period if its a range.
+            $bind = array($firstPeriod->getId());
+            if ($firstPeriod instanceof Range) {
+                $dateCondition = "date1 = ? AND date2 = ?";
+                $bind[] = $firstPeriod->getDateStart()->toString('Y-m-d');
+                $bind[] = $firstPeriod->getDateEnd()->toString('Y-m-d');
+            } else { // if looking for a normal period
+                $dateStrs = array();
+                foreach ($periods as $period) {
+                    $dateStrs[] = $period->getDateStart()->toString('Y-m-d');
+                }
+
+                $dateCondition = "date1 IN ('" . implode("','", $dateStrs) . "')";
+            }
+
+            $sql = sprintf($sql, $table, $dateCondition);
+
+            // get the archive IDs
+            foreach ($this->db->fetchAll($sql, $bind) as $row) {
+                $archiveName = $row['name'];
+
+                //FIXMEA duplicate with Archive.php
+                $dateStr = $row['date1'] . "," . $row['date2'];
+
+                $result[$archiveName][$dateStr][] = $row['idarchive'];
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Queries and returns archive data using a set of archive IDs.
+     *
+     * @param array $archiveIds The IDs of the archives to get data from.
+     * @param array $recordNames The names of the data to retrieve (ie, nb_visits, nb_actions, etc.)
+     * @param string $archiveDataType The archive data type (either, 'blob' or 'numeric').
+     * @param bool $loadAllSubtables Whether to pre-load all subtables
+     * @throws Exception
+     * @return array
+     */
+    public function getArchiveData($archiveIds, $recordNames, $archiveDataType, $loadAllSubtables)
+    {
+        // create the SQL to select archive data
+        $inNames = Common::getSqlStringFieldsArray($recordNames);
+        if ($loadAllSubtables) {
+            $name = reset($recordNames);
+
+            // select blobs w/ name like "$name_[0-9]+" w/o using RLIKE
+            $nameEnd = strlen($name) + 2;
+            $whereNameIs = "(name = ?
+                            OR (name LIKE ?
+                                 AND SUBSTRING(name, $nameEnd, 1) >= '0'
+                                 AND SUBSTRING(name, $nameEnd, 1) <= '9') )";
+            $bind = array($name, $name . '%');
+        } else {
+            $whereNameIs = "name IN ($inNames)";
+            $bind = array_values($recordNames);
+        }
+
+        $getValuesSql = "SELECT value, name, idsite, date1, date2, ts_archived
+                         FROM %s
+                         WHERE idarchive IN (%s)
+                           AND " . $whereNameIs;
+
+        // get data from every table we're querying
+        $rows = array();
+        foreach ($archiveIds as $period => $ids) {
+            if (empty($ids)) {
+                throw new Exception("Unexpected: id archive not found for period '$period' '");
+            }
+            // $period = "2009-01-04,2009-01-04",
+            $date = Date::factory(substr($period, 0, 10));
+            if ($archiveDataType == 'numeric') {
+                $table = ArchiveTableCreator::getNumericTable($date);
+            } else {
+                $table = ArchiveTableCreator::getBlobTable($date);
+            }
+            $sql = sprintf($getValuesSql, $table, implode(',', $ids));
+            $dataRows = $this->db->fetchAll($sql, $bind);
+            foreach ($dataRows as $row) {
+                $rows[] = $row;
+            }
+        }
+
+        return $rows;
+    }
+
+    public function deleteByPeriodRange(Date $date)
+    {
+        $query = "DELETE FROM %s WHERE period = ? AND ts_archived < ?";
+
+        $yesterday = Date::factory('yesterday')->getDateTime();
+        $bind = array(Piwik::$idPeriods['range'], $yesterday);
+        $numericTable = ArchiveTableCreator::getNumericTable($date);
+        $this->db->query(sprintf($query, $numericTable), $bind);
+        Piwik::log("Purging Custom Range archives: done [ purged archives older than $yesterday from $numericTable / blob ]");
+        try {
+            $this->db->query(sprintf($query, ArchiveTableCreator::getBlobTable($date)), $bind);
+        } catch (Exception $e) {
+            // Individual blob tables could be missing
+        }
     }
 
     public function createPartitionTable($tableName, $generatedTableName)

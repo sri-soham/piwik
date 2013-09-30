@@ -10,6 +10,7 @@
  */
 namespace Piwik\Db\DAO\Mysql;
 
+use Piwik\Piwik;
 use Piwik\Db\DAO\Base;
 
 /**
@@ -91,7 +92,7 @@ class Segment extends Base
                 ) DEFAULT CHARSET=utf8';
         try {
             $this->db->query($query);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             if (!$this->db->isErrNo($e, '1050')) {
                 throw $e;
             }

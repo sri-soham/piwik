@@ -40,7 +40,7 @@ class Segment extends \Piwik\Db\DAO\Mysql\Segment
                 )';
         try {
             $this->db->query($query);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             if (!$this->db->isErrNo($e, '1050')) {
                 throw $e;
             }

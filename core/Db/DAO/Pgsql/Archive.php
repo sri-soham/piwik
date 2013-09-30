@@ -12,6 +12,9 @@ namespace Piwik\Db\DAO\Pgsql;
 
 use Piwik\Common;
 use Piwik\Db\Schema;
+use Piwik\Date;
+use Piwik\DataAccess\ArchiveSelector;
+use Piwik\DataAccess\ArchiveTableCreator;
 use Piwik\Db\Factory;
 
 /**
@@ -53,7 +56,7 @@ class Archive extends \Piwik\Db\DAO\Mysql\Archive
         $Generic = Factory::getGeneric($this->db);
 
         if ($Generic->getDbLock($dbLockName) === false) {
-            throw new Exception('loadNextIdarchive: Cannot get lock on table '. $table);
+            throw new \Exception('loadNextIdarchive: Cannot get lock on table '. $table);
         }
 
         $sql = "INSERT INTO $table "
@@ -110,6 +113,65 @@ class Archive extends \Piwik\Db\DAO\Mysql\Archive
         return $this->binaryOutput($rows, true);
     }
 
+    /**
+     * Queries and returns archive data using a set of archive IDs.
+     *
+     * @param array $archiveIds The IDs of the archives to get data from.
+     * @param array $recordNames The names of the data to retrieve (ie, nb_visits, nb_actions, etc.)
+     * @param string $archiveDataType The archive data type (either, 'blob' or 'numeric').
+     * @param bool $loadAllSubtables Whether to pre-load all subtables
+     * @throws Exception
+     * @return array
+     */
+    public function getArchiveData($archiveIds, $recordNames, $archiveDataType, $loadAllSubtables)
+    {
+        // create the SQL to select archive data
+        $inNames = Common::getSqlStringFieldsArray($recordNames);
+        if ($loadAllSubtables) {
+            $name = reset($recordNames);
+
+            // select blobs w/ name like "$name_[0-9]+" w/o using RLIKE
+            $nameEnd = strlen($name) + 2;
+            $whereNameIs = "(name = ?
+                            OR (name LIKE ?
+                                 AND SUBSTRING(name FROM $nameEnd FOR 1) >= '0'
+                                 AND SUBSTRING(name FROM $nameEnd FOR 1) <= '9') )";
+            $bind = array($name, $name . '%');
+        } else {
+            $whereNameIs = "name IN ($inNames)";
+            $bind = array_values($recordNames);
+        }
+
+        $getValuesSql = "SELECT %s, name, idsite, date1, date2, ts_archived
+                         FROM %s
+                         WHERE idarchive IN (%s)
+                           AND " . $whereNameIs;
+
+        // get data from every table we're querying
+        $rows = array();
+        foreach ($archiveIds as $period => $ids) {
+            if (empty($ids)) {
+                throw new Exception("Unexpected: id archive not found for period '$period' '");
+            }
+            // $period = "2009-01-04,2009-01-04",
+            $date = Date::factory(substr($period, 0, 10));
+            if ($archiveDataType == 'numeric') {
+                $table = ArchiveTableCreator::getNumericTable($date);
+            } else {
+                $table = ArchiveTableCreator::getBlobTable($date);
+            }
+            $valueCol = $this->prepareForBinary($table);
+            $sql = sprintf($getValuesSql, $valueCol, $table, implode(',', $ids));
+            $dataRows = $this->db->fetchAll($sql, $bind);
+            $dataRows = $this->binaryOutput($dataRows, true);
+            foreach ($dataRows as $row) {
+                $rows[] = $row;
+            }
+        }
+
+        return $rows;
+    }
+
     public function insertRecord($tableName, $bind)
     {
         $Generic = Factory::getGeneric($this->db);
@@ -120,6 +182,7 @@ class Archive extends \Piwik\Db\DAO\Mysql\Archive
 
         if ($this->isBlob($tableName) && isset($bind['value'])) {
             $bind['value'] = $Generic->bin2db($bind['value']);
+            $bind['value'] = $this->namespaceToUnderscore($bind['value']);
         }
         $Generic->insertIgnore($sql, array_values($bind));
     }
@@ -139,7 +202,7 @@ class Archive extends \Piwik\Db\DAO\Mysql\Archive
         if ($this->isBlob($tableName) && $valueIndex !== false) {
             $Generic = Factory::getGeneric($this->db);
             while (list($k, $row) = each($values)) {
-                $values[$k][$valueIndex] = $Generic->bin2db($row[$valueIndex]);
+                $values[$k][$valueIndex] = $this->namespaceToUnderscore($Generic->bin2db($row[$valueIndex]));
             }
         }
         
@@ -173,12 +236,54 @@ class Archive extends \Piwik\Db\DAO\Mysql\Archive
         $rows = $this->db->fetchAll($sql);
 
         while (list($k, $row) = each($rows)) {
-            $rows[$k]['value'] = $this->Generic->db2bin($row['value_text']);
+            $rows[$k]['value'] = $this->underscoreToNamespace($this->Generic->db2bin($row['value_text']));
             unset($rows[$k]['value_text']);
         }
         reset($rows);
 
         return $rows;
+    }
+
+    // Used primarily for the test case setup
+    public function insertAll($rows)
+    {
+        $generic = Factory::getGeneric();
+        $rowsSql = array();
+        $isBlob = $this->isBlob($this->table);
+        foreach ($rows as $row) {
+            $values = array();
+            foreach ($row as $name => $value) {
+                if ($isBlob && $name === 'value') {
+                    if (is_null($value)) {
+                        $values[] = 'NULL';
+                    }
+                    else {
+                        $values[] = $this->namespaceToUnderscore($generic->bin2dbRawInsert($value));
+                    }
+                }
+                else {
+                    if (is_null($value)) {
+                        $values[] = 'NULL';
+                    }
+                    else if (is_numeric($value)) {
+                        $values[] = $value;
+                    }
+                    else if (!ctype_print($value)) {
+                        $values[] = $this->namespaceToUnderscore($generic->bin2dbRawInsert($value));
+                    }
+                    else if (is_bool($value)) {
+                        $values[] = $value ? '1' : '0';
+                    }
+                    else {
+                        $values[] = "'$value'";
+                    }
+                }
+            }
+            
+            $rowsSql[] = "(".implode(',', $values).")";
+        }
+        $sql = 'INSERT INTO ' . $this->table . ' VALUES ' . implode(',', $rowsSql);
+        $this->db->query($sql);
     }
 
     /**
@@ -254,13 +359,13 @@ class Archive extends \Piwik\Db\DAO\Mysql\Archive
             if ($is_array) {
                 while (list($k, $row) = each($rows))  {
                     if (isset($row['value'])) {
-                        $rows[$k]['value'] = $this->Generic->db2bin($row['value']);
+                        $rows[$k]['value'] = $this->underscoreToNamespace($this->Generic->db2bin($row['value']));
                     }
                 }
             }
             else {
                 if (isset($rows['value'])) {
-                    $rows['value'] = $this->Generic->db2bin($rows['value']);
+                    $rows['value'] = $this->underscoreToNamespace($this->Generic->db2bin($rows['value']));
                 }
             }
         }
@@ -306,4 +411,20 @@ class Archive extends \Piwik\Db\DAO\Mysql\Archive
             $this->db->query($sql, $bind);
         }
     }
+
+    // bytea column is not accepting values like Piwik\DataTable\Row
+    // this function converts the class with full namespace name to
+    // class name with underscores. Used while inserting data into the
+    // bytea column
+    protected function namespaceToUnderscore($className) {
+        return str_replace('\\', '_', $className);
+    }
+
+    // Used after retrieving data from bytea column. Converts the class name
+    // with underscores to class with namespace. 
+    // Ex. when 'Piwik_DataTable_Row' is input, output will be 'Piwik\DataTable\Row'
+    protected function underscoreToNamespace($className) {
+        return str_replace('_', '\\', $className);
+    }
+
 }

@@ -202,7 +202,7 @@ class Site extends Base
         $sql = 'ALTER TABLE ' . $this->table . ' ADD COLUMN feedburner_name VARCHAR(100) DEFAULT NULL';
         try {
             $this->db->exec($sql);
-        } catch(Exception $e) {
+        } catch(\Exception $e) {
             // mysql code error 1060: column already exists
             // if there is another error we throw the exception, otherwise it is OK as we are simply reinstalling the plugin
             if(!$this->db->isErrNo($e, '1060')) {

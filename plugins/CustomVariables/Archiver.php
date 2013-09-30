@@ -15,6 +15,7 @@ use Piwik\Config;
 use Piwik\DataAccess\LogAggregator;
 use Piwik\Metrics;
 use Piwik\DataArray;
+use Piwik\Db\Factory;
 use Piwik\Plugins\CustomVariables\API;
 use Piwik\Tracker;
 use Piwik\PluginsArchiver;
@@ -25,6 +26,8 @@ class Archiver extends PluginsArchiver
 {
     const LABEL_CUSTOM_VALUE_NOT_DEFINED = "Value not defined";
     const CUSTOM_VARIABLE_RECORD_NAME = 'CustomVariables_valueByName';
+
+    private $Generic;
 
     /**
      * @var DataArray
@@ -39,6 +42,7 @@ class Archiver extends PluginsArchiver
         parent::__construct($processor);
         $this->maximumRowsInDataTableLevelZero = Config::getInstance()->General['datatable_archiving_maximum_rows_custom_variables'];
         $this->maximumRowsInSubDataTable = Config::getInstance()->General['datatable_archiving_maximum_rows_subtable_custom_variables'];
+        $this->Generic = Factory::getGeneric();
     }
 
     public function archiveDay()
@@ -86,8 +90,9 @@ class Archiver extends PluginsArchiver
 
     protected function getSelectAveragePrice()
     {
-        return LogAggregator::getSqlRevenue("AVG(log_link_visit_action.custom_var_v2)")
-            . " as `" . Metrics::INDEX_ECOMMERCE_ITEM_PRICE_VIEWED . "`";
+        $col = $this->Generic->castToNumeric('log_link_visit_action.custom_var_v2');
+        return $this->Generic->getSqlRevenue("AVG($col)")
+            . " as " . \Zend_Registry::get('db')->quoteIdentifier(Metrics::INDEX_ECOMMERCE_ITEM_PRICE_VIEWED) . " ";
     }
 
     protected function aggregateFromVisits($query, $keyField, $valueField)

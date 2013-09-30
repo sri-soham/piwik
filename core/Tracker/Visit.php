@@ -660,21 +660,29 @@ class Visit implements Tracker\VisitInterface
             Common::printDebug("Visitor doesn't have the piwik cookie...");
         }
 
-        $timeLookBack = $this->getWindowLookupPreviousVisit();
+        list($timeLookBack, $timeLookAhead) = $this->getWindowLookupThisVisit();
 
         $shouldMatchOneFieldOnly = $this->shouldLookupOneVisitorFieldOnly($isVisitorIdToLookup);
 
 		$LogVisit = Factory::getDAO('log_visit', Tracker::getDatabase());
 		list($visitRow, $selectCustomVariables)
 			= $LogVisit->recognizeVisitor(
-				$this->customVariablesSetFromRequest,
+				$this->visitorCustomVariables,
 				$timeLookBack,
+                $timeLookAhead,
 				$shouldMatchOneFieldOnly,
 				$isVisitorIdToLookup ,
 				$this->request->getIdSite(),
 				$configId,
 				$this->visitorInfo['idvisitor']
 			);
+
+        $isNewVisitForced = $this->request->getParam('new_visit');
+        $isNewVisitForced = !empty($isNewVisitForced);
+        $newVisitEnforcedAPI = $isNewVisitForced
+            && ($this->request->isAuthenticated()
+                || !Config::getInstance()->Tracker['new_visit_api_requires_admin']);
+        $enforceNewVisit = $newVisitEnforcedAPI || Config::getInstance()->Debug['tracker_always_new_visitor'];
 
         if (!$enforceNewVisit
             && $visitRow

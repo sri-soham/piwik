@@ -242,7 +242,7 @@ class Generic extends \Piwik\Db\DAO\Generic
             $this->unlockAllTables();
             $granted = true;
         }
-        catch (Exception $ex) {
+        catch (\Exception $ex) {
             $granted = false;
         }
 

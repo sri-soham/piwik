@@ -118,7 +118,7 @@ class UserDashboard extends Base
                     PRIMARY KEY ( login , iddashboard )
                     )  DEFAULT CHARSET=utf8 " ;
             $this->db->exec($sql);
-        } catch(Exception $e) {
+        } catch(\Exception $e) {
             // mysql code error 1050:table already exists
             // see bug #153 http://dev.piwik.org/trac/ticket/153
             if (!$this->db->isErrNo($e, '1050')) {

@@ -102,15 +102,7 @@ class Controller extends \Piwik\Controller
 
     private function updateVisit($idVisit, $uaDetails)
     {
-        $q = "UPDATE " . Common::prefixTable("log_visit") . " SET " .
-            "config_browser_name = '" . $uaDetails['config_browser_name'] . "' ," .
-            "config_browser_version = '" . $uaDetails['config_browser_version'] . "' ," .
-            "config_os = '" . $uaDetails['config_os'] . "' ," .
-            "config_os_version = '" . $uaDetails['config_os_version'] . "' ," .
-            "config_device_type =  " . (isset($uaDetails['config_device_type']) ? "'" . $uaDetails['config_device_type'] . "'" : "NULL") . " ," .
-            "config_device_model = " . (isset($uaDetails['config_device_model']) ? "'" . $uaDetails['config_device_model'] . "'" : "NULL") . " ," .
-            "config_device_brand = " . (isset($uaDetails['config_device_brand']) ? "'" . $uaDetails['config_device_brand'] . "'" : "NULL") . "
-                    WHERE idvisit = " . $idVisit;
-        Db::query($q);
+        $LogVisit = \Piwik\Db\Factory::getDAO('log_visit');
+        $LogVisit->updateVisit($idVisit, $uaDetails);
     }
 }

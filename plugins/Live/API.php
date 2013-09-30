@@ -624,7 +624,7 @@ class API
      */
     private function enrichVisitorArrayWithActions($visitorDetailsArray, $actionsLimit, $timezone)
     {
-        $LogConversion = Factory::getDAO('log_conversion', Piwik_Tracker::getDatabase());
+        $LogConversion = Factory::getDAO('log_conversion', Tracker::getDatabase());
         $LogConversionItem = Factory::getDAO('log_conversion_item');
         $LogLinkVisitAction = Factory::getDAO('log_link_visit_action');
 

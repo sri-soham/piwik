@@ -63,7 +63,7 @@ class UserDashboard extends \Piwik\Db\DAO\Mysql\UserDashboard
                     PRIMARY KEY (login , iddashboard)
                     )" ;
             $this->db->exec($sql);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // postgresql code error 42P01: duplicate_table
             // see bug #153 http://dev.piwik.org/trac/ticket/153
             if ($e->getCode() != '42P01') {

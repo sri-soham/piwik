@@ -525,7 +525,6 @@ class PDFReports extends \Piwik\Plugin
     {
         $Report = Factory::getDAO('report');
         $Report->deleteByLogin($userLogin);
-        Db::query('DELETE FROM ' . Common::prefixTable('report') . ' WHERE login = ?', $userLogin);
     }
 
     public function install()

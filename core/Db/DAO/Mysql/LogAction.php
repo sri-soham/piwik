@@ -13,7 +13,7 @@ namespace Piwik\Db\DAO\Mysql;
 use Piwik\Common;
 use Piwik\Db\DAO\Base;
 use Piwik\Db\Factory;
-use Piwik\PrivacyManager\LogDataPurger;
+use Piwik\Plugins\PrivacyManager\LogDataPurger;
 use Piwik\Tracker\Action;
 
 /**
@@ -41,7 +41,7 @@ class LogAction extends Base
                 $sql .= "(name NOT LIKE CONCAT('%', ?, '%') AND type = $actionType )";
                 break;
             default:
-                throw new Exception("This match type is not available for action-segments.");
+                throw new \Exception("This match type is not available for action-segments.");
                 break;
         }
 
@@ -103,7 +103,7 @@ class LogAction extends Base
                 $urlPrefix = $normalizedUrls[$actionToInsert]['prefixId'];
             }
             $actionId = $this->add($name, $type, $urlPrefix);
-            printDebug("Recorded a new action (".Action::getActionTypeName($type).") in the lookup table: ". $name . " (idaction = ".$actionId.")");
+            Common::printDebug("Recorded a new action (".Action::getActionTypeName($type).") in the lookup table: ". $name . " (idaction = ".$actionId.")");
             
             $actionNamesAndTypes[$actionToInsert][] = $actionId;
         }

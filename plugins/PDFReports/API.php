@@ -130,7 +130,7 @@ class API
             $reportFormat,
             $parameters,
             $reports,
-            Piwik_Date::now()->getDatetime(),
+            Date::now()->getDatetime(),
             0
         );
 

@@ -11,6 +11,7 @@
 namespace Piwik\Db\DAO\Pgsql;
 
 use Piwik\Common;
+use Piwik\Config;
 use Piwik\Db\Factory;
 
 /**
@@ -33,7 +34,7 @@ class LogVisit extends \Piwik\Db\DAO\Mysql\LogVisit
         try {
             $this->db->exec($sql);
         }
-        catch (Exception $e) {
+        catch (\Exception $e) {
             if ($e->getCode() != '42701') {
                 throw $e;
             }
@@ -125,12 +126,12 @@ class LogVisit extends \Piwik\Db\DAO\Mysql\LogVisit
      *  @param int  $idVisitor
      *  @return array
      */
-    public function recognizeVisitor($customVariablesSet, $timeLookBack,
+    public function recognizeVisitor($customVariablesSet, $timeLookBack, $timeLookAhead,
                                      $shouldMatchOneFieldOnly, $matchVisitorId,
                                      $idSite, $configId, $idVisitor)
     {
         list($result, $customVariables) 
-            = parent::recognizeVisitor($customVariablesSet, $timeLookBack,
+            = parent::recognizeVisitor($customVariablesSet, $timeLookBack, $timeLookAhead,
                 $shouldMatchOneFieldOnly, $matchVisitorId, $idSite, $configId, $idVisitor
               );
 
@@ -175,5 +176,28 @@ class LogVisit extends \Piwik\Db\DAO\Mysql\LogVisit
         reset($rows);
 
         return $rows;
+    }
+
+    public function devicesDetectionInstall()
+    {
+// we catch the exception
+        try {
+            $q1 = "ALTER TABLE " . $this->table . "
+                ADD config_os_version VARCHAR(10) DEFAULT NULL ,
+                ADD config_device_type SMALLINT DEFAULT NULL ,
+                ADD config_device_brand VARCHAR(100) DEFAULT NULL ,
+                ADD config_device_model VARCHAR(100) DEFAULT NULL ";
+            $this->db->exec($q1);
+            // conditionaly add this column
+            if (@Config::getInstance()->Debug['store_user_agent_in_visit']) {
+                $q2 = "ALTER TABLE " . $this->table . "
+                ADD config_debug_ua VARCHAR(512) DEFAULT NULL ";
+                $this->db->exec($q2);
+            }
+        } catch (\Exception $e) {
+            if (!$this->db->isErrNo($e, '42701')) {
+                throw $e;
+            }
+        }
     }
 }

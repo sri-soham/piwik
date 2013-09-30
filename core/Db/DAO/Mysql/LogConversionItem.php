@@ -10,10 +10,10 @@
  */
 namespace Piwik\Db\DAO\Mysql;
 
-use Piwik\Archive;
 use Piwik\Common;
 use Piwik\Db\DAO\Base;
 use Piwik\Db\Factory;
+use Piwik\Metrics;
 use Piwik\Tracker\GoalManager;
 
 /**
@@ -57,14 +57,14 @@ class LogConversionItem extends Base
         return $this->db->fetchAll($sql, $bind);
     }
 
-    public function getEcommerceItems($field, $startTime, $endTime, $idsite)
+    public function getEcommerceItems($field, $bind)
     {
         $Generic = Factory::getGeneric($this->db);
-        $revenue = $this->db->quoteIdentifier(Archive::INDEX_ECOMMERCE_ITEM_REVENUE);
-        $quantity = $this->db->quoteIdentifier(Archive::INDEX_ECOMMERCE_ITEM_QUANTITY);
-        $price = $this->db->quoteIdentifier(Archive::INDEX_ECOMMERCE_ITEM_PRICE);
-        $orders = $this->db->quoteIdentifier(Archive::INDEX_ECOMMERCE_ORDERS);
-        $nb_visits = $this->db->quoteIdentifier(Archive::INDEX_NB_VISITS);
+        $revenue = $this->db->quoteIdentifier(Metrics::INDEX_ECOMMERCE_ITEM_REVENUE);
+        $quantity = $this->db->quoteIdentifier(Metrics::INDEX_ECOMMERCE_ITEM_QUANTITY);
+        $price = $this->db->quoteIdentifier(Metrics::INDEX_ECOMMERCE_ITEM_PRICE);
+        $orders = $this->db->quoteIdentifier(Metrics::INDEX_ECOMMERCE_ORDERS);
+        $nb_visits = $this->db->quoteIdentifier(Metrics::INDEX_NB_VISITS);
 
         $ecommerceType = $this->db->quoteIdentifier('ecommerceType');
 
@@ -88,7 +88,7 @@ class LogConversionItem extends Base
              . "  AND deleted = '0' "
              . "GROUP BY $ecommerceType, label, $field ";
 
-        return $this->db->query($sql, array($startTime, $endTime, $idsite));
+        return $this->db->query($sql, $bind);
     }
 
     /**
@@ -121,7 +121,7 @@ class LogConversionItem extends Base
                     AND (idorder = ? OR idorder = ?)';
         $bind = array($visit, $order1, $order2);
 
-        printDebug("Items found in current cart, for conversion_item (visit,idorder)=" . var_export($bind,true));
+        Common::printDebug("Items found in current cart, for conversion_item (visit,idorder)=" . var_export($bind,true));
         return $this->db->fetchAll($sql, $bind);
     }
 
@@ -138,7 +138,7 @@ class LogConversionItem extends Base
     public function updateByGoalAndItem($goal, $item)
     {
         $row = $this->getItemRowEnriched($goal, $item);
-        printDebug($row);
+        Common::printDebug($row);
 
         $updateParts = $sqlBind = array();
         foreach ($row as $name => $value) {
@@ -185,8 +185,8 @@ class LogConversionItem extends Base
         $sql .= implode(', ', $sql_parts);
         $this->db->query($sql, $bind);
 
-        printDebug($sql);
-        printDebug($bind);
+        Common::printDebug($sql);
+        Common::printDebug($bind);
     }
 
     public function getCountByIdvisit($idvisit)
@@ -199,7 +199,7 @@ class LogConversionItem extends Base
     {
         $Generic = Factory::getGeneric($this->db);
 
-        $class = 'Piwik_Tracker_GoalManager';
+        $class = '\\Piwik\\Tracker\\GoalManager';
         $newRow = array(
             'idaction_sku' => (int)$item[$class::INTERNAL_ITEM_SKU],
             'idaction_name' => (int)$item[$class::INTERNAL_ITEM_NAME],

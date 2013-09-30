@@ -23,6 +23,7 @@ use Piwik\Piwik;
 use Piwik\Common;
 use Piwik\DataTable;
 use Piwik\DataArray;
+use Piwik\Db\Factory;
 use Piwik\Plugins\Actions\Actions;
 use Piwik\Plugins\Actions\ArchivingHelper;
 use Piwik\RankingQuery;
@@ -40,10 +41,13 @@ class API
 
     static private $instance = null;
 
+    private $db;
+
     static public function getInstance()
     {
         if (self::$instance == null) {
             self::$instance = new self;
+            self::$instance->db = \Zend_Registry::get('db');
         }
         return self::$instance;
     }
@@ -275,7 +279,7 @@ class API
 					WHEN log_action1.type = ' . Action::TYPE_ACTION_URL . ' THEN log_action2.name
 					' /* following download or outlink: use url */ . '
 					ELSE log_action1.name
-				END AS `name`',
+				END AS ' . $this->db->quoteIdentifier('name'),
                 'CASE
                     ' /* following site search */ . '
 					WHEN log_link_visit_action.idaction_url IS NULL THEN log_action2.type
@@ -283,8 +287,8 @@ class API
 					WHEN log_action1.type = ' . Action::TYPE_ACTION_URL . ' THEN log_action2.type
 					' /* following download or outlink: use url */ . '
 					ELSE log_action1.type
-				END AS `type`',
-                'NULL AS `url_prefix`'
+				END AS ' . $this->db->quoteIdentifier('type'),
+                'NULL AS ' . $this->db->quoteIdentifier('url_prefix')
             );
         }
 
@@ -293,7 +297,8 @@ class API
         $types[Action::TYPE_OUTLINK] = 'outlinks';
         $types[Action::TYPE_DOWNLOAD] = 'downloads';
 
-        $rankingQuery = new RankingQuery($limitBeforeGrouping ? $limitBeforeGrouping : $this->limitBeforeGrouping);
+        $rankingQuery = Factory::getHelper('RankingQuery');
+        $rankingQuery->setLimit($limitBeforeGrouping ? $limitBeforeGrouping : $this->limitBeforeGrouping);
         $rankingQuery->addLabelColumn(array('name', 'url_prefix'));
         $rankingQuery->partitionResultIntoMultipleGroups('type', array_keys($types));
 
@@ -349,7 +354,8 @@ class API
      */
     public function queryExternalReferrers($idaction, $actionType, $logAggregator, $limitBeforeGrouping = false)
     {
-        $rankingQuery = new RankingQuery($limitBeforeGrouping ? $limitBeforeGrouping : $this->limitBeforeGrouping);
+        $rankingQuery = Factory::getHelper('RankingQuery');
+        $rankingQuery->setLimit($limitBeforeGrouping ? $limitBeforeGrouping : $this->limitBeforeGrouping);
 
         // we generate a single column that contains the interesting data for each referrer.
         // the reason we cannot group by referer_* becomes clear when we look at search engine keywords.
@@ -365,7 +371,7 @@ class API
 				WHEN ' . Common::REFERER_TYPE_SEARCH_ENGINE . ' THEN log_visit.referer_keyword
 				WHEN ' . Common::REFERER_TYPE_WEBSITE . ' THEN log_visit.referer_url
 				WHEN ' . Common::REFERER_TYPE_CAMPAIGN . ' THEN CONCAT(log_visit.referer_name, \' \', log_visit.referer_keyword)
-			END AS `referrer_data`');
+			END AS referrer_data');
 
         // get one limited group per referrer type
         $rankingQuery->partitionResultIntoMultipleGroups('referer_type', array(
@@ -422,7 +428,9 @@ class API
      */
     protected function queryInternalReferrers($idaction, $actionType, $logAggregator, $limitBeforeGrouping = false)
     {
-        $rankingQuery = new RankingQuery($limitBeforeGrouping ? $limitBeforeGrouping : $this->limitBeforeGrouping);
+        $rankingQuery = Factory::getHelper('RankingQuery');
+        $rankingQuery->setLimit($limitBeforeGrouping ? $limitBeforeGrouping : $this->limitBeforeGrouping);
+
         $rankingQuery->addLabelColumn(array('name', 'url_prefix'));
         $rankingQuery->setColumnToMarkExcludedRows('is_self');
         $rankingQuery->partitionResultIntoMultipleGroups('action_partition', array(0, 1, 2));
@@ -440,12 +448,12 @@ class API
         $selects = array(
             'log_action.name',
             'log_action.url_prefix',
-            'CASE WHEN log_link_visit_action.idaction_' . $type . '_ref = ' . intval($idaction) . ' THEN 1 ELSE 0 END AS `is_self`',
+            'CASE WHEN log_link_visit_action.idaction_' . $type . '_ref = ' . intval($idaction) . ' THEN 1 ELSE 0 END AS is_self',
             'CASE
                 WHEN log_action.type = ' . $mainActionType . ' THEN 1
                         WHEN log_action.type = ' . Action::TYPE_SITE_SEARCH . ' THEN 2
                         ELSE 0
-                    END AS `action_partition`'
+                    END AS action_partition'
         );
 
         $where = '

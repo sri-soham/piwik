@@ -14,6 +14,7 @@ use PDOStatement;
 use Piwik\Common;
 use Piwik\Metrics;
 use Piwik\Date;
+use Piwik\Db\Factory;
 use Piwik\Segment;
 use Piwik\Site;
 use Piwik\RankingQuery;
@@ -66,6 +67,8 @@ class LogAggregator
     /** @var \Piwik\Segment */
     protected $segment;
 
+    protected $db;
+
     /**
      * Constructor
      * @param Date $dateStart
@@ -79,6 +82,8 @@ class LogAggregator
         $this->dateEnd = $dateEnd;
         $this->segment = $segment;
         $this->site = $site;
+
+        $this->db = $this->getDb();
     }
 
     public function generateQuery($select, $from, $where, $groupBy, $orderBy)
@@ -122,7 +127,8 @@ class LogAggregator
 
     static public function getSqlRevenue($field)
     {
-        return "ROUND(" . $field . "," . GoalManager::REVENUE_PRECISION . ")";
+        $Generic = Factory::getGeneric();
+        return $Generic->getSqlRevenue($field);
     }
 
     /**
@@ -153,7 +159,7 @@ class LogAggregator
         $orderBy = false;
 
         if ($rankingQuery) {
-            $orderBy = '`' . Metrics::INDEX_NB_VISITS . '` DESC';
+            $orderBy = $this->db->quoteIdentifier(Metrics::INDEX_NB_VISITS) . ' DESC';
         }
         $query = $this->generateQuery($select, $from, $where, $groupBy, $orderBy);
 
@@ -169,7 +175,7 @@ class LogAggregator
             }
             return $rankingQuery->execute($query['sql'], $query['bind']);
         }
-        return $this->getDb()->query($query['sql'], $query['bind']);
+        return $this->db->query($query['sql'], $query['bind']);
     }
 
     protected function getSelectsMetrics($metricsAvailable, $metricsRequested = false)
@@ -280,7 +286,7 @@ class LogAggregator
 
     protected function getSelectAliasAs($metricId)
     {
-        return " AS `" . $metricId . "`";
+        return ' AS ' . $this->db->quoteIdentifier($metricId);
     }
 
     protected function isMetricRequested($metricId, $metricsRequested)
@@ -321,29 +327,8 @@ class LogAggregator
      */
     public function queryEcommerceItems($field)
     {
-        $query = "SELECT
-						name as label,
-						" . self::getSqlRevenue('SUM(quantity * price)') . " as `" . Metrics::INDEX_ECOMMERCE_ITEM_REVENUE . "`,
-						" . self::getSqlRevenue('SUM(quantity)') . " as `" . Metrics::INDEX_ECOMMERCE_ITEM_QUANTITY . "`,
-						" . self::getSqlRevenue('SUM(price)') . " as `" . Metrics::INDEX_ECOMMERCE_ITEM_PRICE . "`,
-						count(distinct idorder) as `" . Metrics::INDEX_ECOMMERCE_ORDERS . "`,
-						count(idvisit) as `" . Metrics::INDEX_NB_VISITS . "`,
-						case idorder when '0' then " . GoalManager::IDGOAL_CART . " else " . GoalManager::IDGOAL_ORDER . " end as ecommerceType
-			 	FROM " . Common::prefixTable('log_conversion_item') . "
-			 		LEFT JOIN " . Common::prefixTable('log_action') . "
-			 		ON $field = idaction
-			 	WHERE server_time >= ?
-						AND server_time <= ?
-			 			AND idsite = ?
-			 			AND deleted = 0
-			 	GROUP BY ecommerceType, $field
-				ORDER BY null";
-        // Segment not supported yet
-        // $query = $this->query($select, $from, $where, $groupBy, $orderBy);
-
-        $bind = $this->getBindDatetimeSite();
-        $query = $this->getDb()->query($query, $bind);
-        return $query;
+        $LogConversionItem = Factory::getDAO('log_conversion_item');
+        return $LogConversionItem->getEcommerceItems($field, $this->getBindDatetimeSite());
     }
 
     /**
@@ -394,7 +379,7 @@ class LogAggregator
         }
 
         if ($rankingQuery) {
-            $orderBy = '`' . Metrics::INDEX_NB_ACTIONS . '` DESC';
+            $orderBy =  $this->db->quoteIdentifier(Metrics::INDEX_NB_ACTIONS) . ' DESC';
         }
 
         $query = $this->generateQuery($select, $from, $where, $groupBy, $orderBy);
@@ -408,7 +393,7 @@ class LogAggregator
             return $rankingQuery->execute($query['sql'], $query['bind']);
         }
 
-        return $this->getDb()->query($query['sql'], $query['bind']);
+        return $this->db->query($query['sql'], $query['bind']);
     }
 
     protected function getActionsMetricFields()
@@ -441,7 +426,7 @@ class LogAggregator
         $groupBy = $this->getGroupByStatement($dimensions, $tableName);
         $orderBy = false;
         $query = $this->generateQuery($select, $from, $where, $groupBy, $orderBy);
-        return $this->getDb()->query($query['sql'], $query['bind']);
+        return $this->db->query($query['sql'], $query['bind']);
     }
 
     /**
@@ -458,6 +443,8 @@ class LogAggregator
     {
         @list($column, $ranges, $table, $selectColumnPrefix, $restrictToReturningVisitors) = $metadata;
 
+        $db = \Zend_Registry::get('db');
+
         $selects = array();
         $extraCondition = '';
         if ($restrictToReturningVisitors) {
@@ -465,7 +452,7 @@ class LogAggregator
             // when creating the 'days since last visit' report
             $extraCondition = 'and log_visit.visitor_returning = 1';
             $extraSelect = "sum(case when log_visit.visitor_returning = 0 then 1 else 0 end) "
-                . " as `" . $selectColumnPrefix . 'General_NewVisits' . "`";
+                . " as " . $db->quoteIdentifier($selectColumnPrefix . 'General_NewVisits') . " ";
             $selects[] = $extraSelect;
         }
         foreach ($ranges as $gap) {
@@ -473,16 +460,16 @@ class LogAggregator
                 $lowerBound = $gap[0];
                 $upperBound = $gap[1];
 
-                $selectAs = "$selectColumnPrefix$lowerBound-$upperBound";
+                $selectAs = $db->quoteIdentifier("$selectColumnPrefix$lowerBound-$upperBound");
 
                 $selects[] = "sum(case when $table.$column between $lowerBound and $upperBound $extraCondition" .
-                    " then 1 else 0 end) as `$selectAs`";
+                    " then 1 else 0 end) as $selectAs";
             } else {
                 $lowerBound = $gap[0];
 
-                $selectAs = $selectColumnPrefix . ($lowerBound + 1) . urlencode('+');
+                $selectAs = $db->quoteIdentifier($selectColumnPrefix . ($lowerBound + 1) . urlencode('+'));
 
-                $selects[] = "sum(case when $table.$column > $lowerBound $extraCondition then 1 else 0 end) as `$selectAs`";
+                $selects[] = "sum(case when $table.$column > $lowerBound $extraCondition then 1 else 0 end) as $selectAs";
             }
         }
 

@@ -15,6 +15,7 @@ use Piwik\DataTable\Manager;
 use Piwik\DataTable\Row\DataTableSummaryRow;
 use Piwik\Metrics;
 use Piwik\DataTable;
+use Piwik\Db\Factory;
 use Piwik\RankingQuery;
 use Piwik\PluginsArchiver;
 use Piwik\Tracker\Action;
@@ -79,11 +80,13 @@ class Archiver extends PluginsArchiver
     );
     protected $actionsTablesByType = null;
     protected $isSiteSearchEnabled = false;
+    protected $db;
 
     function __construct($processor)
     {
         parent::__construct($processor);
         $this->isSiteSearchEnabled = $processor->getSite()->isSiteSearchEnabled();
+        $this->db = \Zend_Registry::get('db');
     }
 
     /**
@@ -177,29 +180,31 @@ class Archiver extends PluginsArchiver
 
     protected function archiveDayActions($rankingQueryLimit)
     {
+        $Generic = Factory::getGeneric();
+
         $select = "log_action.name,
 				log_action.type,
 				log_action.idaction,
 				log_action.url_prefix,
-				count(distinct log_link_visit_action.idvisit) as `" . Metrics::INDEX_NB_VISITS . "`,
-				count(distinct log_link_visit_action.idvisitor) as `" . Metrics::INDEX_NB_UNIQ_VISITORS . "`,
-				count(*) as `" . Metrics::INDEX_PAGE_NB_HITS . "`,
+				count(distinct log_link_visit_action.idvisit) as " . $this->db->quoteIdentifier(Metrics::INDEX_NB_VISITS) . ",
+				count(distinct log_link_visit_action.idvisitor) as " . $this->db->quoteIdentifier(Metrics::INDEX_NB_UNIQ_VISITORS) . ",
+				count(*) as " . $this->db->quoteIdentifier(Metrics::INDEX_PAGE_NB_HITS) . ",
 				sum(
 					case when " . Action::DB_COLUMN_TIME_GENERATION . " is null
 						then 0
 						else " . Action::DB_COLUMN_TIME_GENERATION . "
 					end
-				) / 1000 as `" . Metrics::INDEX_PAGE_SUM_TIME_GENERATION . "`,
+				) / 1000 as " . $this->db->quoteIdentifier(Metrics::INDEX_PAGE_SUM_TIME_GENERATION) . ",
 				sum(
 					case when " . Action::DB_COLUMN_TIME_GENERATION . " is null
 						then 0
 						else 1
 					end
-				) as `" . Metrics::INDEX_PAGE_NB_HITS_WITH_TIME_GENERATION . "`,
+				) as " . $this->db->quoteIdentifier(Metrics::INDEX_PAGE_NB_HITS_WITH_TIME_GENERATION) . ",
 				min(" . Action::DB_COLUMN_TIME_GENERATION . ") / 1000
-				    as `" . Metrics::INDEX_PAGE_MIN_TIME_GENERATION . "`,
+				    as " . $this->db->quoteIdentifier(Metrics::INDEX_PAGE_MIN_TIME_GENERATION) . ",
 				max(" . Action::DB_COLUMN_TIME_GENERATION . ") / 1000
-                    as `" . Metrics::INDEX_PAGE_MAX_TIME_GENERATION . "`
+                    as " . $this->db->quoteIdentifier(Metrics::INDEX_PAGE_MAX_TIME_GENERATION) . "
 				";
 
         $from = array(
@@ -216,11 +221,12 @@ class Archiver extends PluginsArchiver
 				AND log_link_visit_action.%s IS NOT NULL";
 
         $groupBy = "log_action.idaction";
-        $orderBy = "`" . Metrics::INDEX_PAGE_NB_HITS . "` DESC, name ASC";
+        $orderBy = $this->db->quoteIdentifier(Metrics::INDEX_PAGE_NB_HITS) . " DESC, name ASC";
 
         $rankingQuery = false;
         if ($rankingQueryLimit > 0) {
-            $rankingQuery = new RankingQuery($rankingQueryLimit);
+            $rankingQuery = Factory::getHelper('RankingQuery');
+            $rankingQuery->setLimit($rankingQueryLimit);
             $rankingQuery->setOthersLabel(DataTable::LABEL_SUMMARY_ROW);
             $rankingQuery->addLabelColumn(array('idaction', 'name'));
             $rankingQuery->addColumn(array('url_prefix', Metrics::INDEX_NB_UNIQ_VISITORS));
@@ -240,8 +246,13 @@ class Archiver extends PluginsArchiver
         // 1) No result Keywords
         // 2) For each page view, count number of times the referrer page was a Site Search
         if ($this->isSiteSearchEnabled()) {
+            $max_col = $Generic->castToNumeric('log_link_visit_action.custom_var_v' . Action::CVAR_INDEX_SEARCH_COUNT);
             $selectFlagNoResultKeywords = ",
-				CASE WHEN (MAX(log_link_visit_action.custom_var_v" . Action::CVAR_INDEX_SEARCH_COUNT . ") = 0 AND log_link_visit_action.custom_var_k" . Action::CVAR_INDEX_SEARCH_COUNT . " = '" . Action::CVAR_KEY_SEARCH_COUNT . "') THEN 1 ELSE 0 END AS `" . Metrics::INDEX_SITE_SEARCH_HAS_NO_RESULT . "`";
+				CASE WHEN (MAX($max_col) = 0
+                      AND MAX(log_link_visit_action.custom_var_k" . Action::CVAR_INDEX_SEARCH_COUNT . ") = '" . Action::CVAR_KEY_SEARCH_COUNT . "')
+                  THEN 1 
+                  ELSE 0
+                END AS " . $this->db->quoteIdentifier(Metrics::INDEX_SITE_SEARCH_HAS_NO_RESULT);
 
             //we need an extra JOIN to know whether the referrer "idaction_name_ref" was a Site Search request
             $from[] = array(
@@ -251,7 +262,7 @@ class Archiver extends PluginsArchiver
             );
 
             $selectSiteSearchFollowingPages = ",
-				SUM(CASE WHEN log_action_name_ref.type = " . Action::TYPE_SITE_SEARCH . " THEN 1 ELSE 0 END) AS `" . Metrics::INDEX_PAGE_IS_FOLLOWING_SITE_SEARCH_NB_HITS . "`";
+				SUM(CASE WHEN log_action_name_ref.type = " . Action::TYPE_SITE_SEARCH . " THEN 1 ELSE 0 END) AS " . $this->db->quoteIdentifier(Metrics::INDEX_PAGE_IS_FOLLOWING_SITE_SEARCH_NB_HITS). " ";
 
             $select .= $selectFlagNoResultKeywords
                 . $selectSiteSearchFollowingPages;
@@ -298,7 +309,8 @@ class Archiver extends PluginsArchiver
     {
         $rankingQuery = false;
         if ($rankingQueryLimit > 0) {
-            $rankingQuery = new RankingQuery($rankingQueryLimit);
+            $rankingQuery = Factory::getHelper('RankingQuery');
+            $rankingQuery->setLimit($rankingQueryLimit);
             $rankingQuery->setOthersLabel(DataTable::LABEL_SUMMARY_ROW);
             $rankingQuery->addLabelColumn('idaction');
             $rankingQuery->addColumn(Metrics::INDEX_PAGE_ENTRY_NB_UNIQ_VISITORS);
@@ -316,7 +328,7 @@ class Archiver extends PluginsArchiver
                     "joinOn" => "log_visit.%s = log_action.idaction"
                 )
             );
-            $orderBy = "`" . Metrics::INDEX_PAGE_ENTRY_NB_ACTIONS . "` DESC, log_action.name ASC";
+            $orderBy = $this->db->quoteIdentifier(Metrics::INDEX_PAGE_ENTRY_NB_ACTIONS) . " DESC, log_action.name ASC";
         } else {
             $extraSelects = false;
             $from = "log_visit";
@@ -324,11 +336,11 @@ class Archiver extends PluginsArchiver
         }
 
         $select = "log_visit.%s as idaction, $extraSelects
-				count(distinct log_visit.idvisitor) as `" . Metrics::INDEX_PAGE_ENTRY_NB_UNIQ_VISITORS . "`,
-				count(*) as `" . Metrics::INDEX_PAGE_ENTRY_NB_VISITS . "`,
-				sum(log_visit.visit_total_actions) as `" . Metrics::INDEX_PAGE_ENTRY_NB_ACTIONS . "`,
-				sum(log_visit.visit_total_time) as `" . Metrics::INDEX_PAGE_ENTRY_SUM_VISIT_LENGTH . "`,
-				sum(case log_visit.visit_total_actions when 1 then 1 when 0 then 1 else 0 end) as `" . Metrics::INDEX_PAGE_ENTRY_BOUNCE_COUNT . "`";
+				count(distinct log_visit.idvisitor) as " . $this->db->quoteIdentifier(Metrics::INDEX_PAGE_ENTRY_NB_UNIQ_VISITORS) . ",
+				count(*) as " . $this->db->quoteIdentifier(Metrics::INDEX_PAGE_ENTRY_NB_VISITS) . ",
+				sum(log_visit.visit_total_actions) as " . $this->db->quoteIdentifier(Metrics::INDEX_PAGE_ENTRY_NB_ACTIONS) . ",
+				sum(log_visit.visit_total_time) as " . $this->db->quoteIdentifier(Metrics::INDEX_PAGE_ENTRY_SUM_VISIT_LENGTH) . ",
+				sum(case log_visit.visit_total_actions when 1 then 1 when 0 then 1 else 0 end) as " . $this->db->quoteIdentifier(Metrics::INDEX_PAGE_ENTRY_BOUNCE_COUNT) . " ";
 
         $where = "log_visit.visit_last_action_time >= ?
 				AND log_visit.visit_last_action_time <= ?
@@ -349,7 +361,8 @@ class Archiver extends PluginsArchiver
     {
         $rankingQuery = false;
         if ($rankingQueryLimit > 0) {
-            $rankingQuery = new RankingQuery($rankingQueryLimit);
+            $rankingQuery = Factory::getHelper('RankingQuery');
+            $rankingQuery->setLimit($rankingQueryLimit);
             $rankingQuery->setOthersLabel(DataTable::LABEL_SUMMARY_ROW);
             $rankingQuery->addLabelColumn('idaction');
             $rankingQuery->addColumn(Metrics::INDEX_PAGE_EXIT_NB_UNIQ_VISITORS);
@@ -364,7 +377,7 @@ class Archiver extends PluginsArchiver
                     "joinOn" => "log_visit.%s = log_action.idaction"
                 )
             );
-            $orderBy = "`" . Metrics::INDEX_PAGE_EXIT_NB_VISITS . "` DESC, log_action.name ASC";
+            $orderBy = $this->db->quoteIdentifier(Metrics::INDEX_PAGE_EXIT_NB_VISITS) . " DESC, log_action.name ASC";
         } else {
             $extraSelects = false;
             $from = "log_visit";
@@ -372,8 +385,8 @@ class Archiver extends PluginsArchiver
         }
 
         $select = "log_visit.%s as idaction, $extraSelects
-				count(distinct log_visit.idvisitor) as `" . Metrics::INDEX_PAGE_EXIT_NB_UNIQ_VISITORS . "`,
-				count(*) as `" . Metrics::INDEX_PAGE_EXIT_NB_VISITS . "`";
+				count(distinct log_visit.idvisitor) as " . $this->db->quoteIdentifier(Metrics::INDEX_PAGE_EXIT_NB_UNIQ_VISITORS) . ",
+				count(*) as " . $this->db->quoteIdentifier(Metrics::INDEX_PAGE_EXIT_NB_VISITS) . " ";
 
         $where = "log_visit.visit_last_action_time >= ?
 				AND log_visit.visit_last_action_time <= ?
@@ -395,13 +408,14 @@ class Archiver extends PluginsArchiver
     {
         $rankingQuery = false;
         if ($rankingQueryLimit > 0) {
-            $rankingQuery = new RankingQuery($rankingQueryLimit);
+            $rankingQuery = Factory::getHelper('RankingQuery');
+            $rankingQuery->setLimit($rankingQueryLimit);
             $rankingQuery->setOthersLabel(DataTable::LABEL_SUMMARY_ROW);
             $rankingQuery->addLabelColumn('idaction');
             $rankingQuery->addColumn(Metrics::INDEX_PAGE_SUM_TIME_SPENT, 'sum');
             $rankingQuery->partitionResultIntoMultipleGroups('type', array_keys($this->actionsTablesByType));
 
-            $extraSelects = "log_action.type, log_action.name, count(*) as `" . Metrics::INDEX_PAGE_NB_HITS . "`,";
+            $extraSelects = "log_action.type, log_action.name, count(*) as " . $this->db->quoteIdentifier(Metrics::INDEX_PAGE_NB_HITS) . ",";
             $from = array(
                 "log_link_visit_action",
                 array(
@@ -409,7 +423,7 @@ class Archiver extends PluginsArchiver
                     "joinOn" => "log_link_visit_action.%s = log_action.idaction"
                 )
             );
-            $orderBy = "`" . Metrics::INDEX_PAGE_NB_HITS . "` DESC, log_action.name ASC";
+            $orderBy = $this->db->quoteIdentifier(Metrics::INDEX_PAGE_NB_HITS) . " DESC, log_action.name ASC";
         } else {
             $extraSelects = false;
             $from = "log_link_visit_action";
@@ -417,7 +431,7 @@ class Archiver extends PluginsArchiver
         }
 
         $select = "log_link_visit_action.%s as idaction, $extraSelects
-				sum(log_link_visit_action.time_spent_ref_action) as `" . Metrics::INDEX_PAGE_SUM_TIME_SPENT . "`";
+				sum(log_link_visit_action.time_spent_ref_action) as " . $this->db->quoteIdentifier(Metrics::INDEX_PAGE_SUM_TIME_SPENT) . " ";
 
         $where = "log_link_visit_action.server_time >= ?
 				AND log_link_visit_action.server_time <= ?
