@@ -851,7 +851,7 @@ class Common
     public static function dummyWhenNotNumeric($string)
     {
         # remove all digits
-        $result = preg_replace('/\d+/', '', $string);
+        $result = preg_replace('/[0-9.+\-]/', '', $string);
         if (strlen($result) == 0) {
             return $string;
         }

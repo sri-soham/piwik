@@ -371,7 +371,7 @@ class API
 				WHEN ' . Common::REFERER_TYPE_SEARCH_ENGINE . ' THEN log_visit.referer_keyword
 				WHEN ' . Common::REFERER_TYPE_WEBSITE . ' THEN log_visit.referer_url
 				WHEN ' . Common::REFERER_TYPE_CAMPAIGN . ' THEN CONCAT(log_visit.referer_name, \' \', log_visit.referer_keyword)
-			END AS referrer_data');
+			END AS ' . $this->db->quoteIdentifier('referrer_data'));
 
         // get one limited group per referrer type
         $rankingQuery->partitionResultIntoMultipleGroups('referer_type', array(
@@ -448,12 +448,12 @@ class API
         $selects = array(
             'log_action.name',
             'log_action.url_prefix',
-            'CASE WHEN log_link_visit_action.idaction_' . $type . '_ref = ' . intval($idaction) . ' THEN 1 ELSE 0 END AS is_self',
+            'CASE WHEN log_link_visit_action.idaction_' . $type . '_ref = ' . intval($idaction) . ' THEN 1 ELSE 0 END AS ' . $this->db->quoteIdentifier('is_self'),
             'CASE
                 WHEN log_action.type = ' . $mainActionType . ' THEN 1
                         WHEN log_action.type = ' . Action::TYPE_SITE_SEARCH . ' THEN 2
                         ELSE 0
-                    END AS action_partition'
+                    END AS ' . $this->db->quoteIdentifier('action_partition')
         );
 
         $where = '

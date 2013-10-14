@@ -89,7 +89,7 @@ class API
         Piwik::checkUserHasViewAccess($idSite);
         $lastMinutes = (int)$lastMinutes;
 
-        $visitsConverted = Zend_Registry::get('db')->quoteIdentifier('visitsConverted');
+        $visitsConverted = \Zend_Registry::get('db')->quoteIdentifier('visitsConverted');
         $select = "count(*) as visits,
                 SUM(log_visit.visit_total_actions) as actions,
                 SUM(log_visit.visit_goal_converted) as $visitsConverted,

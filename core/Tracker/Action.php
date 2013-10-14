@@ -557,7 +557,7 @@ class Action implements ActionInterface
             $this->request->getIdSite(),
             $visitorIdCookie,
             Tracker::getDatetimeFromTimestamp($this->request->getCurrentTimestamp()),
-            (int)$this->getIdActionUrl(),
+            $this->getIdActionUrl(),
             $idActionName,
             $idRefererActionUrl,
             $idRefererActionName,
