@@ -16,6 +16,7 @@ use Piwik\Metrics;
 use Piwik\Date;
 use Piwik\ArchiveProcessor\Rules;
 use Piwik\DataAccess\ArchiveSelector;
+use Zend_Registry;
 
 /**
  * The archive object is used to query specific data for a day or a period of statistics for a given website.
@@ -585,7 +586,10 @@ class Archive
 
     private function uncompress($data)
     {
-        return @gzuncompress($data);
+        if (Zend_Registry::get('db')->hasBlobDataType()) {
+            return @gzuncompress($data);
+        }
+        return $data;
     }
 
     /**

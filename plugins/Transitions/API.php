@@ -250,11 +250,13 @@ class API
         if (!$isTitle) {
             // specific setup for page urls
             $types[Action::TYPE_ACTION_URL] = 'followingPages';
-            $dimension = 'IF( idaction_url IS NULL, idaction_name, idaction_url )';
+            //$dimension = 'IF( idaction_url IS NULL, idaction_name, idaction_url )';
+            $dimension = 'COALESCE(idaction_url, idaction_name)';
             // site search referrers are logged with url=NULL
             // when we find one, we have to join on name
             $joinLogActionColumn = $dimension;
             $selects = array('log_action.name', 'log_action.url_prefix', 'log_action.type');
+            $groupBy = implode(', ', $selects);
         } else {
             // specific setup for page titles:
             $types[Action::TYPE_ACTION_NAME] = 'followingPages';
@@ -290,6 +292,9 @@ class API
 				END AS ' . $this->db->quoteIdentifier('type'),
                 'NULL AS ' . $this->db->quoteIdentifier('url_prefix')
             );
+            $groupBy = $this->db->quoteIdentifier('name') . ', ' .
+                       $this->db->quoteIdentifier('type') . ', ' .
+                       $this->db->quoteIdentifier('url_prefix');
         }
 
         // these types are available for both titles and urls
@@ -299,6 +304,7 @@ class API
 
         $rankingQuery = Factory::getHelper('RankingQuery');
         $rankingQuery->setLimit($limitBeforeGrouping ? $limitBeforeGrouping : $this->limitBeforeGrouping);
+        $rankingQuery->setOthersLabel('-1');
         $rankingQuery->addLabelColumn(array('name', 'url_prefix'));
         $rankingQuery->partitionResultIntoMultipleGroups('type', array_keys($types));
 
@@ -310,7 +316,7 @@ class API
         }
 
         $metrics = array(Metrics::INDEX_NB_ACTIONS);
-        $data = $logAggregator->queryActionsByDimension(array($dimension), $where, $selects, $metrics, $rankingQuery, $joinLogActionColumn);
+        $data = $logAggregator->queryActionsByDimension(array($dimension), $where, $selects, $metrics, $rankingQuery, $joinLogActionColumn, $groupBy);
 
         $this->totalTransitionsToFollowingActions = 0;
         $dataTables = array();
@@ -430,6 +436,7 @@ class API
     {
         $rankingQuery = Factory::getHelper('RankingQuery');
         $rankingQuery->setLimit($limitBeforeGrouping ? $limitBeforeGrouping : $this->limitBeforeGrouping);
+        $rankingQuery->setOthersLabel('-1');
 
         $rankingQuery->addLabelColumn(array('name', 'url_prefix'));
         $rankingQuery->setColumnToMarkExcludedRows('is_self');
@@ -458,17 +465,20 @@ class API
 
         $where = '
 			log_link_visit_action.idaction_' . $type . ' = ' . intval($idaction);
-
+        $groupBy = 'log_action.name, log_action.url_prefix, ' . 
+                   $this->db->quoteIdentifier('is_self') . ', ' .
+                   $this->db->quoteIdentifier('action_partition');
         if ($dimension == 'idaction_url_ref') {
             // site search referrers are logged with url_ref=NULL
             // when we find one, we have to join on name_ref
-            $dimension = 'IF( idaction_url_ref IS NULL, idaction_name_ref, idaction_url_ref )';
+            //$dimension = 'IF( idaction_url_ref IS NULL, idaction_name_ref, idaction_url_ref )';
+            $dimension = 'COALESCE(idaction_url_ref, idaction_name_ref)';
             $joinLogActionOn = $dimension;
         } else {
             $joinLogActionOn = $dimension;
         }
         $metrics = array(Metrics::INDEX_NB_ACTIONS);
-        $data = $logAggregator->queryActionsByDimension(array($dimension), $where, $selects, $metrics, $rankingQuery, $joinLogActionOn);
+        $data = $logAggregator->queryActionsByDimension(array($dimension), $where, $selects, $metrics, $rankingQuery, $joinLogActionOn, $groupBy);
 
         $loops = 0;
         $nbPageviews = 0;

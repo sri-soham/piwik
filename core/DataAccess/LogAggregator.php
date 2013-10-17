@@ -343,9 +343,10 @@ class LogAggregator
      * @param bool|string $joinLogActionOnColumn  column from log_link_visit_action that
      *                                              log_action should be joined on.
      *                                                can be an array to join multiple times.
+     * @param bool|string $extraGroupBy columns to be added to the "group by" clause
      * @return mixed
      */
-    public function queryActionsByDimension($dimensions, $where = '', $additionalSelects = array(), $metrics = false, $rankingQuery = null, $joinLogActionOnColumn = false)
+    public function queryActionsByDimension($dimensions, $where = '', $additionalSelects = array(), $metrics = false, $rankingQuery = null, $joinLogActionOnColumn = false, $extraGroupBy = false)
     {
         $tableName = self::LOG_ACTIONS_TABLE;
         $availableMetrics = $this->getActionsMetricFields();
@@ -354,6 +355,9 @@ class LogAggregator
         $from = array($tableName);
         $where = $this->getWhereStatement($tableName, self::ACTION_DATETIME_FIELD, $where);
         $groupBy = $this->getGroupByStatement($dimensions, $tableName);
+        if ($extraGroupBy !== false) {
+            $groupBy .= ', ' . trim($extraGroupBy, ', ');
+        }
         $orderBy = false;
 
         if ($joinLogActionOnColumn !== false) {

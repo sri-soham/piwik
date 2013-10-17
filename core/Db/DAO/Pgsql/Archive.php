@@ -417,14 +417,36 @@ class Archive extends \Piwik\Db\DAO\Mysql\Archive
     // class name with underscores. Used while inserting data into the
     // bytea column
     protected function namespaceToUnderscore($className) {
-        return str_replace('\\', '_', $className);
+        $count = preg_match_all('/Piwik\\\[^"]*"/', $className, $piwikClasses);
+        if ($count > 0) {
+            $find = $piwikClasses[0];
+            $replace = array();
+            foreach ($find as &$f) {
+                $f = trim($f, '"');
+                $replace[] = str_replace('\\', '_', $f);
+            }
+            $className = str_replace($find, $replace, $className);
+        }
+        return $className;
     }
 
     // Used after retrieving data from bytea column. Converts the class name
     // with underscores to class with namespace. 
     // Ex. when 'Piwik_DataTable_Row' is input, output will be 'Piwik\DataTable\Row'
     protected function underscoreToNamespace($className) {
-        return str_replace('_', '\\', $className);
+        $count = preg_match_all('/Piwik_[^"]*"/', $className, $piwikClasses);
+        if ($count > 0) {
+            $find = $piwikClasses[0];
+            $replace = array();
+            foreach ($find as $f) {
+                // piwikClasses will have trailing " because of the regex pattern.
+                // Piwik_DataTable_Row"
+                $f = trim($f, '"');
+                $replace[] = str_replace('_', '\\', $f);
+            }
+            $className = str_replace($find, $replace, $className);
+        }
+        return $className;
     }
 
 }

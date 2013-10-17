@@ -348,6 +348,9 @@ class Archiver extends PluginsArchiver
 		 		AND log_visit.%s > 0";
 
         $groupBy = "log_visit.%s, idaction";
+        if ($extraSelects) {
+            $groupBy .= ', ' . trim($extraSelects, ', ');
+        }
 
         $this->archiveDayQueryProcess($select, $from, $where, $orderBy, $groupBy, "visit_entry_idaction_url", $rankingQuery);
 
@@ -394,6 +397,9 @@ class Archiver extends PluginsArchiver
 		 		AND log_visit.%s > 0";
 
         $groupBy = "log_visit.%s, idaction";
+        if ($extraSelects) {
+            $groupBy .= ', ' . trim($extraSelects, ', ');
+        }
 
         $this->archiveDayQueryProcess($select, $from, $where, $orderBy, $groupBy, "visit_exit_idaction_url", $rankingQuery);
 
@@ -440,6 +446,9 @@ class Archiver extends PluginsArchiver
 		 		AND log_link_visit_action.%s > 0";
 
         $groupBy = "log_link_visit_action.%s, idaction";
+        if ($extraSelects) {
+            $groupBy .= ', log_action.type, log_action.name ';
+        }
 
         $this->archiveDayQueryProcess($select, $from, $where, $orderBy, $groupBy, "idaction_url_ref", $rankingQuery);
 

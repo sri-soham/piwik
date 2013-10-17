@@ -54,6 +54,12 @@ class LogVisit extends \Piwik\Db\DAO\Mysql\LogVisit
         $visitor_info['config_id'] = bin2hex($visitor_info['config_id']);
         $visitor_info['idvisitor'] = bin2hex($visitor_info['idvisitor']);
         $visitor_info['location_ip'] = bin2hex($visitor_info['location_ip']);
+        // Integration/BlobReportLimitingTest.php was failing because config_device_type
+        // had bool(false) as value which is being interpreted as empty string by postgresql.
+        // To avoid the issue, if config_device_type is false, it is being set to null.
+        if (isset($visitor_info['config_device_type']) && $visitor_info['config_device_type'] === false) {
+            $visitor_info['config_device_type'] = null;
+        }
         $bind   = array_values($visitor_info);
 
         $sql = 'INSERT INTO ' . $this->table . '( ' . $fields . ') VALUES (' . $values . ')';
