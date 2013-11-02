@@ -11,17 +11,19 @@
 namespace Piwik\Plugins\UserCountry;
 
 use Exception;
-use Piwik\Piwik;
 use Piwik\Common;
 use Piwik\Date;
 use Piwik\Http;
+use Piwik\Log;
+use Piwik\Option;
+use Piwik\Piwik;
 use Piwik\Plugins\UserCountry\LocationProvider;
+use Piwik\Plugins\UserCountry\LocationProvider\GeoIp;
+use Piwik\Plugins\UserCountry\LocationProvider\GeoIp\Php;
+use Piwik\ScheduledTask;
 use Piwik\ScheduledTime\Monthly;
 use Piwik\ScheduledTime\Weekly;
 use Piwik\Unzip;
-use Piwik\ScheduledTask;
-use Piwik\Plugins\UserCountry\LocationProvider\GeoIp;
-use Piwik\Plugins\UserCountry\LocationProvider\GeoIp\Php;
 
 /**
  * Used to automatically update installed GeoIP databases, and manages the updater's
@@ -60,25 +62,25 @@ class GeoIPAutoUpdater
     public function update()
     {
         try {
-            Piwik_SetOption(self::LAST_RUN_TIME_OPTION_NAME, Date::factory('today')->getTimestamp());
+            Option::set(self::LAST_RUN_TIME_OPTION_NAME, Date::factory('today')->getTimestamp());
 
-            $locUrl = Piwik_GetOption(self::LOC_URL_OPTION_NAME);
+            $locUrl = Option::get(self::LOC_URL_OPTION_NAME);
             if (!empty($locUrl)) {
                 $this->downloadFile('loc', $locUrl);
             }
 
-            $ispUrl = Piwik_GetOption(self::ISP_URL_OPTION_NAME);
+            $ispUrl = Option::get(self::ISP_URL_OPTION_NAME);
             if (!empty($ispUrl)) {
                 $this->downloadFile('isp', $ispUrl);
             }
 
-            $orgUrl = Piwik_GetOption(self::ORG_URL_OPTION_NAME);
+            $orgUrl = Option::get(self::ORG_URL_OPTION_NAME);
             if (!empty($orgUrl)) {
                 $this->downloadFile('org', $orgUrl);
             }
         } catch (Exception $ex) {
             // message will already be prefixed w/ 'GeoIPAutoUpdater: '
-            Piwik::log($ex->getMessage());
+            Log::error($ex);
             $this->performRedundantDbChecks();
             throw $ex;
         }
@@ -101,9 +103,13 @@ class GeoIPAutoUpdater
     protected function downloadFile($dbType, $url)
     {
         $ext = GeoIPAutoUpdater::getGeoIPUrlExtension($url);
+
+        // NOTE: using the first item in $dbNames[$dbType] makes sure GeoLiteCity will be renamed to GeoIPCity
         $zippedFilename = GeoIp::$dbNames[$dbType][0] . '.' . $ext;
 
         $zippedOutputPath = GeoIp::getPathForGeoIpDatabase($zippedFilename);
+
+        $url = self::removeDateFromUrl($url);
 
         // download zipped file to misc dir
         try {
@@ -118,7 +124,7 @@ class GeoIPAutoUpdater
                 . "'$zippedOutputPath'! (Unknown error)");
         }
 
-        Piwik::log(sprintf("GeoIPAutoUpdater: successfully downloaded '%s'", $url));
+        Log::info("GeoIPAutoUpdater: successfully downloaded '%s'", $url);
 
         try {
             self::unzipDownloadedFile($zippedOutputPath, $unlink = true);
@@ -127,7 +133,7 @@ class GeoIPAutoUpdater
                 . "downloading " . "'$url': " . $ex->getMessage());
         }
 
-        Piwik::log(sprintf("GeoIPAutoUpdater: successfully updated GeoIP database '%s'", $url));
+        Log::info("GeoIPAutoUpdater: successfully updated GeoIP database '%s'", $url);
     }
 
     /**
@@ -153,7 +159,7 @@ class GeoIPAutoUpdater
             $content = $unzip->listContent();
 
             if (empty($content)) {
-                throw new Exception(Piwik_Translate('UserCountry_CannotListContent',
+                throw new Exception(Piwik::translate('UserCountry_CannotListContent',
                     array("'$path'", $unzip->errorInfo())));
             }
 
@@ -166,7 +172,7 @@ class GeoIPAutoUpdater
             }
 
             if ($datFile === null) {
-                throw new Exception(Piwik_Translate('UserCountry_CannotFindGeoIPDatabaseInArchive',
+                throw new Exception(Piwik::translate('UserCountry_CannotFindGeoIPDatabaseInArchive',
                     array($dbFilename, "'$path'")));
             }
 
@@ -174,7 +180,7 @@ class GeoIPAutoUpdater
             $unzipped = $unzip->extractInString($datFile);
 
             if (empty($unzipped)) {
-                throw new Exception(Piwik_Translate('UserCountry_CannotUnzipDatFile',
+                throw new Exception(Piwik::translate('UserCountry_CannotUnzipDatFile',
                     array("'$path'", $unzip->errorInfo())));
             }
 
@@ -187,12 +193,12 @@ class GeoIPAutoUpdater
             $success = $unzip->extract($outputPath);
 
             if ($success !== true) {
-                throw new Exception(Piwik_Translate('UserCountry_CannotUnzipDatFile',
+                throw new Exception(Piwik::translate('UserCountry_CannotUnzipDatFile',
                     array("'$path'", $unzip->errorInfo())));
             }
         } else {
             $ext = end(explode(basename($path), '.', 2));
-            throw new Exception(Piwik_Translate('UserCountry_UnsupportedArchiveType', "'$ext'"));
+            throw new Exception(Piwik::translate('UserCountry_UnsupportedArchiveType', "'$ext'"));
         }
 
         try {
@@ -219,11 +225,11 @@ class GeoIPAutoUpdater
             ) {
                 if (self::$unzipPhpError !== null) {
                     list($errno, $errstr, $errfile, $errline) = self::$unzipPhpError;
-                    Piwik::log("GeoIPAutoUpdater: Encountered PHP error when testing newly downloaded" .
-                        " GeoIP database: $errno: $errstr on line $errline of $errfile.");
+                    Log::info("GeoIPAutoUpdater: Encountered PHP error when testing newly downloaded" .
+                        " GeoIP database: %s: %s on line %s of %s.", $errno, $errstr, $errline, $errfile);
                 }
 
-                throw new Exception(Piwik_Translate('UserCountry_ThisUrlIsNotAValidGeoIPDB'));
+                throw new Exception(Piwik::translate('UserCountry_ThisUrlIsNotAValidGeoIPDB'));
             }
 
             // delete the existing GeoIP database (if any) and rename the downloaded file
@@ -285,12 +291,18 @@ class GeoIPAutoUpdater
      */
     public static function setUpdaterOptionsFromUrl()
     {
-        self::setUpdaterOptions(array(
-                                     'loc'    => Common::getRequestVar('loc_db', false, 'string'),
-                                     'isp'    => Common::getRequestVar('isp_db', false, 'string'),
-                                     'org'    => Common::getRequestVar('org_db', false, 'string'),
-                                     'period' => Common::getRequestVar('period', false, 'string'),
-                                ));
+        $options = array(
+            'loc'    => Common::getRequestVar('loc_db', false, 'string'),
+            'isp'    => Common::getRequestVar('isp_db', false, 'string'),
+            'org'    => Common::getRequestVar('org_db', false, 'string'),
+            'period' => Common::getRequestVar('period', false, 'string'),
+        );
+
+        foreach (self::$urlOptions as $optionKey => $optionName) {
+            $options[$optionKey] = Common::unsanitizeInputValue($options[$optionKey]); // URLs should not be sanitized
+        }
+
+        self::setUpdaterOptions($options);
     }
 
     /**
@@ -313,7 +325,10 @@ class GeoIPAutoUpdater
                 continue;
             }
 
-            Piwik_SetOption($optionName, $url = $options[$optionKey]);
+            $url = $options[$optionKey];
+            $url = self::removeDateFromUrl($url);
+
+            Option::set($optionName, $url);
         }
 
         // set period option
@@ -322,13 +337,13 @@ class GeoIPAutoUpdater
             if ($period != self::SCHEDULE_PERIOD_MONTHLY
                 && $period != self::SCHEDULE_PERIOD_WEEKLY
             ) {
-                throw new Exception(Piwik_Translate(
+                throw new Exception(Piwik::translate(
                     'UserCountry_InvalidGeoIPUpdatePeriod',
                     array("'$period'", "'" . self::SCHEDULE_PERIOD_MONTHLY . "', '" . self::SCHEDULE_PERIOD_WEEKLY . "'")
                 ));
             }
 
-            Piwik_SetOption(self::SCHEDULE_PERIOD_OPTION_NAME, $period);
+            Option::set(self::SCHEDULE_PERIOD_OPTION_NAME, $period);
         }
     }
 
@@ -340,9 +355,9 @@ class GeoIPAutoUpdater
      */
     public static function isUpdaterSetup()
     {
-        if (Piwik_GetOption(self::LOC_URL_OPTION_NAME) !== false
-            || Piwik_GetOption(self::ISP_URL_OPTION_NAME) !== false
-            || Piwik_GetOption(self::ORG_URL_OPTION_NAME) !== false
+        if (Option::get(self::LOC_URL_OPTION_NAME) !== false
+            || Option::get(self::ISP_URL_OPTION_NAME) !== false
+            || Option::get(self::ORG_URL_OPTION_NAME) !== false
         ) {
             return true;
         }
@@ -359,7 +374,7 @@ class GeoIPAutoUpdater
     {
         $result = array();
         foreach (self::$urlOptions as $key => $optionName) {
-            $result[$key] = Piwik_GetOption($optionName);
+            $result[$key] = Option::get($optionName);
         }
         return $result;
     }
@@ -376,7 +391,7 @@ class GeoIPAutoUpdater
         if (empty(self::$urlOptions[$key])) {
             throw new Exception("Invalid key $key");
         }
-        $url = Piwik_GetOption(self::$urlOptions[$key]);
+        $url = Option::get(self::$urlOptions[$key]);
         return $url;
     }
 
@@ -397,7 +412,7 @@ class GeoIPAutoUpdater
      */
     public static function getSchedulePeriod()
     {
-        $period = Piwik_GetOption(self::SCHEDULE_PERIOD_OPTION_NAME);
+        $period = Option::get(self::SCHEDULE_PERIOD_OPTION_NAME);
         if ($period === false) {
             $period = self::SCHEDULE_PERIOD_MONTHLY;
         }
@@ -436,14 +451,14 @@ class GeoIPAutoUpdater
         // check for &suffix= query param that is special to MaxMind URLs
         if (preg_match('/suffix=([^&]+)/', $url, $matches)) {
             $ext = $matches[1];
-        }
-
-        // use basename of url
-        $filenameParts = explode('.', basename($url), 2);
-        if (count($filenameParts) > 1) {
-            $ext = end($filenameParts);
         } else {
-            $ext = reset($filenameParts);
+            // use basename of url
+            $filenameParts = explode('.', basename($url), 2);
+            if (count($filenameParts) > 1) {
+                $ext = end($filenameParts);
+            } else {
+                $ext = reset($filenameParts);
+            }
         }
 
         self::checkForSupportedArchiveType($ext);
@@ -462,8 +477,9 @@ class GeoIPAutoUpdater
     {
         if ($ext != 'tar.gz'
             && $ext != 'gz'
+            && $ext != 'dat.gz'
         ) {
-            throw new \Exception(Piwik_Translate('UserCountry_UnsupportedArchiveType', "'$ext'"));
+            throw new \Exception(Piwik::translate('UserCountry_UnsupportedArchiveType', "'$ext'"));
         }
     }
 
@@ -519,8 +535,8 @@ class GeoIPAutoUpdater
             self::getTestLocationCatchPhpErrors($provider);
             if (self::$unzipPhpError !== null) {
                 list($errno, $errstr, $errfile, $errline) = self::$unzipPhpError;
-                Piwik::log("GeoIPAutoUpdater: Encountered PHP error when performing redundant " .
-                    "tests on GeoIP $type database: $errno: $errstr on line $errline of $errfile.");
+                Log::warning("GeoIPAutoUpdater: Encountered PHP error when performing redundant tests on GeoIP "
+                    . "%s database: %s: %s on line %s of %s.", $type, $errno, $errstr, $errline, $errfile);
 
                 // get the current filename for the DB and an available new one to rename it to
                 list($oldPath, $newPath) = $this->getOldAndNewPathsForBrokenDb($customNames[$type]);
@@ -587,7 +603,19 @@ class GeoIPAutoUpdater
      */
     public static function getLastRunTime()
     {
-        $timestamp = Piwik_GetOption(self::LAST_RUN_TIME_OPTION_NAME);
+        $timestamp = Option::get(self::LAST_RUN_TIME_OPTION_NAME);
         return $timestamp === false ? false : Date::factory((int)$timestamp);
+    }
+
+    /**
+     * Removes the &date=... query parameter if present in the URL. This query parameter
+     * is in MaxMind URLs by default and will force the download of an old database.
+     *
+     * @param string $url
+     * @return string
+     */
+    private static function removeDateFromUrl($url)
+    {
+        return preg_replace("/&date=[^&#]*/", '', $url);
     }
 }

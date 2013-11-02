@@ -11,16 +11,16 @@
 namespace Piwik\Plugins\UsersManager;
 
 use Exception;
-use Piwik\Config;
-use Piwik\Piwik;
-use Piwik\Common;
 use Piwik\Access;
+use Piwik\Common;
+use Piwik\Config;
 use Piwik\Date;
-use Piwik\Site;
 use Piwik\Db;
 use Piwik\Db\Factory;
+use Piwik\Option;
+use Piwik\Piwik;
+use Piwik\Site;
 use Piwik\Tracker\Cache;
-use Piwik\Plugins\UsersManager\UsersManager;
 
 /**
  * The UsersManager API lets you Manage Users and their permissions to access specific websites.
@@ -35,7 +35,7 @@ use Piwik\Plugins\UsersManager\UsersManager;
  * See also the documentation about <a href='http://piwik.org/docs/manage-users/' target='_blank'>Managing Users</a> in Piwik.
  * @package UsersManager
  */
-class API
+class API extends \Piwik\Plugin\API
 {
     const PREFERENCE_DEFAULT_REPORT = 'defaultReport';
     const PREFERENCE_DEFAULT_REPORT_DATE = 'defaultReportDate';
@@ -47,7 +47,7 @@ class API
      * Example of how you would overwrite the UsersManager_API with your own class:
      * Call the following in your plugin __construct() for example:
      *
-     * \Zend_Registry::set('UsersManager_API',Piwik_MyCustomUsersManager_API::getInstance());
+     * Registry::set('UsersManager_API',Piwik_MyCustomUsersManager_API::getInstance());
      *
      * @throws Exception
      * @return \Piwik\Plugins\UsersManager\API
@@ -55,7 +55,7 @@ class API
     static public function getInstance()
     {
         try {
-            $instance = \Zend_Registry::get('UsersManager_API');
+            $instance = \Piwik\Registry::get('UsersManager_API');
             if (!($instance instanceof API)) {
                 // Exception is caught below and corrected
                 throw new Exception('UsersManager_API must inherit API');
@@ -63,7 +63,7 @@ class API
             self::$instance = $instance;
         } catch (Exception $e) {
             self::$instance = new self;
-            \Zend_Registry::set('UsersManager_API', self::$instance);
+            \Piwik\Registry::set('UsersManager_API', self::$instance);
         }
         return self::$instance;
     }
@@ -78,7 +78,7 @@ class API
     public function setUserPreference($userLogin, $preferenceName, $preferenceValue)
     {
         Piwik::checkUserIsSuperUserOrTheUser($userLogin);
-        Piwik_SetOption($this->getPreferenceId($userLogin, $preferenceName), $preferenceValue);
+        Option::set($this->getPreferenceId($userLogin, $preferenceName), $preferenceValue);
     }
 
     /**
@@ -91,7 +91,7 @@ class API
     {
         Piwik::checkUserIsSuperUserOrTheUser($userLogin);
 
-        $optionValue = Piwik_GetOption($this->getPreferenceId($userLogin, $preferenceName));
+        $optionValue = Option::get($this->getPreferenceId($userLogin, $preferenceName));
         if ($optionValue !== false) {
             return $optionValue;
         }
@@ -119,7 +119,7 @@ class API
     /**
      * Returns the list of all the users
      *
-     * @param string $userLogins  Comma separated list of users to select. If not specified, will return all users
+     * @param string $userLogins Comma separated list of users to select. If not specified, will return all users
      * @return array the list of all the users
      */
     public function getUsers($userLogins = '')
@@ -168,7 +168,6 @@ class API
      *                        login2 => array(idsite2),
      *                        ...
      *                    )
-     *
      */
     public function getUsersSitesFromAccess($access)
     {
@@ -304,7 +303,7 @@ class API
     private function checkLogin($userLogin)
     {
         if ($this->userExists($userLogin)) {
-            throw new Exception(Piwik_TranslateException('UsersManager_ExceptionLoginExists', $userLogin));
+            throw new Exception(Piwik::translate('UsersManager_ExceptionLoginExists', $userLogin));
         }
 
         Piwik::checkValidLoginString($userLogin);
@@ -313,11 +312,11 @@ class API
     private function checkEmail($email)
     {
         if ($this->userEmailExists($email)) {
-            throw new Exception(Piwik_TranslateException('UsersManager_ExceptionEmailExists', $email));
+            throw new Exception(Piwik::translate('UsersManager_ExceptionEmailExists', $email));
         }
 
         if (!Piwik::isValidEmailString($email)) {
-            throw new Exception(Piwik_TranslateException('UsersManager_ExceptionInvalidEmail'));
+            throw new Exception(Piwik::translate('UsersManager_ExceptionInvalidEmail'));
         }
     }
 
@@ -374,7 +373,12 @@ class API
         Access::getInstance()->reloadAccess();
         Cache::deleteTrackerCache();
 
-        Piwik_PostEvent('UsersManager.addUser', array($userLogin));
+        /**
+         * Triggered after a new user is created.
+         * 
+         * @param string $userLogin The new user's login handle.
+         */
+        Piwik::postEvent('UsersManager.addUser.end', array($userLogin));
     }
 
     /**
@@ -429,7 +433,12 @@ class API
 
         Cache::deleteTrackerCache();
 
-        Piwik_PostEvent('UsersManager.updateUser', array($userLogin));
+        /**
+         * Triggered after an existing user has been updated.
+         * 
+         * @param string $userLogin The user's login handle.
+         */
+        Piwik::postEvent('UsersManager.updateUser.end', array($userLogin));
     }
 
     /**
@@ -447,7 +456,7 @@ class API
         $this->checkUserIsNotAnonymous($userLogin);
         $this->checkUserIsNotSuperUser($userLogin);
         if (!$this->userExists($userLogin)) {
-            throw new Exception(Piwik_TranslateException("UsersManager_ExceptionDeleteDoesNotExist", $userLogin));
+            throw new Exception(Piwik::translate("UsersManager_ExceptionDeleteDoesNotExist", $userLogin));
         }
 
         $this->deleteUserOnly($userLogin);
@@ -481,7 +490,7 @@ class API
         $count = $dao->getCountByEmail($userEmail);
 
         return $count != 0
-            || Config::getInstance()->superuser['email'] == $userEmail;
+        || Config::getInstance()->superuser['email'] == $userEmail;
     }
 
     /**
@@ -510,11 +519,10 @@ class API
         if ($userLogin == 'anonymous'
             && $access == 'admin'
         ) {
-            throw new Exception(Piwik_TranslateException("UsersManager_ExceptionAdminAnonymous"));
+            throw new Exception(Piwik::translate("UsersManager_ExceptionAdminAnonymous"));
         }
 
-        // in case idSites is null we grant access to all the websites on which the current connected user
-        // has an 'admin' access
+        // in case idSites is all we grant access to all the websites on which the current connected user has an 'admin' access
         if ($idSites === 'all') {
             $idSites = \Piwik\Plugins\SitesManager\API::getInstance()->getSitesIdWithAdminAccess();
         } // in case the idSites is an integer we build an array
@@ -531,6 +539,7 @@ class API
 
         $this->deleteUserAccess($userLogin, $idSites);
 
+        // delete UserAccess
         // if the access is noaccess then we don't save it as this is the default value
         // when no access are specified
         if ($access != 'noaccess') {
@@ -552,7 +561,7 @@ class API
     private function checkUserExists($userLogin)
     {
         if (!$this->userExists($userLogin)) {
-            throw new Exception(Piwik_TranslateException("UsersManager_ExceptionUserDoesNotExist", $userLogin));
+            throw new Exception(Piwik::translate("UsersManager_ExceptionUserDoesNotExist", $userLogin));
         }
     }
 
@@ -565,21 +574,21 @@ class API
     private function checkUserEmailExists($userEmail)
     {
         if (!$this->userEmailExists($userEmail)) {
-            throw new Exception(Piwik_TranslateException("UsersManager_ExceptionUserDoesNotExist", $userEmail));
+            throw new Exception(Piwik::translate("UsersManager_ExceptionUserDoesNotExist", $userEmail));
         }
     }
 
     private function checkUserIsNotAnonymous($userLogin)
     {
         if ($userLogin == 'anonymous') {
-            throw new Exception(Piwik_TranslateException("UsersManager_ExceptionEditAnonymous"));
+            throw new Exception(Piwik::translate("UsersManager_ExceptionEditAnonymous"));
         }
     }
 
     private function checkUserIsNotSuperUser($userLogin)
     {
         if ($userLogin == Piwik::getSuperUserLogin()) {
-            throw new Exception(Piwik_TranslateException("UsersManager_ExceptionSuperUser"));
+            throw new Exception(Piwik::translate("UsersManager_ExceptionSuperUser"));
         }
     }
 
@@ -591,7 +600,7 @@ class API
         unset($accessList[array_search("superuser", $accessList)]);
 
         if (!in_array($access, $accessList)) {
-            throw new Exception(Piwik_TranslateException("UsersManager_ExceptionAccessValues", implode(", ", $accessList)));
+            throw new Exception(Piwik::translate("UsersManager_ExceptionAccessValues", implode(", ", $accessList)));
         }
     }
 
@@ -600,14 +609,21 @@ class API
      * The user's access are not deleted.
      *
      * @param string $userLogin the user login.
-     *
      */
     private function deleteUserOnly($userLogin)
     {
         $dao = Factory::getDAO('user');
         $dao->deleteByLogin($userLogin);
 
-        Piwik_PostEvent('UsersManager.deleteUser', array($userLogin));
+        /**
+         * Triggered after a user has been deleted.
+         * 
+         * This event should be used to clean up any data that is related to the user that was
+         * deleted. For example, the Dashboard plugin uses this event to remove the user's dashboards.
+         * 
+         * @param string $userLogin The login handle of the deleted user.
+         */
+        Piwik::postEvent('UsersManager.deleteUser', array($userLogin));
     }
 
     /**
@@ -641,7 +657,7 @@ class API
     public function getTokenAuth($userLogin, $md5Password)
     {
         if (strlen($md5Password) != 32) {
-            throw new Exception(Piwik_TranslateException('UsersManager_ExceptionPasswordMD5HashExpected'));
+            throw new Exception(Piwik::translate('UsersManager_ExceptionPasswordMD5HashExpected'));
         }
         return md5($userLogin . $md5Password);
     }

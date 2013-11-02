@@ -6,15 +6,18 @@
  */
 
 function switchSite(id, name, showAjaxLoading, idCanBeAll) {
+    var $mainLink = $('.custom_select_main_link').attr('data-loading', 1);
+
     if (id == 'all'
-        && !idCanBeAll) {
+        && !idCanBeAll
+    ) {
         broadcast.propagateNewPage('module=MultiSites&action=index');
     }
     else {
         $('.sites_autocomplete input').val(id);
-        $('.custom_select_main_link > span')
-            .text(name)
-            .addClass('custom_select_loading');
+        $mainLink
+            .find('span')
+            .text(name);
         broadcast.propagateNewPage('segment=&idSite=' + id, showAjaxLoading);
     }
     return false;
@@ -33,10 +36,9 @@ $(function () {
         function getUrlForWebsiteId(idSite) {
             var idSiteParam = 'idSite=' + idSite;
             var newParameters = 'segment=&' + idSiteParam;
-            var hash = broadcast.isHashExists() ? broadcast.getHashFromUrl() : "",
-                linkUrl = piwikHelper.getCurrentQueryStringWithParametersModified(newParameters)
+            var hash = broadcast.isHashExists() ? broadcast.getHashFromUrl() : "";
+            return piwikHelper.getCurrentQueryStringWithParametersModified(newParameters)
                     + '#' + piwikHelper.getQueryStringWithParametersModified(hash.substring(1), newParameters);
-            return linkUrl;
         }
 
         $('.sites_autocomplete').each(function () {
@@ -75,12 +77,16 @@ $(function () {
                 appendTo: $('.custom_select_container', selector),
                 select: function (event, ui) {
                     event.preventDefault();
-                    
                     if (ui.item.id > 0) {
+                        // autocomplete.js allows item names to be HTML, so we have to entity the site name in PHP.
+                        // to avoid double encoding, we decode before setting text.
+                        // note: use of $.html() would not be future-proof.
+                        ui.item.name = piwikHelper.htmlDecode(ui.item.name);
+
                         // set attributes of selected site display (what shows in the box)
                         $('.custom_select_main_link', selector)
-                            .attr('siteid', ui.item.id)
-                            .text(ui.item.name);
+                            .attr('data-siteid', ui.item.id)
+                            .html($('<span/>').text(ui.item.name));
 
                         // hide the dropdown
                         $('.custom_select_block', selector).removeClass('custom_select_block_show');
@@ -100,10 +106,32 @@ $(function () {
                 },
                 search: function (event, ui) {
                     $('.reset', selector).show();
-                    $('.custom_select_main_link', selector).addClass('custom_select_loading');
+                    $('.custom_select_main_link', selector).attr('data-loading', 1);
                 },
                 open: function (event, ui) {
-                    $('.custom_select_main_link', selector).removeClass('custom_select_loading');
+                    var widthSitesSelection = +$('.custom_select_ul_list', selector).width();
+
+                    $('.custom_select_main_link', selector).attr('data-loading', 0);
+
+                    var maxSitenameWidth = $('.max_sitename_width', selector);
+                    if (widthSitesSelection > maxSitenameWidth.val()) {
+                        maxSitenameWidth.val(widthSitesSelection);
+                    }
+                    else {
+                        maxSitenameWidth = +maxSitenameWidth.val(); // convert to int
+                    }
+
+                    $('.custom_select_ul_list', selector).hide();
+
+                    // customize jquery-ui's autocomplete positioning
+                    var cssToRemove = {float: 'none', position: 'static'};
+                    $('.siteSelect.ui-autocomplete', selector)
+                        .show().width(widthSitesSelection).css(cssToRemove)
+                        .find('li,a').each(function () {
+                            $(this).css(cssToRemove);
+                        });
+
+                    $('.custom_select_block_show', selector).width(widthSitesSelection);
                 }
             }).data("ui-autocomplete")._renderItem = function (ul, item) {
                 $(ul).addClass('siteSelect');
@@ -147,7 +175,7 @@ $(function () {
 
                 $('.custom_select_block', selector).on('mouseenter', function() {
                     $('.custom_select_ul_list > li > a', selector).each(function() {
-                        var idSite = $(this).attr('siteid');
+                        var idSite = $(this).attr('data-siteid');
                         var linkUrl = getUrlForWebsiteId(idSite);
                         $(this).attr('href', linkUrl);
                     });
@@ -157,14 +185,14 @@ $(function () {
                 // of the selected link
                 $('.custom_select_ul_list li a', selector).each(function() {
                     $(this).click(function (e) {
-                        var idsite = $(this).attr('siteid'),
+                        var idsite = $(this).attr('data-siteid'),
                             name = $(this).text(),
-                          	mainLinkElem = $(".custom_select_main_link > span", selector)
-                          	oldName = mainLinkElem.text();
+                            mainLinkElem = $(".custom_select_main_link", selector),
+                            mainLinkSpan = $('span', mainLinkElem),
+                            oldName = mainLinkSpan.text();
 
-                        mainLinkElem
-                            .attr('siteid', idsite)
-                            .text(name);
+                        mainLinkElem.attr('data-siteid', idsite);
+                        mainLinkSpan.text(name);
                         $(this).text(oldName);
 
                         selector.trigger('piwik:siteSelected', {id: idsite, name: name});

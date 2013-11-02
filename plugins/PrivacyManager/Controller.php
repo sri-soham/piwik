@@ -10,23 +10,23 @@
  */
 namespace Piwik\Plugins\PrivacyManager;
 
-use Piwik\Config;
-use Piwik\Piwik;
 use Piwik\Common;
+use Piwik\Config;
 use Piwik\Date;
+use Piwik\Db;
+use Piwik\MetricsFormatter;
+use Piwik\Option;
+use Piwik\Piwik;
 use Piwik\Plugins\DBStats\MySQLMetadataProvider;
 use Piwik\Plugins\LanguagesManager\LanguagesManager;
-use Piwik\View;
 use Piwik\TaskScheduler;
-use Piwik\Plugins\PrivacyManager\PrivacyManager;
-use Piwik\Plugins\PrivacyManager\LogDataPurger;
-use Piwik\Plugins\PrivacyManager\ReportsPurger;
+use Piwik\View;
 
 /**
  *
  * @package PrivacyManager
  */
-class Controller extends \Piwik\Controller\Admin
+class Controller extends \Piwik\Plugin\ControllerAdmin
 {
 
     const ANONYMIZE_IP_PLUGIN_NAME = "AnonymizeIP";
@@ -115,7 +115,7 @@ class Controller extends \Piwik\Controller\Admin
      */
     public static function isDntSupported()
     {
-        return \Piwik\PluginsManager::getInstance()->isPluginActivated('DoNotTrack');
+        return \Piwik\Plugin\Manager::getInstance()->isPluginActivated('DoNotTrack');
     }
 
     public function privacySettings()
@@ -127,7 +127,7 @@ class Controller extends \Piwik\Controller\Admin
             $view->deleteData = $this->getDeleteDataInfo();
             $view->anonymizeIP = $this->getAnonymizeIPInfo();
             $view->dntSupport = self::isDntSupported();
-            $view->canDeleteLogActions = Piwik::isLockPrivilegeGranted();
+            $view->canDeleteLogActions = Db::isLockPrivilegeGranted();
             $view->dbUser = Config::getInstance()->database['username'];
         }
         $view->language = LanguagesManager::getLanguageCodeForCurrentUser();
@@ -186,7 +186,7 @@ class Controller extends \Piwik\Controller\Admin
         }
 
         $result = array(
-            'currentSize' => Piwik::getPrettySizeFromBytes($totalBytes)
+            'currentSize' => MetricsFormatter::getPrettySizeFromBytes($totalBytes)
         );
 
         // if the db size estimate feature is enabled, get the estimate
@@ -213,8 +213,8 @@ class Controller extends \Piwik\Controller\Admin
                 }
             }
 
-            $result['sizeAfterPurge'] = Piwik::getPrettySizeFromBytes($totalAfterPurge);
-            $result['spaceSaved'] = Piwik::getPrettySizeFromBytes($totalBytes - $totalAfterPurge);
+            $result['sizeAfterPurge'] = MetricsFormatter::getPrettySizeFromBytes($totalAfterPurge);
+            $result['spaceSaved'] = MetricsFormatter::getPrettySizeFromBytes($totalBytes - $totalAfterPurge);
         }
 
         return $result;
@@ -225,12 +225,12 @@ class Controller extends \Piwik\Controller\Admin
         Piwik::checkUserIsSuperUser();
         $anonymizeIP = array();
 
-        \Piwik\PluginsManager::getInstance()->loadPlugin(self::ANONYMIZE_IP_PLUGIN_NAME);
+        \Piwik\Plugin\Manager::getInstance()->loadPlugin(self::ANONYMIZE_IP_PLUGIN_NAME);
 
         $anonymizeIP["name"] = self::ANONYMIZE_IP_PLUGIN_NAME;
-        $anonymizeIP["enabled"] = \Piwik\PluginsManager::getInstance()->isPluginActivated(self::ANONYMIZE_IP_PLUGIN_NAME);
+        $anonymizeIP["enabled"] = \Piwik\Plugin\Manager::getInstance()->isPluginActivated(self::ANONYMIZE_IP_PLUGIN_NAME);
         $anonymizeIP["maskLength"] = Config::getInstance()->Tracker['ip_address_mask_length'];
-        $anonymizeIP["info"] = \Piwik\PluginsManager::getInstance()->getLoadedPlugin(self::ANONYMIZE_IP_PLUGIN_NAME)->getInformation();
+        $anonymizeIP["info"] = \Piwik\Plugin\Manager::getInstance()->getLoadedPlugin(self::ANONYMIZE_IP_PLUGIN_NAME)->getInformation();
 
         return $anonymizeIP;
     }
@@ -246,7 +246,7 @@ class Controller extends \Piwik\Controller\Admin
 
         $scheduleTimetable = $taskScheduler->getScheduledTimeForMethod("PrivacyManager", "deleteLogTables");
 
-        $optionTable = Piwik_GetOption(self::OPTION_LAST_DELETE_PIWIK_LOGS);
+        $optionTable = Option::get(self::OPTION_LAST_DELETE_PIWIK_LOGS);
 
         //If task was already rescheduled, read time from taskTimetable. Else, calculate next possible runtime.
         if (!empty($scheduleTimetable) && ($scheduleTimetable - time() > 0)) {
@@ -278,7 +278,7 @@ class Controller extends \Piwik\Controller\Admin
             }
         }
 
-        $deleteDataInfos["nextRunPretty"] = Piwik::getPrettyTimeFromSeconds($deleteDataInfos["nextScheduleTime"] - time());
+        $deleteDataInfos["nextRunPretty"] = MetricsFormatter::getPrettyTimeFromSeconds($deleteDataInfos["nextScheduleTime"] - time());
 
         return $deleteDataInfos;
     }
@@ -287,9 +287,9 @@ class Controller extends \Piwik\Controller\Admin
     {
         $pluginController = new \Piwik\Plugins\CorePluginsAdmin\Controller();
 
-        if ($state == 1 && !\Piwik\PluginsManager::getInstance()->isPluginActivated(self::ANONYMIZE_IP_PLUGIN_NAME)) {
+        if ($state == 1 && !\Piwik\Plugin\Manager::getInstance()->isPluginActivated(self::ANONYMIZE_IP_PLUGIN_NAME)) {
             $pluginController->activate($redirectAfter = false);
-        } elseif ($state == 0 && \Piwik\PluginsManager::getInstance()->isPluginActivated(self::ANONYMIZE_IP_PLUGIN_NAME)) {
+        } elseif ($state == 0 && \Piwik\Plugin\Manager::getInstance()->isPluginActivated(self::ANONYMIZE_IP_PLUGIN_NAME)) {
             $pluginController->deactivate($redirectAfter = false);
         } else {
             //nothing to do

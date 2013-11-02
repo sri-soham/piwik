@@ -13,26 +13,31 @@ namespace Piwik\Plugins\CoreAdminHome;
 use Exception;
 use Piwik\API\ResponseBuilder;
 use Piwik\ArchiveProcessor\Rules;
-use Piwik\Config;
-use Piwik\Piwik;
 use Piwik\Common;
+use Piwik\Config;
+use Piwik\DataTable\Renderer\Json;
+use Piwik\Menu\MenuTop;
 use Piwik\Nonce;
-use Piwik\Tracker\IgnoreCookie;
-use Piwik\View;
-use Piwik\Url;
-use Piwik\Site;
+use Piwik\Piwik;
+use Piwik\Settings\Manager as SettingsManager;
+use Piwik\Plugins\LanguagesManager\API as APILanguagesManager;
 use Piwik\Plugins\LanguagesManager\LanguagesManager;
-use Piwik\Plugins\LanguagesManager\API as LanguagesManagerAPI;
-use Piwik\Plugins\SitesManager\API;
+use Piwik\Plugins\SitesManager\API as APISitesManager;
+use Piwik\Site;
+use Piwik\Tracker\IgnoreCookie;
+use Piwik\Url;
+use Piwik\View;
 
 /**
  *
  * @package CoreAdminHome
  */
-class Controller extends \Piwik\Controller\Admin
+class Controller extends \Piwik\Plugin\ControllerAdmin
 {
     const LOGO_HEIGHT = 300;
     const LOGO_SMALL_HEIGHT = 100;
+
+    const SET_PLUGIN_SETTINGS_NONCE = 'CoreAdminHome.setPluginSettings';
 
     public function index()
     {
@@ -72,8 +77,7 @@ class Controller extends \Piwik\Controller\Admin
             $directoryWritable = is_writable(PIWIK_DOCUMENT_ROOT . '/misc/user/');
             $logoFilesWriteable = is_writeable(PIWIK_DOCUMENT_ROOT . '/misc/user/logo.png')
                 && is_writeable(PIWIK_DOCUMENT_ROOT . '/misc/user/logo.svg')
-                && is_writeable(PIWIK_DOCUMENT_ROOT . '/misc/user/logo-header.png');
-            ;
+                && is_writeable(PIWIK_DOCUMENT_ROOT . '/misc/user/logo-header.png');;
             $view->logosWriteable = ($logoFilesWriteable || $directoryWritable) && ini_get('file_uploads') == 1;
 
             $trustedHosts = array();
@@ -86,6 +90,112 @@ class Controller extends \Piwik\Controller\Admin
         $view->language = LanguagesManager::getLanguageCodeForCurrentUser();
         $this->setBasicVariablesView($view);
         echo $view->render();
+    }
+
+    public function pluginSettings()
+    {
+        Piwik::checkUserIsNotAnonymous();
+
+        $settings = $this->getPluginSettings();
+
+        $view = new View('@CoreAdminHome/pluginSettings');
+        $view->nonce          = Nonce::getNonce(static::SET_PLUGIN_SETTINGS_NONCE);
+        $view->pluginSettings = $settings;
+        $view->firstSuperUserSettingNames = $this->getFirstSuperUserSettingNames($settings);
+
+        $this->setBasicVariablesView($view);
+
+        echo $view->render();
+    }
+
+    private function getPluginSettings()
+    {
+        $pluginsSettings = SettingsManager::getPluginSettingsForCurrentUser();
+
+        ksort($pluginsSettings);
+
+        return $pluginsSettings;
+    }
+
+    /**
+     * @param \Piwik\Plugin\Settings[] $pluginsSettings
+     * @return array   array([pluginName] => [])
+     */
+    private function getFirstSuperUserSettingNames($pluginsSettings)
+    {
+        $names = array();
+        foreach ($pluginsSettings as $pluginName => $pluginSettings) {
+
+            foreach ($pluginSettings->getSettingsForCurrentUser() as $setting) {
+                if ($setting instanceof \Piwik\Settings\SystemSetting) {
+                    $names[$pluginName] = $setting->getName();
+                    break;
+                }
+            }
+        }
+
+        return $names;
+    }
+
+    public function setPluginSettings()
+    {
+        Piwik::checkUserIsNotAnonymous();
+        Json::sendHeaderJSON();
+
+        $nonce = Common::getRequestVar('nonce', null, 'string');
+
+        if (!Nonce::verifyNonce(static::SET_PLUGIN_SETTINGS_NONCE, $nonce)) {
+            echo json_encode(array(
+                'result' => 'error',
+                'message' => Piwik::translate('General_ExceptionNonceMismatch')
+            ));
+            return;
+        }
+
+        $pluginsSettings = SettingsManager::getPluginSettingsForCurrentUser();
+
+        try {
+
+            foreach ($pluginsSettings as $pluginName => $pluginSetting) {
+                foreach ($pluginSetting->getSettingsForCurrentUser() as $setting) {
+
+                    $value = $this->findSettingValueFromRequest($pluginName, $setting->getKey());
+
+                    if (!is_null($value)) {
+                        $setting->setValue($value);
+                    }
+                }
+            }
+
+            foreach ($pluginsSettings as $pluginSetting) {
+                $pluginSetting->save();
+            }
+
+        } catch (Exception $e) {
+            $message = html_entity_decode($e->getMessage(), ENT_QUOTES, 'UTF-8');
+            echo json_encode(array('result' => 'error', 'message' => $message));
+            return;
+        }
+        
+        Nonce::discardNonce(static::SET_PLUGIN_SETTINGS_NONCE);
+        echo json_encode(array('result' => 'success'));
+    }
+
+    private function findSettingValueFromRequest($pluginName, $settingKey)
+    {
+        $changedPluginSettings = Common::getRequestVar('settings', null, 'array');
+
+        if (!array_key_exists($pluginName, $changedPluginSettings)) {
+            return;
+        }
+
+        $settings = $changedPluginSettings[$pluginName];
+
+        foreach ($settings as $setting) {
+            if ($setting['name'] == $settingKey) {
+                return $setting['value'];
+            }
+        }
     }
 
     public function setGeneralSettings()
@@ -145,17 +255,17 @@ class Controller extends \Piwik\Controller\Admin
     {
         $view = new View('@CoreAdminHome/trackingCodeGenerator');
         $this->setBasicVariablesView($view);
-        $view->topMenu = Piwik_GetTopMenu();
+        $view->topMenu = MenuTop::getInstance()->getMenu();
 
-        $viewableIdSites = API::getInstance()->getSitesIdWithAtLeastViewAccess();
+        $viewableIdSites = APISitesManager::getInstance()->getSitesIdWithAtLeastViewAccess();
 
         $defaultIdSite = reset($viewableIdSites);
         $view->idSite = Common::getRequestVar('idSite', $defaultIdSite, 'int');
 
         $view->defaultReportSiteName = Site::getNameFor($view->idSite);
-        $view->defaultSiteRevenue = Piwik::getCurrency($view->idSite);
+        $view->defaultSiteRevenue = \Piwik\MetricsFormatter::getCurrencySymbol($view->idSite);
 
-        $allUrls = API::getInstance()->getSiteUrlsFromId($view->idSite);
+        $allUrls = APISitesManager::getInstance()->getSiteUrlsFromId($view->idSite);
         if (isset($allUrls[1])) {
             $aliasUrl = $allUrls[1];
         } else {
@@ -167,7 +277,7 @@ class Controller extends \Piwik\Controller\Admin
         $view->defaultReportSiteDomain = @parse_url($mainUrl, PHP_URL_HOST);
 
         // get currencies for each viewable site
-        $view->currencySymbols = API::getInstance()->getCurrencySymbols();
+        $view->currencySymbols = APISitesManager::getInstance()->getCurrencySymbols();
 
         $view->serverSideDoNotTrackEnabled = \Piwik\Plugins\PrivacyManager\Controller::isDntSupported();
 
@@ -192,7 +302,7 @@ class Controller extends \Piwik\Controller\Admin
         $view = new View('@CoreAdminHome/optOut');
         $view->trackVisits = $trackVisits;
         $view->nonce = Nonce::getNonce('Piwik_OptOut', 3600);
-        $view->language = LanguagesManagerAPI::getInstance()->isLanguageAvailable($language)
+        $view->language = APILanguagesManager::getInstance()->isLanguageAvailable($language)
             ? $language
             : LanguagesManager::getLanguageCodeForCurrentUser();
         echo $view->render();

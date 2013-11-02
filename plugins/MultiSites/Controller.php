@@ -10,21 +10,22 @@
  */
 namespace Piwik\Plugins\MultiSites;
 
-use Piwik\Period;
-use Piwik\Piwik;
 use Piwik\Common;
 use Piwik\Config;
 use Piwik\Date;
-use Piwik\Plugins\MultiSites\API as MultiSitesAPI;
-use Piwik\View;
+use Piwik\MetricsFormatter;
+use Piwik\Period;
+use Piwik\Piwik;
+use Piwik\Plugins\MultiSites\API as APIMultiSites;
+use Piwik\Plugins\SitesManager\API as APISitesManager;
 use Piwik\Site;
-use Piwik\Plugins\SitesManager\API as SitesManagerAPI;
+use Piwik\View;
 
 /**
  *
  * @package MultiSites
  */
-class Controller extends \Piwik\Controller
+class Controller extends \Piwik\Plugin\Controller
 {
     protected $orderBy = 'visits';
     protected $order = 'desc';
@@ -58,19 +59,19 @@ class Controller extends \Piwik\Controller
 
         $date = Common::getRequestVar('date', 'today');
         $period = Common::getRequestVar('period', 'day');
-        $siteIds = SitesManagerAPI::getInstance()->getSitesIdWithAtLeastViewAccess();
+        $siteIds = APISitesManager::getInstance()->getSitesIdWithAtLeastViewAccess();
         list($minDate, $maxDate) = $this->getMinMaxDateAcrossWebsites($siteIds);
 
         // overwrites the default Date set in the parent controller
         // Instead of the default current website's local date,
         // we set "today" or "yesterday" based on the default Piwik timezone
-        $piwikDefaultTimezone = SitesManagerAPI::getInstance()->getDefaultTimezone();
+        $piwikDefaultTimezone = APISitesManager::getInstance()->getDefaultTimezone();
         if ($period != 'range') {
             $date = $this->getDateParameterInTimezone($date, $piwikDefaultTimezone);
             $this->setDate($date);
             $date = $date->toString();
         }
-        $dataTable = MultiSitesAPI::getInstance()->getAll($period, $date, $segment = false);
+        $dataTable = APIMultiSites::getInstance()->getAll($period, $date, $segment = false);
 
         // put data into a form the template will understand better
         $digestableData = array();
@@ -208,7 +209,7 @@ class Controller extends \Piwik\Controller
         foreach ($sites as $idsite => &$site) {
             $revenue = "-";
             if (!empty($site['revenue'])) {
-                $revenue = Piwik::getPrettyMoney($site['revenue'], $site['idsite'], $htmlAllowed = false);
+                $revenue = MetricsFormatter::getPrettyMoney($site['revenue'], $site['idsite'], $htmlAllowed = false);
             }
             $site['revenue'] = '"' . $revenue . '"';
         }
@@ -225,7 +226,6 @@ class Controller extends \Piwik\Controller
             $api = "Goals.get";
         }
         $view = $this->getLastUnitGraph($this->pluginName, __FUNCTION__, $api);
-        $view->columns_to_display = $columns;
         return $this->renderView($view, $fetch);
     }
 }

@@ -11,12 +11,10 @@
 namespace Piwik;
 
 use Exception;
-use Piwik\DataTable\Simple;
-use Piwik\DataTable\Row;
-use Piwik\Piwik;
-use Piwik\DataTable;
-use Piwik\Loader;
 use Piwik\API\Request;
+use Piwik\DataTable\Row;
+use Piwik\DataTable\Simple;
+use Piwik\DataTable;
 use Piwik\Plugins\ImageGraph\API;
 
 /**
@@ -64,7 +62,7 @@ abstract class ReportRenderer
             @header('Content-Type: text/html; charset=utf-8');
 
             throw new Exception(
-                Piwik_TranslateException(
+                Piwik::translate(
                     'General_ExceptionInvalidReportRendererFormat',
                     array($name, implode(', ', self::$availableReportRenderers))
                 )
@@ -149,6 +147,8 @@ abstract class ReportRenderer
     protected static function getOutputPath($filename)
     {
         $outputFilename = PIWIK_USER_PATH . '/tmp/assets/' . $filename;
+        $outputFilename = SettingsPiwik::rewriteTmpPathWithHostname($outputFilename);
+
         @chmod($outputFilename, 0600);
         @unlink($outputFilename);
         return $outputFilename;
@@ -175,7 +175,7 @@ abstract class ReportRenderer
     {
         $filename = ReportRenderer::appendExtension($filename, $extension);
 
-        Piwik::overrideCacheControlHeaders();
+        ProxyHttp::overrideCacheControlHeaders();
         header('Content-Description: File Transfer');
         header('Content-Type: ' . $contentType);
         header('Content-Disposition: attachment; filename="' . str_replace('"', '\'', basename($filename)) . '";');
@@ -215,8 +215,8 @@ abstract class ReportRenderer
             }
 
             $reportColumns = array(
-                'label' => Piwik_Translate('General_Name'),
-                'value' => Piwik_Translate('General_Value'),
+                'label' => Piwik::translate('General_Name'),
+                'value' => Piwik::translate('General_Value'),
             );
         }
 

@@ -28,31 +28,46 @@ class CoreVisualizations extends \Piwik\Plugin
     public function getListHooksRegistered()
     {
         return array(
-            'AssetManager.getCssFiles'            => 'getCssFiles',
-            'AssetManager.getJsFiles'             => 'getJsFiles',
-            'DataTableVisualization.getAvailable' => 'getAvailableDataTableVisualizations',
+            'AssetManager.getStylesheetFiles'        => 'getStylesheetFiles',
+            'AssetManager.getJavaScriptFiles'        => 'getJsFiles',
+            'ViewDataTable.addViewDataTable'         => 'getAvailableDataTableVisualizations',
+            'Translate.getClientSideTranslationKeys' => 'getClientSideTranslationKeys'
         );
     }
 
     public function getAvailableDataTableVisualizations(&$visualizations)
     {
+        $visualizations[] = 'Piwik\\Plugins\\CoreVisualizations\\Visualizations\\Sparkline';
         $visualizations[] = 'Piwik\\Plugins\\CoreVisualizations\\Visualizations\\HtmlTable';
         $visualizations[] = 'Piwik\\Plugins\\CoreVisualizations\\Visualizations\\HtmlTable\\AllColumns';
-        $visualizations[] = 'Piwik\\Plugins\\CoreVisualizations\\Visualizations\\HtmlTable\\Goals';
         $visualizations[] = 'Piwik\\Plugins\\CoreVisualizations\\Visualizations\\Cloud';
         $visualizations[] = 'Piwik\\Plugins\\CoreVisualizations\\Visualizations\\JqplotGraph\\Pie';
         $visualizations[] = 'Piwik\\Plugins\\CoreVisualizations\\Visualizations\\JqplotGraph\\Bar';
         $visualizations[] = 'Piwik\\Plugins\\CoreVisualizations\\Visualizations\\JqplotGraph\\Evolution';
     }
 
-    public function getCssFiles(&$cssFiles)
+    public function getStylesheetFiles(&$stylesheets)
     {
-        $cssFiles[] = "plugins/CoreVisualizations/stylesheets/dataTableVisualizations.less";
-        $cssFiles[] = "plugins/CoreVisualizations/stylesheets/jqplot.css";
+        $stylesheets[] = "plugins/CoreVisualizations/stylesheets/dataTableVisualizations.less";
+        $stylesheets[] = "plugins/CoreVisualizations/stylesheets/jqplot.css";
     }
 
     public function getJsFiles(&$jsFiles)
     {
+        $jsFiles[] = "plugins/CoreVisualizations/javascripts/seriesPicker.js";
         $jsFiles[] = "plugins/CoreVisualizations/javascripts/jqplot.js";
+        $jsFiles[] = "plugins/CoreVisualizations/javascripts/jqplotBarGraph.js";
+        $jsFiles[] = "plugins/CoreVisualizations/javascripts/jqplotPieGraph.js";
+        $jsFiles[] = "plugins/CoreVisualizations/javascripts/jqplotEvolutionGraph.js";
+    }
+
+    public function getClientSideTranslationKeys(&$translationKeys)
+    {
+        $translationKeys[] = 'General_MetricsToPlot';
+        $translationKeys[] = 'General_MetricToPlot';
+        $translationKeys[] = 'General_RecordsToPlot';
+        $translationKeys[] = 'General_SaveImageOnYourComputer';
+        $translationKeys[] = 'General_ExportAsImage';
+        $translationKeys[] = 'General_NoDataForGraph';
     }
 }

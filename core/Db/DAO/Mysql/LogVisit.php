@@ -68,27 +68,33 @@ class LogVisit extends Base
         return Db::segmentedFetchFirst($sql, $maxIdVisit, 0, $segmentSize);
     }
 
-    public function update($sqlActionUpdate, $valuesToUpdate, $idsite, $idvisit)
+    public function update($valuesToUpdate, $idsite, $idvisit)
     {
         $Generic = Factory::getGeneric($this->db);
-        $sql_parts = array();
-        $bind      = array();
         $valuesToUpdate['idvisitor'] = $Generic->bin2db($valuesToUpdate['idvisitor']);
-        foreach ($valuesToUpdate as $name => $value) {
-            $sql_parts[] = $name . ' = ? ';
-            $bind[]      = $value;
+
+        $updateParts = $sqlBind = array();
+        foreach ($valuesToUpdate AS $name => $value) {
+            // Case where bind parameters don't work
+            if(strpos($value, $name) !== false) {
+                //$name = 'visit_total_events'
+                //$value = 'visit_total_events + 1';
+                $updateParts[] = " $name = $value ";
+            } else {
+                $updateParts[] = $name . " = ?";
+                $sqlBind[] = $value;
+            }
         }
         
-        array_push($bind, $idsite, $idvisit);
-
+        array_push($sqlBind, $idsite, $idvisit);
         $sql = 'UPDATE ' . $this->table . ' SET '
-             . $sqlActionUpdate . implode(', ', $sql_parts) . ' '
+             . implode(', ', $updateParts) . ' '
              . 'WHERE idsite = ? AND idvisit = ?';
-        $result = $this->db->query($sql, $bind);
+        $result = $this->db->query($sql, $sqlBind);
 
         return array($this->db->rowCount($result),
                      $sql,
-                     $bind
+                     $sqlBind
                     );
     }
 
@@ -212,8 +218,8 @@ class LogVisit extends Base
 // we catch the exception
         try {
             $q1 = "ALTER TABLE `" . $this->table . "`
-                ADD `config_os_version` VARCHAR( 10 ) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL AFTER `config_os` ,
-                ADD `config_device_type` TINYINT( 10 ) NULL DEFAULT NULL AFTER `config_browser_version` ,
+                ADD `config_os_version` VARCHAR( 100 ) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL AFTER `config_os` ,
+                ADD `config_device_type` VARCHAR( 100 ) NULL DEFAULT NULL AFTER `config_browser_version` ,
                 ADD `config_device_brand` VARCHAR( 100 ) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL AFTER `config_device_type` ,
                 ADD `config_device_model` VARCHAR( 100 ) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL AFTER `config_device_brand`";
             $this->db->exec($q1);

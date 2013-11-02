@@ -46,7 +46,7 @@ class LogConversion extends \Piwik\Db\DAO\Mysql\LogConversion
     /**
      *  uses tracker db
      */
-    protected function recordGoalInsert($goal)
+    public function insertNew($goal)
     {
         $Generic = Factory::getGeneric($this->db);
         // pg is throwing error when empty values are given for 'FLOAT' columns

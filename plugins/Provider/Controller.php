@@ -10,13 +10,13 @@
  */
 namespace Piwik\Plugins\Provider;
 
-use Piwik\ViewDataTable;
+use Piwik\ViewDataTable\Factory;
 
 /**
  *
  * @package Provider
  */
-class Controller extends \Piwik\Controller
+class Controller extends \Piwik\Plugin\Controller
 {
     /**
      * Provider
@@ -25,7 +25,7 @@ class Controller extends \Piwik\Controller
      */
     public function getProvider($fetch = false)
     {
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 }
 

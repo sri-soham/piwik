@@ -11,13 +11,14 @@
 namespace Piwik\Plugins\Dashboard;
 
 use Exception;
-use Piwik\Piwik;
 use Piwik\Common;
-use Piwik\Site;
 use Piwik\Db;
 use Piwik\Db\Factory;
+use Piwik\Menu\MenuMain;
+use Piwik\Menu\MenuTop;
+use Piwik\Piwik;
+use Piwik\Site;
 use Piwik\WidgetsList;
-use Zend_Registry;
 
 /**
  * @package Dashboard
@@ -30,11 +31,12 @@ class Dashboard extends \Piwik\Plugin
     public function getListHooksRegistered()
     {
         return array(
-            'AssetManager.getJsFiles'  => 'getJsFiles',
-            'AssetManager.getCssFiles' => 'getCssFiles',
-            'UsersManager.deleteUser'  => 'deleteDashboardLayout',
-            'Menu.add'                 => 'addMenus',
-            'TopMenu.add'              => 'addTopMenu',
+            'AssetManager.getJavaScriptFiles'        => 'getJsFiles',
+            'AssetManager.getStylesheetFiles'        => 'getStylesheetFiles',
+            'UsersManager.deleteUser'                => 'deleteDashboardLayout',
+            'Menu.Reporting.addItems'                => 'addMenus',
+            'Menu.Top.addItems'                      => 'addTopMenu',
+            'Translate.getClientSideTranslationKeys' => 'getClientSideTranslationKeys'
         );
     }
 
@@ -80,13 +82,13 @@ class Dashboard extends \Piwik\Plugin
                 ],
                 [
                     ' . $topWidget . '
-                    {"uniqueId":"widgetReferersgetKeywords","parameters":{"module":"Referers","action":"getKeywords"}},
-                    {"uniqueId":"widgetReferersgetWebsites","parameters":{"module":"Referers","action":"getWebsites"}}
+                    {"uniqueId":"widgetReferrersgetKeywords","parameters":{"module":"Referrers","action":"getKeywords"}},
+                    {"uniqueId":"widgetReferrersgetWebsites","parameters":{"module":"Referrers","action":"getWebsites"}}
                 ],
                 [
                     {"uniqueId":"widgetUserCountryMapvisitorMap","parameters":{"module":"UserCountryMap","action":"visitorMap"}},
                     {"uniqueId":"widgetUserSettingsgetBrowser","parameters":{"module":"UserSettings","action":"getBrowser"}},
-                    {"uniqueId":"widgetReferersgetSearchEngines","parameters":{"module":"Referers","action":"getSearchEngines"}},
+                    {"uniqueId":"widgetReferrersgetSearchEngines","parameters":{"module":"Referrers","action":"getSearchEngines"}},
                     {"uniqueId":"widgetVisitTimegetVisitInformationPerServerTime","parameters":{"module":"VisitTime","action":"getVisitInformationPerServerTime"}},
                     {"uniqueId":"widgetExampleRssWidgetrssPiwik","parameters":{"module":"ExampleRssWidget","action":"rssPiwik"}}
                 ]
@@ -107,7 +109,7 @@ class Dashboard extends \Piwik\Plugin
         foreach ($dashboards AS &$dashboard) {
 
             if (empty($dashboard['name'])) {
-                $dashboard['name'] = Piwik_Translate('Dashboard_DashboardOf', $login);
+                $dashboard['name'] = Piwik::translate('Dashboard_DashboardOf', $login);
                 if ($nameless > 1) {
                     $dashboard['name'] .= " ($nameless)";
                 }
@@ -196,7 +198,7 @@ class Dashboard extends \Piwik\Plugin
 
     public function addMenus()
     {
-        Piwik_AddMenu('Dashboard_Dashboard', '', array('module' => 'Dashboard', 'action' => 'embeddedIndex', 'idDashboard' => 1), true, 5);
+        MenuMain::getInstance()->add('Dashboard_Dashboard', '', array('module' => 'Dashboard', 'action' => 'embeddedIndex', 'idDashboard' => 1), true, 5);
 
         if (!Piwik::isUserIsAnonymous()) {
             $login = Piwik::getCurrentUserLogin();
@@ -205,7 +207,7 @@ class Dashboard extends \Piwik\Plugin
             if (count($dashboards) > 1) {
                 $pos = 0;
                 foreach ($dashboards AS $dashboard) {
-                    Piwik_AddMenu('Dashboard_Dashboard', $dashboard['name'], array('module' => 'Dashboard', 'action' => 'embeddedIndex', 'idDashboard' => $dashboard['iddashboard']), true, $pos);
+                    MenuMain::getInstance()->add('Dashboard_Dashboard', $dashboard['name'], array('module' => 'Dashboard', 'action' => 'embeddedIndex', 'idDashboard' => $dashboard['iddashboard']), true, $pos);
                     $pos++;
                 }
             }
@@ -217,13 +219,13 @@ class Dashboard extends \Piwik\Plugin
         $tooltip = false;
         try {
             $idSite = Common::getRequestVar('idSite');
-            $tooltip = Piwik_Translate('Dashboard_TopLinkTooltip', Site::getNameFor($idSite));
+            $tooltip = Piwik::translate('Dashboard_TopLinkTooltip', Site::getNameFor($idSite));
         } catch (Exception $ex) {
             // if no idSite parameter, show no tooltip
         }
 
         $urlParams = array('module' => 'CoreHome', 'action' => 'index');
-        Piwik_AddTopMenu('General_Dashboard', $urlParams, true, 1, $isHTML = false, $tooltip);
+        MenuTop::addEntry('Dashboard_Dashboard', $urlParams, true, 1, $isHTML = false, $tooltip);
     }
 
     public function getJsFiles(&$jsFiles)
@@ -235,10 +237,10 @@ class Dashboard extends \Piwik\Plugin
         $jsFiles[] = "plugins/Dashboard/javascripts/dashboard.js";
     }
 
-    public function getCssFiles(&$cssFiles)
+    public function getStylesheetFiles(&$stylesheets)
     {
-        $cssFiles[] = "plugins/CoreHome/stylesheets/dataTable.less";
-        $cssFiles[] = "plugins/Dashboard/stylesheets/dashboard.less";
+        $stylesheets[] = "plugins/CoreHome/stylesheets/dataTable.less";
+        $stylesheets[] = "plugins/Dashboard/stylesheets/dashboard.less";
     }
 
     public function deleteDashboardLayout($userLogin)
@@ -257,5 +259,18 @@ class Dashboard extends \Piwik\Plugin
     {
         $UserDashboard = Factory::getDAO('user_dashboard');
         $UserDashboard->uninstall();
+    }
+
+    public function getClientSideTranslationKeys(&$translationKeys)
+    {
+        $translationKeys[] = 'Dashboard_AddPreviewedWidget';
+        $translationKeys[] = 'Dashboard_WidgetPreview';
+        $translationKeys[] = 'Dashboard_Maximise';
+        $translationKeys[] = 'Dashboard_Minimise';
+        $translationKeys[] = 'Dashboard_LoadingWidget';
+        $translationKeys[] = 'Dashboard_WidgetNotFound';
+        $translationKeys[] = 'Dashboard_DashboardCopied';
+        $translationKeys[] = 'General_Close';
+        $translationKeys[] = 'General_Refresh';
     }
 }

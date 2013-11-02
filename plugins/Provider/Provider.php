@@ -11,15 +11,17 @@
 namespace Piwik\Plugins\Provider;
 
 use Exception;
+use Piwik\ArchiveProcessor;
 use Piwik\Common;
+use Piwik\Db;
+
 use Piwik\FrontController;
 use Piwik\IP;
-use Piwik\ArchiveProcessor;
-use Piwik\Db;
 use Piwik\Db\Factory;
-use Piwik\Plugins\Provider\Archiver;
+use Piwik\Menu\MenuMain;
+use Piwik\Piwik;
+use Piwik\Plugin\ViewDataTable;
 use Piwik\WidgetsList;
-use Zend_Registry;
 
 /**
  *
@@ -33,14 +35,14 @@ class Provider extends \Piwik\Plugin
     public function getListHooksRegistered()
     {
         $hooks = array(
-            'ArchiveProcessing_Day.compute'            => 'archiveDay',
-            'ArchiveProcessing_Period.compute'         => 'archivePeriod',
-            'Tracker.newVisitorInformation'            => 'logProviderInfo',
-            'WidgetsList.add'                          => 'addWidget',
-            'Menu.add'                                 => 'addMenu',
-            'API.getReportMetadata'                    => 'getReportMetadata',
-            'API.getSegmentsMetadata'                  => 'getSegmentsMetadata',
-            'ViewDataTable.getReportDisplayProperties' => 'getReportDisplayProperties',
+            'ArchiveProcessor.Day.compute'    => 'archiveDay',
+            'ArchiveProcessor.Period.compute' => 'archivePeriod',
+            'Tracker.newVisitorInformation'   => 'enrichVisitWithProviderInfo',
+            'WidgetsList.addWidgets'          => 'addWidget',
+            'Menu.Reporting.addItems'         => 'addMenu',
+            'API.getReportMetadata'           => 'getReportMetadata',
+            'API.getSegmentsMetadata'         => 'getSegmentsMetadata',
+            'ViewDataTable.configure'         => 'configureViewDataTable',
         );
         return $hooks;
     }
@@ -48,12 +50,12 @@ class Provider extends \Piwik\Plugin
     public function getReportMetadata(&$reports)
     {
         $reports[] = array(
-            'category'      => Piwik_Translate('General_Visitors'),
-            'name'          => Piwik_Translate('Provider_ColumnProvider'),
+            'category'      => Piwik::translate('General_Visitors'),
+            'name'          => Piwik::translate('Provider_ColumnProvider'),
             'module'        => 'Provider',
             'action'        => 'getProvider',
-            'dimension'     => Piwik_Translate('Provider_ColumnProvider'),
-            'documentation' => Piwik_Translate('Provider_ProviderReportDocumentation', '<br />'),
+            'dimension'     => Piwik::translate('Provider_ColumnProvider'),
+            'documentation' => Piwik::translate('Provider_ProviderReportDocumentation', '<br />'),
             'order'         => 50
         );
     }
@@ -63,7 +65,7 @@ class Provider extends \Piwik\Plugin
         $segments[] = array(
             'type'           => 'dimension',
             'category'       => 'Visit Location',
-            'name'           => Piwik_Translate('Provider_ColumnProvider'),
+            'name'           => Piwik::translate('Provider_ColumnProvider'),
             'segment'        => 'provider',
             'acceptedValues' => 'comcast.net, proxad.net, etc.',
             'sqlSegment'     => 'log_visit.location_provider'
@@ -91,19 +93,19 @@ class Provider extends \Piwik\Plugin
 
     public function addMenu()
     {
-        Piwik_RenameMenuEntry('General_Visitors', 'UserCountry_SubmenuLocations',
+        MenuMain::getInstance()->rename('General_Visitors', 'UserCountry_SubmenuLocations',
             'General_Visitors', 'Provider_SubmenuLocationsProvider');
     }
 
     public function postLoad()
     {
-        Piwik_AddAction('template_footerUserCountry', array('Piwik\Plugins\Provider\Provider', 'footerUserCountry'));
+        Piwik::addAction('Template.footerUserCountry', array('Piwik\Plugins\Provider\Provider', 'footerUserCountry'));
     }
 
     /**
      * Logs the provider in the log_visit table
      */
-    public function logProviderInfo(&$visitorInfo)
+    public function enrichVisitWithProviderInfo(&$visitorInfo, \Piwik\Tracker\Request $request)
     {
         // if provider info has already been set, abort
         if (!empty($visitorInfo['location_provider'])) {
@@ -156,7 +158,25 @@ class Provider extends \Piwik\Plugin
             return 'Ip';
         } else {
             $cleanHostname = null;
-            Piwik_PostEvent('Provider.getCleanHostname', array(&$cleanHostname, $hostname));
+
+            /**
+             * Triggered when prettifying a hostname string. depending on a given hostname.
+             * 
+             * This event can be used to customize the way a hostname is displayed in the 
+             * Providers report.
+             *
+             * **Example**
+             * 
+             * ```
+             * public function getCleanHostname(&$cleanHostname, $hostname)
+             * {
+             *     if ('fvae.VARG.ceaga.site.co.jp' == $hostname) {
+             *         $cleanHostname = 'site.co.jp';
+             *     }
+             * }
+             * ```
+             */
+            Piwik::postEvent('Provider.getCleanHostname', array(&$cleanHostname, $hostname));
             if ($cleanHostname !== null) {
                 return $cleanHostname;
             }
@@ -187,7 +207,7 @@ class Provider extends \Piwik\Plugin
     static public function footerUserCountry(&$out)
     {
         $out = '<div>
-			<h2>' . Piwik_Translate('Provider_WidgetProviders') . '</h2>';
+			<h2>' . Piwik::translate('Provider_WidgetProviders') . '</h2>';
         $out .= FrontController::getInstance()->fetchDispatch('Provider', 'getProvider');
         $out .= '</div>';
     }
@@ -211,16 +231,18 @@ class Provider extends \Piwik\Plugin
         }
     }
 
-    public function getReportDisplayProperties(&$properties)
+    public function configureViewDataTable(ViewDataTable $view)
     {
-        $properties['Provider.getProvider'] = $this->getDisplayPropertiesForGetProvider();
+        switch ($view->requestConfig->apiMethodToRequestDataTable) {
+            case 'Provider.getProvider':
+                $this->configureViewForGetProvider($view);
+                break;
+        }
     }
 
-    private function getDisplayPropertiesForGetProvider()
+    private function configureViewForGetProvider(ViewDataTable $view)
     {
-        return array(
-            'translations' => array('label' => Piwik_Translate('Provider_ColumnProvider')),
-            'filter_limit' => 5
-        );
+        $view->requestConfig->filter_limit = 5;
+        $view->config->addTranslation('label', Piwik::translate('Provider_ColumnProvider'));
     }
 }

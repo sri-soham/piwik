@@ -30,7 +30,7 @@ class Test_Piwik_Integration_ApiGetReportMetadata_Year extends IntegrationTestCa
         );
     }
 
-    public function getOutputPrefix()
+    public static function getOutputPrefix()
     {
         return 'apiGetReportMetadata_year';
     }
@@ -38,8 +38,6 @@ class Test_Piwik_Integration_ApiGetReportMetadata_Year extends IntegrationTestCa
     /**
      * @dataProvider getApiForTesting
      * @group        Integration
-     * @group        ApiGetReportMetadata
-     * @group        ApiGetReportMetadata_Year
      */
     public function testApi($api, $params)
     {

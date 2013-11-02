@@ -13,7 +13,6 @@ namespace Piwik\Plugins\Provider;
 use Piwik\Archive;
 use Piwik\Metrics;
 use Piwik\Piwik;
-use Piwik\Plugins\Provider\Archiver;
 
 /**
  * @see plugins/Provider/functions.php
@@ -25,18 +24,8 @@ require_once PIWIK_INCLUDE_PATH . '/plugins/Provider/functions.php';
  *
  * @package Provider
  */
-class API
+class API extends \Piwik\Plugin\API
 {
-    static private $instance = null;
-
-    static public function getInstance()
-    {
-        if (self::$instance == null) {
-            self::$instance = new self;
-        }
-        return self::$instance;
-    }
-
     public function getProvider($idSite, $period, $date, $segment = false)
     {
         Piwik::checkUserHasViewAccess($idSite);

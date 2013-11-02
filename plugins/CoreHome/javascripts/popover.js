@@ -45,6 +45,7 @@ var Piwik_Popover = (function () {
                 $('.ui-widget-overlay').off('click.popover');
                 isOpen = false;
                 broadcast.propagateNewPopoverParameter(false);
+                require('piwik/UI').UIControl.cleanupUnusedControls();
                 if (typeof closeCallback == 'function') {
                     closeCallback();
                     closeCallback = false;
@@ -81,8 +82,8 @@ var Piwik_Popover = (function () {
         showLoading: function (popoverName, popoverSubject, height, dialogClass) {
             var loading = $(document.createElement('div')).addClass('Piwik_Popover_Loading');
 
-            var loadingMessage = popoverSubject ? translations.General_LoadingPopoverFor_js :
-                translations.General_LoadingPopover_js;
+            var loadingMessage = popoverSubject ? translations.General_LoadingPopoverFor :
+                translations.General_LoadingPopover;
 
             loadingMessage = loadingMessage.replace(/%s/, popoverName);
 
@@ -207,7 +208,12 @@ var Piwik_Popover = (function () {
         },
 
         /**
-         * Create a Popover and load the specified URL in it
+         * Create a Popover and load the specified URL in it.
+         * 
+         * Note: If you want the popover to be persisted in the URL (so if the URL is copy/pasted
+         * to a new window/tab it will be opened there), use broadcast.propagateNewPopoverParameter
+         * with a popover handler function that calls this one.
+         * 
          * @param {string} url
          * @param {string} loadingName
          * @param {string} [dialogClass]      css class to add to dialog

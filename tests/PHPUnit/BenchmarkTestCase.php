@@ -49,11 +49,10 @@ abstract class BenchmarkTestCase extends IntegrationTestCase
         try {
             if (isset(self::$fixture->tablesPrefix)) {
                 Config::getInstance()->database['tables_prefix'] = self::$fixture->tablesPrefix;
-                Common::$cachedTablePrefix = null;
             }
 
             Db::query("USE " . $dbName);
-            $installedFixture = Piwik_GetOption('benchmark_fixture_name');
+            $installedFixture = \Piwik\Option::get('benchmark_fixture_name');
         } catch (Exception $ex) {
             // ignore
         }
@@ -64,7 +63,7 @@ abstract class BenchmarkTestCase extends IntegrationTestCase
         // if we created an empty database, setup the fixture
         if ($createEmptyDatabase) {
             self::$fixture->setUp();
-            Piwik_SetOption('benchmark_fixture_name', $fixtureName);
+            \Piwik\Option::set('benchmark_fixture_name', $fixtureName);
         }
     }
 

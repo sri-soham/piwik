@@ -189,8 +189,8 @@ class LogVisit extends \Piwik\Db\DAO\Mysql\LogVisit
 // we catch the exception
         try {
             $q1 = "ALTER TABLE " . $this->table . "
-                ADD config_os_version VARCHAR(10) DEFAULT NULL ,
-                ADD config_device_type SMALLINT DEFAULT NULL ,
+                ADD config_os_version VARCHAR(100) DEFAULT NULL ,
+                ADD config_device_type VARCHAR(100) DEFAULT NULL ,
                 ADD config_device_brand VARCHAR(100) DEFAULT NULL ,
                 ADD config_device_model VARCHAR(100) DEFAULT NULL ";
             $this->db->exec($q1);

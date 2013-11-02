@@ -5,19 +5,20 @@
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
-use Piwik\Config;
-use Piwik\Common;
 use Piwik\Access;
+use Piwik\Common;
+use Piwik\Config;
 use Piwik\Date;
 use Piwik\Plugins\MobileMessaging\MobileMessaging;
-use Piwik\Plugins\PDFReports\API as PDFReportsAPI;
-use Piwik\Plugins\PDFReports\PDFReports;
-use Piwik\Plugins\SitesManager\API as SitesManagerAPI;
+use Piwik\Plugins\ScheduledReports\API as APIScheduledReports;
+use Piwik\Plugins\ScheduledReports\ScheduledReports;
+use Piwik\Plugins\SitesManager\API as APISitesManager;
 use Piwik\Plugins\UserCountry\LocationProvider;
-use Piwik\Plugins\UsersManager\API as UsersManagerAPI;
-use Piwik\Url;
+use Piwik\Plugins\UsersManager\API as APIUsersManager;
 use Piwik\ReportRenderer;
 use Piwik\Site;
+use Piwik\Url;
+use Piwik\Db;
 
 /**
  * Base type for all integration test fixtures. Integration test fixtures
@@ -36,8 +37,8 @@ use Piwik\Site;
 abstract class Test_Piwik_BaseFixture extends PHPUnit_Framework_Assert
 {
     const IMAGES_GENERATED_ONLY_FOR_OS = 'linux';
-    const IMAGES_GENERATED_FOR_PHP = '5.4';
-    const IMAGES_GENERATED_FOR_GD = '2.0.36';
+    const IMAGES_GENERATED_FOR_PHP = '5.5';
+    const IMAGES_GENERATED_FOR_GD = '2.1.1';
 
     /** Adds data to Piwik. Creates sites, tracks visits, imports log files, etc. */
     public abstract function setUp();
@@ -63,7 +64,7 @@ abstract class Test_Piwik_BaseFixture extends PHPUnit_Framework_Assert
                                          $siteSearch = 1, $searchKeywordParameters = null,
                                          $searchCategoryParameters = null)
     {
-        $idSite = SitesManagerAPI::getInstance()->addSite(
+        $idSite = APISitesManager::getInstance()->addSite(
             $siteName,
             $siteUrl === false ? "http://piwik.net/" : $siteUrl,
             $ecommerce,
@@ -75,7 +76,7 @@ abstract class Test_Piwik_BaseFixture extends PHPUnit_Framework_Assert
         );
 
         // Manually set the website creation date to a day earlier than the earliest day we record stats for
-        \Zend_Registry::get('db')->update(Common::prefixTable("site"),
+        Db::get()->update(Common::prefixTable("site"),
             array('ts_created' => Date::factory($dateTime)->subDay(1)->getDatetime()),
             "idsite = $idSite"
         );
@@ -140,6 +141,7 @@ abstract class Test_Piwik_BaseFixture extends PHPUnit_Framework_Assert
         $t->setForceVisitDateTime($dateTime);
 
         if ($defaultInit) {
+            $t->setTokenAuth(self::getTokenAuth());
             $t->setIp('156.5.3.2');
 
             // Optional tracking
@@ -170,6 +172,24 @@ abstract class Test_Piwik_BaseFixture extends PHPUnit_Framework_Assert
         );
     }
 
+    /**
+     * Checks that the response from bulk tracking is a valid JSON
+     * string. Will fail the test if JSON status is not success.
+     *
+     * @param $response
+     */
+    public static function checkBulkTrackingResponse($response) {
+        $data = json_decode($response, true);
+        if (!is_array($data) || empty($response)) {
+            throw new Exception("Bulk tracking response (".$response.") is not an array: " . var_export($data, true) . "\n");
+        }
+        if(!isset($data['status'])) {
+            throw new Exception("Returned data didn't have a status: " . var_export($data,true));
+        }
+        self::assertArrayHasKey('status', $data);
+        self::assertEquals('success', $data['status']);
+    }
+
     public static function makeLocation($city, $region, $country, $lat = null, $long = null, $isp = null)
     {
         return array(LocationProvider::CITY_NAME_KEY    => $city,
@@ -188,7 +208,7 @@ abstract class Test_Piwik_BaseFixture extends PHPUnit_Framework_Assert
      */
     public static function getTokenAuth()
     {
-        return UsersManagerAPI::getInstance()->getTokenAuth(
+        return APIUsersManager::getInstance()->getTokenAuth(
             Config::getInstance()->superuser['login'],
             Config::getInstance()->superuser['password']
         );
@@ -208,13 +228,13 @@ abstract class Test_Piwik_BaseFixture extends PHPUnit_Framework_Assert
      */
     public static function setUpScheduledReports($idSite)
     {
-        // fake access is needed so API methods can call Piwik::getCurrentUserLogin(), e.g: 'PDFReports.addReport'
+        // fake access is needed so API methods can call Piwik::getCurrentUserLogin(), e.g: 'ScheduledReports.addReport'
         $pseudoMockAccess = new FakeAccess;
         FakeAccess::$superUser = true;
         Access::setSingletonInstance($pseudoMockAccess);
 
         // retrieve available reports
-        $availableReportMetadata = PDFReportsAPI::getReportMetadata($idSite, PDFReports::EMAIL_TYPE);
+        $availableReportMetadata = APIScheduledReports::getReportMetadata($idSite, ScheduledReports::EMAIL_TYPE);
 
         $availableReportIds = array();
         foreach ($availableReportMetadata as $reportMetadata) {
@@ -223,19 +243,19 @@ abstract class Test_Piwik_BaseFixture extends PHPUnit_Framework_Assert
 
         //@review should we also test evolution graphs?
         // set-up mail report
-        PDFReportsAPI::getInstance()->addReport(
+        APIScheduledReports::getInstance()->addReport(
             $idSite,
             'Mail Test report',
             'day', // overridden in getApiForTestingScheduledReports()
             0,
-            PDFReports::EMAIL_TYPE,
+            ScheduledReports::EMAIL_TYPE,
             ReportRenderer::HTML_FORMAT, // overridden in getApiForTestingScheduledReports()
             $availableReportIds,
-            array(PDFReports::DISPLAY_FORMAT_PARAMETER => PDFReports::DISPLAY_FORMAT_TABLES_ONLY)
+            array(ScheduledReports::DISPLAY_FORMAT_PARAMETER => ScheduledReports::DISPLAY_FORMAT_TABLES_ONLY)
         );
 
         // set-up sms report for one website
-        PDFReportsAPI::getInstance()->addReport(
+        APIScheduledReports::getInstance()->addReport(
             $idSite,
             'SMS Test report, one website',
             'day', // overridden in getApiForTestingScheduledReports()
@@ -247,7 +267,7 @@ abstract class Test_Piwik_BaseFixture extends PHPUnit_Framework_Assert
         );
 
         // set-up sms report for all websites
-        PDFReportsAPI::getInstance()->addReport(
+        APIScheduledReports::getInstance()->addReport(
             $idSite,
             'SMS Test report, all websites',
             'day', // overridden in getApiForTestingScheduledReports()
@@ -260,29 +280,29 @@ abstract class Test_Piwik_BaseFixture extends PHPUnit_Framework_Assert
 
         if (self::canImagesBeIncludedInScheduledReports()) {
             // set-up mail report with images
-            PDFReportsAPI::getInstance()->addReport(
+            APIScheduledReports::getInstance()->addReport(
                 $idSite,
                 'Mail Test report',
                 'day', // overridden in getApiForTestingScheduledReports()
                 0,
-                PDFReports::EMAIL_TYPE,
+                ScheduledReports::EMAIL_TYPE,
                 ReportRenderer::HTML_FORMAT, // overridden in getApiForTestingScheduledReports()
                 $availableReportIds,
-                array(PDFReports::DISPLAY_FORMAT_PARAMETER => PDFReports::DISPLAY_FORMAT_TABLES_AND_GRAPHS)
+                array(ScheduledReports::DISPLAY_FORMAT_PARAMETER => ScheduledReports::DISPLAY_FORMAT_TABLES_AND_GRAPHS)
             );
 
             // set-up mail report with one row evolution based png graph
-            PDFReportsAPI::getInstance()->addReport(
+            APIScheduledReports::getInstance()->addReport(
                 $idSite,
                 'Mail Test report',
                 'day',
                 0,
-                PDFReports::EMAIL_TYPE,
+                ScheduledReports::EMAIL_TYPE,
                 ReportRenderer::HTML_FORMAT,
                 array('Actions_getPageTitles'),
                 array(
-                     PDFReports::DISPLAY_FORMAT_PARAMETER => PDFReports::DISPLAY_FORMAT_GRAPHS_ONLY,
-                     PDFReports::EVOLUTION_GRAPH_PARAMETER => 'true',
+                     ScheduledReports::DISPLAY_FORMAT_PARAMETER => ScheduledReports::DISPLAY_FORMAT_GRAPHS_ONLY,
+                     ScheduledReports::EVOLUTION_GRAPH_PARAMETER => 'true',
                 )
             );
         }
@@ -297,7 +317,7 @@ abstract class Test_Piwik_BaseFixture extends PHPUnit_Framework_Assert
         return
             stristr(php_uname(), self::IMAGES_GENERATED_ONLY_FOR_OS) &&
             strpos( phpversion(), self::IMAGES_GENERATED_FOR_PHP) !== false &&
-            $gdInfo['GD Version'] == self::IMAGES_GENERATED_FOR_GD;
+            strpos( $gdInfo['GD Version'], self::IMAGES_GENERATED_FOR_GD) !== false;
     }
 
     public static $geoIpDbUrl = 'http://piwik-team.s3.amazonaws.com/GeoIP.dat.gz';
@@ -338,13 +358,15 @@ abstract class Test_Piwik_BaseFixture extends PHPUnit_Framework_Assert
         // unzip the dump
         exec("gunzip -c \"" . $outfileName . "\" > \"$deflatedOut\"", $output, $return);
         if ($return !== 0) {
+            \Piwik\Log::info("gunzip failed with file that has following contents:");
+            \Piwik\Log::info(file_get_contents($outfile));
             throw new Exception("gunzip failed($return): " . implode("\n", $output));
         }
     }
 
     protected static function executeLogImporter($logFile, $options)
     {
-        $python = Common::isWindows() ? "C:\Python27\python.exe" : 'python';
+        $python = \Piwik\SettingsServer::isWindows() ? "C:\Python27\python.exe" : 'python';
 
         // create the command
         $cmd = $python

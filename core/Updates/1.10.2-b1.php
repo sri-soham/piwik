@@ -8,6 +8,9 @@
  * @category Piwik
  * @package Updates
  */
+
+namespace Piwik\Updates;
+
 use Piwik\Common;
 use Piwik\Updater;
 use Piwik\Updates;
@@ -15,14 +18,14 @@ use Piwik\Updates;
 /**
  * @package Updates
  */
-class Piwik_Updates_1_10_2_b1 extends Updates
+class Updates_1_10_2_b1 extends Updates
 {
     static function getSql($schema = 'Myisam')
     {
         return array(
             // ignore existing column name error (1060)
             'ALTER TABLE ' . Common::prefixTable('report')
-                . " ADD COLUMN hour tinyint NOT NULL default 0 AFTER period" => 1060,
+            . " ADD COLUMN hour tinyint NOT NULL default 0 AFTER period" => 1060,
         );
     }
 

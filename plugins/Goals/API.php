@@ -12,17 +12,15 @@ namespace Piwik\Plugins\Goals;
 
 use Exception;
 use Piwik\Archive;
-use Piwik\Metrics;
-use Piwik\Piwik;
 use Piwik\Common;
 use Piwik\DataTable;
-use Piwik\Site;
 use Piwik\Db;
 use Piwik\Db\Factory;
+use Piwik\Metrics;
+use Piwik\Piwik;
+use Piwik\Site;
 use Piwik\Tracker\Cache;
 use Piwik\Tracker\GoalManager;
-use Piwik\Plugins\Goals\Goals;
-use Piwik\Plugins\Goals\Archiver;
 
 /**
  * Goals API lets you Manage existing goals, via "updateGoal" and "deleteGoal", create new Goals via "addGoal",
@@ -43,22 +41,10 @@ use Piwik\Plugins\Goals\Archiver;
  * See also the documentation about <a href='http://piwik.org/docs/tracking-goals-web-analytics/' target='_blank'>Tracking Goals</a> in Piwik.
  *
  * @package Goals
+ * @method static \Piwik\Plugins\Goals\API getInstance()
  */
-class API
+class API extends \Piwik\Plugin\API
 {
-    static private $instance = null;
-
-    /**
-     * @return \Piwik\Plugins\Goals\API
-     */
-    static public function getInstance()
-    {
-        if (self::$instance == null) {
-            self::$instance = new self;
-        }
-        return self::$instance;
-    }
-
     /**
      * Returns all Goals for a given website, or list of websites
      *
@@ -173,7 +159,7 @@ class API
         if ($patternType == 'exact'
             && substr($pattern, 0, 4) != 'http'
         ) {
-            throw new Exception(Piwik_TranslateException('Goals_ExceptionInvalidMatchingString', array("http:// or https://", "http://www.yourwebsite.com/newsletter/subscribed.html")));
+            throw new Exception(Piwik::translate('Goals_ExceptionInvalidMatchingString', array("http:// or https://", "http://www.yourwebsite.com/newsletter/subscribed.html")));
         }
     }
 
@@ -202,7 +188,8 @@ class API
         $dao->markAsDeleted($idSite, $idGoal);
         Factory::getGeneric()->deleteAll(
             Common::prefixTable('log_conversion'),
-            array(' idgoal = ? '),
+            ' WHERE idgoal = ? ',
+            'idvisit',
             100000,
             array($idGoal)
         );
@@ -218,8 +205,7 @@ class API
         Piwik::checkUserHasViewAccess($idSite);
         $recordNameFinal = $recordName;
         if ($abandonedCarts) {
-            $recordNameFinal = Archiver::getItemRecordNameAbandonedCart($recordName);
-        }
+            $recordNameFinal = Archiver::getItemRecordNameAbandonedCart($recordName); }
         $archive = Archive::build($idSite, $period, $date);
         $dataTable = $archive->getDataTable($recordNameFinal);
 
@@ -249,24 +235,26 @@ class API
             'Goals_ItemsCategory' => '_pkc',
         );
         $reportToNotDefinedString = array(
-            'Goals_ItemsSku'      => Piwik_Translate('General_NotDefined', Piwik_Translate('Goals_ProductSKU')), // Note: this should never happen
-            'Goals_ItemsName'     => Piwik_Translate('General_NotDefined', Piwik_Translate('Goals_ProductName')),
-            'Goals_ItemsCategory' => Piwik_Translate('General_NotDefined', Piwik_Translate('Goals_ProductCategory'))
+            'Goals_ItemsSku'      => Piwik::translate('General_NotDefined', Piwik::translate('Goals_ProductSKU')), // Note: this should never happen
+            'Goals_ItemsName'     => Piwik::translate('General_NotDefined', Piwik::translate('Goals_ProductName')),
+            'Goals_ItemsCategory' => Piwik::translate('General_NotDefined', Piwik::translate('Goals_ProductCategory'))
         );
         $notDefinedStringPretty = $reportToNotDefinedString[$recordName];
         $customVarNameToLookFor = $mapping[$recordName];
 
         // Handle case where date=last30&period=day
         if ($customVariables instanceof DataTable\Map) {
-            $customVariableDatatables = $customVariables->getArray();
-            $dataTables = $dataTable->getArray();
+            $customVariableDatatables = $customVariables->getDataTables();
+            $dataTables = $dataTable->getDataTables();
             foreach ($customVariableDatatables as $key => $customVariableTableForDate) {
                 $dataTableForDate = isset($dataTables[$key]) ? $dataTables[$key] : new DataTable();
 
                 // we do not enter the IF
                 // if case idSite=1,3 AND period=day&date=datefrom,dateto,
-                if (isset($customVariableTableForDate->metadata['period'])) {
-                    $dateRewrite = $customVariableTableForDate->metadata['period']->getDateStart()->toString();
+                if ($customVariableTableForDate instanceof DataTable
+                    && $customVariableTableForDate->getMetadata('period')
+                ) {
+                    $dateRewrite = $customVariableTableForDate->getMetadata('period')->getDateStart()->toString();
                     $row = $customVariableTableForDate->getRowFromLabel($customVarNameToLookFor);
                     if ($row) {
                         $idSubtable = $row->getIdSubDataTable();
@@ -294,7 +282,7 @@ class API
     protected function renameNotDefinedRow($dataTable, $notDefinedStringPretty)
     {
         if ($dataTable instanceof DataTable\Map) {
-            foreach ($dataTable->getArray() as $table) {
+            foreach ($dataTable->getDataTables() as $table) {
                 $this->renameNotDefinedRow($table, $notDefinedStringPretty);
             }
             return;
@@ -412,7 +400,7 @@ class API
         }
         if ($idGoal == Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_ORDER) {
             if ($dataTable instanceof DataTable\Map) {
-                foreach ($dataTable->getArray() as $row) {
+                foreach ($dataTable->getDataTables() as $row) {
                     $this->enrichTable($row);
                 }
             } else {
@@ -526,7 +514,7 @@ class API
 
         $dataTable->queueFilter('Sort', array('label', 'asc', true));
         $dataTable->queueFilter(
-            'BeautifyRangeLabels', array(Piwik_Translate('General_OneDay'), Piwik_Translate('General_NDays')));
+            'BeautifyRangeLabels', array(Piwik::translate('General_OneDay'), Piwik::translate('General_NDays')));
 
         return $dataTable;
     }
@@ -550,7 +538,7 @@ class API
 
         $dataTable->queueFilter('Sort', array('label', 'asc', true));
         $dataTable->queueFilter(
-            'BeautifyRangeLabels', array(Piwik_Translate('General_OneVisit'), Piwik_Translate('General_NVisits')));
+            'BeautifyRangeLabels', array(Piwik::translate('General_OneVisit'), Piwik::translate('General_NVisits')));
 
         return $dataTable;
     }

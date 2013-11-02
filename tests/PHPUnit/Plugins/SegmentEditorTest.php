@@ -9,7 +9,7 @@ use Piwik\Piwik;
 use Piwik\Access;
 use Piwik\Date;
 use Piwik\Plugins\SegmentEditor\API;
-use Piwik\Plugins\SitesManager\API as SitesManagerAPI;
+use Piwik\Plugins\SitesManager\API as APISitesManager;
 
 class SegmentEditorTest extends DatabaseTestCase
 {
@@ -17,8 +17,8 @@ class SegmentEditorTest extends DatabaseTestCase
     {
         parent::setUp();
 
-        \Piwik\PluginsManager::getInstance()->loadPlugin('SegmentEditor');
-        \Piwik\PluginsManager::getInstance()->installLoadedPlugins();
+        \Piwik\Plugin\Manager::getInstance()->loadPlugin('SegmentEditor');
+        \Piwik\Plugin\Manager::getInstance()->installLoadedPlugins();
 
         // setup the access layer
         $pseudoMockAccess = new FakeAccess;
@@ -30,7 +30,7 @@ class SegmentEditorTest extends DatabaseTestCase
         FakeAccess::$superUserLogin = 'superusertest';
         Access::setSingletonInstance($pseudoMockAccess);
 
-        SitesManagerAPI::getInstance()->addSite('test', 'http://example.org');
+        APISitesManager::getInstance()->addSite('test', 'http://example.org');
     }
 
     public function tearDown()
@@ -40,6 +40,9 @@ class SegmentEditorTest extends DatabaseTestCase
         parent::tearDown();
     }
 
+    /**
+     * @group Plugins
+     */
     public function testAddInvalidSegment_ShouldThrow()
     {
         try {
@@ -54,6 +57,9 @@ class SegmentEditorTest extends DatabaseTestCase
         }
     }
 
+    /**
+     * @group Plugins
+     */
     public function test_AddAndGet_SimpleSegment()
     {
         $name = 'name';
@@ -77,6 +83,9 @@ class SegmentEditorTest extends DatabaseTestCase
         $this->assertEquals($segment, $expected);
     }
 
+    /**
+     * @group Plugins
+     */
     public function test_AddAndGet_AnotherSegment()
     {
         $name = 'name';
@@ -118,6 +127,9 @@ class SegmentEditorTest extends DatabaseTestCase
         $this->assertEquals($segments, array());
     }
 
+    /**
+     * @group Plugins
+     */
     public function test_UpdateSegment()
     {
         $name = 'name"';
@@ -147,6 +159,11 @@ class SegmentEditorTest extends DatabaseTestCase
         );
 
         $newSegment = API::getInstance()->get($idSegment2);
+
+        // avoid test failures for when ts_created/ts_last_edit are different by between 1/2 secs
+        $this->removeSecondsFromSegmentInfo($updatedSegment);
+        $this->removeSecondsFromSegmentInfo($newSegment);
+
         $this->assertEquals($newSegment, $updatedSegment);
 
         // Check the other segmenet was not updated
@@ -154,6 +171,9 @@ class SegmentEditorTest extends DatabaseTestCase
         $this->assertEquals($newSegment['name'], $nameSegment1);
     }
 
+    /**
+     * @group Plugins
+     */
     public function test_deleteSegment()
     {
         $idSegment1 = API::getInstance()->add('name 1', 'searches==0', $idSite = 1, $autoArchive = 1, $enabledAllUsers = 1);
@@ -170,5 +190,15 @@ class SegmentEditorTest extends DatabaseTestCase
 
         // and this should work
         API::getInstance()->get($idSegment1);
+    }
+
+    private function removeSecondsFromSegmentInfo(&$segmentInfo)
+    {
+        $timestampProperties = array('ts_last_edit', 'ts_created');
+        foreach ($timestampProperties as $propertyName) {
+            if (isset($segmentInfo[$propertyName])) {
+                $segmentInfo[$propertyName] = substr($segmentInfo[$propertyName], 0, strlen($segmentInfo[$propertyName] - 2));
+            }
+        }
     }
 }

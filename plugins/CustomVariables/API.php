@@ -10,33 +10,20 @@
  */
 namespace Piwik\Plugins\CustomVariables;
 
+use Piwik\Tracker\ActionSiteSearch;
 use Piwik\Archive;
-use Piwik\Metrics;
-use Piwik\Date;
 use Piwik\DataTable;
-use Piwik\Tracker\Action;
-use Piwik\Plugins\CustomVariables\Archiver;
+use Piwik\Date;
+use Piwik\Metrics;
+use Piwik\Piwik;
 
 /**
  * The Custom Variables API lets you access reports for your <a href='http://piwik.org/docs/custom-variables/' target='_blank'>Custom Variables</a> names and values.
  *
  * @package CustomVariables
  */
-class API
+class API extends \Piwik\Plugin\API
 {
-    static private $instance = null;
-
-    /**
-     * @return \Piwik\Plugins\CustomVariables\API
-     */
-    static public function getInstance()
-    {
-        if (self::$instance == null) {
-            self::$instance = new self;
-        }
-        return self::$instance;
-    }
-
     /**
      * @param int $idSite
      * @param string $period
@@ -90,7 +77,7 @@ class API
      */
     public static function getReservedCustomVariableKeys()
     {
-        return array('_pks', '_pkn', '_pkc', '_pkp', Action::CVAR_KEY_SEARCH_COUNT, Action::CVAR_KEY_SEARCH_CATEGORY);
+        return array('_pks', '_pkn', '_pkc', '_pkp', ActionSiteSearch::CVAR_KEY_SEARCH_COUNT, ActionSiteSearch::CVAR_KEY_SEARCH_CATEGORY);
     }
 
     /**
@@ -113,10 +100,11 @@ class API
             // Hack Ecommerce product price tracking to display correctly
             $dataTable->renameColumn('price_viewed', 'price');
         }
-        $dataTable->queueFilter('ColumnCallbackReplace', array('label', create_function('$label', '
-			return $label == \\Piwik\\Plugins\\CustomVariables\\Archiver::LABEL_CUSTOM_VALUE_NOT_DEFINED
-				? "' . Piwik_Translate('General_NotDefined', Piwik_Translate('CustomVariables_ColumnCustomVariableValue')) . '"
-				: $label;')));
+        $dataTable->queueFilter('ColumnCallbackReplace', array('label', function ($label) {
+            return $label == \Piwik\Plugins\CustomVariables\Archiver::LABEL_CUSTOM_VALUE_NOT_DEFINED
+                ? Piwik::translate('General_NotDefined', Piwik::translate('CustomVariables_ColumnCustomVariableValue'))
+                : $label;
+        }));
         return $dataTable;
     }
 }

@@ -16,6 +16,7 @@ use Piwik\Date;
 use Piwik\DataAccess\ArchiveSelector;
 use Piwik\DataAccess\ArchiveTableCreator;
 use Piwik\Db\Factory;
+use Piwik\SettingsPiwik;
 
 /**
  *  @package Piwik
@@ -375,7 +376,7 @@ class Archive extends \Piwik\Db\DAO\Mysql\Archive
 
     protected function lockNameForNextIdarchive($table)
     {
-        $hash = md5("loadNextIdArchive.$table" . Common::getSalt());
+        $hash = md5("loadNextIdArchive.$table" . SettingsPiwik::getSalt());
 
         $lockName = (float)$this->md5_to_64bit($hash);
         $lockName = sprintf("%0.0f", $lockName);

@@ -11,6 +11,8 @@
  */
 
 namespace Piwik\Plugins\Widgetize;
+use Piwik\Menu\MenuTop;
+use Piwik\Piwik;
 
 /**
  *
@@ -24,18 +26,19 @@ class Widgetize extends \Piwik\Plugin
     public function getListHooksRegistered()
     {
         return array(
-            'AssetManager.getJsFiles'  => 'getJsFiles',
-            'AssetManager.getCssFiles' => 'getCssFiles',
-            'TopMenu.add'              => 'addTopMenu',
+            'AssetManager.getJavaScriptFiles'        => 'getJsFiles',
+            'AssetManager.getStylesheetFiles'        => 'getStylesheetFiles',
+            'Menu.Top.addItems'                      => 'addTopMenu',
+            'Translate.getClientSideTranslationKeys' => 'getClientSideTranslationKeys'
         );
     }
 
     public function addTopMenu()
     {
-        $tooltip = Piwik_Translate('Widgetize_TopLinkTooltip');
+        $tooltip = Piwik::translate('Widgetize_TopLinkTooltip');
         $urlParams = array('module' => 'Widgetize', 'action' => 'index', 'segment' => false);
 
-        Piwik_AddTopMenu('General_Widgets', $urlParams, true, 5, $isHTML = false, $tooltip);
+        MenuTop::addEntry('General_Widgets', $urlParams, true, 5, $isHTML = false, $tooltip);
     }
 
     public function getJsFiles(&$jsFiles)
@@ -48,12 +51,18 @@ class Widgetize extends \Piwik\Plugin
         $jsFiles[] = "plugins/Widgetize/javascripts/widgetize.js";
     }
 
-    public function getCssFiles(&$cssFiles)
+    public function getStylesheetFiles(&$stylesheets)
     {
-        $cssFiles[] = "plugins/Widgetize/stylesheets/widgetize.less";
-        $cssFiles[] = "plugins/CoreHome/stylesheets/coreHome.less";
-        $cssFiles[] = "plugins/CoreHome/stylesheets/dataTable.less";
-        $cssFiles[] = "plugins/CoreHome/stylesheets/cloud.less";
-        $cssFiles[] = "plugins/Dashboard/stylesheets/dashboard.less";
+        $stylesheets[] = "plugins/Widgetize/stylesheets/widgetize.less";
+        $stylesheets[] = "plugins/CoreHome/stylesheets/coreHome.less";
+        $stylesheets[] = "plugins/CoreHome/stylesheets/dataTable.less";
+        $stylesheets[] = "plugins/CoreHome/stylesheets/cloud.less";
+        $stylesheets[] = "plugins/Dashboard/stylesheets/dashboard.less";
+    }
+
+    public function getClientSideTranslationKeys(&$translations)
+    {
+        $translations[] = 'Widgetize_OpenInNewWindow';
+        $translations[] = 'Dashboard_LoadingWidget';
     }
 }

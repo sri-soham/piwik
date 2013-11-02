@@ -16,7 +16,6 @@ class DataTableTest extends PHPUnit_Framework_TestCase
 {
     /**
      * @group Core
-     * @group DataTable
      */
     public function testApplyFilter()
     {
@@ -44,7 +43,6 @@ class DataTableTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
      */
     public function testRenameColumn()
     {
@@ -57,7 +55,6 @@ class DataTableTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
      */
     public function testDeleteColumn()
     {
@@ -69,7 +66,6 @@ class DataTableTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
      */
     public function testDeleteRow()
     {
@@ -90,7 +86,6 @@ class DataTableTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
      */
     public function testGetLastRow()
     {
@@ -105,7 +100,6 @@ class DataTableTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
      */
     public function testGetRowFromIdSubDataTable()
     {
@@ -128,7 +122,6 @@ class DataTableTest extends PHPUnit_Framework_TestCase
      * on a Simple array (1 level only)
      *
      * @group Core
-     * @group DataTable
      */
     public function testCountRowsSimple()
     {
@@ -159,7 +152,6 @@ class DataTableTest extends PHPUnit_Framework_TestCase
      *         + the number of rows in the parent table
      *
      * @group Core
-     * @group DataTable
      */
     public function testCountRowsComplex()
     {
@@ -221,7 +213,6 @@ class DataTableTest extends PHPUnit_Framework_TestCase
      * Simple test of the DataTable_Row
      *
      * @group Core
-     * @group DataTable
      */
     public function testRow()
     {
@@ -247,7 +238,6 @@ class DataTableTest extends PHPUnit_Framework_TestCase
      * Simple test of the DataTable_Row
      *
      * @group Core
-     * @group DataTable
      */
     public function testSumRow()
     {
@@ -302,11 +292,15 @@ class DataTableTest extends PHPUnit_Framework_TestCase
         $this->assertTrue(Row::isEqual($rowWanted, $finalRow));
     }
 
+    /**
+     * @group Core
+     */
     public function test_unserializeWorks_WhenDataTableFormatPriorPiwik2()
     {
         $serializedDatatable = '';
         // Prior Piwik 2.0, we didn't use namespaces. Some
         require PIWIK_INCLUDE_PATH . "/tests/resources/pre-Piwik2-DataTable-archived.php";
+        require_once PIWIK_INCLUDE_PATH . "/core/DataTable/Bridges.php";
 
         $this->assertTrue(strlen($serializedDatatable) > 1000);
 
@@ -318,7 +312,8 @@ class DataTableTest extends PHPUnit_Framework_TestCase
      * Test that adding two string column values results in an exception.
      *
      * @group Core
-     * @group DataTable
+     * 
+     * @expectedException Exception
      */
     public function testSumRow_stringException()
     {
@@ -332,13 +327,8 @@ class DataTableTest extends PHPUnit_Framework_TestCase
         );
         $row2 = new Row(array(Row::COLUMNS => $columns2));
 
-        // TODO: when phpunit 3.7 is released, can do check w/ "@expectedException Exception"
-        try {
-            $row2->sumRow($row1);
-            $this->fail("sumRow did not throw when adding two string columns.");
-        } catch (Exception $ex) {
-            // pass
-        }
+        $row2->sumRow($row1);
+        $this->fail("sumRow did not throw when adding two string columns.");
     }
 
     /**
@@ -346,20 +336,16 @@ class DataTableTest extends PHPUnit_Framework_TestCase
      * After 100 recursion must throw an exception
      *
      * @group Core
-     * @group DataTable
+     * 
+     * @expectedException Exception
      */
     public function testSerializeWithInfiniteRecursion()
     {
-        try {
-            $table = new DataTable;
-            $table->addRowFromArray(array(Row::COLUMNS              => array('visits' => 245, 'visitors' => 245),
-                                          Row::DATATABLE_ASSOCIATED => $table,));
+        $table = new DataTable;
+        $table->addRowFromArray(array(Row::COLUMNS              => array('visits' => 245, 'visitors' => 245),
+                                      Row::DATATABLE_ASSOCIATED => $table,));
 
-            $table->getSerialized();
-        } catch (Exception $e) {
-            return;
-        }
-        $this->fail('Expected exception not raised');
+        $table->getSerialized();
     }
 
 
@@ -367,7 +353,6 @@ class DataTableTest extends PHPUnit_Framework_TestCase
      * Test queing filters
      *
      * @group Core
-     * @group DataTable
      */
     public function testFilterQueueSortString()
     {
@@ -425,7 +410,6 @@ class DataTableTest extends PHPUnit_Framework_TestCase
      * Then we serialize everything, and we check that the unserialize give the same object back
      *
      * @group Core
-     * @group DataTable
      */
     public function testGeneral()
     {
@@ -561,7 +545,6 @@ class DataTableTest extends PHPUnit_Framework_TestCase
      * add an empty datatable to a normal datatable
      *
      * @group Core
-     * @group DataTable
      */
     public function testAddSimpleNoRowTable2()
     {
@@ -576,7 +559,6 @@ class DataTableTest extends PHPUnit_Framework_TestCase
      * add a normal datatable to an empty datatable
      *
      * @group Core
-     * @group DataTable
      */
     public function testAddSimpleNoRowTable1()
     {
@@ -590,7 +572,6 @@ class DataTableTest extends PHPUnit_Framework_TestCase
      * add to the datatable another datatable// they don't have any row in common
      *
      * @group Core
-     * @group DataTable
      */
     public function testAddSimpleNoCommonRow()
     {
@@ -610,7 +591,6 @@ class DataTableTest extends PHPUnit_Framework_TestCase
      * add 2 datatable with some common rows
      *
      * @group Core
-     * @group DataTable
      */
     public function testAddSimpleSomeCommonRow()
     {
@@ -655,7 +635,6 @@ class DataTableTest extends PHPUnit_Framework_TestCase
      * add 2 datatable with only common rows
      *
      * @group Core
-     * @group DataTable
      */
     public function testAddSimpleAllCommonRow()
     {
@@ -697,7 +676,6 @@ class DataTableTest extends PHPUnit_Framework_TestCase
      * test add 2 different tables to the same table
      *
      * @group Core
-     * @group DataTable
      */
     public function testAddDataTable2times()
     {
@@ -752,7 +730,6 @@ class DataTableTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
      */
     public function testUnrelatedDataTableNotDestructed()
     {
@@ -772,7 +749,6 @@ class DataTableTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
      */
     public function testGetSerializedCallsCleanPostSerialize()
     {
@@ -787,7 +763,6 @@ class DataTableTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
      */
     public function testSubDataTableIsDestructed()
     {

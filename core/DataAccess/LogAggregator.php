@@ -12,18 +12,23 @@ namespace Piwik\DataAccess;
 
 use PDOStatement;
 use Piwik\Common;
-use Piwik\Metrics;
 use Piwik\Date;
 use Piwik\Db\Factory;
+use Piwik\Db;
+use Piwik\Metrics;
 use Piwik\Segment;
 use Piwik\Site;
-use Piwik\RankingQuery;
 use Piwik\Tracker\GoalManager;
-use Zend_Registry;
 
 /**
- * This class queries the Visitor logs tables (visits, actions, conversions, ecommerce)
- * and returns aggregate data.
+ * Contains methods that aggregates log data (visits, actions, conversions, ecommerce).
+ * 
+ * Plugin [Archiver](#) descendants can use the methods in this class to aggregate data
+ * in the log tables without creating their own SQL queries.
+ * 
+ * ### Examples
+ * 
+ * ** TODO **
  */
 class LogAggregator
 {
@@ -132,22 +137,36 @@ class LogAggregator
     }
 
     /**
-     * Query visits logs by dimension, and return the aggregate data.
+     * Queries visit logs by dimension and returns the aggregate data.
      *
-     * @param array|string $dimensions     Can be a string, eg. "referer_name", will be aliased as 'label' in the returned rows
-     *                                      Can also be an array of strings, when the dimension spans multiple fields,
-     *                                      eg. array("referer_name", "referer_keyword")
-     * @param bool|string $where Additional condition for WHERE clause
-     * @param array $additionalSelects Additional SELECT clause
-     * @param bool|array $metrics   Set this if you want to limit the columns that are returned.
-     *                                      The possible values in the array are Metrics::INDEX_*.
+     * @param array|string $dimensions SELECT fields (or just one field) that will be grouped by,
+     *                                 eg, `'referrer_name'` or `array('referrer_name', 'referrer_keyword')`.
+     *                                 The metrics retrieved from the query will be specific to combinations
+     *                                 of these fields. So if `array('referrer_name', 'referrer_keyword')`
+     *                                 is supplied, the query will select the visits for each referrer/keyword
+     *                                 combination.
+     * @param bool|string $where Additional condition for the WHERE clause. Can be used to filter
+     *                           the set of visits that are looked at.
+     * @param array $additionalSelects Additional SELECT fields that are not included in the group by
+     *                                 clause. These can be aggregate expressions, eg, `SUM(somecol)`.
+     * @param bool|array $metrics The set of metrics to return. If false, the query will select all of them.
+     *                            The following values can be used:
+     *                              - Metrics::INDEX_NB_UNIQ_VISITORS
+     *                              - Metrics::INDEX_NB_VISITS
+     *                              - Metrics::INDEX_NB_ACTIONS
+     *                              - Metrics::INDEX_MAX_ACTIONS
+     *                              - Metrics::INDEX_SUM_VISIT_LENGTH
+     *                              - Metrics::INDEX_BOUNCE_COUNT
+     *                              - Metrics::INDEX_NB_VISITS_CONVERTED
      * @param bool|\Piwik\RankingQuery $rankingQuery
-     *                                      A pre-configured ranking query instance that is used to limit the result.
-     *                                      If set, the return value is the array returned by RankingQuery::execute().
-     *
-     * @return mixed
+     *                                   A pre-configured ranking query instance that will be used to limit the result.
+     *                                   If set, the return value is the array returned by [RankingQuery::execute()](#).
+     * @return mixed A Zend_Db_Statement if `$rankingQuery` isn't supplied, otherwise the result of
+     *                                   [RankingQuery::execute()](#).
+     * @api
      */
-    public function queryVisitsByDimension(array $dimensions = array(), $where = false, array $additionalSelects = array(), $metrics = false, $rankingQuery = false)
+    public function queryVisitsByDimension(array $dimensions = array(), $where = false, array $additionalSelects = array(),
+                                           $metrics = false, $rankingQuery = false)
     {
         $tableName = self::LOG_VISIT_TABLE;
         $availableMetrics = $this->getVisitsMetricFields();
@@ -281,7 +300,7 @@ class LogAggregator
     protected function isFieldFunctionOrComplexExpression($field)
     {
         return strpos($field, "(") !== false
-            || strpos($field, "CASE") !== false;
+        || strpos($field, "CASE") !== false;
     }
 
     protected function getSelectAliasAs($metricId)
@@ -292,7 +311,7 @@ class LogAggregator
     protected function isMetricRequested($metricId, $metricsRequested)
     {
         return $metricsRequested === false
-            || in_array($metricId, $metricsRequested);
+        || in_array($metricId, $metricsRequested);
     }
 
     protected function getWhereStatement($tableName, $datetimeField, $extraWhere = false)
@@ -320,7 +339,7 @@ class LogAggregator
     }
 
     /**
-     * Returns the ecommerce items
+     * Queries all ecommerce items.
      *
      * @param string $field
      * @return string
@@ -334,13 +353,13 @@ class LogAggregator
     /**
      * Queries the Actions table log_link_visit_action and returns the aggregate data.
      *
-     * @param array|string $dimensions      the dimensionRecord(s) you're interested in
-     * @param string $where      where clause
+     * @param array|string $dimensions the dimensionRecord(s) you're interested in
+     * @param string $where where clause
      * @param array|bool $additionalSelects additional select clause
-     * @param bool|array $metrics    Set this if you want to limit the columns that are returned.
+     * @param bool|array $metrics Set this if you want to limit the columns that are returned.
      *                                  The possible values in the array are Metrics::INDEX_*.
-     * @param \Piwik\RankingQuery $rankingQuery     pre-configured ranking query instance
-     * @param bool|string $joinLogActionOnColumn  column from log_link_visit_action that
+     * @param \Piwik\RankingQuery $rankingQuery pre-configured ranking query instance
+     * @param bool|string $joinLogActionOnColumn column from log_link_visit_action that
      *                                              log_action should be joined on.
      *                                                can be an array to join multiple times.
      * @param bool|string $extraGroupBy columns to be added to the "group by" clause
@@ -447,7 +466,7 @@ class LogAggregator
     {
         @list($column, $ranges, $table, $selectColumnPrefix, $restrictToReturningVisitors) = $metadata;
 
-        $db = \Zend_Registry::get('db');
+        $db = Db::get();
 
         $selects = array();
         $extraCondition = '';
@@ -509,6 +528,6 @@ class LogAggregator
 
     public function getDb()
     {
-        return \Zend_Registry::get('db');
+        return Db::get();
     }
 }

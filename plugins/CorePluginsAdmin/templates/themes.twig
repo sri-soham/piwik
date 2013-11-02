@@ -5,11 +5,23 @@
 {% block content %}
 <div style="max-width:980px;">
 
+    {% if pluginsHavingUpdate|length %}
+        <h2>{{ pluginsHavingUpdate|length }} Update(s) available</h2>
+
+        <p>{{ 'Update your themes to enjoy the latest version.'|translate }}</p>
+
+        {{ plugins.tablePluginUpdates(pluginsHavingUpdate, updateNonce, true) }}
+    {% endif %}
+
     <h2>{{ 'CorePluginsAdmin_ThemesManagement'|translate }}</h2>
 
-    <p>{{ 'CorePluginsAdmin_ThemesDescription'|translate }}</p>
+    <p>{{ 'CorePluginsAdmin_ThemesDescription'|translate }}
+    {% if otherUsersCount > 0 %}
+        <br/> Note: the other {{ otherUsersCount }} users registered in this Piwik are also using the theme {{ themeEnabled }}.
+    {% endif %}
+    </p>
 
-    {{ plugins.tablePlugins(pluginsInfo, token_auth, true) }}
+    {{ plugins.tablePlugins(pluginsInfo, pluginNamesHavingSettings, activateNonce, deactivateNonce, uninstallNonce, true) }}
 
 </div>
 {% endblock %}

@@ -10,8 +10,9 @@
  */
 namespace Piwik\Plugins\UserCountry\LocationProvider;
 
-use Piwik\Config;
 use Piwik\Common;
+use Piwik\Config;
+use Piwik\Piwik;
 use Piwik\Plugins\UserCountry\LocationProvider;
 
 /**
@@ -103,11 +104,11 @@ class DefaultProvider extends LocationProvider
      */
     public function getInfo()
     {
-        $desc = Piwik_Translate('UserCountry_DefaultLocationProviderDesc1') . ' '
-            . Piwik_Translate('UserCountry_DefaultLocationProviderDesc2',
+        $desc = Piwik::translate('UserCountry_DefaultLocationProviderDesc1') . ' '
+            . Piwik::translate('UserCountry_DefaultLocationProviderDesc2',
                 array('<strong>', '<em>', '</em>', '</strong>'))
             . '<p><em><a href="http://piwik.org/faq/how-to/#faq_163" target="_blank">'
-            . Piwik_Translate('UserCountry_HowToInstallGeoIPDatabases')
+            . Piwik::translate('UserCountry_HowToInstallGeoIPDatabases')
             . '</em></a></p>';
         return array('id' => self::ID, 'title' => self::TITLE, 'description' => $desc, 'order' => 1);
     }

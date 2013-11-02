@@ -12,8 +12,7 @@ namespace Piwik\Plugins\Annotations;
 
 use Piwik\API\Request;
 use Piwik\Common;
-use Piwik\Plugins\Annotations\AnnotationList;
-use Piwik\Plugins\Annotations\API;
+use Piwik\Piwik;
 use Piwik\View;
 
 /**
@@ -21,7 +20,7 @@ use Piwik\View;
  *
  * @package Annotations
  */
-class Controller extends \Piwik\Controller
+class Controller extends \Piwik\Plugin\Controller
 {
     /**
      * Controller action that returns HTML displaying annotations for a site and
@@ -75,7 +74,7 @@ class Controller extends \Piwik\Controller
         $view->startDate = $startDate->toString();
         $view->endDate = $endDate->toString();
 
-        $dateFormat = Piwik_Translate('CoreHome_ShortDateFormatWithYear');
+        $dateFormat = Piwik::translate('CoreHome_ShortDateFormatWithYear');
         $view->startDatePretty = $startDate->getLocalized($dateFormat);
         $view->endDatePretty = $endDate->getLocalized($dateFormat);
 

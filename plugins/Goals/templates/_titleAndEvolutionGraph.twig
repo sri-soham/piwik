@@ -15,7 +15,7 @@
             {{ 'Goals_Conversions'|translate("<strong>"~nb_conversions~"</strong>")|raw }}
         {% endif %}
         {% if goalAllowMultipleConversionsPerVisit is defined and goalAllowMultipleConversionsPerVisit %}
-            ({{ 'VisitsSummary_NbVisits'|translate("<strong>"~nb_visits_converted~"</strong>")|raw }})
+            ({{ 'General_NVisits'|translate("<strong>"~nb_visits_converted~"</strong>")|raw }})
         {% endif %}
     </div>
     {% if revenue != 0 or ecommerce is defined %}
@@ -66,7 +66,7 @@
         <div class="sparkline">
             {{ sparkline(cart_urlSparklineRevenue) }}
             {% set revenue %}{{ cart_revenue|money(idSite)|raw }}{% endset %}
-            {% set revenueText %}{{ 'Live_GoalRevenue'|translate }}{% endset %}
+            {% set revenueText %}{{ 'General_ColumnRevenue'|translate }}{% endset %}
             <strong>{{ revenue }}</strong> {{ 'Goals_LeftInCart'|translate(revenueText) }}
         </div>
 

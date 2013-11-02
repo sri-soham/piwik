@@ -12,9 +12,7 @@ namespace Piwik\Tracker;
 
 use Piwik\Common;
 use Piwik\IP;
-use Piwik\Tracker\Cache;
-use Piwik\Tracker\IgnoreCookie;
-use Piwik\Tracker\Request;
+use Piwik\Piwik;
 
 /**
  * This class contains the logic to exclude some visitors from being tracked as per user settings
@@ -74,8 +72,16 @@ class VisitExcluded
             }
         }
 
-        /* custom filters can override the built-in filters above */
-        Piwik_PostEvent('Tracker.Visit.isExcluded', array(&$excluded));
+        /**
+         * Triggered on every pageview of a visitor.
+         * 
+         * This event can be used to tell the Tracker not to record this particular pageview.
+         * 
+         * @param bool &$excluded Whether the pageview should be excluded or not. Initialized
+         *                        to `false`. Event subscribers should set it to `true` in
+         *                        order to exclude the pageview.
+         */
+        Piwik::postEvent('Tracker.isExcludedVisit', array(&$excluded));
 
         /*
          * Following exclude operations happen after the hook.
@@ -125,8 +131,8 @@ class VisitExcluded
     {
         return (isset($_SERVER["HTTP_X_PURPOSE"])
             && in_array($_SERVER["HTTP_X_PURPOSE"], array("preview", "instant")))
-            || (isset($_SERVER['HTTP_X_MOZ'])
-                && $_SERVER['HTTP_X_MOZ'] == "prefetch");
+        || (isset($_SERVER['HTTP_X_MOZ'])
+            && $_SERVER['HTTP_X_MOZ'] == "prefetch");
     }
 
     /**
@@ -138,14 +144,17 @@ class VisitExcluded
      */
     protected function isNonHumanBot()
     {
-        $allowBots = Common::getRequestVar('bots', false) != false;
+        $allowBots = $this->request->getParam('bots');
         return !$allowBots
-            && (strpos($this->userAgent, 'Googlebot') !== false // Googlebot
-                || strpos($this->userAgent, 'Google Web Preview') !== false // Google Instant
-                || strpos($this->userAgent, 'Google Page Speed Insights') !== false // #4049
-                || strpos($this->userAgent, 'bingbot') !== false // Bingbot
-                || strpos($this->userAgent, 'YottaaMonitor') !== false // Yottaa
-                || IP::isIpInRange($this->ip, $this->getBotIpRanges()));
+        && (strpos($this->userAgent, 'Googlebot') !== false // Googlebot
+            || strpos($this->userAgent, 'Google Web Preview') !== false // Google Instant
+            || strpos($this->userAgent, 'Google Page Speed Insights') !== false // #4049
+            || strpos($this->userAgent, 'Google (+https://developers.google.com') !== false // Google Snippet https://developers.google.com/+/web/snippet/
+            || strpos($this->userAgent, 'facebookexternalhit') !== false // http://www.facebook.com/externalhit_uatext.php
+            || strpos($this->userAgent, 'bingbot') !== false // Bingbot
+            || strpos($this->userAgent, 'YottaaMonitor') !== false // Yottaa
+            || strpos($this->userAgent, 'CloudFlare') !== false // CloudFlare-AlwaysOnline
+            || IP::isIpInRange($this->ip, $this->getBotIpRanges()));
     }
 
     protected function getBotIpRanges()

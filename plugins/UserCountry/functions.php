@@ -12,7 +12,7 @@
 namespace Piwik\Plugins\UserCountry;
 
 use Piwik\DataTable;
-use Piwik\Plugins\UserCountry\Archiver;
+use Piwik\Piwik;
 use Piwik\Plugins\UserCountry\LocationProvider\GeoIp;
 use Piwik\Tracker\Visit;
 
@@ -42,9 +42,9 @@ function getFlagFromCode($code)
 function continentTranslate($label)
 {
     if ($label == 'unk' || $label == '') {
-        return Piwik_Translate('General_Unknown');
+        return Piwik::translate('General_Unknown');
     }
-    return Piwik_Translate('UserCountry_continent_' . $label);
+    return Piwik::translate('UserCountry_continent_' . $label);
 }
 
 /**
@@ -56,9 +56,9 @@ function continentTranslate($label)
 function countryTranslate($label)
 {
     if ($label == Visit::UNKNOWN_CODE || $label == '') {
-        return Piwik_Translate('General_Unknown');
+        return Piwik::translate('General_Unknown');
     }
-    return Piwik_Translate('UserCountry_country_' . $label);
+    return Piwik::translate('UserCountry_country_' . $label);
 }
 
 /**
@@ -96,7 +96,7 @@ function getRegionName($label)
     }
 
     if ($label == '') {
-        return Piwik_Translate('General_Unknown');
+        return Piwik::translate('General_Unknown');
     }
 
     list($regionCode, $countryCode) = explode(Archiver::LOCATION_SEPARATOR, $label);
@@ -118,7 +118,7 @@ function getPrettyRegionName($label)
     }
 
     if ($label == '') {
-        return Piwik_Translate('General_Unknown');
+        return Piwik::translate('General_Unknown');
     }
 
     list($regionCode, $countryCode) = explode(Archiver::LOCATION_SEPARATOR, $label);
@@ -146,7 +146,7 @@ function getPrettyCityName($label)
     }
 
     if ($label == '') {
-        return Piwik_Translate('General_Unknown');
+        return Piwik::translate('General_Unknown');
     }
 
     // get city name, region code & country code
@@ -156,7 +156,7 @@ function getPrettyCityName($label)
     $countryCode = @$parts[2];
 
     if ($cityName == Visit::UNKNOWN_CODE || $cityName == '') {
-        $cityName = Piwik_Translate('General_Unknown');
+        $cityName = Piwik::translate('General_Unknown');
     }
 
     $result = $cityName;

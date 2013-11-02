@@ -12,7 +12,6 @@
 namespace Piwik\Archive;
 
 use Exception;
-use Piwik\Archive\DataTableFactory;
 use Piwik\DataTable;
 
 /**
@@ -20,10 +19,12 @@ use Piwik\DataTable;
  *
  * Archive data is loaded into an instance of this type, can be indexed by archive
  * metadata (such as the site ID, period string, etc.), and can be transformed into
- * DataTable and Set instances.
+ * DataTable and Map instances.
  */
 class DataCollection
 {
+    const METADATA_CONTAINER_ROW_KEY = '_metadata';
+
     /**
      * The archive data, indexed first by site ID and then by period date range. Eg,
      *
@@ -115,7 +116,6 @@ class DataCollection
             $defaultRow = array_fill_keys($dataNames, 0);
         }
 
-        //FIXMEA
         $this->sitesId = $sitesId;
 
         foreach ($periods as $period) {
@@ -155,7 +155,7 @@ class DataCollection
     public function addMetadata($idSite, $period, $name, $value)
     {
         $row = & $this->get($idSite, $period);
-        $row['_metadata'][$name] = $value;
+        $row[self::METADATA_CONTAINER_ROW_KEY][$name] = $value;
     }
 
     /**
@@ -168,11 +168,11 @@ class DataCollection
      *                             Eg, array('site' => 'idSite', 'period' => 'Date')
      * @return array
      */
-    public function getArray($resultIndices)
+    public function getIndexedArray($resultIndices)
     {
         $indexKeys = array_keys($resultIndices);
 
-        $result = $this->createEmptyIndex($indexKeys);
+        $result = $this->createOrderedIndex($indexKeys);
         foreach ($this->data as $idSite => $rowsByPeriod) {
             foreach ($rowsByPeriod as $period => $row) {
                 // FIXME: This hack works around a strange bug that occurs when getting
@@ -187,9 +187,7 @@ class DataCollection
                     continue;
                 }
 
-                $indexRowKeys = $this->getRowKeys($indexKeys, $row, $idSite, $period);
-
-                $this->setIndexRow($result, $indexRowKeys, $row);
+                $this->putRowInIndex($result, $indexKeys, $row, $idSite, $period);
             }
         }
         return $result;
@@ -197,7 +195,7 @@ class DataCollection
 
     /**
      * Returns archive data as a DataTable indexed by metadata. Indexed data will
-     * be represented by Set instances.
+     * be represented by Map instances.
      *
      * @param array $resultIndices An array mapping metadata names to pretty labels
      *                             for them. Each archive data row will be indexed
@@ -211,13 +209,13 @@ class DataCollection
         $dataTableFactory = new DataTableFactory(
             $this->dataNames, $this->dataType, $this->sitesId, $this->periods, $this->defaultRow);
 
-        $index = $this->getArray($resultIndices);
+        $index = $this->getIndexedArray($resultIndices);
         return $dataTableFactory->make($index, $resultIndices);
     }
 
     /**
      * Returns archive data as a DataTable indexed by metadata. Indexed data will
-     * be represented by Set instances. Each DataTable will have
+     * be represented by Map instances. Each DataTable will have
      * its subtable IDs set.
      *
      * This function will only work if blob data was loaded and only one record
@@ -252,7 +250,7 @@ class DataCollection
         $dataTableFactory->expandDataTable($depth, $addMetadataSubTableId);
         $dataTableFactory->useSubtable($idSubTable);
 
-        $index = $this->getArray($resultIndices);
+        $index = $this->getIndexedArray($resultIndices);
         return $dataTableFactory->make($index, $resultIndices);
     }
 
@@ -264,8 +262,8 @@ class DataCollection
      */
     public static function getDataRowMetadata($data)
     {
-        if (isset($data['_metadata'])) {
-            return $data['_metadata'];
+        if (isset($data[self::METADATA_CONTAINER_ROW_KEY])) {
+            return $data[self::METADATA_CONTAINER_ROW_KEY];
         } else {
             return array();
         }
@@ -278,7 +276,7 @@ class DataCollection
      */
     public static function removeMetadataFromDataRow(&$data)
     {
-        unset($data['_metadata']);
+        unset($data[self::METADATA_CONTAINER_ROW_KEY]);
     }
 
     /**
@@ -286,69 +284,55 @@ class DataCollection
      * 'period' metadata names are supplied, empty rows are added for every site/period
      * that was queried for.
      *
-     * @param array $indexKeys List of metadata names to index archive data by.
-     * @return array
-     */
-    private function createEmptyIndex($indexKeys)
-    {
-        $result = array();
-
-        if (!empty($indexKeys)) {
-            $index = array_shift($indexKeys);
-            if ($index == 'site') {
-                foreach ($this->sitesId as $idSite) {
-                    $result[$idSite] = $this->createEmptyIndex($indexKeys);
-                }
-            } else if ($index == 'period') {
-                foreach ($this->periods as $period => $periodObject) {
-                    $result[$period] = $this->createEmptyIndex($indexKeys);
-                }
-            }
-        }
-
-        return $result;
-    }
-
-    /**
-     * Sets a row in an index by the index keys of the row.
-     */
-    private function setIndexRow(&$result, $keys, $row)
-    {
-        $keyCount = count($keys);
-
-        if ($keyCount > 1) {
-            $firstKey = array_shift($keys);
-            $this->setIndexRow($result[$firstKey], $keys, $row);
-        } else if ($keyCount == 1) {
-            $result[reset($keys)] = $row;
-        } else {
-            $result = $row;
-        }
-    }
-
-    /**
-     * Returns the index keys for a row based on a set of metadata names.
+     * Using this function ensures consistent ordering in the indexed result.
      *
-     * @param array $metadataNames
-     * @param array $row
-     * @param int $idSite The site ID for the row (needed since site ID is not
-     *                    stored as metadata).
-     * @param string $period eg, '2012-01-01,2012-01-31'. The period for the
-     *                       row (needed since period is not stored as metadata).
+     * @param array $metadataNamesToIndexBy List of metadata names to index archive data by.
      * @return array
      */
-    private function getRowKeys($metadataNames, $row, $idSite, $period)
+    private function createOrderedIndex($metadataNamesToIndexBy)
     {
         $result = array();
-        foreach ($metadataNames as $name) {
-            if ($name == 'site') {
-                $result['site'] = $idSite;
-            } else if ($name == 'period') {
-                $result['period'] = $period;
-            } else if (isset($row['_metadata'][$name])) {
-                $result[$name] = $row['_metadata'][$name];
+
+        if (!empty($metadataNamesToIndexBy)) {
+            $metadataName = array_shift($metadataNamesToIndexBy);
+
+            if ($metadataName == 'site') {
+                $indexKeyValues = array_values($this->sitesId);
+            } else if ($metadataName == 'period') {
+                $indexKeyValues = array_keys($this->periods);
+            }
+
+            foreach ($indexKeyValues as $key) {
+                $result[$key] = $this->createOrderedIndex($metadataNamesToIndexBy);
             }
         }
+
         return $result;
+    }
+
+    /**
+     * Puts an archive data row in an index.
+     */
+    private function putRowInIndex(&$index, $metadataNamesToIndexBy, $row, $idSite, $period)
+    {
+        $currentLevel = & $index;
+
+        foreach ($metadataNamesToIndexBy as $metadataName) {
+            if ($metadataName == 'site') {
+                $key = $idSite;
+            } else if ($metadataName == 'period') {
+                $key = $period;
+            } else {
+                $key = $row[self::METADATA_CONTAINER_ROW_KEY][$metadataName];
+            }
+
+            if (!isset($currentLevel[$key])) {
+                $currentLevel[$key] = array();
+            }
+
+            $currentLevel = & $currentLevel[$key];
+        }
+
+        $currentLevel = $row;
     }
 }

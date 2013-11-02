@@ -11,22 +11,21 @@
 namespace Piwik\Plugins\Login;
 
 use Exception;
-use Piwik\Config;
-use Piwik\Piwik;
 use Piwik\Common;
+use Piwik\Config;
 use Piwik\Cookie;
 use Piwik\IP;
 use Piwik\Mail;
 use Piwik\Nonce;
-use Piwik\View;
-use Piwik\Url;
+use Piwik\Piwik;
+use Piwik\Plugins\UsersManager\API;
+use Piwik\Plugins\UsersManager\UsersManager;
+use Piwik\ProxyHttp;
 use Piwik\QuickForm2;
 use Piwik\Session;
-use Piwik\Plugins\Login\Login;
-use Piwik\Plugins\Login\FormLogin;
-use Piwik\Plugins\Login\FormResetPassword;
-use Piwik\Plugins\UsersManager\UsersManager;
-use Piwik\Plugins\UsersManager\API;
+use Piwik\SettingsPiwik;
+use Piwik\Url;
+use Piwik\View;
 
 require_once PIWIK_INCLUDE_PATH . '/core/Config.php';
 
@@ -35,7 +34,7 @@ require_once PIWIK_INCLUDE_PATH . '/core/Config.php';
  *
  * @package Login
  */
-class Controller extends \Piwik\Controller
+class Controller extends \Piwik\Plugin\Controller
 {
     /**
      * Generate hash on user info and password
@@ -50,7 +49,7 @@ class Controller extends \Piwik\Controller
         $passwordLen = strlen($password) / 2;
         $hash = Common::hash(
             $userInfo . substr($password, 0, $passwordLen)
-                . Common::getSalt() . substr($password, $passwordLen)
+            . SettingsPiwik::getSalt() . substr($password, $passwordLen)
         );
         return $hash;
     }
@@ -134,12 +133,12 @@ class Controller extends \Piwik\Controller
 
         $password = Common::getRequestVar('password', null, 'string');
         if (strlen($password) != 32) {
-            throw new Exception(Piwik_TranslateException('Login_ExceptionPasswordMD5HashExpected'));
+            throw new Exception(Piwik::translate('Login_ExceptionPasswordMD5HashExpected'));
         }
 
         $login = Common::getRequestVar('login', null, 'string');
         if ($login == Config::getInstance()->superuser['login']) {
-            throw new Exception(Piwik_TranslateException('Login_ExceptionInvalidSuperUserAuthenticationMethod', array("logme")));
+            throw new Exception(Piwik::translate('Login_ExceptionInvalidSuperUserAuthenticationMethod', array("logme")));
         }
 
         $currentUrl = 'index.php';
@@ -165,18 +164,16 @@ class Controller extends \Piwik\Controller
      */
     protected function authenticateAndRedirect($login, $md5Password, $rememberMe, $urlToRedirect = 'index.php')
     {
-        $info = array('login'       => $login,
-                      'md5Password' => $md5Password,
-                      'rememberMe'  => $rememberMe,
-        );
         Nonce::discardNonce('Login.login');
-        Piwik_PostEvent('Login.initSession', array(&$info));
+
+        \Piwik\Registry::get('auth')->initSession($login, $md5Password, $rememberMe);
+        
         Url::redirectToUrl($urlToRedirect);
     }
 
     protected function getMessageExceptionNoAccess()
     {
-        $message = Piwik_Translate('Login_InvalidNonceOrHeadersOrReferer', array('<a href="?module=Proxy&action=redirect&url=' . urlencode('http://piwik.org/faq/how-to-install/#faq_98') . '" target="_blank">', '</a>'));
+        $message = Piwik::translate('Login_InvalidNonceOrHeadersOrReferrer', array('<a href="?module=Proxy&action=redirect&url=' . urlencode('http://piwik.org/faq/how-to-install/#faq_98') . '" target="_blank">', '</a>'));
         // Should mention trusted_hosts or link to FAQ
         return $message;
     }
@@ -201,7 +198,7 @@ class Controller extends \Piwik\Controller
             if (Nonce::verifyNonce('Login.login', $nonce)) {
                 $formErrors = $this->resetPasswordFirstStep($form);
                 if (empty($formErrors)) {
-                    $infoMessage = Piwik_Translate('Login_ConfirmationLinkSent');
+                    $infoMessage = Piwik::translate('Login_ConfirmationLinkSent');
                 }
             } else {
                 $formErrors = array($this->getMessageExceptionNoAccess());
@@ -239,12 +236,12 @@ class Controller extends \Piwik\Controller
 
         // get the user's login
         if ($loginMail === 'anonymous') {
-            return array(Piwik_Translate('Login_InvalidUsernameEmail'));
+            return array(Piwik::translate('Login_InvalidUsernameEmail'));
         }
 
         $user = self::getUserInformation($loginMail);
         if ($user === null) {
-            return array(Piwik_Translate('Login_InvalidUsernameEmail'));
+            return array(Piwik::translate('Login_InvalidUsernameEmail'));
         }
 
         $login = $user['login'];
@@ -259,7 +256,7 @@ class Controller extends \Piwik\Controller
             // remove password reset info
             Login::removePasswordResetInfo($login);
 
-            return array($ex->getMessage() . '<br/>' . Piwik_Translate('Login_ContactAdmin'));
+            return array($ex->getMessage() . '<br/>' . Piwik::translate('Login_ContactAdmin'));
         }
 
         return null;
@@ -286,12 +283,12 @@ class Controller extends \Piwik\Controller
         // send email with new password
         $mail = new Mail();
         $mail->addTo($email, $login);
-        $mail->setSubject(Piwik_Translate('Login_MailTopicPasswordChange'));
+        $mail->setSubject(Piwik::translate('Login_MailTopicPasswordChange'));
         $bodyText = str_replace(
-            '\n',
-            "\n",
-            sprintf(Piwik_Translate('Login_MailPasswordChangeBody'), $login, $ip, $url)
-        ) . "\n";
+                '\n',
+                "\n",
+                sprintf(Piwik::translate('Login_MailPasswordChangeBody'), $login, $ip, $url)
+            ) . "\n";
         $mail->setBodyText($bodyText);
 
         $fromEmailName = Config::getInstance()->General['login_password_recovery_email_name'];
@@ -315,13 +312,13 @@ class Controller extends \Piwik\Controller
             // get password reset info & user info
             $user = self::getUserInformation($login);
             if ($user === null) {
-                throw new Exception(Piwik_Translate('Login_InvalidUsernameEmail'));
+                throw new Exception(Piwik::translate('Login_InvalidUsernameEmail'));
             }
 
             // check that the reset token is valid
             $resetPassword = Login::getPasswordToResetTo($login);
             if ($resetPassword === false || !self::isValidToken($resetToken, $user)) {
-                throw new Exception(Piwik_Translate('Login_InvalidOrExpiredToken'));
+                throw new Exception(Piwik::translate('Login_InvalidOrExpiredToken'));
             }
 
             // reset password of user
@@ -357,10 +354,6 @@ class Controller extends \Piwik\Controller
         }
 
         if ($user['email'] == Piwik::getSuperUserEmail()) {
-            if (!Config::getInstance()->isFileWritable()) {
-                throw new Exception(Piwik_Translate('General_ConfigFileIsNotWritable', array("(config/config.ini.php)", "<br/>")));
-            }
-
             $user['password'] = $passwordHash;
             Config::getInstance()->superuser = $user;
             Config::getInstance()->forceSave();
@@ -377,7 +370,7 @@ class Controller extends \Piwik\Controller
      */
     public function resetPasswordSuccess()
     {
-        $this->login($errorMessage = null, $infoMessage = Piwik_Translate('Login_PasswordChanged'));
+        $this->login($errorMessage = null, $infoMessage = Piwik::translate('Login_PasswordChanged'));
     }
 
     /**
@@ -499,7 +492,7 @@ class Controller extends \Piwik\Controller
     {
         $forceSslLogin = Config::getInstance()->General['force_ssl_login'];
         if ($forceSslLogin
-            && !Piwik::isHttps()
+            && !ProxyHttp::isHttps()
         ) {
             $url = 'https://'
                 . Url::getCurrentHost()

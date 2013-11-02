@@ -9,6 +9,8 @@
  * @package Feedback
  */
 namespace Piwik\Plugins\Feedback;
+use Piwik\Menu\MenuTop;
+use Piwik\Piwik;
 
 
 /**
@@ -24,31 +26,37 @@ class Feedback extends \Piwik\Plugin
     public function getListHooksRegistered()
     {
         return array(
-            'AssetManager.getCssFiles' => 'getCssFiles',
-            'AssetManager.getJsFiles'  => 'getJsFiles',
-            'TopMenu.add'              => 'addTopMenu',
+            'AssetManager.getStylesheetFiles'        => 'getStylesheetFiles',
+            'AssetManager.getJavaScriptFiles'        => 'getJsFiles',
+            'Menu.Top.addItems'                      => 'addTopMenu',
+            'Translate.getClientSideTranslationKeys' => 'getClientSideTranslationKeys'
         );
     }
 
     public function addTopMenu()
     {
-        Piwik_AddTopMenu(
+        MenuTop::addEntry(
             'General_GiveUsYourFeedback',
             array('module' => 'Feedback', 'action' => 'index', 'segment' => false),
             true,
             $order = 20,
             $isHTML = false,
-            $tooltip = Piwik_Translate('Feedback_TopLinkTooltip')
+            $tooltip = Piwik::translate('Feedback_TopLinkTooltip')
         );
     }
 
-    public function getCssFiles(&$cssFiles)
+    public function getStylesheetFiles(&$stylesheets)
     {
-        $cssFiles[] = "plugins/Feedback/stylesheets/feedback.less";
+        $stylesheets[] = "plugins/Feedback/stylesheets/feedback.less";
     }
 
     public function getJsFiles(&$jsFiles)
     {
         $jsFiles[] = "plugins/Feedback/javascripts/feedback.js";
+    }
+
+    public function getClientSideTranslationKeys(&$translationKeys)
+    {
+        $translationKeys[] = 'General_Loading';
     }
 }

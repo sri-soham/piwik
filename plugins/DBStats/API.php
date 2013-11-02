@@ -10,10 +10,9 @@
  */
 namespace Piwik\Plugins\DBStats;
 
-use Piwik\Piwik;
 use Piwik\Common;
 use Piwik\DataTable;
-use Piwik\Plugins\DBStats\MySQLMetadataProvider;
+use Piwik\Piwik;
 
 /**
  * @see plugins/DBStats/MySQLMetadataProvider.php
@@ -25,22 +24,8 @@ require_once PIWIK_INCLUDE_PATH . '/plugins/DBStats/MySQLMetadataProvider.php';
  *
  * @package DBStats
  */
-class API
+class API extends \Piwik\Plugin\API
 {
-    /** Singleton instance of this class. */
-    static private $instance = null;
-
-    /**
-     * Gets or creates the DBStats API singleton.
-     */
-    static public function getInstance()
-    {
-        if (self::$instance == null) {
-            self::$instance = new self;
-        }
-        return self::$instance;
-    }
-
     /**
      * The MySQLMetadataProvider instance that fetches table/db status information.
      */
@@ -49,7 +34,7 @@ class API
     /**
      * Constructor.
      */
-    public function __construct()
+    protected function __construct()
     {
         $this->metadataProvider = new MySQLMetadataProvider();
     }

@@ -9,20 +9,10 @@
  * @package ExampleUI
  */
 
-/*
-- prepare a page with all use cases
-- test the actions datatable in this page?
-- test datatable with search disabled
-- test datatable with low population disabled
-- without footer
-- without all columns icon
-+ update http://piwik.org/participate/user-interface
-*/
 namespace Piwik\Plugins\ExampleUI;
-
+use Piwik\Menu\MenuMain;
 
 /**
- *
  * @package ExampleUI
  */
 class ExampleUI extends \Piwik\Plugin
@@ -32,27 +22,25 @@ class ExampleUI extends \Piwik\Plugin
      */
     public function getListHooksRegistered()
     {
-        $hooks = array(
-            'Menu.add' => 'addMenus',
+        return array(
+            'Menu.Reporting.addItems' => 'addMenus',
         );
-        return $hooks;
     }
 
     function addMenus()
     {
-        $menus = array(
-            'Data tables'     => 'dataTables',
-            'Evolution graph' => 'evolutionGraph',
-            'Bar graph'       => 'barGraph',
-            'Pie graph'       => 'pieGraph',
-            'Tag clouds'      => 'tagClouds',
-            'Sparklines'      => 'sparklines',
-        );
+        MenuMain::getInstance()->add('UI Framework', '', array('module' => 'ExampleUI', 'action' => 'dataTables'), true, 30);
 
-        Piwik_AddMenu('UI Framework', '', array('module' => 'ExampleUI', 'action' => 'dataTables'), true, 30);
-        $order = 1;
-        foreach ($menus as $subMenu => $action) {
-            Piwik_AddMenu('UI Framework', $subMenu, array('module' => 'ExampleUI', 'action' => $action), true, $order++);
-        }
+        $this->addSubMenu('Data tables', 'dataTables', 1);
+        $this->addSubMenu('Bar graph', 'barGraph', 2);
+        $this->addSubMenu('Pie graph', 'pieGraph', 3);
+        $this->addSubMenu('Tag clouds', 'tagClouds', 4);
+        $this->addSubMenu('Sparklines', 'sparklines', 5);
+        $this->addSubMenu('Evolution Graph', 'evolutionGraph', 6);
+    }
+
+    private function addSubMenu($subMenu, $action, $order)
+    {
+        MenuMain::getInstance()->add('UI Framework', $subMenu, array('module' => 'ExampleUI', 'action' => $action), true, $order);
     }
 }

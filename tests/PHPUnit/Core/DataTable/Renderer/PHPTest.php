@@ -39,10 +39,10 @@ class DataTable_Renderer_PHPTest extends PHPUnit_Framework_TestCase
 
         $array = array(
             array(Row::COLUMNS  => array('label' => 'Google&copy;', 'bool' => false, 'goals' => array('idgoal=1' => array('revenue' => 5.5, 'nb_conversions' => 10)), 'nb_uniq_visitors' => 11, 'nb_visits' => 11, 'nb_actions' => 17, 'max_actions' => '5', 'sum_visit_length' => 517, 'bounce_count' => 9),
-                  Row::METADATA => array('url' => 'http://www.google.com/display"and,properly', 'logo' => './plugins/Referers/images/searchEngines/www.google.com.png'),
+                  Row::METADATA => array('url' => 'http://www.google.com/display"and,properly', 'logo' => './plugins/Referrers/images/searchEngines/www.google.com.png'),
             ),
             array(Row::COLUMNS              => array('label' => 'Yahoo!', 'nb_uniq_visitors' => 15, 'bool' => true, 'nb_visits' => 151, 'nb_actions' => 147, 'max_actions' => '50', 'sum_visit_length' => 517, 'bounce_count' => 90),
-                  Row::METADATA             => array('url' => 'http://www.yahoo.com', 'logo' => './plugins/Referers/images/searchEngines/www.yahoo.com.png'),
+                  Row::METADATA             => array('url' => 'http://www.yahoo.com', 'logo' => './plugins/Referrers/images/searchEngines/www.yahoo.com.png'),
                   Row::DATATABLE_ASSOCIATED => $subDataTableForRow2,
             )
         );
@@ -93,9 +93,6 @@ class DataTable_Renderer_PHPTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_PHP
      */
     public function testPHPTest1()
     {
@@ -122,7 +119,7 @@ class DataTable_Renderer_PHPTest extends PHPUnit_Framework_TestCase
                                        'sum_visit_length' => 517,
                                        'bounce_count'     => 9,
                                        'url'              => 'http://www.google.com/display"and,properly',
-                                       'logo'             => './plugins/Referers/images/searchEngines/www.google.com.png',
+                                       'logo'             => './plugins/Referrers/images/searchEngines/www.google.com.png',
                                    ),
                                    1 =>
                                    array(
@@ -135,7 +132,7 @@ class DataTable_Renderer_PHPTest extends PHPUnit_Framework_TestCase
                                        'sum_visit_length' => 517,
                                        'bounce_count'     => 90,
                                        'url'              => 'http://www.yahoo.com',
-                                       'logo'             => './plugins/Referers/images/searchEngines/www.yahoo.com.png',
+                                       'logo'             => './plugins/Referrers/images/searchEngines/www.yahoo.com.png',
                                        'idsubdatatable'   => 2,
                                        'subtable'         =>
                                        array(
@@ -160,9 +157,6 @@ class DataTable_Renderer_PHPTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_PHP
      */
     public function testPHPTest2()
     {
@@ -182,9 +176,6 @@ class DataTable_Renderer_PHPTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_PHP
      */
     public function testPHPTest3()
     {
@@ -197,9 +188,6 @@ class DataTable_Renderer_PHPTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_PHP
      */
     public function testPHPTest4()
     {
@@ -212,9 +200,6 @@ class DataTable_Renderer_PHPTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_PHP
      */
     public function testPHPTest5()
     {
@@ -227,9 +212,6 @@ class DataTable_Renderer_PHPTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_PHP
      */
     public function testPHPTest6()
     {
@@ -246,14 +228,14 @@ class DataTable_Renderer_PHPTest extends PHPUnit_Framework_TestCase
      * -------------------------
      */
 
-    protected function _getDataTableArrayTest()
+    protected function _getDataTableMapTest()
     {
         $array1 = array(
             array(Row::COLUMNS  => array('label' => 'Google', 'nb_uniq_visitors' => 11, 'nb_visits' => 11,),
-                  Row::METADATA => array('url' => 'http://www.google.com', 'logo' => './plugins/Referers/images/searchEngines/www.google.com.png'),
+                  Row::METADATA => array('url' => 'http://www.google.com', 'logo' => './plugins/Referrers/images/searchEngines/www.google.com.png'),
             ),
             array(Row::COLUMNS  => array('label' => 'Yahoo!', 'nb_uniq_visitors' => 15, 'nb_visits' => 151,),
-                  Row::METADATA => array('url' => 'http://www.yahoo.com', 'logo' => './plugins/Referers/images/searchEngines/www.yahoo.com.png'),
+                  Row::METADATA => array('url' => 'http://www.yahoo.com', 'logo' => './plugins/Referrers/images/searchEngines/www.yahoo.com.png'),
             )
         );
         $table1 = new DataTable();
@@ -262,10 +244,10 @@ class DataTable_Renderer_PHPTest extends PHPUnit_Framework_TestCase
 
         $array2 = array(
             array(Row::COLUMNS  => array('label' => 'Google1&copy;', 'nb_uniq_visitors' => 110, 'nb_visits' => 110,),
-                  Row::METADATA => array('url' => 'http://www.google.com1', 'logo' => './plugins/Referers/images/searchEngines/www.google.com.png1'),
+                  Row::METADATA => array('url' => 'http://www.google.com1', 'logo' => './plugins/Referrers/images/searchEngines/www.google.com.png1'),
             ),
             array(Row::COLUMNS  => array('label' => 'Yahoo!1', 'nb_uniq_visitors' => 150, 'nb_visits' => 1510,),
-                  Row::METADATA => array('url' => 'http://www.yahoo.com1', 'logo' => './plugins/Referers/images/searchEngines/www.yahoo.com.png1'),
+                  Row::METADATA => array('url' => 'http://www.yahoo.com1', 'logo' => './plugins/Referrers/images/searchEngines/www.yahoo.com.png1'),
             )
         );
         $table2 = new DataTable();
@@ -283,7 +265,7 @@ class DataTable_Renderer_PHPTest extends PHPUnit_Framework_TestCase
         return $table;
     }
 
-    protected function _getDataTableSimpleArrayTest()
+    protected function _getDataTableSimpleMapTest()
     {
         $array1 = array('max_actions' => 14.0, 'nb_uniq_visitors' => 57.0,);
         $table1 = new Simple;
@@ -304,7 +286,7 @@ class DataTable_Renderer_PHPTest extends PHPUnit_Framework_TestCase
         return $table;
     }
 
-    protected function _getDataTableSimpleOneRowArrayTest()
+    protected function _getDataTableSimpleOneRowMapTest()
     {
         $array1 = array('nb_visits' => 14.0);
         $table1 = new Simple;
@@ -324,40 +306,37 @@ class DataTable_Renderer_PHPTest extends PHPUnit_Framework_TestCase
         return $table;
     }
 
-    protected function _getDataTableArray_containsDataTableArray_normal()
+    protected function _getDataTableMap_containsDataTableMap_normal()
     {
         $table = new DataTable\Map();
         $table->setKeyName('parentArrayKey');
-        $table->addTable($this->_getDataTableArrayTest(), 'idSite');
+        $table->addTable($this->_getDataTableMapTest(), 'idSite');
         return $table;
     }
 
-    protected function _getDataTableArray_containsDataTableArray_simple()
+    protected function _getDataTableMap_containsDataTableMap_simple()
     {
         $table = new DataTable\Map();
         $table->setKeyName('parentArrayKey');
-        $table->addTable($this->_getDataTableSimpleArrayTest(), 'idSite');
+        $table->addTable($this->_getDataTableSimpleMapTest(), 'idSite');
         return $table;
     }
 
-    protected function _getDataTableArray_containsDataTableArray_simpleOneRow()
+    protected function _getDataTableMap_containsDataTableMap_simpleOneRow()
     {
         $table = new DataTable\Map();
         $table->setKeyName('parentArrayKey');
-        $table->addTable($this->_getDataTableSimpleOneRowArrayTest(), 'idSite');
+        $table->addTable($this->_getDataTableSimpleOneRowMapTest(), 'idSite');
         return $table;
     }
 
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_PHP
      */
-    public function testPHPArrayTest1()
+    public function testPHPMapTest1()
     {
-        $dataTable = $this->_getDataTableArrayTest();
+        $dataTable = $this->_getDataTableMapTest();
         $render = new Php();
         $render->setTable($dataTable);
         $rendered = $render->render();
@@ -371,7 +350,7 @@ class DataTable_Renderer_PHPTest extends PHPUnit_Framework_TestCase
                                            'nb_uniq_visitors' => 11,
                                            'nb_visits'        => 11,
                                            'url'              => 'http://www.google.com',
-                                           'logo'             => './plugins/Referers/images/searchEngines/www.google.com.png',
+                                           'logo'             => './plugins/Referrers/images/searchEngines/www.google.com.png',
                                        ),
                                        1 =>
                                        array(
@@ -379,7 +358,7 @@ class DataTable_Renderer_PHPTest extends PHPUnit_Framework_TestCase
                                            'nb_uniq_visitors' => 15,
                                            'nb_visits'        => 151,
                                            'url'              => 'http://www.yahoo.com',
-                                           'logo'             => './plugins/Referers/images/searchEngines/www.yahoo.com.png',
+                                           'logo'             => './plugins/Referrers/images/searchEngines/www.yahoo.com.png',
                                        ),
                                    ),
                                    'date2' =>
@@ -390,7 +369,7 @@ class DataTable_Renderer_PHPTest extends PHPUnit_Framework_TestCase
                                            'nb_uniq_visitors' => 110,
                                            'nb_visits'        => 110,
                                            'url'              => 'http://www.google.com1',
-                                           'logo'             => './plugins/Referers/images/searchEngines/www.google.com.png1',
+                                           'logo'             => './plugins/Referrers/images/searchEngines/www.google.com.png1',
                                        ),
                                        1 =>
                                        array(
@@ -398,7 +377,7 @@ class DataTable_Renderer_PHPTest extends PHPUnit_Framework_TestCase
                                            'nb_uniq_visitors' => 150,
                                            'nb_visits'        => 1510,
                                            'url'              => 'http://www.yahoo.com1',
-                                           'logo'             => './plugins/Referers/images/searchEngines/www.yahoo.com.png1',
+                                           'logo'             => './plugins/Referrers/images/searchEngines/www.yahoo.com.png1',
                                        ),
                                    ),
                                    'date3' => array(),
@@ -408,13 +387,10 @@ class DataTable_Renderer_PHPTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_PHP
      */
-    public function testPHPArrayTest2()
+    public function testPHPMapTest2()
     {
-        $dataTable = $this->_getDataTableSimpleArrayTest();
+        $dataTable = $this->_getDataTableSimpleMapTest();
         $render = new Php();
         $render->setTable($dataTable);
         $rendered = $render->render();
@@ -438,13 +414,10 @@ class DataTable_Renderer_PHPTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_PHP
      */
-    public function testPHPArrayTest3()
+    public function testPHPMapTest3()
     {
-        $dataTable = $this->_getDataTableSimpleOneRowArrayTest();
+        $dataTable = $this->_getDataTableSimpleOneRowMapTest();
         $render = new Php();
         $render->setTable($dataTable);
         $rendered = $render->render();
@@ -459,13 +432,10 @@ class DataTable_Renderer_PHPTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_PHP
      */
-    public function testPHPArrayIsMadeOfArrayTest1()
+    public function testPHPMapIsMadeOfMapTest1()
     {
-        $dataTable = $this->_getDataTableArray_containsDataTableArray_normal();
+        $dataTable = $this->_getDataTableMap_containsDataTableMap_normal();
         $render = new Php();
         $render->setTable($dataTable);
         $rendered = $render->render();
@@ -480,7 +450,7 @@ class DataTable_Renderer_PHPTest extends PHPUnit_Framework_TestCase
                                                 'nb_uniq_visitors' => 11,
                                                 'nb_visits'        => 11,
                                                 'url'              => 'http://www.google.com',
-                                                'logo'             => './plugins/Referers/images/searchEngines/www.google.com.png',
+                                                'logo'             => './plugins/Referrers/images/searchEngines/www.google.com.png',
                                             ),
                                             1 =>
                                             array(
@@ -488,7 +458,7 @@ class DataTable_Renderer_PHPTest extends PHPUnit_Framework_TestCase
                                                 'nb_uniq_visitors' => 15,
                                                 'nb_visits'        => 151,
                                                 'url'              => 'http://www.yahoo.com',
-                                                'logo'             => './plugins/Referers/images/searchEngines/www.yahoo.com.png',
+                                                'logo'             => './plugins/Referrers/images/searchEngines/www.yahoo.com.png',
                                             ),
                                         ),
                                         'date2' =>
@@ -499,7 +469,7 @@ class DataTable_Renderer_PHPTest extends PHPUnit_Framework_TestCase
                                                 'nb_uniq_visitors' => 110,
                                                 'nb_visits'        => 110,
                                                 'url'              => 'http://www.google.com1',
-                                                'logo'             => './plugins/Referers/images/searchEngines/www.google.com.png1',
+                                                'logo'             => './plugins/Referrers/images/searchEngines/www.google.com.png1',
                                             ),
                                             1 =>
                                             array(
@@ -507,7 +477,7 @@ class DataTable_Renderer_PHPTest extends PHPUnit_Framework_TestCase
                                                 'nb_uniq_visitors' => 150,
                                                 'nb_visits'        => 1510,
                                                 'url'              => 'http://www.yahoo.com1',
-                                                'logo'             => './plugins/Referers/images/searchEngines/www.yahoo.com.png1',
+                                                'logo'             => './plugins/Referrers/images/searchEngines/www.yahoo.com.png1',
                                             ),
                                         ),
                                         'date3' => array(),
@@ -518,13 +488,10 @@ class DataTable_Renderer_PHPTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_PHP
      */
-    public function testPHPArrayIsMadeOfArrayTest2()
+    public function testPHPMapIsMadeOfMapTest2()
     {
-        $dataTable = $this->_getDataTableArray_containsDataTableArray_simple();
+        $dataTable = $this->_getDataTableMap_containsDataTableMap_simple();
         $render = new Php();
         $render->setTable($dataTable);
         $rendered = $render->render();
@@ -549,13 +516,10 @@ class DataTable_Renderer_PHPTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_PHP
      */
-    public function testPHPArrayIsMadeOfArrayTest3()
+    public function testPHPMapIsMadeOfMapTest3()
     {
-        $dataTable = $this->_getDataTableArray_containsDataTableArray_simpleOneRow();
+        $dataTable = $this->_getDataTableMap_containsDataTableMap_simpleOneRow();
         $render = new Php();
         $render->setTable($dataTable);
         $rendered = $render->render();

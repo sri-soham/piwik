@@ -7,8 +7,8 @@
  */
 use Piwik\ArchiveProcessor\Rules;
 use Piwik\DataAccess\ArchiveTableCreator;
-use Piwik\Plugins\MultiSites\API as MultiSitesAPI;
-use Piwik\Plugins\VisitsSummary\API as VisitsSummaryAPI;
+use Piwik\Plugins\MultiSites\API as APIMultiSites;
+use Piwik\Plugins\VisitsSummary\API as APIVisitsSummary;
 
 require_once PIWIK_INCLUDE_PATH . '/tests/PHPUnit/BenchmarkTestCase.php';
 
@@ -24,14 +24,13 @@ class MultiSitesBenchmark extends BenchmarkTestCase
         $archivingTables = ArchiveTableCreator::getTablesArchivesInstalled();
         if (empty($archivingTables)) {
             $this->archivingLaunched = true;
-            VisitsSummaryAPI::getInstance()->get(
+            APIVisitsSummary::getInstance()->get(
                 self::$fixture->idSite, self::$fixture->period, self::$fixture->date);
         }
     }
 
     /**
      * @group        Benchmarks
-     * @group        ArchivingProcess
      */
     public function testArchivingProcess()
     {
@@ -40,6 +39,6 @@ class MultiSitesBenchmark extends BenchmarkTestCase
         }
         
         Rules::$archivingDisabledByTests = true;
-        MultiSitesAPI::getInstance()->getAll(self::$fixture->period, self::$fixture->date);
+        APIMultiSites::getInstance()->getAll(self::$fixture->period, self::$fixture->date);
     }
 }

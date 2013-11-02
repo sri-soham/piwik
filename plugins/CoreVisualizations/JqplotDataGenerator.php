@@ -13,11 +13,11 @@ namespace Piwik\Plugins\CoreVisualizations;
 
 use Exception;
 use Piwik\Common;
-use Piwik\Metrics;
+
 use Piwik\DataTable;
-use Piwik\Visualization;
+use Piwik\Metrics;
+use Piwik\Piwik;
 use Piwik\Plugins\CoreVisualizations\JqplotDataGenerator\Chart;
-use Piwik\Plugins\CoreVisualizations\Visualizations\JqplotGraph\Bar;
 
 require_once PIWIK_INCLUDE_PATH . '/plugins/CoreVisualizations/JqplotDataGenerator/Evolution.php';
 
@@ -35,12 +35,8 @@ class JqplotDataGenerator
      */
     protected $properties;
 
-    /**
-     * This object does most of the work in generating the JQPlot JSON data.
-     *
-     * @var Visualization\
-     */
-    protected $visualization;
+
+    protected $graphType;
 
     /**
      * Creates a new JqplotDataGenerator instance for a graph type and view properties.
@@ -54,10 +50,10 @@ class JqplotDataGenerator
     {
         switch ($type) {
             case 'evolution':
-                return new JqplotDataGenerator\Evolution($properties);
+                return new JqplotDataGenerator\Evolution($properties, $type);
             case 'pie':
             case 'bar':
-                return new JqplotDataGenerator($properties);
+                return new JqplotDataGenerator($properties, $type);
             default:
                 throw new Exception("Unknown JqplotDataGenerator type '$type'.");
         }
@@ -66,13 +62,15 @@ class JqplotDataGenerator
     /**
      * Constructor.
      *
-     * @param Visualization\ $visualization
      * @param array $properties
+     * @param string $graphType
+     *
+     * @internal param \Piwik\Plugin\ViewDataTable $visualization
      */
-    public function __construct($properties)
+    public function __construct($properties, $graphType)
     {
-        $this->visualization = new Chart();
         $this->properties = $properties;
+        $this->graphType = $graphType;
     }
 
     /**
@@ -83,38 +81,28 @@ class JqplotDataGenerator
      */
     public function generate($dataTable)
     {
-        if (!empty($this->properties['visualization_properties']->max_graph_elements)) {
-            $offsetStartSummary = $this->properties['visualization_properties']->max_graph_elements - 1;
-            $sortColumn = !empty($this->properties['filter_sort_column'])
-                ? $this->properties['filter_sort_column']
-                : Metrics::INDEX_NB_VISITS;
-
-            $dataTable->filter(
-                'AddSummaryRow', array($offsetStartSummary, Piwik_Translate('General_Others'), $sortColumn));
-        }
+        $visualization = new Chart();
 
         if ($dataTable->getRowsCount() > 0) {
             // if addTotalRow was called in GenerateGraphHTML, add a row containing totals of
             // different metrics
-            if (!empty($this->properties['visualization_properties']->add_total_row)) {
-                $dataTable->queueFilter('AddSummaryRow', array(0, Piwik_Translate('General_Total'), null, false));
+            if ($this->properties['add_total_row']) {
+                $dataTable->queueFilter('AddSummaryRow', Piwik::translate('General_Total'));
             }
 
-            $this->initChartObjectData($dataTable);
+            $dataTable->applyQueuedFilters();
+            $this->initChartObjectData($dataTable, $visualization);
         }
 
-        $this->visualization->customizeChartProperties();
-
-        return $this->visualization->render();
+        return $visualization->render();
     }
 
     /**
      * @param DataTable|DataTable\Map $dataTable
+     * @param $visualization
      */
-    protected function initChartObjectData($dataTable)
+    protected function initChartObjectData($dataTable, $visualization)
     {
-        $dataTable->applyQueuedFilters();
-
         // We apply a filter to the DataTable, decoding the label column (useful for keywords for example)
         $dataTable->filter('ColumnCallbackReplace', array('label', 'urldecode'));
 
@@ -132,23 +120,15 @@ class JqplotDataGenerator
             $columnNameToValue[$columnName] = $dataTable->getColumn($columnName);
         }
 
-        $visualization = $this->visualization;
+        $visualization->dataTable = $dataTable;
+        $visualization->properties = $this->properties;
+
         $visualization->setAxisXLabels($xLabels);
         $visualization->setAxisYValues($columnNameToValue);
         $visualization->setAxisYLabels($columnNameToTranslation);
-        $visualization->setAxisYUnit($this->properties['y_axis_unit']);
-        $visualization->setDisplayPercentageInTooltip(
-            $this->properties['visualization_properties']->display_percentage_in_tooltip);
-
-        // show_all_ticks is not real query param, it is set by GenerateGraphHTML.
-        if ($this->properties['visualization_properties']->show_all_ticks) {
-            $visualization->showAllTicks();
-        }
 
         $units = $this->getUnitsForColumnsToDisplay();
         $visualization->setAxisYUnits($units);
-
-        $this->addSeriesPickerToView();
     }
 
     protected function getUnitsForColumnsToDisplay()
@@ -156,15 +136,12 @@ class JqplotDataGenerator
         // derive units from column names
         $units = $this->deriveUnitsFromRequestedColumnNames();
         if (!empty($this->properties['y_axis_unit'])) {
-            // force unit to the value set via $this->setAxisYUnit()
-            foreach ($units as &$unit) {
-                $unit = $this->properties['y_axis_unit'];
-            }
+            $units = array_fill(0, count($units), $this->properties['y_axis_unit']);
         }
 
         // the bar charts contain the labels a first series
         // this series has to be removed from the units
-        if ($this->visualization instanceof Bar) {
+        if ($this->graphType == 'bar') {
             array_shift($units);
         }
 
@@ -181,28 +158,5 @@ class JqplotDataGenerator
             $units[$columnName] = empty($derivedUnit) ? false : $derivedUnit;
         }
         return $units;
-    }
-
-    /**
-     * Used in initChartObjectData to add the series picker config to the view object
-     */
-    protected function addSeriesPickerToView()
-    {
-        $defaultShowSeriesPicker = $this->properties['visualization_properties']->show_series_picker;
-        if (count($this->properties['visualization_properties']->selectable_columns)
-            && Common::getRequestVar('showSeriesPicker', $defaultShowSeriesPicker) == 1
-        ) {
-            $selectableColumns = array();
-            foreach ($this->properties['visualization_properties']->selectable_columns as $column) {
-                $selectableColumns[] = array(
-                    'column'      => $column,
-                    'translation' => @$this->properties['translations'][$column],
-                    'displayed'   => in_array($column, $this->properties['columns_to_display'])
-                );
-            }
-
-            $this->visualization->setSelectableColumns(
-                $selectableColumns, $this->properties['visualization_properties']->allow_multi_select_series_picker);
-        }
     }
 }

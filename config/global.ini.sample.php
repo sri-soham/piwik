@@ -12,30 +12,30 @@
 ;--------
 
 [database]
-host			=
-username		=
-password		=
-dbname			=
-tables_prefix	=
-port			= 3306
-adapter			= PDO_MYSQL
+host =
+username =
+password =
+dbname =
+tables_prefix =
+port = 3306
+adapter = PDO_MYSQL
 ; if charset is set to utf8, Piwik will ensure that it is storing its data using UTF8 charset.
 ; it will add a sql query SET at each page view.
 ; Piwik should work correctly without this setting.
-;charset		= utf8
+;charset = utf8
 
 [database_tests]
-host 			= localhost
-username 		= root
-password 		= 
-dbname			= piwik_tests
-tables_prefix	= piwiktests_
-port			= 3306
-adapter 		= PDO_MYSQL
- 
+host = localhost
+username = root
+password =
+dbname = piwik_tests
+tables_prefix = piwiktests_
+port = 3306
+adapter = PDO_MYSQL
+
 [superuser]
-login			= 
-password		=
+login = 
+password =
 
 [Debug]
 ; if set to 1, the archiving process will always be triggered, even if the archive has already been computed
@@ -47,7 +47,7 @@ always_archive_data_range = 0;
 
 ; if set to 1, all the SQL queries will be recorded by the profiler
 ; and a profiling summary will be printed at the end of the request
-; NOTE: you must also set  [log] logger_message[] = "screen" to enable the profiler to print on screen
+; NOTE: you must also set [log] log_writers[] = "screen" to enable the profiler to print on screen
 enable_sql_profiler = 0
 
 ; if set to 1, a Piwik tracking code will be included in the Piwik UI footer and will track visits, pages, etc. to idsite = 1
@@ -200,6 +200,10 @@ login_password_recovery_email_address = "password-recovery@{DOMAIN}"
 ; name that appears as a Sender in the password recovery email
 login_password_recovery_email_name = Piwik
 
+; By default when user logs out he is redirected to Piwik "homepage" usually the Login form.
+; Uncomment the next line to set a URL to redirect the user to after he logs out of Piwik.
+; login_logout_url = http://...
+
 ; Set to 1 to disable the framebuster on standard Non-widgets pages (a click-jacking countermeasure).
 ; Default is 0 (i.e., bust frames on all non Widget pages such as Login, API, Widgets, Email reports, etc.).
 enable_framed_pages = 0
@@ -219,12 +223,13 @@ noreply_email_address = "noreply@{DOMAIN}"
 feedback_email_address = "hello@piwik.org"
 
 ; during archiving, Piwik will limit the number of results recorded, for performance reasons
-; maximum number of rows for any of the Referers tables (keywords, search engines, campaigns, etc.)
-datatable_archiving_maximum_rows_referers = 1000
-; maximum number of rows for any of the Referers subtable (search engines by keyword, keyword by campaign, etc.)
-datatable_archiving_maximum_rows_subtable_referers = 50
+; maximum number of rows for any of the Referrers tables (keywords, search engines, campaigns, etc.)
+datatable_archiving_maximum_rows_referrers = 1000
+; maximum number of rows for any of the Referrers subtable (search engines by keyword, keyword by campaign, etc.)
+datatable_archiving_maximum_rows_subtable_referrers = 50
 
 ; maximum number of rows for the Custom Variables names report
+; also used to process Ecommerce conversion rates (should be large enough to hold all unique Ecommerce items)
 datatable_archiving_maximum_rows_custom_variables = 1000
 ; maximum number of rows for the Custom Variables values reports
 datatable_archiving_maximum_rows_subtable_custom_variables = 1000
@@ -244,9 +249,17 @@ datatable_archiving_maximum_rows_standard = 500
 ; amount of actions, referrers or custom variable name/value pairs.
 archiving_ranking_query_row_limit = 50000
 
+; maximum number of actions that is shown in the visitor log for each visitor
+visitor_log_maximum_actions_per_visit = 500
+
 ; by default, the real time Live! widget will update every 5 seconds and refresh with new visits/actions/etc.
 ; you can change the timeout so the widget refreshes more often, or not as frequently
 live_widget_refresh_after_seconds = 5
+
+; by default, the Live! real time visitor count widget will check to see how many visitors your
+; website received in the last 3 minutes. changing this value will change the number of minutes
+; the widget looks in.
+live_widget_visitor_count_last_minutes = 3
 
 ; In "All Websites" dashboard, when looking at today's reports (or a date range including today),
 ; the page will automatically refresh every 5 minutes. Set to 0 to disable automatic refresh
@@ -282,6 +295,10 @@ assume_secure_protocol = 0
 ;proxy_ips[] = 199.27.128.0/21
 ;proxy_ips[] = 173.245.48.0/20
 
+; Whether to enable trusted host checking. This can be disabled if you're running Piwik
+; on several URLs and do not wish to constantly edit the trusted host list.
+enable_trusted_host_check = 1
+
 ; List of trusted hosts (eg domain or subdomain names) when generating absolute URLs.
 ;
 ; Examples:
@@ -290,7 +307,7 @@ assume_secure_protocol = 0
 
 ; The release server is an essential part of the Piwik infrastructure/ecosystem
 ; to provide the latest software version.
-latest_version_url = http://piwik.org/latest.zip
+latest_version_url = http://builds.piwik.org/latest.zip
 
 ; The API server is an essential part of the Piwik infrastructure/ecosystem to
 ; provide services to Piwik installations, e.g., getLatestVersion and
@@ -302,6 +319,17 @@ api_service_url = http://api.piwik.org
 ; When requesting report metadata with $period=range, Piwik needs to translate it to multiple periods for evolution graphs.
 ; eg. $period=range&date=previous10 becomes $period=day&date=previous10. Use this setting to override the $period value.
 graphs_default_period_to_plot_when_period_range = day
+
+; The Overlay plugin shows the Top X following pages, Top X downloads and Top X outlinks which followed
+; a view of the current page. The value X can be set here.
+overlay_following_pages_limit = 300
+
+; With this option, you can disable the framed mode of the Overlay plugin. Use it if your website contains a framebuster.
+overlay_disable_framed_mode = 0
+
+; By setting this option to 0, you can disable the Piwik marketplace. This is useful to prevent giving the Super user
+; the access to disk and install custom PHP code (Piwik plugins).
+enable_marketplace = 0
 
 [Tracker]
 ; Piwik uses first party cookies by default. If set to 1,
@@ -322,7 +350,7 @@ trust_visitors_cookies = 0
 
 ; name of the cookie used to store the visitor information
 ; This is used only if use_third_party_id_cookie = 1
-cookie_name	= _pk_uid
+cookie_name = _pk_uid
 
 ; by default, the Piwik tracking cookie expires in 2 years
 ; This is used only if use_third_party_id_cookie = 1
@@ -334,11 +362,17 @@ cookie_expire = 63072000
 cookie_path =
 
 ; set to 0 if you want to stop tracking the visitors. Useful if you need to stop all the connections on the DB.
-record_statistics			= 1
+record_statistics = 1
 
 ; length of a visit in seconds. If a visitor comes back on the website visit_standard_length seconds
 ; after his last page view, it will be recorded as a new visit
-visit_standard_length       = 1800
+visit_standard_length = 1800
+
+; The window to look back for a previous visit by this current visitor. Defaults to visit_standard_length.
+; If you are looking for higher accuracy of "returning visitors" metrics, you may set this value to 86400 or more.
+; This is especially useful when you use the Tracking API where tracking Returning Visitors often depends on this setting.
+; The value window_look_back_for_visitor is used only if it is set to greater than visit_standard_length
+window_look_back_for_visitor = 0
 
 ; visitors that stay on the website and view only one page will be considered as time on site of 0 second
 default_time_one_page_visit = 0
@@ -348,7 +382,7 @@ default_time_one_page_visit = 0
 ; The mapping is defined in core/DataFiles/LanguageToCountry.php,
 enable_language_to_country_guess = 1
 
-; When the misc/cron/archive.sh cron hasn't been setup, we still need to regularly run some maintenance tasks.
+; When the misc/cron/archive.php cron hasn't been setup, we still need to regularly run some maintenance tasks.
 ; Visits to the Tracker will try to trigger Scheduled Tasks (eg. scheduled PDF/HTML reports by email).
 ; Scheduled tasks will only run if 'Enable Piwik Archiving from Browser' is enabled in the General Settings.
 ; Tasks run once every hour maximum, they might not run every hour if traffic is low.
@@ -359,23 +393,28 @@ scheduled_tasks_min_interval = 3600
 ignore_visits_cookie_name = piwik_ignore
 
 ; Comma separated list of variable names that will be read to define a Campaign name, for example CPC campaign
-; Example: If a visitor first visits 'index.php?piwik_campaign=Adwords-CPC' then it will be counted as a campaign referer named 'Adwords-CPC'
+; Example: If a visitor first visits 'index.php?piwik_campaign=Adwords-CPC' then it will be counted as a campaign referrer named 'Adwords-CPC'
 ; Includes by default the GA style campaign parameters
-campaign_var_name			= "pk_campaign,piwik_campaign,utm_campaign,utm_source,utm_medium"
+campaign_var_name = "pk_campaign,piwik_campaign,utm_campaign,utm_source,utm_medium"
 
 ; Comma separated list of variable names that will be read to track a Campaign Keyword
 ; Example: If a visitor first visits 'index.php?piwik_campaign=Adwords-CPC&piwik_kwd=My killer keyword' ;
-; then it will be counted as a campaign referer named 'Adwords-CPC' with the keyword 'My killer keyword'
+; then it will be counted as a campaign referrer named 'Adwords-CPC' with the keyword 'My killer keyword'
 ; Includes by default the GA style campaign keyword parameter utm_term
-campaign_keyword_var_name	= "pk_kwd,piwik_kwd,utm_term"
+campaign_keyword_var_name = "pk_kwd,piwik_kwd,utm_term"
 
 ; maximum length of a Page Title or a Page URL recorded in the log_action.name table
 page_maximum_length = 1024;
 
 ; Anonymize a visitor's IP address after testing for "Ip exclude"
-; This value is the number of octets in IP address to mask; if the AnonymizeIP plugin is deactivated, this value is ignored.
-; For IPv4 addresses, valid values are 0..4; for IPv6 addresses, valid values are 0..16
+; This value is the level of anonymization Piwik will use; if the AnonymizeIP plugin is deactivated, this value is ignored.
+; For IPv4/IPv6 addresses, valid values are the number of octets in IP address to mask (from 0 to 4).
+; For IPv6 addresses 0..4 means that 0, 64, 80, 104 or all bits are masked.
 ip_address_mask_length = 1
+
+; Tracker cache files are the simple caching layer for Tracking.
+; TTL: Time to live for cache files, in seconds. Default to 5 minutes.
+tracker_cache_file_ttl = 300
 
 ; DO NOT USE THIS SETTING ON PUBLICLY AVAILABLE PIWIK SERVER
 ; !!! Security risk: if set to 0, it would allow anyone to push data to Piwik with custom dates in the past/future and even with fake IPs!
@@ -413,30 +452,32 @@ enable_auto_database_size_estimate = 1
 use_custom_logo = 0
 
 [mail]
-defaultHostnameIfEmpty = defaultHostnameIfEmpty.example.org  ; default Email @hostname, if current host can't be read from system variables
-transport =							; smtp (using the configuration below) or empty (using built-in mail() function)
-port =								; optional; defaults to 25 when security is none or tls; 465 for ssl
-host =								; SMTP server address
-type =								; SMTP Auth type. By default: NONE. For example: LOGIN
-username =							; SMTP username
-password =							; SMTP password
-encryption =						; SMTP transport-layer encryption, either 'ssl', 'tls', or empty (i.e., none).
+defaultHostnameIfEmpty = defaultHostnameIfEmpty.example.org ; default Email @hostname, if current host can't be read from system variables
+transport = ; smtp (using the configuration below) or empty (using built-in mail() function)
+port = ; optional; defaults to 25 when security is none or tls; 465 for ssl
+host = ; SMTP server address
+type = ; SMTP Auth type. By default: NONE. For example: LOGIN
+username = ; SMTP username
+password = ; SMTP password
+encryption = ; SMTP transport-layer encryption, either 'ssl', 'tls', or empty (i.e., none).
 
 [proxy]
-type = BASIC						; proxy type for outbound/outgoing connections; currently, only BASIC is supported
-host = 								; Proxy host: the host name of your proxy server (mandatory)
-port = 								; Proxy port: the port that the proxy server listens to. There is no standard default, but 80, 1080, 3128, and 8080 are popular
-username = 							; Proxy username: optional; if specified, password is mandatory
-password = 							; Proxy password: optional; if specified, username is mandatory
+type = BASIC ; proxy type for outbound/outgoing connections; currently, only BASIC is supported
+host = ; Proxy host: the host name of your proxy server (mandatory)
+port = ; Proxy port: the port that the proxy server listens to. There is no standard default, but 80, 1080, 3128, and 8080 are popular
+username = ; Proxy username: optional; if specified, password is mandatory
+password = ; Proxy password: optional; if specified, username is mandatory
 
 [log]
-;possible values for log: screen, database, file
-; by default, standard logging/debug messages are hidden from screen
-;logger_message[]		= screen
-logger_error[]			= screen
-logger_exception[]		= screen
+; possible values for log: screen, database, file
+log_writers[] = screen
 
-; if set to 1, only requests done in CLI mode (eg. the archive.sh cron run) will be logged
+; log level, everything logged w/ this level or one of greater severity
+; will be logged. everything else will be ignored. possible values are:
+; NONE, ERROR, WARN, INFO, DEBUG, VERBOSE
+log_level = WARN
+
+; if set to 1, only requests done in CLI mode (eg. the archive.php cron run) will be logged
 ; NOTE: log_only_when_debug_parameter will also be checked for
 log_only_when_cli = 0
 
@@ -444,13 +485,8 @@ log_only_when_cli = 0
 ; NOTE: log_only_when_cli will also be checked for
 log_only_when_debug_parameter = 0
 
-; if configured to log in files, log files will be created in this path
-; eg. if the value is tmp/logs files will be created in /path/to/piwik/tmp/logs/
-logger_file_path		= tmp/logs
-
-; all calls to the API (method name, parameters, execution time, caller IP, etc.)
-; disabled by default as it can cause serious overhead and should only be used wisely
-;logger_api_call[]		= file
+; if configured to log in a file, log entries will be made to this file
+logger_file_path = tmp/logs/piwik.log
 
 [Plugins]
 Plugins[] = CorePluginsAdmin
@@ -465,7 +501,7 @@ Plugins[] = LanguagesManager
 Plugins[] = Actions
 Plugins[] = Dashboard
 Plugins[] = MultiSites
-Plugins[] = Referers
+Plugins[] = Referrers
 Plugins[] = UserSettings
 Plugins[] = Goals
 Plugins[] = SEO
@@ -486,7 +522,7 @@ Plugins[] = UsersManager
 Plugins[] = SitesManager
 Plugins[] = Installation
 Plugins[] = CoreUpdater
-Plugins[] = PDFReports
+Plugins[] = ScheduledReports
 Plugins[] = UserCountryMap
 Plugins[] = Live
 Plugins[] = CustomVariables
@@ -509,6 +545,7 @@ PluginsInstalled[] = Installation
 Plugins_Tracker[] = Provider
 Plugins_Tracker[] = Goals
 Plugins_Tracker[] = DoNotTrack
+Plugins_Tracker[] = UserCountry
 
 [APISettings]
 ; Any key/value pair can be added in this section, they will be available via the REST call

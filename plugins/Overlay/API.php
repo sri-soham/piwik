@@ -11,33 +11,17 @@
 namespace Piwik\Plugins\Overlay;
 
 use Exception;
-use Piwik\Config;
-use Piwik\Piwik;
 use Piwik\Access;
+use Piwik\Config;
 use Piwik\DataTable;
-use Piwik\Tracker\Action;
+use Piwik\Piwik;
+use Piwik\Plugins\SitesManager\API as APISitesManager;
 use Piwik\Plugins\SitesManager\SitesManager;
-use Piwik\Plugins\SitesManager\API as SitesManagerAPI;
-use Piwik\Plugins\Transitions\API as TransitionsAPI;
+use Piwik\Plugins\Transitions\API as APITransitions;
+use Piwik\Tracker\PageUrl;
 
-
-class API
+class API extends \Piwik\Plugin\API
 {
-
-    private static $instance = null;
-
-    /**
-     * Get Singleton instance
-     * @return \Piwik\Plugins\Overlay\API
-     */
-    public static function getInstance()
-    {
-        if (self::$instance == null) {
-            self::$instance = new self;
-        }
-        return self::$instance;
-    }
-
     /**
      * Get translation strings
      */
@@ -52,7 +36,7 @@ class API
             'link'             => 'Overlay_Link'
         );
 
-        return array_map('Piwik_Translate', $translations);
+        return array_map(array('\\Piwik\\Piwik','translate'), $translations);
     }
 
     /**
@@ -63,7 +47,7 @@ class API
     {
         $this->authenticate($idSite);
 
-        $sitesManager = SitesManagerAPI::getInstance();
+        $sitesManager = APISitesManager::getInstance();
         $site = $sitesManager->getSiteFromId($idSite);
 
         try {
@@ -86,14 +70,14 @@ class API
     {
         $this->authenticate($idSite);
 
-        $url = Action::excludeQueryParametersFromUrl($url, $idSite);
+        $url = PageUrl::excludeQueryParametersFromUrl($url, $idSite);
         // we don't unsanitize $url here. it will be done in the Transitions plugin.
 
         $resultDataTable = new DataTable;
 
         try {
             $limitBeforeGrouping = Config::getInstance()->General['overlay_following_pages_limit'];
-            $transitionsReport = TransitionsAPI::getInstance()->getTransitionsForAction(
+            $transitionsReport = APITransitions::getInstance()->getTransitionsForAction(
                 $url, $type = 'url', $idSite, $period, $date, $segment, $limitBeforeGrouping,
                 $part = 'followingActions', $returnNormalizedUrls = true);
         } catch (Exception $e) {
@@ -117,11 +101,28 @@ class API
     /** Do cookie authentication. This way, the token can remain secret. */
     private function authenticate($idSite)
     {
-        $notification = null;
-        Piwik_PostEvent('FrontController.initAuthenticationObject',
-            array(&$notification, $allowCookieAuthentication = true));
+        /**
+         * Triggered shortly before the user is authenticated.
+         * 
+         * This event can be used by plugins that provide their own authentication mechanism
+         * to make that mechanism available. Subscribers should set the `'auth'` object in
+         * the [Piwik\Registry](#) to an object that implements the [Auth](#) interface.
+         * 
+         * **Example**
+         * 
+         *     use Piwik\Registry;
+         * 
+         *     public function initAuthenticationObject($allowCookieAuthentication)
+         *     {
+         *         Registry::set('auth', new LDAPAuth($allowCookieAuthentication));
+         *     }
+         * 
+         * @param bool $allowCookieAuthentication Whether authentication based on $_COOKIE values should
+         *                                        be allowed.
+         */
+        Piwik::postEvent('Request.initAuthenticationObject', array($allowCookieAuthentication = true));
 
-        $auth = \Zend_Registry::get('auth');
+        $auth = \Piwik\Registry::get('auth');
         $success = Access::getInstance()->reloadAccess($auth);
 
         if (!$success) {

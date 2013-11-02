@@ -11,15 +11,16 @@
 namespace Piwik\Plugins\Goals;
 
 use Piwik\ArchiveProcessor;
-use Piwik\Piwik;
 use Piwik\Common;
-use Piwik\Plugins\Goals\API;
-use Piwik\Plugins\Goals\Archiver;
-use Piwik\Tracker\GoalManager;
-use Piwik\TranslationWriter;
-use Piwik\Site;
-use Piwik\WidgetsList;
+
 use Piwik\Db;
+use Piwik\Menu\MenuMain;
+use Piwik\Piwik;
+use Piwik\Plugin\ViewDataTable;
+use Piwik\Site;
+use Piwik\Tracker\GoalManager;
+use Piwik\Translate;
+use Piwik\WidgetsList;
 use Piwik\Db\Factory;
 
 /**
@@ -28,6 +29,15 @@ use Piwik\Db\Factory;
  */
 class Goals extends \Piwik\Plugin
 {
+    public function getInformation()
+    {
+        $suffix = Piwik::translate('SitesManager_PiwikOffersEcommerceAnalytics',
+            array('<a href="http://piwik.org/docs/ecommerce-analytics/" target="_blank">', '</a>'));
+        $info = parent::getInformation();
+        $info['description'] .= ' ' . $suffix;
+        return $info;
+    }
+
     protected $ecommerceReports = array(
         array('Goals_ProductSKU', 'Goals', 'getItemsSku'),
         array('Goals_ProductName', 'Goals', 'getItemsName'),
@@ -36,8 +46,8 @@ class Goals extends \Piwik\Plugin
 
     static public function getReportsWithGoalMetrics()
     {
-        $dimensions = array();
-        Piwik_PostEvent('Goals.getReportsWithGoalMetrics', array(&$dimensions));
+        $dimensions = self::getAllReportsWithGoalMetrics();
+
         $dimensionsByGroup = array();
         foreach ($dimensions as $dimension) {
             $group = $dimension['category'];
@@ -74,35 +84,33 @@ class Goals extends \Piwik\Plugin
         return $columns;
     }
 
-    public function getInformation()
-    {
-        $suffix = Piwik_Translate('SitesManager_PiwikOffersEcommerceAnalytics',
-            array('<a href="http://piwik.org/docs/ecommerce-analytics/" target="_blank">', '</a>'));
-        $info = parent::getInformation();
-        $info['description'] .= ' ' . $suffix;
-        return $info;
-    }
-
     /**
      * @see Piwik_Plugin::getListHooksRegistered
      */
     public function getListHooksRegistered()
     {
         $hooks = array(
-            'AssetManager.getJsFiles'          => 'getJsFiles',
-            'AssetManager.getCssFiles'         => 'getCssFiles',
-            'Common.fetchWebsiteAttributes'    => 'fetchGoalsFromDb',
-            'ArchiveProcessing_Day.compute'    => 'archiveDay',
-            'ArchiveProcessing_Period.compute' => 'archivePeriod',
-            'API.getReportMetadata.end'        => 'getReportMetadata',
-            'API.getSegmentsMetadata'          => 'getSegmentsMetadata',
-            'WidgetsList.add'                  => 'addWidgets',
-            'Menu.add'                         => 'addMenus',
-            'SitesManager.deleteSite'          => 'deleteSiteGoals',
-            'Goals.getReportsWithGoalMetrics'  => 'getActualReportsWithGoalMetrics',
-            'ViewDataTable.getReportDisplayProperties' => 'getReportDisplayProperties',
+            'AssetManager.getJavaScriptFiles'        => 'getJsFiles',
+            'AssetManager.getStylesheetFiles'        => 'getStylesheetFiles',
+            'Site.getSiteAttributes'                 => 'fetchGoalsFromDb',
+            'ArchiveProcessor.Day.compute'           => 'archiveDay',
+            'ArchiveProcessor.Period.compute'        => 'archivePeriod',
+            'API.getReportMetadata.end'              => 'getReportMetadata',
+            'API.getSegmentsMetadata'                => 'getSegmentsMetadata',
+            'WidgetsList.addWidgets'                 => 'addWidgets',
+            'Menu.Reporting.addItems'                => 'addMenus',
+            'SitesManager.deleteSite.end'            => 'deleteSiteGoals',
+            'Goals.getReportsWithGoalMetrics'        => 'getActualReportsWithGoalMetrics',
+            'ViewDataTable.configure'                => 'configureViewDataTable',
+            'Translate.getClientSideTranslationKeys' => 'getClientSideTranslationKeys',
+            'ViewDataTable.addViewDataTable'         => 'getAvailableDataTableVisualizations'
         );
         return $hooks;
+    }
+
+    public function getAvailableDataTableVisualizations(&$visualizations)
+    {
+        $visualizations[] = 'Piwik\\Plugins\\Goals\\Visualizations\\Goals';
     }
 
     /**
@@ -128,25 +136,25 @@ class Goals extends \Piwik\Plugin
         // These metrics will also be available for some reports, for each goal
         // Example: Conversion rate for Goal 2 for the keyword 'piwik'
         $goalProcessedMetrics = array(
-            'revenue_per_visit' => Piwik_Translate('General_ColumnValuePerVisit'),
+            'revenue_per_visit' => Piwik::translate('General_ColumnValuePerVisit'),
         );
 
         $goalMetrics = array(
-            'nb_conversions'      => Piwik_Translate('Goals_ColumnConversions'),
-            'nb_visits_converted' => Piwik_Translate('General_ColumnVisitsWithConversions'),
-            'conversion_rate'     => Piwik_Translate('General_ColumnConversionRate'),
-            'revenue'             => Piwik_Translate('Goals_ColumnRevenue')
+            'nb_conversions'      => Piwik::translate('Goals_ColumnConversions'),
+            'nb_visits_converted' => Piwik::translate('General_ColumnVisitsWithConversions'),
+            'conversion_rate'     => Piwik::translate('General_ColumnConversionRate'),
+            'revenue'             => Piwik::translate('General_ColumnRevenue')
         );
 
         $conversionReportMetrics = array(
-            'nb_conversions' => Piwik_Translate('Goals_ColumnConversions')
+            'nb_conversions' => Piwik::translate('Goals_ColumnConversions')
         );
 
         // General Goal metrics: conversions, conv rate, revenue
-        $goalsCategory = Piwik_Translate('Goals_Goals');
+        $goalsCategory = Piwik::translate('Goals_Goals');
         $reports[] = array(
             'category'         => $goalsCategory,
-            'name'             => Piwik_Translate('Goals_Goals'),
+            'name'             => Piwik::translate('Goals_Goals'),
             'module'           => 'Goals',
             'action'           => 'get',
             'metrics'          => $goalMetrics,
@@ -162,10 +170,10 @@ class Goals extends \Piwik\Plugin
             // Add overall visits to conversion report
             $reports[] = array(
                 'category'          => $goalsCategory,
-                'name'              => Piwik_Translate('Goals_VisitsUntilConv'),
+                'name'              => Piwik::translate('Goals_VisitsUntilConv'),
                 'module'            => 'Goals',
                 'action'            => 'getVisitsUntilConversion',
-                'dimension'         => Piwik_Translate('Goals_VisitsUntilConv'),
+                'dimension'         => Piwik::translate('Goals_VisitsUntilConv'),
                 'constantRowsCount' => true,
                 'parameters'        => array(),
                 'metrics'           => $conversionReportMetrics,
@@ -175,10 +183,10 @@ class Goals extends \Piwik\Plugin
             // Add overall days to conversion report
             $reports[] = array(
                 'category'          => $goalsCategory,
-                'name'              => Piwik_Translate('Goals_DaysToConv'),
+                'name'              => Piwik::translate('Goals_DaysToConv'),
                 'module'            => 'Goals',
                 'action'            => 'getDaysToConversion',
-                'dimension'         => Piwik_Translate('Goals_DaysToConv'),
+                'dimension'         => Piwik::translate('Goals_DaysToConv'),
                 'constantRowsCount' => true,
                 'parameters'        => array(),
                 'metrics'           => $conversionReportMetrics,
@@ -191,7 +199,7 @@ class Goals extends \Piwik\Plugin
                 // This API call requires a custom parameter
                 $reports[] = array(
                     'category'         => $goalsCategory,
-                    'name'             => Piwik_Translate('Goals_GoalX', $goal['name']),
+                    'name'             => Piwik::translate('Goals_GoalX', $goal['name']),
                     'module'           => 'Goals',
                     'action'           => 'get',
                     'parameters'       => array('idGoal' => $goal['idgoal']),
@@ -203,10 +211,10 @@ class Goals extends \Piwik\Plugin
                 // Add visits to conversion report
                 $reports[] = array(
                     'category'          => $goalsCategory,
-                    'name'              => $goal['name'] . ' - ' . Piwik_Translate('Goals_VisitsUntilConv'),
+                    'name'              => $goal['name'] . ' - ' . Piwik::translate('Goals_VisitsUntilConv'),
                     'module'            => 'Goals',
                     'action'            => 'getVisitsUntilConversion',
-                    'dimension'         => Piwik_Translate('Goals_VisitsUntilConv'),
+                    'dimension'         => Piwik::translate('Goals_VisitsUntilConv'),
                     'constantRowsCount' => true,
                     'parameters'        => array('idGoal' => $goal['idgoal']),
                     'metrics'           => $conversionReportMetrics,
@@ -216,10 +224,10 @@ class Goals extends \Piwik\Plugin
                 // Add days to conversion report
                 $reports[] = array(
                     'category'          => $goalsCategory,
-                    'name'              => $goal['name'] . ' - ' . Piwik_Translate('Goals_DaysToConv'),
+                    'name'              => $goal['name'] . ' - ' . Piwik::translate('Goals_DaysToConv'),
                     'module'            => 'Goals',
                     'action'            => 'getDaysToConversion',
-                    'dimension'         => Piwik_Translate('Goals_DaysToConv'),
+                    'dimension'         => Piwik::translate('Goals_DaysToConv'),
                     'constantRowsCount' => true,
                     'parameters'        => array('idGoal' => $goal['idgoal']),
                     'metrics'           => $conversionReportMetrics,
@@ -229,21 +237,21 @@ class Goals extends \Piwik\Plugin
 
             $site = new Site($idSite);
             if ($site->isEcommerceEnabled()) {
-                $category = Piwik_Translate('Goals_Ecommerce');
+                $category = Piwik::translate('Goals_Ecommerce');
                 $ecommerceMetrics = array_merge($goalMetrics, array(
-                                                                   'revenue_subtotal'  => Piwik_Translate('General_Subtotal'),
-                                                                   'revenue_tax'       => Piwik_Translate('General_Tax'),
-                                                                   'revenue_shipping'  => Piwik_Translate('General_Shipping'),
-                                                                   'revenue_discount'  => Piwik_Translate('General_Discount'),
-                                                                   'items'             => Piwik_Translate('General_PurchasedProducts'),
-                                                                   'avg_order_revenue' => Piwik_Translate('General_AverageOrderValue')
+                                                                   'revenue_subtotal'  => Piwik::translate('General_Subtotal'),
+                                                                   'revenue_tax'       => Piwik::translate('General_Tax'),
+                                                                   'revenue_shipping'  => Piwik::translate('General_Shipping'),
+                                                                   'revenue_discount'  => Piwik::translate('General_Discount'),
+                                                                   'items'             => Piwik::translate('General_PurchasedProducts'),
+                                                                   'avg_order_revenue' => Piwik::translate('General_AverageOrderValue')
                                                               ));
-                $ecommerceMetrics['nb_conversions'] = Piwik_Translate('General_EcommerceOrders');
+                $ecommerceMetrics['nb_conversions'] = Piwik::translate('General_EcommerceOrders');
 
                 // General Ecommerce metrics
                 $reports[] = array(
                     'category'         => $category,
-                    'name'             => Piwik_Translate('General_EcommerceOrders'),
+                    'name'             => Piwik::translate('General_EcommerceOrders'),
                     'module'           => 'Goals',
                     'action'           => 'get',
                     'parameters'       => array('idGoal' => Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_ORDER),
@@ -253,10 +261,10 @@ class Goals extends \Piwik\Plugin
                 );
                 $reports[] = array(
                     'category'          => $category,
-                    'name'              => Piwik_Translate('General_EcommerceOrders') . ' - ' . Piwik_Translate('Goals_VisitsUntilConv'),
+                    'name'              => Piwik::translate('General_EcommerceOrders') . ' - ' . Piwik::translate('Goals_VisitsUntilConv'),
                     'module'            => 'Goals',
                     'action'            => 'getVisitsUntilConversion',
-                    'dimension'         => Piwik_Translate('Goals_VisitsUntilConv'),
+                    'dimension'         => Piwik::translate('Goals_VisitsUntilConv'),
                     'constantRowsCount' => true,
                     'metrics'           => $conversionReportMetrics,
                     'parameters'        => array('idGoal' => Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_ORDER),
@@ -264,10 +272,10 @@ class Goals extends \Piwik\Plugin
                 );
                 $reports[] = array(
                     'category'          => $category,
-                    'name'              => Piwik_Translate('General_EcommerceOrders') . ' - ' . Piwik_Translate('Goals_DaysToConv'),
+                    'name'              => Piwik::translate('General_EcommerceOrders') . ' - ' . Piwik::translate('Goals_DaysToConv'),
                     'module'            => 'Goals',
                     'action'            => 'getDaysToConversion',
-                    'dimension'         => Piwik_Translate('Goals_DaysToConv'),
+                    'dimension'         => Piwik::translate('Goals_DaysToConv'),
                     'constantRowsCount' => true,
                     'metrics'           => $conversionReportMetrics,
                     'parameters'        => array('idGoal' => Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_ORDER),
@@ -276,15 +284,15 @@ class Goals extends \Piwik\Plugin
 
                 // Abandoned cart general metrics
                 $abandonedCartMetrics = $goalMetrics;
-                $abandonedCartMetrics['nb_conversions'] = Piwik_Translate('General_AbandonedCarts');
-                $abandonedCartMetrics['revenue'] = Piwik_Translate('Goals_LeftInCart', Piwik_Translate('Goals_ColumnRevenue'));
-                $abandonedCartMetrics['items'] = Piwik_Translate('Goals_LeftInCart', Piwik_Translate('Goals_Products'));
+                $abandonedCartMetrics['nb_conversions'] = Piwik::translate('General_AbandonedCarts');
+                $abandonedCartMetrics['revenue'] = Piwik::translate('Goals_LeftInCart', Piwik::translate('General_ColumnRevenue'));
+                $abandonedCartMetrics['items'] = Piwik::translate('Goals_LeftInCart', Piwik::translate('Goals_Products'));
                 unset($abandonedCartMetrics['nb_visits_converted']);
 
                 // Abandoned Cart metrics
                 $reports[] = array(
                     'category'         => $category,
-                    'name'             => Piwik_Translate('General_AbandonedCarts'),
+                    'name'             => Piwik::translate('General_AbandonedCarts'),
                     'module'           => 'Goals',
                     'action'           => 'get',
                     'parameters'       => array('idGoal' => Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_CART),
@@ -295,10 +303,10 @@ class Goals extends \Piwik\Plugin
 
                 $reports[] = array(
                     'category'          => $category,
-                    'name'              => Piwik_Translate('General_AbandonedCarts') . ' - ' . Piwik_Translate('Goals_VisitsUntilConv'),
+                    'name'              => Piwik::translate('General_AbandonedCarts') . ' - ' . Piwik::translate('Goals_VisitsUntilConv'),
                     'module'            => 'Goals',
                     'action'            => 'getVisitsUntilConversion',
-                    'dimension'         => Piwik_Translate('Goals_VisitsUntilConv'),
+                    'dimension'         => Piwik::translate('Goals_VisitsUntilConv'),
                     'constantRowsCount' => true,
                     'metrics'           => $conversionReportMetrics,
                     'parameters'        => array('idGoal' => Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_CART),
@@ -306,10 +314,10 @@ class Goals extends \Piwik\Plugin
                 );
                 $reports[] = array(
                     'category'          => $category,
-                    'name'              => Piwik_Translate('General_AbandonedCarts') . ' - ' . Piwik_Translate('Goals_DaysToConv'),
+                    'name'              => Piwik::translate('General_AbandonedCarts') . ' - ' . Piwik::translate('Goals_DaysToConv'),
                     'module'            => 'Goals',
                     'action'            => 'getDaysToConversion',
-                    'dimension'         => Piwik_Translate('Goals_DaysToConv'),
+                    'dimension'         => Piwik::translate('Goals_DaysToConv'),
                     'constantRowsCount' => true,
                     'metrics'           => $conversionReportMetrics,
                     'parameters'        => array('idGoal' => Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_CART),
@@ -321,10 +329,10 @@ class Goals extends \Piwik\Plugin
                 foreach ($this->ecommerceReports as $i => $ecommerceReport) {
                     $reports[] = array(
                         'category'         => $category,
-                        'name'             => Piwik_Translate($ecommerceReport[0]),
+                        'name'             => Piwik::translate($ecommerceReport[0]),
                         'module'           => 'Goals',
                         'action'           => $ecommerceReport[2],
-                        'dimension'        => Piwik_Translate($ecommerceReport[0]),
+                        'dimension'        => Piwik::translate($ecommerceReport[0]),
                         'metrics'          => $productColumns,
                         'processedMetrics' => false,
                         'order'            => 30 + $i
@@ -335,12 +343,8 @@ class Goals extends \Piwik\Plugin
 
         unset($goalMetrics['nb_visits_converted']);
 
-        /*
-         * Add the metricsGoal and processedMetricsGoal entry
-         * to all reports that have Goal segmentation
-         */
-        $reportsWithGoals = array();
-        Piwik_PostEvent('Goals.getReportsWithGoalMetrics', array(&$reportsWithGoals));
+        $reportsWithGoals = self::getAllReportsWithGoalMetrics();
+
         foreach ($reportsWithGoals as $reportWithGoals) {
             // Select this report from the API metadata array
             // and add the Goal metrics to it
@@ -356,16 +360,36 @@ class Goals extends \Piwik\Plugin
         }
     }
 
+    static private function getAllReportsWithGoalMetrics()
+    {
+        $reportsWithGoals = array();
+
+        /**
+         * Triggered when gathering all reports that contain Goal metrics. The list of reports
+         * will be displayed on the left column of the bottom of the Goals Overview page and
+         * each individual Goal page.
+         * 
+         * If plugins define reports that contain Goal metrics (such as conversions or revenue),
+         * they can use this event to make sure their reports can be loaded on the relevant
+         * Goals pages.
+         * 
+         * @param array &$reportsWithGoals The list of reports that have Goal metrics.
+         */
+        Piwik::postEvent('Goals.getReportsWithGoalMetrics', array(&$reportsWithGoals));
+
+        return $reportsWithGoals;
+    }
+
     static public function getProductReportColumns()
     {
         return array(
-            'revenue'         => Piwik_Translate('General_ProductRevenue'),
-            'quantity'        => Piwik_Translate('General_Quantity'),
-            'orders'          => Piwik_Translate('General_UniquePurchases'),
-            'avg_price'       => Piwik_Translate('General_AveragePrice'),
-            'avg_quantity'    => Piwik_Translate('General_AverageQuantity'),
-            'nb_visits'       => Piwik_Translate('General_ColumnNbVisits'),
-            'conversion_rate' => Piwik_Translate('General_ProductConversionRate'),
+            'revenue'         => Piwik::translate('General_ProductRevenue'),
+            'quantity'        => Piwik::translate('General_Quantity'),
+            'orders'          => Piwik::translate('General_UniquePurchases'),
+            'avg_price'       => Piwik::translate('General_AveragePrice'),
+            'avg_quantity'    => Piwik::translate('General_AverageQuantity'),
+            'nb_visits'       => Piwik::translate('General_ColumnNbVisits'),
+            'conversion_rate' => Piwik::translate('General_ProductConversionRate'),
         );
     }
 
@@ -376,25 +400,26 @@ class Goals extends \Piwik\Plugin
      */
     public function getActualReportsWithGoalMetrics(&$dimensions)
     {
-        $dimensions = array_merge($dimensions, array(
-                                                    array('category' => Piwik_Translate('General_Visit'),
-                                                          'name'     => Piwik_Translate('Goals_VisitsUntilConv'),
-                                                          'module'   => 'Goals',
-                                                          'action'   => 'getVisitsUntilConversion'
-                                                    ),
-                                                    array('category' => Piwik_Translate('General_Visit'),
-                                                          'name'     => Piwik_Translate('Goals_DaysToConv'),
-                                                          'module'   => 'Goals',
-                                                          'action'   => 'getDaysToConversion'
-                                                    )
-                                               ));
+        $reportWithGoalMetrics = array(
+            array('category' => Piwik::translate('General_Visit'),
+                  'name'     => Piwik::translate('Goals_VisitsUntilConv'),
+                  'module'   => 'Goals',
+                  'action'   => 'getVisitsUntilConversion'
+            ),
+            array('category' => Piwik::translate('General_Visit'),
+                  'name'     => Piwik::translate('Goals_DaysToConv'),
+                  'module'   => 'Goals',
+                  'action'   => 'getDaysToConversion'
+            )
+        );
+        $dimensions = array_merge($dimensions, $reportWithGoalMetrics);
     }
 
     public function getSegmentsMetadata(&$segments)
     {
         $segments[] = array(
             'type'           => 'dimension',
-            'category'       => Piwik_Translate('General_Visit'),
+            'category'       => Piwik::translate('General_Visit'),
             'name'           => 'General_VisitConvertedGoalId',
             'segment'        => 'visitConvertedGoalId',
             'sqlSegment'     => 'log_conversion.idgoal',
@@ -407,9 +432,9 @@ class Goals extends \Piwik\Plugin
         $jsFiles[] = "plugins/Goals/javascripts/goalsForm.js";
     }
 
-    public function getCssFiles(&$cssFiles)
+    public function getStylesheetFiles(&$stylesheets)
     {
-        $cssFiles[] = "plugins/Goals/stylesheets/goals.css";
+        $stylesheets[] = "plugins/Goals/stylesheets/goals.css";
     }
 
     public function fetchGoalsFromDb(&$array, $idSite)
@@ -449,18 +474,18 @@ class Goals extends \Piwik\Plugin
         $mainGoalMenu = $this->getGoalCategoryName($idSite);
         $site = new Site($idSite);
         if (count($goals) == 0) {
-            Piwik_AddMenu($mainGoalMenu, '', array(
+            MenuMain::getInstance()->add($mainGoalMenu, '', array(
                                                   'module' => 'Goals',
                                                   'action' => ($site->isEcommerceEnabled() ? 'ecommerceReport' : 'addNewGoal'),
                                                   'idGoal' => ($site->isEcommerceEnabled() ? Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_ORDER : null)),
                 true,
                 25);
             if ($site->isEcommerceEnabled()) {
-                Piwik_AddMenu($mainGoalMenu, 'Goals_Ecommerce', array('module' => 'Goals', 'action' => 'ecommerceReport', 'idGoal' => Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_ORDER), true, 1);
+                MenuMain::getInstance()->add($mainGoalMenu, 'Goals_Ecommerce', array('module' => 'Goals', 'action' => 'ecommerceReport', 'idGoal' => Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_ORDER), true, 1);
             }
-            Piwik_AddMenu($mainGoalMenu, 'Goals_AddNewGoal', array('module' => 'Goals', 'action' => 'addNewGoal'));
+            MenuMain::getInstance()->add($mainGoalMenu, 'Goals_AddNewGoal', array('module' => 'Goals', 'action' => 'addNewGoal'));
         } else {
-            Piwik_AddMenu($mainGoalMenu, '', array(
+            MenuMain::getInstance()->add($mainGoalMenu, '', array(
                                                   'module' => 'Goals',
                                                   'action' => ($site->isEcommerceEnabled() ? 'ecommerceReport' : 'index'),
                                                   'idGoal' => ($site->isEcommerceEnabled() ? Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_ORDER : null)),
@@ -468,11 +493,11 @@ class Goals extends \Piwik\Plugin
                 25);
 
             if ($site->isEcommerceEnabled()) {
-                Piwik_AddMenu($mainGoalMenu, 'Goals_Ecommerce', array('module' => 'Goals', 'action' => 'ecommerceReport', 'idGoal' => Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_ORDER), true, 1);
+                MenuMain::getInstance()->add($mainGoalMenu, 'Goals_Ecommerce', array('module' => 'Goals', 'action' => 'ecommerceReport', 'idGoal' => Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_ORDER), true, 1);
             }
-            Piwik_AddMenu($mainGoalMenu, 'Goals_GoalsOverview', array('module' => 'Goals', 'action' => 'index'), true, 2);
+            MenuMain::getInstance()->add($mainGoalMenu, 'Goals_GoalsOverview', array('module' => 'Goals', 'action' => 'index'), true, 2);
             foreach ($goals as $goal) {
-                Piwik_AddMenu($mainGoalMenu, str_replace('%', '%%', TranslationWriter::clean($goal['name'])), array('module' => 'Goals', 'action' => 'goalReport', 'idGoal' => $goal['idgoal']));
+                MenuMain::getInstance()->add($mainGoalMenu, str_replace('%', '%%', Translate::clean($goal['name'])), array('module' => 'Goals', 'action' => 'goalReport', 'idGoal' => $goal['idgoal']));
             }
         }
     }
@@ -508,126 +533,145 @@ class Goals extends \Piwik\Plugin
         }
     }
 
-    public function getReportDisplayProperties(&$properties)
+    public function configureViewDataTable(ViewDataTable $view)
     {
-        $properties['Goals.getItemsSku'] = $this->getDisplayPropertiesForGetItemsSku();
-        $properties['Goals.getItemsName'] = $this->getDisplayPropertiesForGetItemsName();
-        $properties['Goals.getItemsCategory'] = $this->getDisplayPropertiesForGetItemsCategory();
-        $properties['Goals.getVisitsUntilConversion'] = $this->getDisplayPropertiesForGetVisitsUntilConversion();
-        $properties['Goals.getDaysToConversion'] = $this->getDisplayPropertiesForGetDaysToConversion();
+        switch ($view->requestConfig->apiMethodToRequestDataTable) {
+            case 'Goals.getItemsSku':
+                $this->configureViewForGetItemsSku($view);
+                break;
+            case 'Goals.getItemsName':
+                $this->configureViewForGetItemsName($view);
+                break;
+            case 'Goals.getItemsCategory':
+                $this->configureViewForGetItemsCategory($view);
+                break;
+            case 'Goals.getVisitsUntilConversion':
+                $this->configureViewForGetVisitsUntilConversion($view);
+                break;
+            case 'Goals.getDaysToConversion':
+                $this->configureViewForGetDaysToConversion($view);
+                break;
+        }
     }
 
-    private function getDisplayPropertiesForGetItemsSku()
+    private function configureViewForGetItemsSku(ViewDataTable $view)
     {
-        return $this->getDisplayPropertiesForItemsReport(Piwik_Translate('Goals_ProductSKU'));
+        return $this->configureViewForItemsReport($view, Piwik::translate('Goals_ProductSKU'));
     }
 
-    private function getDisplayPropertiesForGetItemsName()
+    private function configureViewForGetItemsName(ViewDataTable $view)
     {
-        return $this->getDisplayPropertiesForItemsReport(Piwik_Translate('Goals_ProductName'));
+        return $this->configureViewForItemsReport($view, Piwik::translate('Goals_ProductName'));
     }
 
-    private function getDisplayPropertiesForGetItemsCategory()
+    private function configureViewForGetItemsCategory(ViewDataTable $view)
     {
-        return $this->getDisplayPropertiesForItemsReport(Piwik_Translate('Goals_ProductCategory'));
+        return $this->configureViewForItemsReport($view, Piwik::translate('Goals_ProductCategory'));
     }
 
-    private function getDisplayPropertiesForGetVisitsUntilConversion()
+    private function configureViewForGetVisitsUntilConversion(ViewDataTable $view)
     {
-        return array(
-            'show_search'                 => false,
-            'show_exclude_low_population' => false,
-            'show_table_all_columns'      => false,
-            'columns_to_display'          => array('label', 'nb_conversions'),
-            'filter_sort_column'          => 'label',
-            'filter_sort_order'           => 'asc',
-            'translations'                => array(
-                'label'          => Piwik_Translate('Goals_VisitsUntilConv'),
-                'nb_conversions' => Piwik_Translate('Goals_ColumnConversions'),
-            ),
-            'filter_limit'                => count(Archiver::$visitCountRanges),
-            'show_offset_information'     => false,
-            'show_pagination_control'     => false,
-            'show_all_views_icons'        => false
-        );
+        $view->config->show_search = false;
+        $view->config->show_exclude_low_population = false;
+        $view->config->show_table_all_columns  = false;
+        $view->config->columns_to_display      = array('label', 'nb_conversions');
+        $view->config->show_offset_information = false;
+        $view->config->show_pagination_control = false;
+        $view->config->show_all_views_icons  = false;
+
+        $view->requestConfig->filter_sort_column = 'label';
+        $view->requestConfig->filter_sort_order  = 'asc';
+        $view->requestConfig->filter_limit       = count(Archiver::$visitCountRanges);
+
+        $view->config->addTranslations(array(
+            'label'          => Piwik::translate('Goals_VisitsUntilConv'),
+            'nb_conversions' => Piwik::translate('Goals_ColumnConversions'),
+        ));
     }
 
-    private function getDisplayPropertiesForGetDaysToConversion()
+    private function configureViewForGetDaysToConversion(ViewDataTable $view)
     {
-        return array(
-            'show_search'                 => false,
-            'show_exclude_low_population' => false,
-            'show_table_all_columns'      => false,
-            'columns_to_display'          => array('label', 'nb_conversions'),
-            'filter_sort_column'          => 'label',
-            'filter_sort_order'           => 'asc',
-            'translations'                => array(
-                'label'          => Piwik_Translate('Goals_DaysToConv'),
-                'nb_conversions' => Piwik_Translate('Goals_ColumnConversions'),
-            ),
-            'filter_limit'                => count(Archiver::$daysToConvRanges),
-            'show_all_views_icons'        => false,
-            'show_offset_information'     => false,
-            'show_pagination_control'     => false,
-        );
+        $view->config->show_search = false;
+        $view->config->show_exclude_low_population = false;
+        $view->config->show_table_all_columns  = false;
+        $view->config->show_all_views_icons  = false;
+        $view->config->show_offset_information = false;
+        $view->config->show_pagination_control = false;
+        $view->config->columns_to_display      = array('label', 'nb_conversions');
+
+        $view->requestConfig->filter_sort_column = 'label';
+        $view->requestConfig->filter_sort_order  = 'asc';
+        $view->requestConfig->filter_limit       = count(Archiver::$daysToConvRanges);
+
+        $view->config->addTranslations(array(
+            'label'          => Piwik::translate('Goals_DaysToConv'),
+            'nb_conversions' => Piwik::translate('Goals_ColumnConversions'),
+        ));
     }
 
-    private function getDisplayPropertiesForItemsReport($label)
+    private function configureViewForItemsReport(ViewDataTable $view, $label)
     {
         $idSite = Common::getRequestVar('idSite');
 
         $moneyColumns = array('revenue', 'avg_price');
         $prettifyMoneyColumns = array(
-            'ColumnCallbackReplace', array($moneyColumns, '\Piwik\Piwik::getPrettyMoney', array($idSite)));
+            'ColumnCallbackReplace', array($moneyColumns, '\Piwik\MetricsFormatter::getPrettyMoney', array($idSite)));
 
-        $result = array(
-            'show_ecommerce'              => true,
-            'show_all_views_icons'        => false,
-            'show_table'                  => false,
-            'show_exclude_low_population' => false,
-            'show_table_all_columns'      => false,
-            'filter_limit'                => 10,
-            'translations'                => array('label' => $label),
-            'filter_sort_column'          => 'revenue',
-            'filter_sort_order'           => 'desc',
-            'filters'                     => array($prettifyMoneyColumns)
-        );
+        $view->config->show_ecommerce = true;
+        $view->config->show_table     = false;
+        $view->config->show_all_views_icons      = false;
+        $view->config->show_exclude_low_population = false;
+        $view->config->show_table_all_columns      = false;
+        $view->config->addTranslation('label', $label);
+        $view->config->filters[] = $prettifyMoneyColumns;
+
+        $view->requestConfig->filter_limit       = 10;
+        $view->requestConfig->filter_sort_column = 'revenue';
+        $view->requestConfig->filter_sort_order  = 'desc';
 
         // set columns/translations which differ based on viewDataTable TODO: shouldn't have to do this check... amount of reports should be dynamic, but metadata should be static
         $columns = Goals::getProductReportColumns();
 
         $abandonedCart = Common::getRequestVar('viewDataTable', 'ecommerceOrder', 'string') == 'ecommerceAbandonedCart';
         if ($abandonedCart) {
-            $columns['abandoned_carts'] = Piwik_Translate('General_AbandonedCarts');
-            $columns['revenue'] = Piwik_Translate('Goals_LeftInCart', Piwik_Translate('General_ProductRevenue'));
-            $columns['quantity'] = Piwik_Translate('Goals_LeftInCart', Piwik_Translate('General_Quantity'));
-            $columns['avg_quantity'] = Piwik_Translate('Goals_LeftInCart', Piwik_Translate('General_AverageQuantity'));
+            $columns['abandoned_carts'] = Piwik::translate('General_AbandonedCarts');
+            $columns['revenue'] = Piwik::translate('Goals_LeftInCart', Piwik::translate('General_ProductRevenue'));
+            $columns['quantity'] = Piwik::translate('Goals_LeftInCart', Piwik::translate('General_Quantity'));
+            $columns['avg_quantity'] = Piwik::translate('Goals_LeftInCart', Piwik::translate('General_AverageQuantity'));
             unset($columns['orders']);
             unset($columns['conversion_rate']);
 
-            $result['request_parameters_to_modify'] = array('abandonedCarts' => '1');
+            $view->requestConfig->request_parameters_to_modify['abandonedCarts'] = '1';
         }
 
-        $result['translations'] = array_merge(array('label' => $label), $columns);
-        $result['columns_to_display'] = array_keys($result['translations']);
+        $translations = array_merge(array('label' => $label), $columns);
+
+        $view->config->addTranslations($translations);
+        $view->config->columns_to_display = array_keys($translations);
 
         // set metrics documentation in normal ecommerce report
         if (!$abandonedCart) {
-            $result['metrics_documentation'] = array(
-                'revenue'         => Piwik_Translate('Goals_ColumnRevenueDocumentation',
-                    Piwik_Translate('Goals_DocumentationRevenueGeneratedByProductSales')),
-                'quantity'        => Piwik_Translate('Goals_ColumnQuantityDocumentation', $label),
-                'orders'          => Piwik_Translate('Goals_ColumnOrdersDocumentation', $label),
-                'avg_price'       => Piwik_Translate('Goals_ColumnAveragePriceDocumentation', $label),
-                'avg_quantity'    => Piwik_Translate('Goals_ColumnAverageQuantityDocumentation', $label),
-                'nb_visits'       => Piwik_Translate('Goals_ColumnVisitsProductDocumentation', $label),
-                'conversion_rate' => Piwik_Translate('Goals_ColumnConversionRateProductDocumentation', $label),
+            $view->config->metrics_documentation = array(
+                'revenue'         => Piwik::translate('Goals_ColumnRevenueDocumentation',
+                    Piwik::translate('Goals_DocumentationRevenueGeneratedByProductSales')),
+                'quantity'        => Piwik::translate('Goals_ColumnQuantityDocumentation', $label),
+                'orders'          => Piwik::translate('Goals_ColumnOrdersDocumentation', $label),
+                'avg_price'       => Piwik::translate('Goals_ColumnAveragePriceDocumentation', $label),
+                'avg_quantity'    => Piwik::translate('Goals_ColumnAverageQuantityDocumentation', $label),
+                'nb_visits'       => Piwik::translate('Goals_ColumnVisitsProductDocumentation', $label),
+                'conversion_rate' => Piwik::translate('Goals_ColumnConversionRateProductDocumentation', $label),
             );
         }
 
-        $result['custom_parameters']['viewDataTable'] =
+        $view->config->custom_parameters['viewDataTable'] =
             $abandonedCart ? Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_CART : Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_ORDER;
+    }
 
-        return $result;
+
+    public function getClientSideTranslationKeys(&$translationKeys)
+    {
+        $translationKeys[] = 'Goals_AddGoal';
+        $translationKeys[] = 'Goals_UpdateGoal';
+        $translationKeys[] = 'Goals_DeleteGoalConfirm';
     }
 }

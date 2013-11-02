@@ -18,8 +18,11 @@ use Piwik\Date;
 use Piwik\DataAccess\ArchiveSelector;
 use Piwik\DataAccess\ArchiveTableCreator;
 use Piwik\Db\Factory;
+use Piwik\DbHelper;
 use Piwik\Db\DAO\Base;
 use Piwik\Piwik;
+use Piwik\Log;
+use Piwik\SettingsPiwik;
 
 /**
  *  @package Piwik
@@ -339,7 +342,7 @@ class Archive extends Base
         $bind = array(Piwik::$idPeriods['range'], $yesterday);
         $numericTable = ArchiveTableCreator::getNumericTable($date);
         $this->db->query(sprintf($query, $numericTable), $bind);
-        Piwik::log("Purging Custom Range archives: done [ purged archives older than $yesterday from $numericTable / blob ]");
+        Log::debug("Purging Custom Range archives: done [ purged archives older than $yesterday from $numericTable / blob ]");
         try {
             $this->db->query(sprintf($query, ArchiveTableCreator::getBlobTable($date)), $bind);
         } catch (Exception $e) {
@@ -418,7 +421,7 @@ class Archive extends Base
     {
         $config = Config::getInstance();
         $prefix = $config->database['tables_prefix'];
-        $sql = Piwik::getTableCreateSql($tableName);
+        $sql = DbHelper::getTableCreateSql($tableName);
         $sql = str_replace($prefix . $tableName, $generatedTableName, $sql);
         $sql = str_replace('CREATE TABLE', 'CREATE TABLE IF NOT EXISTS', $sql);
 
@@ -445,7 +448,7 @@ class Archive extends Base
             . $period->getId() . '/'
             . $period->getDateStart()->toString('Y-m-d') . ','
             . $period->getDateEnd()->toString('Y-m-d');
-        $return = $lockName .'/'. md5($lockName . Common::getSalt());
+        $return = $lockName .'/'. md5($lockName . SettingsPiwik::getSalt());
     
         return $return;
     }

@@ -11,11 +11,12 @@
 namespace Piwik\Plugins\DBStats;
 
 use Exception;
-use Piwik\Piwik;
 use Piwik\Common;
 use Piwik\Config;
 use Piwik\DataTable;
 use Piwik\Db;
+use Piwik\DbHelper;
+use Piwik\Option;
 
 /**
  * Utility class that provides general information about databases, including the size of
@@ -106,7 +107,7 @@ class MySQLMetadataProvider
     public function getAllTablesStatus($matchingRegex = null)
     {
         if (is_null($this->tableStatuses)) {
-            $tablesPiwik = Piwik::getTablesInstalled();
+            $tablesPiwik = DbHelper::getTablesInstalled();
 
             $this->tableStatuses = array();
             foreach (Db::fetchAll("SHOW TABLE STATUS") as $t) {
@@ -227,7 +228,7 @@ class MySQLMetadataProvider
             $dataTableOptionName = $this->getCachedOptionName($status['Name'], 'byArchiveName');
 
             // if option exists && !$forceCache, use the cached data, otherwise create the
-            $cachedData = Piwik_GetOption($dataTableOptionName);
+            $cachedData = Option::get($dataTableOptionName);
             if ($cachedData !== false && !$forceCache) {
                 $table = new DataTable();
                 $table->addRowsFromSerializedArray($cachedData);
@@ -243,7 +244,7 @@ class MySQLMetadataProvider
 
                 $serializedTables = $table->getSerialized();
                 $serializedTable = reset($serializedTables);
-                Piwik_SetOption($dataTableOptionName, $serializedTable);
+                Option::set($dataTableOptionName, $serializedTable);
             }
 
             // add estimated_size column
@@ -286,7 +287,7 @@ class MySQLMetadataProvider
                     $columnType = substr($columnType, 0, $paren);
                 }
 
-                $fixedSizeColumnLength += $this->sizeOfMySQLColumn($columnType);
+                $fixedSizeColumnLength += $this->getSizeOfDatabaseType($columnType);
             }
         }
         // calculate the average row size
@@ -301,7 +302,7 @@ class MySQLMetadataProvider
     }
 
     /** Returns the size in bytes of a fixed size MySQL data type. Returns 0 for unsupported data type. */
-    private function sizeOfMySQLColumn($columnType)
+    private function getSizeOfDatabaseType($columnType)
     {
         switch (strtolower($columnType)) {
             case "tinyint":

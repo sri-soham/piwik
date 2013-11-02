@@ -8,6 +8,10 @@
  * @category Piwik
  * @package Updates
  */
+
+namespace Piwik\Updates;
+
+
 use Piwik\Common;
 use Piwik\Updater;
 use Piwik\Updates;
@@ -15,7 +19,7 @@ use Piwik\Updates;
 /**
  * @package Updates
  */
-class Piwik_Updates_1_5_b1 extends Updates
+class Updates_1_5_b1 extends Updates
 {
     static function getSql($schema = 'Myisam')
     {
@@ -36,7 +40,7 @@ class Piwik_Updates_1_5_b1 extends Updates
 												  
 												  PRIMARY KEY(idvisit, idorder, idaction_sku),
 										          INDEX index_idsite_servertime ( idsite, server_time )
-												)  DEFAULT CHARSET=utf8 '                                                                                            => false,
+												)  DEFAULT CHARSET=utf8 '                                                                                      => false,
 
             'ALTER IGNORE TABLE `' . Common::prefixTable('log_visit') . '`
 				 ADD  visitor_days_since_order SMALLINT(5) UNSIGNED NOT NULL AFTER visitor_days_since_last,

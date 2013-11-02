@@ -10,8 +10,9 @@
  */
 namespace Piwik\Plugins\Installation;
 
-use Piwik\Piwik;
 use Piwik\Common;
+use Piwik\Menu\MenuAdmin;
+use Piwik\Piwik;
 use Piwik\Translate;
 
 /**
@@ -28,10 +29,10 @@ class Installation extends \Piwik\Plugin
     public function getListHooksRegistered()
     {
         $hooks = array(
-            'FrontController.NoConfigurationFile'  => 'dispatch',
-            'FrontController.badConfigurationFile' => 'dispatch',
-            'AdminMenu.add'                        => 'addMenu',
-            'AssetManager.getCssFiles'             => 'getCss',
+            'Config.NoConfigurationFile'      => 'dispatch',
+            'Config.badConfigurationFile'     => 'dispatch',
+            'Menu.Admin.addItems'             => 'addMenu',
+            'AssetManager.getStylesheetFiles' => 'getStylesheetFiles',
         );
         return $hooks;
     }
@@ -57,16 +58,17 @@ class Installation extends \Piwik\Plugin
             $message = '';
         }
 
-        Translate::getInstance()->loadCoreTranslation();
-
-        Piwik_PostEvent('Installation.startInstallation', array($this));
+        Translate::loadCoreTranslation();
 
         $step = Common::getRequestVar('action', 'welcome', 'string');
         $controller = $this->getInstallationController();
-        if (in_array($step, array_keys($controller->getInstallationSteps())) || $step == 'saveLanguage') {
+        $isActionWhiteListed = in_array($step, array('saveLanguage', 'getBaseCss'));
+        if (in_array($step, array_keys($controller->getInstallationSteps()))
+            || $isActionWhiteListed
+        ) {
             $controller->$step($message);
         } else {
-            Piwik::exitWithErrorMessage(Piwik_Translate('Installation_NoConfigFound'));
+            Piwik::exitWithErrorMessage(Piwik::translate('Installation_NoConfigFound'));
         }
 
         exit;
@@ -77,17 +79,17 @@ class Installation extends \Piwik\Plugin
      */
     public function addMenu()
     {
-        Piwik_AddAdminSubMenu('CoreAdminHome_MenuDiagnostic', 'Installation_SystemCheck',
+        MenuAdmin::addEntry('Installation_SystemCheck',
             array('module' => 'Installation', 'action' => 'systemCheckPage'),
-            $addIf = Piwik::isUserIsSuperUser(),
+            Piwik::isUserIsSuperUser(),
             $order = 15);
     }
 
     /**
      * Adds CSS files to list of CSS files for asset manager.
      */
-    public function getCss(&$cssFiles)
+    public function getStylesheetFiles(&$stylesheets)
     {
-        $cssFiles[] = "plugins/Installation/stylesheets/systemCheckPage.less";
+        $stylesheets[] = "plugins/Installation/stylesheets/systemCheckPage.less";
     }
 }

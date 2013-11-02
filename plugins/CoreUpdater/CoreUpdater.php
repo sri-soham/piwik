@@ -11,12 +11,13 @@
 namespace Piwik\Plugins\CoreUpdater;
 
 use Exception;
-use Piwik\Piwik;
 use Piwik\Common;
+use Piwik\Filesystem;
 use Piwik\FrontController;
+use Piwik\Piwik;
+use Piwik\UpdateCheck;
 use Piwik\Updater;
 use Piwik\Version;
-use Piwik\UpdateCheck;
 
 /**
  *
@@ -30,8 +31,8 @@ class CoreUpdater extends \Piwik\Plugin
     public function getListHooksRegistered()
     {
         $hooks = array(
-            'FrontController.dispatchCoreAndPluginUpdatesScreen' => 'dispatch',
-            'FrontController.checkForUpdates'                    => 'updateCheck',
+            'Request.dispatchCoreAndPluginUpdatesScreen' => 'dispatch',
+            'Updater.checkForUpdates'                    => 'updateCheck',
         );
         return $hooks;
     }
@@ -39,7 +40,7 @@ class CoreUpdater extends \Piwik\Plugin
     public static function getComponentUpdates(Updater $updater)
     {
         $updater->addComponentToCheck('core', Version::VERSION);
-        $plugins = \Piwik\PluginsManager::getInstance()->getLoadedPlugins();
+        $plugins = \Piwik\Plugin\Manager::getInstance()->getLoadedPlugins();
         foreach ($plugins as $pluginName => $plugin) {
             $updater->addComponentToCheck($pluginName, $plugin->getVersion());
         }
@@ -61,7 +62,7 @@ class CoreUpdater extends \Piwik\Plugin
         $updater->addComponentToCheck('core', Version::VERSION);
         $updates = $updater->getComponentsWithNewVersion();
         if (!empty($updates)) {
-            Piwik::deleteAllCacheOnUpdate();
+            Filesystem::deleteAllCacheOnUpdate();
         }
         if (self::getComponentUpdates($updater) !== null
             && $module != 'CoreUpdater'

@@ -36,7 +36,7 @@
         <tr>
             <th>{{ 'General_Options'|translate }}</th>
             <th>{{ 'Mobile_Advanced'|translate }}
-                <a href="#" class="section-toggler-link" data-section-id="javascript-advanced-options">({{ 'General_Show_js'|translate }})</a>
+                <a href="#" class="section-toggler-link" data-section-id="javascript-advanced-options">({{ 'General_Show'|translate }})</a>
             </th>
         </tr>
         <tr>
@@ -45,7 +45,7 @@
                 <div class="tracking-option-section">
                     <input type="checkbox" id="javascript-tracking-all-subdomains"/>
                     <label for="javascript-tracking-all-subdomains">{{ 'CoreAdminHome_JSTracking_MergeSubdomains'|translate }}
-                        <span class='current-site-name'>{{ defaultReportSiteName }}</span>
+                        <span class='current-site-name'>{{ defaultReportSiteName|raw }}</span>
                     </label>
 
                     <div class="small-form-description">
@@ -67,7 +67,7 @@
                 <div class="tracking-option-section">
                     <input type="checkbox" id="javascript-tracking-all-aliases"/>
                     <label for="javascript-tracking-all-aliases">{{ 'CoreAdminHome_JSTracking_MergeAliases'|translate }}
-                        <span class='current-site-name'>{{ defaultReportSiteName }}</span>
+                        <span class='current-site-name'>{{ defaultReportSiteName|raw }}</span>
                     </label>
 
                     <div class="small-form-description">
@@ -170,7 +170,7 @@
 </div>
 
 <div id="javascript-output-section">
-    <h3>{{ 'Installation_JsTag'|translate }}</h3>
+    <h3>{{ 'General_JsTrackingTag'|translate }}</h3>
 
     <p class="form-description">{{ 'CoreAdminHome_JSTracking_CodeNote'|translate("&lt;/body&gt;")|raw }}</p>
 
@@ -206,7 +206,7 @@
             <th>{{ 'General_Options'|translate }}</th>
             <th>{{ 'Mobile_Advanced'|translate }}
                 <a href="#" class="section-toggler-link" data-section-id="image-tracker-advanced-options">
-                    ({{ 'General_Show_js'|translate }})
+                    ({{ 'General_Show'|translate }})
                 </a>
             </th>
         </tr>
@@ -242,7 +242,7 @@
     <div id="image-link-output-section" width="560px">
         <h3>{{ 'CoreAdminHome_ImageTrackingLink'|translate }}</h3><br/><br/>
 
-        <div id="image-tracking-link">
+        <div id="image-tracking-text">
             <textarea> </textarea>
         </div>
         <br/>

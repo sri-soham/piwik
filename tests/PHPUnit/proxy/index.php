@@ -4,22 +4,14 @@
  * Used by tests/PHPUnit/Integration/ImportLogsTest.php and tests/PHPUnit/Integration/UITest.php
  */
 
-// make sure the test environment is loaded
 use Piwik\Tracker\Cache;
+
+require realpath(dirname(__FILE__)) . "/includes.php";
 
 // Wrapping the request inside ob_start() calls to ensure that the Test
 // calling us waits for the full request to process before unblocking
 ob_start();
 
-define('PIWIK_INCLUDE_PATH', '../../..');
-define('PIWIK_USER_PATH', PIWIK_INCLUDE_PATH);
-
-require_once PIWIK_INCLUDE_PATH . '/libs/upgradephp/upgrade.php';
-require_once PIWIK_INCLUDE_PATH . '/core/Loader.php';
-require_once PIWIK_INCLUDE_PATH . '/core/EventDispatcher.php';
-
-require_once realpath(dirname(__FILE__)) . '/../../../core/functions.php';
-require_once realpath(dirname(__FILE__)) . "/../../../tests/PHPUnit/TestingEnvironment.php";
 Piwik_TestingEnvironment::addHooks();
 
 \Piwik\Tracker::setTestEnvironment();
@@ -29,8 +21,13 @@ Cache::deleteTrackerCache();
 define('PIWIK_ENABLE_DISPATCH', false);
 include PIWIK_INCLUDE_PATH . '/index.php';
 
-$controller = new \Piwik\FrontController;
+$controller = \Piwik\FrontController::getInstance();
+
+// Load all plugins that are found so UI tests are really testing real world use case
+\Piwik\Config::getInstance()->Plugins['Plugins'] = \Piwik\Plugin\Manager::getInstance()->getAllPluginsNames();
+
 $controller->init();
 $controller->dispatch();
 
 ob_flush();
+

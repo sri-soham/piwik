@@ -11,18 +11,17 @@
 namespace Piwik\Plugins\API;
 
 use Piwik\API\DocumentationGenerator;
-use Piwik\API\Request;
 use Piwik\API\Proxy;
-use Piwik\Config;
+use Piwik\API\Request;
 use Piwik\Common;
-use Piwik\Plugins\API\API;
+use Piwik\Config;
 use Piwik\View;
 
 /**
  *
  * @package Piwik_API
  */
-class Controller extends \Piwik\Controller
+class Controller extends \Piwik\Plugin\Controller
 {
     function index()
     {

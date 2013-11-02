@@ -1,15 +1,14 @@
 {% extends 'admin.twig' %}
 
 {% block content %}
-{{ loadJavascriptTranslations(['UsersManager']) }}
 {# load macros #}
 {% import 'macros.twig' as piwik %}
 {% import 'ajaxMacros.twig' as ajax %}
 
 {% if isSuperUser %}
     <h2>{{ 'General_GeneralSettings'|translate }}</h2>
-    {{ ajax.errorDiv('ajaxError') }}
-    {{ ajax.loadingDiv('ajaxLoading') }}
+    {{ ajax.errorDiv() }}
+    {{ ajax.loadingDiv() }}
     <table class="adminTable" style='width:900px;'>
         <tr>
             <td style="width:400px;">{{ 'General_AllowPiwikArchivingToTriggerBrowser'|translate }}</td>
@@ -160,15 +159,9 @@
     </div>
     <h2 id="trustedHostsSection">{{ 'CoreAdminHome_TrustedHostSettings'|translate }}</h2>
     <div id='trustedHostSettings'>
-        {# untrusted host warning (display again) #}
-        {% if isValidHost is defined and invalidHostMessage is defined and not isValidHost %}
-            <div class="ajaxSuccess">
-                <a style="float:right;" href="http://piwik.org/faq/troubleshooting/#faq_171" target="_blank">
-                    <img src="plugins/Zeitgeist/images/help_grey.png"/>
-                </a>
-                <strong>{{ 'General_Warning'|translate }}:&nbsp;</strong>{{ invalidHostMessage }}
-            </div>
-        {% endif %}
+
+        {% include "@CoreHome/_warningInvalidHost.twig" %}
+
         {% if trustedHosts|length == 1 and (isValidHost is not defined or isValidHost) %}
             {{ 'CoreAdminHome_PiwikIsInstalledAt'|translate }}:&nbsp;&nbsp;
             <input name="trusted_host" type="text" value="{{ trustedHosts[0] }}"/>
@@ -215,7 +208,7 @@
     <div id='logoSettings'>
         {% set giveUsFeedbackText %}"{{ 'General_GiveUsYourFeedback'|translate }}"{% endset %}
         {% set customLogoHelp %}
-            {{ 'CoreAdminHome_CustomLogoFeedbackInfo'|translate(giveUsFeedbackText,"<a href='?module=CorePluginsAdmin&action=index' target='_blank'>","</a>")|raw }}
+            {{ 'CoreAdminHome_CustomLogoFeedbackInfo'|translate(giveUsFeedbackText,"<a href='?module=CorePluginsAdmin&action=plugins' target='_blank'>","</a>")|raw }}
         {% endset %}
         {{ piwik.inlineHelp(customLogoHelp) }}
         <form id="logoUploadForm" method="post" enctype="multipart/form-data" action="index.php?module=CoreAdminHome&format=json&action=uploadCustomLogo">

@@ -39,10 +39,10 @@ class DataTable_Renderer_JSONTest extends PHPUnit_Framework_TestCase
 
         $array = array(
             array(Row::COLUMNS  => array('label' => 'Google&copy;', 'bool' => false, 'goals' => array('idgoal=1' => array('revenue' => 5.5, 'nb_conversions' => 10)), 'nb_uniq_visitors' => 11, 'nb_visits' => 11, 'nb_actions' => 17, 'max_actions' => '5', 'sum_visit_length' => 517, 'bounce_count' => 9),
-                  Row::METADATA => array('url' => 'http://www.google.com/display"and,properly', 'logo' => './plugins/Referers/images/searchEngines/www.google.com.png'),
+                  Row::METADATA => array('url' => 'http://www.google.com/display"and,properly', 'logo' => './plugins/Referrers/images/searchEngines/www.google.com.png'),
             ),
             array(Row::COLUMNS              => array('label' => 'Yahoo!', 'nb_uniq_visitors' => 15, 'bool' => true, 'nb_visits' => 151, 'nb_actions' => 147, 'max_actions' => '50', 'sum_visit_length' => 517, 'bounce_count' => 90),
-                  Row::METADATA             => array('url' => 'http://www.yahoo.com', 'logo' => './plugins/Referers/images/searchEngines/www.yahoo.com.png'),
+                  Row::METADATA             => array('url' => 'http://www.yahoo.com', 'logo' => './plugins/Referrers/images/searchEngines/www.yahoo.com.png'),
                   Row::DATATABLE_ASSOCIATED => $subDataTableForRow2,
             )
         );
@@ -93,9 +93,6 @@ class DataTable_Renderer_JSONTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_JSON
      */
     public function testJSONTest1()
     {
@@ -103,7 +100,7 @@ class DataTable_Renderer_JSONTest extends PHPUnit_Framework_TestCase
         $render = new Json();
         $render->setTable($dataTable);
         $render->setRenderSubTables(true);
-        $expected = '[{"label":"Google\u00a9","bool":false,"goals":{"idgoal=1":{"revenue":5.5,"nb_conversions":10}},"nb_uniq_visitors":11,"nb_visits":11,"nb_actions":17,"max_actions":"5","sum_visit_length":517,"bounce_count":9,"url":"http:\/\/www.google.com\/display\"and,properly","logo":".\/plugins\/Referers\/images\/searchEngines\/www.google.com.png"},{"label":"Yahoo!","nb_uniq_visitors":15,"bool":true,"nb_visits":151,"nb_actions":147,"max_actions":"50","sum_visit_length":517,"bounce_count":90,"url":"http:\/\/www.yahoo.com","logo":".\/plugins\/Referers\/images\/searchEngines\/www.yahoo.com.png","idsubdatatable":2,"subtable":[{"label":"sub1","count":1,"bool":false},{"label":"sub2","count":2,"bool":true}]}]';
+        $expected = '[{"label":"Google\u00a9","bool":false,"goals":{"idgoal=1":{"revenue":5.5,"nb_conversions":10}},"nb_uniq_visitors":11,"nb_visits":11,"nb_actions":17,"max_actions":"5","sum_visit_length":517,"bounce_count":9,"url":"http:\/\/www.google.com\/display\"and,properly","logo":".\/plugins\/Referrers\/images\/searchEngines\/www.google.com.png"},{"label":"Yahoo!","nb_uniq_visitors":15,"bool":true,"nb_visits":151,"nb_actions":147,"max_actions":"50","sum_visit_length":517,"bounce_count":90,"url":"http:\/\/www.yahoo.com","logo":".\/plugins\/Referrers\/images\/searchEngines\/www.yahoo.com.png","idsubdatatable":2,"subtable":[{"label":"sub1","count":1,"bool":false},{"label":"sub2","count":2,"bool":true}]}]';
         $rendered = $render->render();
 
         $this->assertEquals($expected, $rendered);
@@ -111,9 +108,6 @@ class DataTable_Renderer_JSONTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_JSON
      */
     public function testJSONTest2()
     {
@@ -127,9 +121,6 @@ class DataTable_Renderer_JSONTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_JSON
      */
     public function testJSONTest3()
     {
@@ -142,9 +133,6 @@ class DataTable_Renderer_JSONTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_JSON
      */
     public function testJSONTest4()
     {
@@ -157,9 +145,6 @@ class DataTable_Renderer_JSONTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_JSON
      */
     public function testJSONTest5()
     {
@@ -172,9 +157,6 @@ class DataTable_Renderer_JSONTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_JSON
      */
     public function testJSONTest6()
     {
@@ -190,14 +172,14 @@ class DataTable_Renderer_JSONTest extends PHPUnit_Framework_TestCase
      * -------------------------
      */
 
-    protected function _getDataTableArrayTest()
+    protected function _getDataTableMapTest()
     {
         $array1 = array(
             array(Row::COLUMNS  => array('label' => 'Google', 'nb_uniq_visitors' => 11, 'nb_visits' => 11,),
-                  Row::METADATA => array('url' => 'http://www.google.com', 'logo' => './plugins/Referers/images/searchEngines/www.google.com.png'),
+                  Row::METADATA => array('url' => 'http://www.google.com', 'logo' => './plugins/Referrers/images/searchEngines/www.google.com.png'),
             ),
             array(Row::COLUMNS  => array('label' => 'Yahoo!', 'nb_uniq_visitors' => 15, 'nb_visits' => 151,),
-                  Row::METADATA => array('url' => 'http://www.yahoo.com', 'logo' => './plugins/Referers/images/searchEngines/www.yahoo.com.png'),
+                  Row::METADATA => array('url' => 'http://www.yahoo.com', 'logo' => './plugins/Referrers/images/searchEngines/www.yahoo.com.png'),
             )
         );
         $table1 = new DataTable();
@@ -206,10 +188,10 @@ class DataTable_Renderer_JSONTest extends PHPUnit_Framework_TestCase
 
         $array2 = array(
             array(Row::COLUMNS  => array('label' => 'Google1&copy;', 'nb_uniq_visitors' => 110, 'nb_visits' => 110,),
-                  Row::METADATA => array('url' => 'http://www.google.com1', 'logo' => './plugins/Referers/images/searchEngines/www.google.com.png1'),
+                  Row::METADATA => array('url' => 'http://www.google.com1', 'logo' => './plugins/Referrers/images/searchEngines/www.google.com.png1'),
             ),
             array(Row::COLUMNS  => array('label' => 'Yahoo!1', 'nb_uniq_visitors' => 150, 'nb_visits' => 1510,),
-                  Row::METADATA => array('url' => 'http://www.yahoo.com1', 'logo' => './plugins/Referers/images/searchEngines/www.yahoo.com.png1'),
+                  Row::METADATA => array('url' => 'http://www.yahoo.com1', 'logo' => './plugins/Referrers/images/searchEngines/www.yahoo.com.png1'),
             )
         );
         $table2 = new DataTable();
@@ -227,7 +209,7 @@ class DataTable_Renderer_JSONTest extends PHPUnit_Framework_TestCase
         return $table;
     }
 
-    protected function _getDataTableSimpleArrayTest()
+    protected function _getDataTableSimpleMapTest()
     {
         $array1 = array('max_actions' => 14.0, 'nb_uniq_visitors' => 57.0,);
         $table1 = new Simple;
@@ -248,7 +230,7 @@ class DataTable_Renderer_JSONTest extends PHPUnit_Framework_TestCase
         return $table;
     }
 
-    protected function _getDataTableSimpleOneRowArrayTest()
+    protected function _getDataTableSimpleOneRowMapTest()
     {
         $array1 = array('nb_visits' => 14.0);
         $table1 = new Simple;
@@ -268,57 +250,51 @@ class DataTable_Renderer_JSONTest extends PHPUnit_Framework_TestCase
         return $table;
     }
 
-    protected function _getDataTableArray_containsDataTableArray_normal()
+    protected function _getDataTableMap_containsDataTableMap_normal()
     {
         $table = new DataTable\Map();
         $table->setKeyName('parentArrayKey');
-        $table->addTable($this->_getDataTableArrayTest(), 'idSite');
+        $table->addTable($this->_getDataTableMapTest(), 'idSite');
         return $table;
     }
 
-    protected function _getDataTableArray_containsDataTableArray_simple()
+    protected function _getDataTableMap_containsDataTableMap_simple()
     {
         $table = new DataTable\Map();
         $table->setKeyName('parentArrayKey');
-        $table->addTable($this->_getDataTableSimpleArrayTest(), 'idSite');
+        $table->addTable($this->_getDataTableSimpleMapTest(), 'idSite');
         return $table;
     }
 
-    protected function _getDataTableArray_containsDataTableArray_simpleOneRow()
+    protected function _getDataTableMap_containsDataTableMap_simpleOneRow()
     {
         $table = new DataTable\Map();
         $table->setKeyName('parentArrayKey');
-        $table->addTable($this->_getDataTableSimpleOneRowArrayTest(), 'idSite');
+        $table->addTable($this->_getDataTableSimpleOneRowMapTest(), 'idSite');
         return $table;
     }
 
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_JSON
      */
     public function testJSONArrayTest1()
     {
-        $dataTable = $this->_getDataTableArrayTest();
+        $dataTable = $this->_getDataTableMapTest();
         $render = new Json();
         $render->setTable($dataTable);
         $rendered = $render->render();
-        $expected = '{"date1":[{"label":"Google","nb_uniq_visitors":11,"nb_visits":11,"url":"http:\/\/www.google.com","logo":".\/plugins\/Referers\/images\/searchEngines\/www.google.com.png"},{"label":"Yahoo!","nb_uniq_visitors":15,"nb_visits":151,"url":"http:\/\/www.yahoo.com","logo":".\/plugins\/Referers\/images\/searchEngines\/www.yahoo.com.png"}],"date2":[{"label":"Google1\u00a9","nb_uniq_visitors":110,"nb_visits":110,"url":"http:\/\/www.google.com1","logo":".\/plugins\/Referers\/images\/searchEngines\/www.google.com.png1"},{"label":"Yahoo!1","nb_uniq_visitors":150,"nb_visits":1510,"url":"http:\/\/www.yahoo.com1","logo":".\/plugins\/Referers\/images\/searchEngines\/www.yahoo.com.png1"}],"date3":[]}';
+        $expected = '{"date1":[{"label":"Google","nb_uniq_visitors":11,"nb_visits":11,"url":"http:\/\/www.google.com","logo":".\/plugins\/Referrers\/images\/searchEngines\/www.google.com.png"},{"label":"Yahoo!","nb_uniq_visitors":15,"nb_visits":151,"url":"http:\/\/www.yahoo.com","logo":".\/plugins\/Referrers\/images\/searchEngines\/www.yahoo.com.png"}],"date2":[{"label":"Google1\u00a9","nb_uniq_visitors":110,"nb_visits":110,"url":"http:\/\/www.google.com1","logo":".\/plugins\/Referrers\/images\/searchEngines\/www.google.com.png1"},{"label":"Yahoo!1","nb_uniq_visitors":150,"nb_visits":1510,"url":"http:\/\/www.yahoo.com1","logo":".\/plugins\/Referrers\/images\/searchEngines\/www.yahoo.com.png1"}],"date3":[]}';
 
         $this->assertEquals($expected, $rendered);
     }
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_JSON
      */
-    public function testJSONArrayTest2()
+    public function testJSONMapTest2()
     {
-        $dataTable = $this->_getDataTableSimpleArrayTest();
+        $dataTable = $this->_getDataTableSimpleMapTest();
         $render = new Json();
         $render->setTable($dataTable);
         $rendered = $render->render();
@@ -330,13 +306,10 @@ class DataTable_Renderer_JSONTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_JSON
      */
-    public function testJSONArrayTest3()
+    public function testJSONMapTest3()
     {
-        $dataTable = $this->_getDataTableSimpleOneRowArrayTest();
+        $dataTable = $this->_getDataTableSimpleOneRowMapTest();
         $render = new Json();
         $render->setTable($dataTable);
         $rendered = $render->render();
@@ -347,29 +320,23 @@ class DataTable_Renderer_JSONTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_JSON
      */
-    public function testJSONArrayIsMadeOfArrayTest1()
+    public function testJSONMapIsMadeOfMapTest1()
     {
-        $dataTable = $this->_getDataTableArray_containsDataTableArray_normal();
+        $dataTable = $this->_getDataTableMap_containsDataTableMap_normal();
         $render = new Json();
         $render->setTable($dataTable);
         $rendered = $render->render();
-        $expected = '{"idSite":{"date1":[{"label":"Google","nb_uniq_visitors":11,"nb_visits":11,"url":"http:\/\/www.google.com","logo":".\/plugins\/Referers\/images\/searchEngines\/www.google.com.png"},{"label":"Yahoo!","nb_uniq_visitors":15,"nb_visits":151,"url":"http:\/\/www.yahoo.com","logo":".\/plugins\/Referers\/images\/searchEngines\/www.yahoo.com.png"}],"date2":[{"label":"Google1\u00a9","nb_uniq_visitors":110,"nb_visits":110,"url":"http:\/\/www.google.com1","logo":".\/plugins\/Referers\/images\/searchEngines\/www.google.com.png1"},{"label":"Yahoo!1","nb_uniq_visitors":150,"nb_visits":1510,"url":"http:\/\/www.yahoo.com1","logo":".\/plugins\/Referers\/images\/searchEngines\/www.yahoo.com.png1"}],"date3":[]}}';
+        $expected = '{"idSite":{"date1":[{"label":"Google","nb_uniq_visitors":11,"nb_visits":11,"url":"http:\/\/www.google.com","logo":".\/plugins\/Referrers\/images\/searchEngines\/www.google.com.png"},{"label":"Yahoo!","nb_uniq_visitors":15,"nb_visits":151,"url":"http:\/\/www.yahoo.com","logo":".\/plugins\/Referrers\/images\/searchEngines\/www.yahoo.com.png"}],"date2":[{"label":"Google1\u00a9","nb_uniq_visitors":110,"nb_visits":110,"url":"http:\/\/www.google.com1","logo":".\/plugins\/Referrers\/images\/searchEngines\/www.google.com.png1"},{"label":"Yahoo!1","nb_uniq_visitors":150,"nb_visits":1510,"url":"http:\/\/www.yahoo.com1","logo":".\/plugins\/Referrers\/images\/searchEngines\/www.yahoo.com.png1"}],"date3":[]}}';
         $this->assertEquals($expected, $rendered);
     }
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_JSON
      */
-    public function testJSONArrayIsMadeOfArrayTest2()
+    public function testJSONMapIsMadeOfMapTest2()
     {
-        $dataTable = $this->_getDataTableArray_containsDataTableArray_simple();
+        $dataTable = $this->_getDataTableMap_containsDataTableMap_simple();
         $render = new Json();
         $render->setTable($dataTable);
         $rendered = $render->render();
@@ -381,13 +348,10 @@ class DataTable_Renderer_JSONTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_JSON
      */
-    public function testJSONArrayIsMadeOfArrayTest3()
+    public function testJSONMapIsMadeOfMapTest3()
     {
-        $dataTable = $this->_getDataTableArray_containsDataTableArray_simpleOneRow();
+        $dataTable = $this->_getDataTableMap_containsDataTableMap_simpleOneRow();
         $render = new Json();
         $render->setTable($dataTable);
 
@@ -398,9 +362,6 @@ class DataTable_Renderer_JSONTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_XML
      */
     public function testRenderArray1()
     {
@@ -415,9 +376,6 @@ class DataTable_Renderer_JSONTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_JSON
      */
     public function testRenderArray2()
     {
@@ -432,9 +390,6 @@ class DataTable_Renderer_JSONTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_JSON
      */
     public function testRenderArray3()
     {
@@ -449,9 +404,6 @@ class DataTable_Renderer_JSONTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_JSON
      */
     public function testRenderArray4()
     {
@@ -466,9 +418,6 @@ class DataTable_Renderer_JSONTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_JSON
      */
     public function testRenderArray5()
     {

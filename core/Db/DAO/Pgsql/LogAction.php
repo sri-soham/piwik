@@ -13,6 +13,7 @@ namespace Piwik\Db\DAO\Pgsql;
 use Piwik\Common;
 use Piwik\Db\Factory;
 use Piwik\Plugins\PrivacyManager\LogDataPurger;
+use Piwik\Piwik;
 
 /**
  * @package Piwik
@@ -133,10 +134,16 @@ class LogAction extends \Piwik\Db\DAO\Mysql\LogAction
 
         // allow code to be executed after data is inserted. for concurrency testing purposes.
         if ($olderThan) {
-            Piwik_PostEvent("LogDataPurger.actionsToKeepInserted.olderThan");
+            /**
+             * @ignore
+             */
+            Piwik::postEvent("LogDataPurger.actionsToKeepInserted.olderThan");
         }
         else {
-            Piwik_PostEvent("LogDataPurger.actionsToKeepInserted.newerThan");
+            /**
+             * @ignore
+             */
+            Piwik::postEvent("LogDataPurger.actionsToKeepInserted.newerThan");
         }
     }
 

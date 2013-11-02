@@ -11,36 +11,25 @@
 namespace Piwik\Plugins\CoreAdminHome;
 
 use Exception;
+use Piwik\Common;
+use Piwik\Config;
 use Piwik\DataAccess\ArchiveTableCreator;
+use Piwik\Date;
+use Piwik\Db;
+use Piwik\Option;
 use Piwik\Period;
 use Piwik\Period\Week;
 use Piwik\Piwik;
-use Piwik\Config;
-use Piwik\Common;
-use Piwik\Date;
-use Piwik\TaskScheduler;
+use Piwik\SettingsPiwik;
 use Piwik\Site;
-use Piwik\Db;
 use Piwik\Db\Factory;
+use Piwik\TaskScheduler;
 
 /**
  * @package CoreAdminHome
  */
-class API
+class API extends \Piwik\Plugin\API
 {
-    static private $instance = null;
-
-    /**
-     * @return \Piwik\Plugins\CoreAdminHome\API
-     */
-    static public function getInstance()
-    {
-        if (self::$instance == null) {
-            self::$instance = new self;
-        }
-        return self::$instance;
-    }
-
     /**
      * Will run all scheduled tasks due to run at this time.
      *
@@ -55,7 +44,7 @@ class API
     public function getKnownSegmentsToArchive()
     {
         Piwik::checkUserIsSuperUser();
-        return Piwik::getKnownSegmentsToArchive();
+        return SettingsPiwik::getKnownSegmentsToArchive();
     }
 
     /*
@@ -182,7 +171,7 @@ class API
         $invalidatedIdSites = array_merge($invalidatedIdSites, $idSites);
         $invalidatedIdSites = array_unique($invalidatedIdSites);
         $invalidatedIdSites = array_values($invalidatedIdSites);
-        Piwik_SetOption(self::OPTION_INVALIDATED_IDSITES, serialize($invalidatedIdSites));
+        Option::set(self::OPTION_INVALIDATED_IDSITES, serialize($invalidatedIdSites));
 
         Site::clearCache();
 
@@ -208,7 +197,7 @@ class API
     static public function getWebsiteIdsToInvalidate()
     {
         Piwik::checkUserHasSomeAdminAccess();
-        $invalidatedIdSites = Piwik_GetOption(self::OPTION_INVALIDATED_IDSITES);
+        $invalidatedIdSites = Option::get(self::OPTION_INVALIDATED_IDSITES);
         if ($invalidatedIdSites
             && ($invalidatedIdSites = unserialize($invalidatedIdSites))
             && count($invalidatedIdSites)

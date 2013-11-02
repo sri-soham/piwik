@@ -19,6 +19,8 @@ use Piwik\ScheduledTime;
  *
  * @package Piwik
  * @subpackage ScheduledTask
+ *
+ * @api
  */
 class ScheduledTask
 {
@@ -81,6 +83,10 @@ class ScheduledTask
 
     protected function getClassNameFromInstance($_objectInstance)
     {
+        if (is_string($_objectInstance)) {
+            return $_objectInstance;
+        }
+
         $namespaced = get_class($_objectInstance);
         $class = explode('\\', $namespaced);
         return end($class);

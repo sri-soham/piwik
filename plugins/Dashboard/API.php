@@ -17,30 +17,13 @@ use Piwik\WidgetsList;
  *
  * @package Piwik_API
  */
-class API
+class API extends \Piwik\Plugin\API
 {
-    /**
-     * @var \Piwik\Plugins\Dashboard\API
-     */
-    static private $instance = null;
-
     private $dashboard = null;
 
-    public function __construct()
+    protected function __construct()
     {
         $this->dashboard = new Dashboard();
-    }
-
-    /**
-     * @return \Piwik\Plugins\Dashboard\API
-     */
-    static public function getInstance()
-    {
-        if (null == self::$instance) {
-            self::$instance = new self;
-        }
-
-        return self::$instance;
     }
 
     /**
@@ -70,7 +53,7 @@ class API
         $defaultLayout = $this->dashboard->getDefaultLayout();
         $defaultLayout = $this->dashboard->decodeLayout($defaultLayout);
 
-        $defaultDashboard = array('name' => Piwik_Translate('Dashboard_Dashboard'), 'layout' => $defaultLayout);
+        $defaultDashboard = array('name' => Piwik::translate('Dashboard_Dashboard'), 'layout' => $defaultLayout);
 
         $widgets = $this->getExistingWidgetsWithinDashboard($defaultDashboard);
 

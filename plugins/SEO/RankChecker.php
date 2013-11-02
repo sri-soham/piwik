@@ -11,9 +11,10 @@
 namespace Piwik\Plugins\SEO;
 
 use Exception;
-use Piwik\Piwik;
 use Piwik\Http;
-use Piwik\Plugins\SEO\MajesticClient;
+
+use Piwik\Log;
+use Piwik\MetricsFormatter;
 
 /**
  * The functions below are derived/adapted from GetRank.org's
@@ -174,7 +175,7 @@ class RankChecker
         }
 
         if ($maxAge) {
-            return Piwik::getPrettyTimeFromSeconds(time() - $maxAge);
+            return MetricsFormatter::getPrettyTimeFromSeconds(time() - $maxAge);
         }
         return false;
     }
@@ -190,7 +191,7 @@ class RankChecker
             $majesticInfo = $this->getMajesticInfo();
             return $majesticInfo['backlink_count'];
         } catch (Exception $e) {
-            Piwik::log($e->getMessage());
+            Log::info($e);
             return 0;
         }
     }
@@ -206,7 +207,7 @@ class RankChecker
             $majesticInfo = $this->getMajesticInfo();
             return $majesticInfo['referrer_domains_count'];
         } catch (Exception $e) {
-            Piwik::log($e->getMessage());
+            Log::info($e);
             return 0;
         }
     }

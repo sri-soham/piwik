@@ -1,8 +1,9 @@
 <?php
-use Piwik\Config;
-use Piwik\Piwik;
 use Piwik\Common;
+use Piwik\Config;
 use Piwik\FrontController;
+
+use Piwik\Log;
 
 define('PIWIK_INCLUDE_PATH', realpath(dirname(__FILE__) . "/../.."));
 define('PIWIK_ENABLE_DISPATCH', false);
@@ -30,8 +31,8 @@ class Piwik_StressTests_CopyLogs
     {
         $config = Config::getInstance();
         $config->log['log_only_when_debug_parameter'] = 0;
-        $config->log['logger_message'] = array("logger_message" => "screen");
-        \Piwik\Log::make();
+        $config->log['log_writers'] = array('screen');
+        $config->log['log_level'] = 'VERBOSE';
     }
 
     function run()
@@ -118,7 +119,7 @@ class Piwik_StressTests_CopyLogs
 
     function log($m)
     {
-        Piwik::log($m);
+        Log::info($m);
     }
 
     function getVisitsToday()

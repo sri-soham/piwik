@@ -76,19 +76,6 @@ class LogConversion extends Base
         return $this->db->fetchAll($sql, array($idvisit));
     }
 
-    public function recordGoal($goal, $mustUpdateNotInsert, $updateWhere)
-    {
-
-        if ($mustUpdateNotInsert) {
-            $ret = $this->recordGoalUpdate($goal, $updateWhere);
-        }
-        else {
-            $ret = $this->recordGoalInsert($goal);
-        }
-
-        return $ret;
-    } 
-
     public function getCountByIdvisit($idvisit)
     {
         $sql = 'SELECT COUNT(*) FROM ' . $this->table . ' WHERE idvisit <= ?';
@@ -104,7 +91,7 @@ class LogConversion extends Base
     /**
      *  uses tracker db
      */
-    protected function recordGoalUpdate($goal, $updateWhere)
+    public function update($goal, $updateWhere)
     {
         $Generic = Factory::getGeneric($this->db);
     
@@ -135,7 +122,7 @@ class LogConversion extends Base
     /**
      *  uses tracker db
      */
-    protected function recordGoalInsert($goal)
+    public function insertNew($goal)
     {
         $fields = implode(', ', array_keys($goal));
         $bindFields = Common::getSqlStringFieldsArray($goal);

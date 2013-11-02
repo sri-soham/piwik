@@ -10,8 +10,10 @@
  */
 namespace Piwik\Plugins\AnonymizeIP;
 
-use Piwik\Config;
 use Piwik\Common;
+use Piwik\Config;
+use Piwik\IP;
+use Piwik\Piwik;
 use Piwik\Version;
 
 /**
@@ -27,7 +29,7 @@ class AnonymizeIP extends \Piwik\Plugin
     public function getInformation()
     {
         return array(
-            'description'     => Piwik_Translate('AnonymizeIP_PluginDescription'),
+            'description'     => Piwik::translate('AnonymizeIP_PluginDescription'),
             'author'          => 'Piwik',
             'author_homepage' => 'http://piwik.org/',
             'version'         => Version::VERSION,
@@ -40,7 +42,7 @@ class AnonymizeIP extends \Piwik\Plugin
     public function getListHooksRegistered()
     {
         return array(
-            'Tracker.Visit.setVisitorIp' => 'setVisitorIpAddress',
+            'Tracker.setVisitorIp' => 'setVisitorIpAddress',
         );
     }
 
@@ -51,22 +53,32 @@ class AnonymizeIP extends \Piwik\Plugin
      * @param int $maskLength Number of octets to reset
      * @return string
      */
-    static public function applyIPMask($ip, $maskLength)
+    public static function applyIPMask($ip, $maskLength)
     {
-        $i = Common::strlen($ip);
-        if ($maskLength > $i) {
-            $maskLength = $i;
-        }
+        // IPv4 or mapped IPv4 in IPv6
+        if (IP::isIPv4($ip)) {
+            $i = strlen($ip);
+            if ($maskLength > $i) {
+                $maskLength = $i;
+            }
 
-        while ($maskLength-- > 0) {
-            $ip[--$i] = chr(0);
+            while ($maskLength-- > 0) {
+                $ip[--$i] = chr(0);
+            }
+        } else {
+            $masks = array(
+                'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff',
+                'ffff:ffff:ffff:ffff::',
+                'ffff:ffff:ffff:0000::',
+                'ffff:ff00:0000:0000::'
+            );
+            return $ip & pack('a16', inet_pton($masks[$maskLength]));
         }
-
         return $ip;
     }
 
     /**
-     * Hook on Tracker.Visit.setVisitorIp to anonymize visitor IP addresses
+     * Hook on Tracker.Visit.setVisitorIp to anomymize visitor IP addresses
      */
     public function setVisitorIpAddress(&$ip)
     {

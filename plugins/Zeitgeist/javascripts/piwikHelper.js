@@ -150,9 +150,7 @@ var piwikHelper = {
         if (newparams) {
             queryString = this.getQueryStringWithParametersModified(queryString, newparams);
         }
-        var value = String(window.location.pathname) + queryString;
-
-        return value;
+        return String(window.location.pathname) + queryString;
     },
 
   /**
@@ -169,8 +167,7 @@ var piwikHelper = {
         var keyValue = vars[i].split("=");
         // Jquery will urlencode these, but we wish to keep the current raw value
         // use case: &segment=visitorId%3D%3Dabc...
-        var rawValue = decodeURIComponent(keyValue[1]);
-        params[keyValue[0]] = rawValue;
+        params[keyValue[0]] = decodeURIComponent(keyValue[1]);
       }
       return params;
     },
@@ -273,39 +270,21 @@ var piwikHelper = {
     },
 
     /**
-     * Method to handle ajax errors
-     * @param {XMLHttpRequest} deferred
-     * @param {string} status
-     * @return {void}
-     * @deprecated sine 1.9.3 - will be removed in 2.0
-     * @see use ajaxHelper for ajax requests
-     */
-    ajaxHandleError: function(deferred, status)
-    {
-        // do not display error message if request was aborted
-        if(status == 'abort') {
-            return;
-        }
-        $('#loadingError').show();
-        setTimeout( function(){
-            $('#loadingError').fadeOut('slow');
-            }, 2000);
-    },
-
-    /**
      * Scrolls the window to the jquery element 'elem'
      * if the top of the element is not currently visible on screen
      * @param {string} elem Selector for the DOM node to scroll to, eg. '#myDiv'
      * @param {int} [time] Specifies the duration of the animation in ms
+     * @param {boolean} [forceScroll] Whether to force scroll to an element.
      * @return {void}
      */
-    lazyScrollTo: function(elem, time)
+    lazyScrollTo: function(elem, time, forceScroll)
     {
         var elemTop = $(elem).offset().top;
         // only scroll the page if the graph is not visible
-        if(elemTop < $(window).scrollTop()
-        || elemTop > $(window).scrollTop()+$(window).height())
-        {
+        if (elemTop < $(window).scrollTop()
+            || elemTop > $(window).scrollTop()+$(window).height()
+            || forceScroll
+        ) {
             // scroll the page smoothly to the graph
             $.scrollTo(elem, time);
         }

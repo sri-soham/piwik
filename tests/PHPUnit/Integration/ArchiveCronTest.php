@@ -5,7 +5,7 @@
  * @link    http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
-use Piwik\Piwik;
+
 use Piwik\Access;
 use Piwik\Date;
 use Piwik\Plugins\SitesManager\API;
@@ -20,7 +20,7 @@ class Test_Piwik_Integration_ArchiveCronTest extends IntegrationTestCase
     public static function createAccessInstance()
     {
         Access::setSingletonInstance($access = new Test_Access_OverrideLogin());
-        Piwik_PostEvent('FrontController.initAuthenticationObject');
+        \Piwik\Piwik::postEvent('Request.initAuthenticationObject');
     }
     
     public function getApiForTesting()
@@ -62,7 +62,6 @@ class Test_Piwik_Integration_ArchiveCronTest extends IntegrationTestCase
     /**
      * @dataProvider getArchivePhpCronOptionsToTest
      * @group        Integration
-     * @group        ImportLogs
      */
     public function testArchivePhpCron($optionGroupName, $archivePhpOptions)
     {
@@ -97,9 +96,10 @@ class Test_Piwik_Integration_ArchiveCronTest extends IntegrationTestCase
         
         foreach ($periodTypes as $period) {
             foreach ($idSites as $idSite) {
-                $lastRunArchiveOption = Piwik::getArchiveCronLastRunOptionName($period, $idSite);
+                // lastRunKey() function inlined
+                $lastRunArchiveOption = "lastRunArchive" . $period . "_" . $idSite;
                 
-                Piwik_SetOption($lastRunArchiveOption, $time);
+                \Piwik\Option::set($lastRunArchiveOption, $time);
             }
         }
     }
@@ -123,7 +123,7 @@ class Test_Piwik_Integration_ArchiveCronTest extends IntegrationTestCase
         // run the command
         exec($cmd, $output, $result);
         if ($result !== 0) {
-            throw new Exception("log importer failed: " . implode("\n", $output) . "\n\ncommand used: $cmd");
+            throw new Exception("archive cron failed: " . implode("\n", $output) . "\n\ncommand used: $cmd");
         }
 
         return $output;

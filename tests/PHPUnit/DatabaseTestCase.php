@@ -8,9 +8,10 @@
 use Piwik\Config;
 use Piwik\DataAccess\ArchiveTableCreator;
 use Piwik\DataTable\Manager;
-use Piwik\Piwik;
+use Piwik\DbHelper;
+use Piwik\Db;
 use Piwik\Option;
-use Piwik\Plugins\PDFReports\API;
+use Piwik\Plugins\ScheduledReports\API;
 use Piwik\Site;
 use Piwik\Tracker\Cache;
 
@@ -43,18 +44,17 @@ class DatabaseTestCase extends PHPUnit_Framework_TestCase
                 $dbConfig['dbname'] = 'postgres';
             }
 
-            Piwik::createDatabaseObject($dbConfig);
+            Db::createDatabaseObject($dbConfig);
 
-            Piwik::dropDatabase();
-            Piwik::createDatabase($dbName);
-            Piwik::disconnectDatabase();
+            DbHelper::dropDatabase();
+            DbHelper::createDatabase($dbName);
+            DbHelper::disconnectDatabase();
 
-            Piwik::createDatabaseObject();
-            Piwik::createTables();
-            \Piwik\Log::make();
+            Db::createDatabaseObject();
+            DbHelper::createTables();
 
             \Piwik\Db\Factory::setTest(true);
-//            \Piwik\PluginsManager::getInstance()->loadPlugins(array());
+//            \Piwik\Manager::getInstance()->loadPlugins(array());
             IntegrationTestCase::loadAllPlugins();
             
         } catch(Exception $e) {
@@ -75,15 +75,15 @@ class DatabaseTestCase extends PHPUnit_Framework_TestCase
     {
         parent::tearDown();
         IntegrationTestCase::unloadAllPlugins();
-        Piwik::dropDatabase();
+        DbHelper::dropDatabase();
         Manager::getInstance()->deleteAll();
-        Option::getInstance()->clearCache();
+        Option::clearCache();
         API::$cache = array();
         Site::clearCache();
         Cache::deleteTrackerCache();
         Config::getInstance()->clear();
         ArchiveTableCreator::clear();
-        \Zend_Registry::_unsetInstance();
+        \Piwik\Registry::unsetInstance();
     }
 
 }

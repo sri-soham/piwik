@@ -12,13 +12,12 @@ namespace Piwik\Plugins\VisitTime;
 
 use Exception;
 use Piwik\Archive;
+use Piwik\DataTable;
+use Piwik\Date;
 use Piwik\Metrics;
 use Piwik\Period;
 use Piwik\Piwik;
-use Piwik\Date;
-use Piwik\DataTable;
 use Piwik\Site;
-use Piwik\Plugins\VisitTime\Archiver;
 
 require_once PIWIK_INCLUDE_PATH . '/plugins/VisitTime/functions.php';
 
@@ -27,25 +26,15 @@ require_once PIWIK_INCLUDE_PATH . '/plugins/VisitTime/functions.php';
  *
  * @package VisitTime
  */
-class API
+class API extends \Piwik\Plugin\API
 {
-    static private $instance = null;
-
-    static public function getInstance()
-    {
-        if (self::$instance == null) {
-            self::$instance = new self;
-        }
-        return self::$instance;
-    }
-
     protected function getDataTable($name, $idSite, $period, $date, $segment)
     {
         Piwik::checkUserHasViewAccess($idSite);
         $archive = Archive::build($idSite, $period, $date, $segment);
         $dataTable = $archive->getDataTable($name);
         $dataTable->filter('Sort', array('label', 'asc', true));
-        $dataTable->queueFilter('ColumnCallbackReplace', array('label', __NAMESPACE__ .'\getTimeLabel'));
+        $dataTable->queueFilter('ColumnCallbackReplace', array('label', __NAMESPACE__ . '\getTimeLabel'));
         $dataTable->queueFilter('ReplaceColumnNames');
         return $dataTable;
     }
@@ -132,9 +121,9 @@ class API
 
     /**
      * @param DataTable $table
-     * @param int       $idSite
-     * @param string    $period
-     * @param string    $date
+     * @param int $idSite
+     * @param string $period
+     * @param string $date
      * @return mixed
      */
     protected function removeHoursInFuture($table, $idSite, $period, $date)

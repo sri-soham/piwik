@@ -12,17 +12,18 @@ namespace Piwik\Plugins\API;
 
 use Exception;
 use Piwik\API\Request;
-use Piwik\DataTable\Simple;
+use Piwik\Common;
 use Piwik\DataTable\Row;
+use Piwik\DataTable\Simple;
+use Piwik\DataTable;
+use Piwik\Date;
 use Piwik\Metrics;
+use Piwik\MetricsFormatter;
 use Piwik\Period;
 use Piwik\Piwik;
-use Piwik\Common;
-use Piwik\Date;
-use Piwik\DataTable;
-use Piwik\Url;
-use Piwik\Timer;
 use Piwik\Site;
+use Piwik\Timer;
+use Piwik\Url;
 
 class ProcessedReport
 {
@@ -83,7 +84,31 @@ class ProcessedReport
         $parameters = array('idSites' => $idSites, 'period' => $period, 'date' => $date);
 
         $availableReports = array();
-        Piwik_PostEvent('API.getReportMetadata', array(&$availableReports, $parameters));
+
+        /**
+         * Triggered when gathering the metadata for all available reports.
+         * 
+         * Plugins that define new reports should use this event to make them available in via
+         * the metadata API. By doing so, the report will become available in scheduled reports
+         * as well as in the Piwik Mobile App. In fact, any third party app that uses the metadata
+         * API will automatically have access to the new report.
+         * 
+         * TODO: list all information that is required in $availableReports.
+         * 
+         * @param string &$availableReports The list of available reports. Append to this list
+         *                                  to make a report available.
+         * @param array $parameters Contains the values of the sites and period we are
+         *                          getting reports for. Some report depend on this data.
+         *                          For example, Goals reports depend on the site IDs being
+         *                          request. Contains the following information:
+         * 
+         *                          - **idSites**: The array of site IDs we are getting reports for.
+         *                          - **period**: The period type, eg, `'day'`, `'week'`, `'month'`,
+         *                                        `'year'`, `'range'`.
+         *                          - **date**: A string date within the period or a date range, eg,
+         *                                      `'2013-01-01'` or `'2012-01-01,2013-01-01'`.
+         */
+        Piwik::postEvent('API.getReportMetadata', array(&$availableReports, $parameters));
         foreach ($availableReports as &$availableReport) {
             if (!isset($availableReport['metrics'])) {
                 $availableReport['metrics'] = Metrics::getDefaultMetrics();
@@ -101,8 +126,26 @@ class ProcessedReport
             }
         }
 
-        // Some plugins need to add custom metrics after all plugins hooked in
-        Piwik_PostEvent('API.getReportMetadata.end', array(&$availableReports, $parameters));
+        /**
+         * Triggered after all available reports are collected.
+         * 
+         * This event can be used to modify the report metadata of reports in other plugins. You
+         * could, for example, add custom metrics to every report or remove reports from the list
+         * of available reports.
+         * 
+         * @param array &$availableReports List of all report metadata.
+         * @param array $parameters Contains the values of the sites and period we are
+         *                          getting reports for. Some report depend on this data.
+         *                          For example, Goals reports depend on the site IDs being
+         *                          request. Contains the following information:
+         * 
+         *                          - **idSites**: The array of site IDs we are getting reports for.
+         *                          - **period**: The period type, eg, `'day'`, `'week'`, `'month'`,
+         *                                        `'year'`, `'range'`.
+         *                          - **date**: A string date within the period or a date range, eg,
+         *                                      `'2013-01-01'` or `'2012-01-01,2013-01-01'`.
+         */
+        Piwik::postEvent('API.getReportMetadata.end', array(&$availableReports, $parameters));
 
         // Sort results to ensure consistent order
         usort($availableReports, array($this, 'sort'));
@@ -189,16 +232,16 @@ class ProcessedReport
         static $order = null;
         if (is_null($order)) {
             $order = array(
-                Piwik_Translate('General_MultiSitesSummary'),
-                Piwik_Translate('VisitsSummary_VisitsSummary'),
-                Piwik_Translate('Goals_Ecommerce'),
-                Piwik_Translate('Actions_Actions'),
-                Piwik_Translate('Actions_SubmenuSitesearch'),
-                Piwik_Translate('Referers_Referers'),
-                Piwik_Translate('Goals_Goals'),
-                Piwik_Translate('General_Visitors'),
-                Piwik_Translate('DevicesDetection_DevicesDetection'),
-                Piwik_Translate('UserSettings_VisitorSettings'),
+                Piwik::translate('General_MultiSitesSummary'),
+                Piwik::translate('VisitsSummary_VisitsSummary'),
+                Piwik::translate('Goals_Ecommerce'),
+                Piwik::translate('General_Actions'),
+                Piwik::translate('Actions_SubmenuSitesearch'),
+                Piwik::translate('Referrers_Referrers'),
+                Piwik::translate('Goals_Goals'),
+                Piwik::translate('General_Visitors'),
+                Piwik::translate('DevicesDetection_DevicesDetection'),
+                Piwik::translate('UserSettings_VisitorSettings'),
             );
         }
         return ($category = strcmp(array_search($a['category'], $order), array_search($b['category'], $order))) == 0
@@ -213,8 +256,8 @@ class ProcessedReport
     private function addApiGetMetdata(&$availableReports)
     {
         $metadata = array(
-            'category'             => Piwik_Translate('General_API'),
-            'name'                 => Piwik_Translate('General_MainMetrics'),
+            'category'             => Piwik::translate('General_API'),
+            'name'                 => Piwik::translate('General_MainMetrics'),
             'module'               => 'API',
             'action'               => 'get',
             'metrics'              => array(),
@@ -289,7 +332,7 @@ class ProcessedReport
         }
         $website = new Site($idSite);
 
-        $period = Period::advancedFactory($period, $date);
+        $period = Period::factory($period, $date);
         $period = $period->getLocalizedLongString();
 
         $return = array(
@@ -372,13 +415,13 @@ class ProcessedReport
             $rowsMetadata->setKeyName("prettyDate");
 
             // Process each Simple entry
-            foreach ($dataTable->getArray() as $label => $simpleDataTable) {
+            foreach ($dataTable->getDataTables() as $label => $simpleDataTable) {
                 $this->removeEmptyColumns($columns, $reportMetadata, $simpleDataTable);
 
                 list($enhancedSimpleDataTable, $rowMetadata) = $this->handleSimpleDataTable($idSite, $simpleDataTable, $columns, $hasDimension, $showRawMetrics);
-                $enhancedSimpleDataTable->metadata = $simpleDataTable->metadata;
+                $enhancedSimpleDataTable->setAllTableMetadata($simpleDataTable->getAllTableMetadata());
 
-                $period = $simpleDataTable->metadata['period']->getLocalizedLongString();
+                $period = $simpleDataTable->getMetadata('period')->getLocalizedLongString();
                 $newReport->addTable($enhancedSimpleDataTable, $period);
                 $rowsMetadata->addTable($rowMetadata, $period);
             }
@@ -518,7 +561,7 @@ class ProcessedReport
                 // filter metrics according to metadata definition
                 if (isset($metadataColumns[$columnName])) {
                     // generate 'human readable' metric values
-                    $prettyValue = Piwik::getPrettyValue($idSite, $columnName, $columnValue, $htmlAllowed = false);
+                    $prettyValue = MetricsFormatter::getPrettyValue($idSite, $columnName, $columnValue, $htmlAllowed = false);
                     $enhancedRow->addColumn($columnName, $prettyValue);
                 } // For example the Maps Widget requires the raw metrics to do advanced datavis
                 elseif ($returnRawMetrics) {

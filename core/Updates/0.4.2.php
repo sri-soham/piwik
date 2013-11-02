@@ -8,6 +8,9 @@
  * @category Piwik
  * @package Updates
  */
+
+namespace Piwik\Updates;
+
 use Piwik\Common;
 use Piwik\Updater;
 use Piwik\Updates;
@@ -15,13 +18,13 @@ use Piwik\Updates;
 /**
  * @package Updates
  */
-class Piwik_Updates_0_4_2 extends Updates
+class Updates_0_4_2 extends Updates
 {
     static function getSql($schema = 'Myisam')
     {
         return array(
             'ALTER TABLE `' . Common::prefixTable('log_visit') . '`
-				ADD `config_java` TINYINT(1) NOT NULL AFTER `config_flash`'                                                                                => '1060',
+				ADD `config_java` TINYINT(1) NOT NULL AFTER `config_flash`'                                                                          => '1060',
             'ALTER TABLE `' . Common::prefixTable('log_visit') . '`
 				ADD `config_quicktime` TINYINT(1) NOT NULL AFTER `config_director`' => '1060',
             'ALTER TABLE `' . Common::prefixTable('log_visit') . '`

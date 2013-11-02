@@ -12,15 +12,15 @@ namespace Piwik\Plugins\API;
 
 use Exception;
 use Piwik\API\DataTableManipulator\LabelFilter;
-use Piwik\API\ResponseBuilder;
 use Piwik\API\Request;
+use Piwik\API\ResponseBuilder;
+use Piwik\Common;
 use Piwik\DataTable\Filter\CalculateEvolutionFilter;
 use Piwik\DataTable\Filter\SafeDecodeLabel;
 use Piwik\DataTable\Row;
+use Piwik\DataTable;
 use Piwik\Period;
 use Piwik\Piwik;
-use Piwik\Common;
-use Piwik\DataTable;
 use Piwik\Url;
 
 /**
@@ -79,7 +79,7 @@ class RowEvolution
     }
 
     /**
-     * @param array         $labels
+     * @param array $labels
      * @param DataTable\Map $dataTable
      * @return mixed
      */
@@ -87,7 +87,7 @@ class RowEvolution
     {
         // set label index metadata
         $labelsToIndex = array_flip($labels);
-        foreach ($dataTable->getArray() as $table) {
+        foreach ($dataTable->getDataTables() as $table) {
             foreach ($table->getRows() as $row) {
                 $label = $row->getColumn('label');
                 if (isset($labelsToIndex[$label])) {
@@ -99,14 +99,14 @@ class RowEvolution
     }
 
     /**
-     * @param DataTable\Map  $dataTable
-     * @param array          $labels
+     * @param DataTable\Map $dataTable
+     * @param array $labels
      * @return array
      */
     protected function getLabelsFromDataTable($dataTable, $labels)
     {
         // if no labels specified, use all possible labels as list
-        foreach ($dataTable->getArray() as $table) {
+        foreach ($dataTable->getDataTables() as $table) {
             $labels = array_merge($labels, $table->getColumn('label'));
         }
         $labels = array_values(array_unique($labels));
@@ -138,7 +138,7 @@ class RowEvolution
 
         $logo = $actualLabel = false;
         $urlFound = false;
-        foreach ($dataTable->getArray() as $date => $subTable) {
+        foreach ($dataTable->getDataTables() as $date => $subTable) {
             /** @var $subTable DataTable */
             $subTable->applyQueuedFilters();
             if ($subTable->getRowsCount() > 0) {
@@ -186,10 +186,10 @@ class RowEvolution
     }
 
     /**
-     * @param Row     $row
-     * @param string  $apiModule
-     * @param string  $apiAction
-     * @param bool    $labelUseAbsoluteUrl
+     * @param Row $row
+     * @param string $apiModule
+     * @param string $apiAction
+     * @param bool $labelUseAbsoluteUrl
      * @return bool|string
      */
     private function getRowUrlForEvolutionLabel($row, $apiModule, $apiAction, $labelUseAbsoluteUrl)
@@ -197,7 +197,7 @@ class RowEvolution
         $url = $row->getMetadata('url');
         if ($url
             && ($apiModule == 'Actions'
-                || ($apiModule == 'Referers'
+                || ($apiModule == 'Referrers'
                     && $apiAction == 'getWebsites'))
             && $labelUseAbsoluteUrl
         ) {
@@ -331,7 +331,7 @@ class RowEvolution
         }
         unset($metadata['logos']);
 
-        $subDataTables = $dataTable->getArray();
+        $subDataTables = $dataTable->getDataTables();
         $firstDataTable = reset($subDataTables);
         $firstDataTableRow = $firstDataTable->getFirstRow();
         $lastDataTable = end($subDataTables);
@@ -381,7 +381,7 @@ class RowEvolution
     }
 
     /** Get row evolution for a multiple labels */
-    private function getMultiRowEvolution($dataTable, $metadata, $apiModule, $apiAction, $labels, $column,
+    private function getMultiRowEvolution(DataTable\Map $dataTable, $metadata, $apiModule, $apiAction, $labels, $column,
                                           $legendAppendMetric = true,
                                           $labelUseAbsoluteUrl = true)
     {
@@ -394,7 +394,7 @@ class RowEvolution
         // get the processed label and logo (if any) for every requested label
         $actualLabels = $logos = array();
         foreach ($labels as $labelIdx => $label) {
-            foreach ($dataTable->getArray() as $table) {
+            foreach ($dataTable->getDataTables() as $table) {
                 $labelRow = $this->getRowEvolutionRowFromLabelIdx($table, $labelIdx);
 
                 if ($labelRow) {
@@ -417,7 +417,7 @@ class RowEvolution
         // convert rows to be array($column.'_'.$labelIdx => $value) as opposed to
         // array('label' => $label, 'column' => $value).
         $dataTableMulti = $dataTable->getEmptyClone();
-        foreach ($dataTable->getArray() as $tableLabel => $table) {
+        foreach ($dataTable->getDataTables() as $tableLabel => $table) {
             $newRow = new Row();
 
             foreach ($labels as $labelIdx => $label) {

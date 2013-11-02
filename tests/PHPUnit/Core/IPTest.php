@@ -1,7 +1,8 @@
 <?php
-use Piwik\Config;
 use Piwik\Common;
+use Piwik\Config;
 use Piwik\IP;
+use Piwik\SettingsServer;
 
 /**
  * Piwik - Open source web analytics
@@ -57,7 +58,6 @@ class IPTest extends PHPUnit_Framework_TestCase
     /**
      * @dataProvider getIPData
      * @group Core
-     * @group IP
      */
     public function testSanitizeIp($ip, $expected)
     {
@@ -98,7 +98,6 @@ class IPTest extends PHPUnit_Framework_TestCase
     /**
      * @dataProvider getIPRangeData
      * @group Core
-     * @group IP
      */
     public function testSanitizeIpRange($ip, $expected)
     {
@@ -129,7 +128,6 @@ class IPTest extends PHPUnit_Framework_TestCase
     /**
      * @dataProvider getP2NTestData
      * @group Core
-     * @group IP
      */
     public function testP2N($P, $N)
     {
@@ -165,7 +163,7 @@ class IPTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group IP
+     * 
      * @dataProvider getP2NInvalidInputData
      */
     public function testP2NInvalidInput($P)
@@ -175,7 +173,6 @@ class IPTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group IP
      */
     public function getN2PTestData()
     {
@@ -206,7 +203,6 @@ class IPTest extends PHPUnit_Framework_TestCase
     /**
      * @dataProvider getP2NTestData
      * @group Core
-     * @group IP
      */
     public function testN2P($P, $N)
     {
@@ -216,7 +212,6 @@ class IPTest extends PHPUnit_Framework_TestCase
     /**
      * @dataProvider getN2PTestData
      * @group Core
-     * @group IP
      */
     public function testN2PinvalidInput($N)
     {
@@ -226,7 +221,6 @@ class IPTest extends PHPUnit_Framework_TestCase
     /**
      * @dataProvider getP2NTestData
      * @group Core
-     * @group IP
      */
     public function testPrettyPrint($P, $N)
     {
@@ -236,7 +230,6 @@ class IPTest extends PHPUnit_Framework_TestCase
     /**
      * @dataProvider getN2PTestData
      * @group Core
-     * @group IP
      */
     public function testPrettyPrintInvalidInput($N)
     {
@@ -295,7 +288,6 @@ class IPTest extends PHPUnit_Framework_TestCase
     /**
      * @dataProvider getIPv4Data
      * @group Core
-     * @group IP
      */
     public function testIsIPv4($ip, $bool)
     {
@@ -352,7 +344,6 @@ class IPTest extends PHPUnit_Framework_TestCase
     /**
      * @dataProvider getLong2IPTestData
      * @group Core
-     * @group IP
      */
     public function testLong2ip($N, $P)
     {
@@ -444,7 +435,6 @@ class IPTest extends PHPUnit_Framework_TestCase
     /**
      * @dataProvider getIPsForRangeTest
      * @group Core
-     * @group IP
      */
     public function testGetIpsForRange($range, $expected)
     {
@@ -543,7 +533,7 @@ class IPTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group IP
+     * 
      * @dataProvider getIpsInRangeData
      */
     public function testIsIpInRange($range, $test)
@@ -580,7 +570,6 @@ class IPTest extends PHPUnit_Framework_TestCase
     /**
      * @dataProvider getIpFromHeaderTestData
      * @group Core
-     * @group IP
      */
     public function testGetIpFromHeader($description, $test)
     {
@@ -612,7 +601,7 @@ class IPTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group IP
+     * 
      * @dataProvider getIpTestData
      */
     public function testGetNonProxyIpFromHeader($ip)
@@ -622,7 +611,7 @@ class IPTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group IP
+     * 
      * @dataProvider getIpTestData
      */
     public function testGetNonProxyIpFromHeader2($ip)
@@ -635,7 +624,7 @@ class IPTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group IP
+     * 
      * @dataProvider getIpTestData
      */
     public function testGetNonProxyIpFromHeader3($ip)
@@ -671,7 +660,7 @@ class IPTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group IP
+     * 
      * @dataProvider getLastIpFromListTestData
      */
     public function testGetLastIpFromList($csv, $expected)
@@ -685,129 +674,16 @@ class IPTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group IP
      */
     public function testGetHostByAddr()
     {
         $hosts = array('localhost', 'localhost.localdomain', strtolower(@php_uname('n')), '127.0.0.1');
-        $this->assertTrue(in_array(strtolower(IP::getHostByAddr('127.0.0.1')), $hosts), '127.0.0.1 -> localhost');
+        $host = IP::getHostByAddr('127.0.0.1');
+        $this->assertTrue(in_array(strtolower($host), $hosts), $host . ' -> localhost');
 
-        if (!Common::isWindows() || PHP_VERSION >= '5.3') {
+        if (!SettingsServer::isWindows() || PHP_VERSION >= '5.3') {
             $hosts = array('ip6-localhost', 'localhost', 'localhost.localdomain', strtolower(@php_uname('n')), '::1');
             $this->assertTrue(in_array(strtolower(IP::getHostByAddr('::1')), $hosts), '::1 -> ip6-localhost');
-        }
-    }
-
-    /**
-     * Dataprovider for testPhpCompatInetNtop
-     */
-    public function getInetNtopData()
-    {
-        return array(
-            array('127.0.0.1', '7f000001'),
-            array('192.232.131.222', 'c0e883de'),
-            array('255.0.0.0', 'ff000000'),
-            array('255.255.255.255', 'ffffffff'),
-            array('::1', '00000000000000000000000000000001'),
-            array('::101', '00000000000000000000000000000101'),
-            array('::0.1.1.1', '00000000000000000000000000010101'),
-            array('2001:260:0:10::1', '20010260000000100000000000000001'),
-            array('2001:0:0:260::1', '20010000000002600000000000000001'),
-            array('2001::260:0:0:10:1', '20010000000002600000000000100001'),
-            array('2001:5c0:1000:b::90f8', '200105c01000000b00000000000090f8'),
-            array('fe80::200:4cff:fe43:172f', 'fe8000000000000002004cfffe43172f'),
-            array('::ffff:127.0.0.1', '00000000000000000000ffff7f000001'),
-            array('::127.0.0.1', '0000000000000000000000007f000001'),
-            array('::fff0:7f00:1', '00000000000000000000fff07f000001'),
-        );
-    }
-
-    /**
-     * @group Core
-     * @group IP
-     * @dataProvider getInetNtopData
-     */
-    public function testPhpCompatInetNtop($k, $v)
-    {
-        $this->assertEquals($k, IP::php_compat_inet_ntop(pack('H*', $v)));
-        if (!Common::isWindows()) {
-            $this->assertEquals($k, @inet_ntop(pack('H*', $v)));
-        }
-    }
-
-    /**
-     * Dataprovider for testPhpCompatInetPton
-     * @return array
-     */
-    public function getInetPtonTestData()
-    {
-        return array(
-            array('127.0.0.1', '7f000001'),
-            array('192.232.131.222', 'c0e883de'),
-            array('255.0.0.0', 'ff000000'),
-            array('255.255.255.255', 'ffffffff'),
-            array('::', '00000000000000000000000000000000'),
-            array('::0', '00000000000000000000000000000000'),
-            array('0::', '00000000000000000000000000000000'),
-            array('0::0', '00000000000000000000000000000000'),
-            array('::1', '00000000000000000000000000000001'),
-            array('2001:260:0:10::1', '20010260000000100000000000000001'),
-            array('2001:5c0:1000:b::90f8', '200105c01000000b00000000000090f8'),
-            array('fe80::200:4cff:fe43:172f', 'fe8000000000000002004cfffe43172f'),
-            array('::ffff:127.0.0.1', '00000000000000000000ffff7f000001'),
-            array('::127.0.0.1', '0000000000000000000000007f000001'),
-
-            // relaxed rules
-            array('00000::', '00000000000000000000000000000000'),
-            array('1:2:3:4:5:ffff:127.0.0.1', '00010002000300040005ffff7f000001'),
-
-            // invalid input
-            array(null, false),
-            array(false, false),
-            array(true, false),
-            array('', false),
-            array('0', false),
-            array('07.07.07.07', false),
-            array('1.', false),
-            array('.1', false),
-            array('1.1', false),
-            array('.1.1.', false),
-            array('1.1.1.', false),
-            array('.1.1.1', false),
-            array('1.2.3.4.', false),
-            array('.1.2.3.4', false),
-            array('1.2.3.256', false),
-            array('a.b.c.d', false),
-            array('::1::', false),
-            array('1:2:3:4:::5:6', false),
-            array('1:2:3:4:5:6:', false),
-            array(':1:2:3:4:5:6', false),
-            array('1:2:3:4:5:6:7:', false),
-            array(':1:2:3:4:5:6:7', false),
-            array('::11111:0', false),
-            array('::g', false),
-            array('::ffff:127.00.0.1', false),
-            array('::ffff:127.0.0.01', false),
-            array('::ffff:256.0.0.1', false),
-            array('::ffff:1.256.0.1', false),
-            array('::ffff:65536.0.0.1', false),
-            array('::ffff:256.65536.0.1', false),
-            array('::ffff:65536.65536.0.1', false),
-            array('::ffff:7f01:0.1', false),
-            array('ffff:127.0.0.1:ffff::', false),
-        );
-    }
-
-    /**
-     * @group Core
-     * @group IP
-     * @dataProvider getInetPtonTestData
-     */
-    public function testPhpCompatInetPton($k, $v)
-    {
-        $this->assertEquals($v, bin2hex(IP::php_compat_inet_pton($k)));
-        if (!Common::isWindows()) {
-            $this->assertEquals($v, bin2hex(@inet_pton($k)));
         }
     }
 }

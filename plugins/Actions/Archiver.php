@@ -10,23 +10,20 @@
  */
 namespace Piwik\Plugins\Actions;
 
-use Piwik\Config;
-use Piwik\DataTable\Manager;
-use Piwik\DataTable\Row\DataTableSummaryRow;
-use Piwik\Metrics;
 use Piwik\DataTable;
+use Piwik\Db;
 use Piwik\Db\Factory;
+use Piwik\Metrics;
 use Piwik\RankingQuery;
-use Piwik\PluginsArchiver;
 use Piwik\Tracker\Action;
-use Piwik\Plugins\Actions\ArchivingHelper;
+use Piwik\Tracker\ActionSiteSearch;
 
 /**
  * Class encapsulating logic to process Day/Period Archiving for the Actions reports
  *
  * @package Actions
  */
-class Archiver extends PluginsArchiver
+class Archiver extends \Piwik\Plugin\Archiver
 {
     const DOWNLOADS_RECORD_NAME = 'Actions_downloads';
     const OUTLINKS_RECORD_NAME = 'Actions_outlink';
@@ -58,10 +55,10 @@ class Archiver extends PluginsArchiver
     );
 
     public static $actionTypes = array(
-        Action::TYPE_ACTION_URL,
+        Action::TYPE_PAGE_URL,
         Action::TYPE_OUTLINK,
         Action::TYPE_DOWNLOAD,
-        Action::TYPE_ACTION_NAME,
+        Action::TYPE_PAGE_TITLE,
         Action::TYPE_SITE_SEARCH,
     );
     static protected $invalidSummedColumnNameToRenamedNameFromPeriodArchive = array(
@@ -69,7 +66,7 @@ class Archiver extends PluginsArchiver
         Metrics::INDEX_PAGE_ENTRY_NB_UNIQ_VISITORS => Metrics::INDEX_PAGE_ENTRY_SUM_DAILY_NB_UNIQ_VISITORS,
         Metrics::INDEX_PAGE_EXIT_NB_UNIQ_VISITORS  => Metrics::INDEX_PAGE_EXIT_SUM_DAILY_NB_UNIQ_VISITORS,
     );
-    static protected $invalidSummedColumnNameToDeleteFromDayArchive = array(
+    static public $invalidSummedColumnNameToDeleteFromDayArchive = array(
         Metrics::INDEX_NB_UNIQ_VISITORS,
         Metrics::INDEX_PAGE_ENTRY_NB_UNIQ_VISITORS,
         Metrics::INDEX_PAGE_EXIT_NB_UNIQ_VISITORS,
@@ -86,7 +83,7 @@ class Archiver extends PluginsArchiver
     {
         parent::__construct($processor);
         $this->isSiteSearchEnabled = $processor->getSite()->isSiteSearchEnabled();
-        $this->db = \Zend_Registry::get('db');
+        $this->db = Db::get();
     }
 
     /**
@@ -96,34 +93,7 @@ class Archiver extends PluginsArchiver
      */
     public function archiveDay()
     {
-        $rankingQueryLimit = self::getRankingQueryLimit();
-
-        // FIXME: This is a quick fix for #3482. The actual cause of the bug is that
-        // the site search & performance metrics additions to
-        // ArchivingHelper::updateActionsTableWithRowQuery expect every
-        // row to have 'type' data, but not all of the SQL queries that are run w/o
-        // ranking query join on the log_action table and thus do not select the
-        // log_action.type column.
-        //
-        // NOTES: Archiving logic can be generalized as follows:
-        // 0) Do SQL query over log_link_visit_action & join on log_action to select
-        //    some metrics (like visits, hits, etc.)
-        // 1) For each row, cache the action row & metrics. (This is done by
-        //    updateActionsTableWithRowQuery for result set rows that have
-        //    name & type columns.)
-        // 2) Do other SQL queries for metrics we can't put in the first query (like
-        //    entry visits, exit vists, etc.) w/o joining log_action.
-        // 3) For each row, find the cached row by idaction & add the new metrics to
-        //    it. (This is done by updateActionsTableWithRowQuery for result set rows
-        //    that DO NOT have name & type columns.)
-        //
-        // The site search & performance metrics additions expect a 'type' all the time
-        // which breaks the original pre-rankingquery logic. Ranking query requires a
-        // join, so the bug is only seen when ranking query is disabled.
-        if ($rankingQueryLimit === 0) {
-            $rankingQueryLimit = 100000;
-        }
-
+        $rankingQueryLimit = ArchivingHelper::getRankingQueryLimit();
         ArchivingHelper::reloadConfig();
 
         $this->initActionsTables();
@@ -138,26 +108,6 @@ class Archiver extends PluginsArchiver
     }
 
     /**
-     * Returns the limit to use with RankingQuery for this plugin.
-     *
-     * @return int
-     */
-    private static function getRankingQueryLimit()
-    {
-        $configGeneral = Config::getInstance()->General;
-        $configLimit = $configGeneral['archiving_ranking_query_row_limit'];
-        return $configLimit == 0 ? 0 : max(
-            $configLimit,
-            $configGeneral['datatable_archiving_maximum_rows_actions'],
-            $configGeneral['datatable_archiving_maximum_rows_subtable_actions']
-        );
-    }
-
-    /*
-     * Page URLs and Page names, general stats
-     */
-
-    /**
      * Initializes the DataTables created by the archiveDay function.
      */
     private function initActionsTables()
@@ -167,11 +117,11 @@ class Archiver extends PluginsArchiver
             $dataTable = new DataTable();
             $dataTable->setMaximumAllowedRows(ArchivingHelper::$maximumRowsInDataTableLevelZero);
 
-            if ($type == Action::TYPE_ACTION_URL
-                || $type == Action::TYPE_ACTION_NAME
+            if ($type == Action::TYPE_PAGE_URL
+                || $type == Action::TYPE_PAGE_TITLE
             ) {
                 // for page urls and page titles, performance metrics exist and have to be aggregated correctly
-                $dataTable->setColumnAggregationOperations(self::$actionColumnAggregationOperations);
+                $dataTable->setMetadata(DataTable::COLUMN_AGGREGATION_OPS_METADATA_NAME, self::$actionColumnAggregationOperations);
             }
 
             $this->actionsTablesByType[$type] = $dataTable;
@@ -190,20 +140,20 @@ class Archiver extends PluginsArchiver
 				count(distinct log_link_visit_action.idvisitor) as " . $this->db->quoteIdentifier(Metrics::INDEX_NB_UNIQ_VISITORS) . ",
 				count(*) as " . $this->db->quoteIdentifier(Metrics::INDEX_PAGE_NB_HITS) . ",
 				sum(
-					case when " . Action::DB_COLUMN_TIME_GENERATION . " is null
+					case when " . Action::DB_COLUMN_CUSTOM_FLOAT . " is null
 						then 0
-						else " . Action::DB_COLUMN_TIME_GENERATION . "
+						else " . Action::DB_COLUMN_CUSTOM_FLOAT . "
 					end
 				) / 1000 as " . $this->db->quoteIdentifier(Metrics::INDEX_PAGE_SUM_TIME_GENERATION) . ",
 				sum(
-					case when " . Action::DB_COLUMN_TIME_GENERATION . " is null
+					case when " . Action::DB_COLUMN_CUSTOM_FLOAT . " is null
 						then 0
 						else 1
 					end
 				) as " . $this->db->quoteIdentifier(Metrics::INDEX_PAGE_NB_HITS_WITH_TIME_GENERATION) . ",
-				min(" . Action::DB_COLUMN_TIME_GENERATION . ") / 1000
+				min(" . Action::DB_COLUMN_CUSTOM_FLOAT . ") / 1000
 				    as " . $this->db->quoteIdentifier(Metrics::INDEX_PAGE_MIN_TIME_GENERATION) . ",
-				max(" . Action::DB_COLUMN_TIME_GENERATION . ") / 1000
+				max(" . Action::DB_COLUMN_CUSTOM_FLOAT . ") / 1000
                     as " . $this->db->quoteIdentifier(Metrics::INDEX_PAGE_MAX_TIME_GENERATION) . "
 				";
 
@@ -218,7 +168,8 @@ class Archiver extends PluginsArchiver
         $where = "log_link_visit_action.server_time >= ?
 				AND log_link_visit_action.server_time <= ?
 				AND log_link_visit_action.idsite = ?
-				AND log_link_visit_action.%s IS NOT NULL";
+				AND log_link_visit_action.%s IS NOT NULL
+				AND log_link_visit_action.idaction_event_category IS NULL";
 
         $groupBy = "log_action.idaction";
         $orderBy = $this->db->quoteIdentifier(Metrics::INDEX_PAGE_NB_HITS) . " DESC, name ASC";
@@ -246,10 +197,10 @@ class Archiver extends PluginsArchiver
         // 1) No result Keywords
         // 2) For each page view, count number of times the referrer page was a Site Search
         if ($this->isSiteSearchEnabled()) {
-            $max_col = $Generic->castToNumeric('log_link_visit_action.custom_var_v' . Action::CVAR_INDEX_SEARCH_COUNT);
+            $max_col = $Generic->castToNumeric('log_link_visit_action.custom_var_v' . ActionSiteSearch::CVAR_INDEX_SEARCH_COUNT);
             $selectFlagNoResultKeywords = ",
 				CASE WHEN (MAX($max_col) = 0
-                      AND MAX(log_link_visit_action.custom_var_k" . Action::CVAR_INDEX_SEARCH_COUNT . ") = '" . Action::CVAR_KEY_SEARCH_COUNT . "')
+                      AND MAX(log_link_visit_action.custom_var_k" . ActionSiteSearch::CVAR_INDEX_SEARCH_COUNT . ") = '" . ActionSiteSearch::CVAR_KEY_SEARCH_COUNT . "')
                   THEN 1 
                   ELSE 0
                 END AS " . $this->db->quoteIdentifier(Metrics::INDEX_SITE_SEARCH_HAS_NO_RESULT);
@@ -261,11 +212,13 @@ class Archiver extends PluginsArchiver
                 "joinOn"     => "log_link_visit_action.idaction_name_ref = log_action_name_ref.idaction"
             );
 
-            $selectSiteSearchFollowingPages = ",
-				SUM(CASE WHEN log_action_name_ref.type = " . Action::TYPE_SITE_SEARCH . " THEN 1 ELSE 0 END) AS " . $this->db->quoteIdentifier(Metrics::INDEX_PAGE_IS_FOLLOWING_SITE_SEARCH_NB_HITS). " ";
+            $selectPageIsFollowingSiteSearch = ",
+				SUM( CASE WHEN log_action_name_ref.type = " . Action::TYPE_SITE_SEARCH . " 
+                        THEN 1 ELSE 0 END) 
+                   AS " . $this->db->quoteIdentifier(Metrics::INDEX_PAGE_IS_FOLLOWING_SITE_SEARCH_NB_HITS). " ";
 
             $select .= $selectFlagNoResultKeywords
-                . $selectSiteSearchFollowingPages;
+                . $selectPageIsFollowingSiteSearch;
         }
 
         $this->archiveDayQueryProcess($select, $from, $where, $orderBy, $groupBy, "idaction_name", $rankingQuery);
@@ -280,9 +233,6 @@ class Archiver extends PluginsArchiver
 
     protected function archiveDayQueryProcess($select, $from, $where, $orderBy, $groupBy, $sprintfField, $rankingQuery = false)
     {
-        // idaction field needs to be set in select clause before calling getSelectQuery().
-        // if a complex segmentation join is needed, the field needs to be propagated
-        // to the outer select. therefore, $segment needs to know about it.
         $select = sprintf($select, $sprintfField);
 
         // get query with segmentation
@@ -443,7 +393,8 @@ class Archiver extends PluginsArchiver
 				AND log_link_visit_action.server_time <= ?
 		 		AND log_link_visit_action.idsite = ?
 		 		AND log_link_visit_action.time_spent_ref_action > 0
-		 		AND log_link_visit_action.%s > 0";
+		 		AND log_link_visit_action.%s > 0
+		 		AND log_link_visit_action.idaction_event_category IS NULL";
 
         $groupBy = "log_link_visit_action.%s, idaction";
         if ($extraSelects) {
@@ -471,7 +422,7 @@ class Archiver extends PluginsArchiver
 
     protected function recordPageUrlsReports()
     {
-        $dataTable = $this->getDataTable(Action::TYPE_ACTION_URL);
+        $dataTable = $this->getDataTable(Action::TYPE_PAGE_URL);
         $this->recordDataTable($dataTable, self::PAGE_URLS_RECORD_NAME);
 
         $records = array(
@@ -492,53 +443,13 @@ class Archiver extends PluginsArchiver
         return $this->actionsTablesByType[$typeId];
     }
 
-    protected function recordDataTable($dataTable, $recordName)
+    protected function recordDataTable(DataTable $dataTable, $recordName)
     {
-        self::deleteInvalidSummedColumnsFromDataTable($dataTable);
+        ArchivingHelper::deleteInvalidSummedColumnsFromDataTable($dataTable);
         $s = $dataTable->getSerialized(ArchivingHelper::$maximumRowsInDataTableLevelZero, ArchivingHelper::$maximumRowsInSubDataTable, ArchivingHelper::$columnToSortByBeforeTruncation);
         $this->getProcessor()->insertBlobRecord($recordName, $s);
     }
 
-    /**
-     * For rows which have subtables (eg. directories with sub pages),
-     * deletes columns which don't make sense when all values of sub pages are summed.
-     *
-     * @param $dataTable DataTable
-     */
-    static public function deleteInvalidSummedColumnsFromDataTable($dataTable)
-    {
-        foreach ($dataTable->getRows() as $id => $row) {
-            if (($idSubtable = $row->getIdSubDataTable()) !== null
-                || $id === DataTable::ID_SUMMARY_ROW
-            ) {
-                if ($idSubtable !== null) {
-                    $subtable = Manager::getInstance()->getTable($idSubtable);
-                    self::deleteInvalidSummedColumnsFromDataTable($subtable);
-                }
-
-                if ($row instanceof DataTableSummaryRow) {
-                    $row->recalculate();
-                }
-
-                foreach (self::$invalidSummedColumnNameToDeleteFromDayArchive as $name) {
-                    $row->deleteColumn($name);
-                }
-            }
-        }
-
-        // And this as well
-        self::removeEmptyColumns($dataTable);
-    }
-
-    static protected function removeEmptyColumns($dataTable)
-    {
-        // Delete all columns that have a value of zero
-        $dataTable->filter('ColumnDelete', array(
-                                                $columnsToRemove = array(Metrics::INDEX_PAGE_IS_FOLLOWING_SITE_SEARCH_NB_HITS),
-                                                $columnsToKeep = array(),
-                                                $deleteIfZeroOnly = true
-                                           ));
-    }
 
     protected function recordDownloadsReports()
     {
@@ -560,7 +471,7 @@ class Archiver extends PluginsArchiver
 
     protected function recordPageTitlesReports()
     {
-        $dataTable = $this->getDataTable(Action::TYPE_ACTION_NAME);
+        $dataTable = $this->getDataTable(Action::TYPE_PAGE_TITLE);
         $this->recordDataTable($dataTable, self::PAGE_TITLES_RECORD_NAME);
     }
 

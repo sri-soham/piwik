@@ -12,17 +12,16 @@ namespace Piwik\Plugins\CustomVariables;
 
 use Piwik\Common;
 use Piwik\Config;
+
 use Piwik\DataAccess\LogAggregator;
-use Piwik\Metrics;
 use Piwik\DataArray;
+use Piwik\Db;
 use Piwik\Db\Factory;
-use Piwik\Plugins\CustomVariables\API;
+use Piwik\Metrics;
 use Piwik\Tracker;
-use Piwik\PluginsArchiver;
 use Piwik\Tracker\GoalManager;
 
-
-class Archiver extends PluginsArchiver
+class Archiver extends \Piwik\Plugin\Archiver
 {
     const LABEL_CUSTOM_VALUE_NOT_DEFINED = "Value not defined";
     const CUSTOM_VARIABLE_RECORD_NAME = 'CustomVariables_valueByName';
@@ -92,7 +91,7 @@ class Archiver extends PluginsArchiver
     {
         $col = $this->Generic->castToNumeric('log_link_visit_action.custom_var_v2');
         return $this->Generic->getSqlRevenue("AVG($col)")
-            . " as " . \Zend_Registry::get('db')->quoteIdentifier(Metrics::INDEX_ECOMMERCE_ITEM_PRICE_VIEWED) . " ";
+            . " as " . Db::get()->quoteIdentifier(Metrics::INDEX_ECOMMERCE_ITEM_PRICE_VIEWED) . " ";
     }
 
     protected function aggregateFromVisits($query, $keyField, $valueField)

@@ -11,11 +11,11 @@
 namespace Piwik\Tracker;
 
 use Piwik\ArchiveProcessor\Rules;
-use Piwik\Config;
-use Piwik\Piwik;
 use Piwik\CacheFile;
+use Piwik\Config;
+use Piwik\Option;
+use Piwik\Piwik;
 use Piwik\Tracker;
-use Piwik\Plugins\UserCountry\LocationProvider;
 
 /**
  * Simple cache mechanism used in Tracker to avoid requesting settings from mysql on every request
@@ -62,7 +62,23 @@ class Cache
         Piwik::setUserIsSuperUser();
 
         $content = array();
-        Piwik_PostEvent('Common.fetchWebsiteAttributes', array(&$content, $idSite));
+        
+        /**
+         * This event is called to get the details of a site by its ID. It can be used to
+         * add custom attributes for the website to the Tracker cache.
+         * 
+         * **Example**
+         * 
+         *     public function getSiteAttributes($content, $idSite)
+         *     {
+         *         $sql = "SELECT info FROM " . Common::prefixTable('myplugin_extra_site_info') . " WHERE idsite = ?";
+         *         $content['myplugin_site_data'] = Db::fetchOne($sql, array($idSite));
+         *     }
+         * 
+         * @param array &$content List of attributes.
+         * @param int $idSite The site ID.
+         */
+        Piwik::postEvent('Site.getSiteAttributes', array(&$content, $idSite));
 
         // restore original user privilege
         Piwik::setUserIsSuperUser($isSuperUser);
@@ -102,10 +118,30 @@ class Cache
 
         Tracker::initCorePiwikInTrackerMode();
         $cacheContent = array(
-            'isBrowserTriggerEnabled'   => Rules::isBrowserTriggerEnabled(),
-            'lastTrackerCronRun'        => Piwik_GetOption('lastTrackerCronRun'),
-            'currentLocationProviderId' => LocationProvider::getCurrentProviderId(),
+            'isBrowserTriggerEnabled' => Rules::isBrowserTriggerEnabled(),
+            'lastTrackerCronRun'      => Option::get('lastTrackerCronRun'),
         );
+
+        /**
+         * Triggered before the general tracker cache is saved to disk. This event can be
+         * used to add extra content to the cace.
+         * 
+         * Data that is used during tracking but is expensive to compute/query should be
+         * cached so as not to slow the tracker down. One example of such data are options
+         * that are stored in the piwik_option table. Requesting data on each tracking
+         * request means an extra unnecessary database query on each visitor action.
+         * 
+         * **Example**
+         * 
+         *     public function setTrackerCacheGeneral(&$cacheContent)
+         *     {
+         *         $cacheContent['MyPlugin.myCacheKey'] = Option::get('MyPlugin_myOption');
+         *     }
+         * 
+         * @param array &$cacheContent Array of cached data. Each piece of data must be
+         *                             mapped by name.
+         */
+        Piwik::postEvent('Tracker.setTrackerCacheGeneral', array(&$cacheContent));
         self::setCacheGeneral($cacheContent);
         return $cacheContent;
     }
@@ -127,7 +163,7 @@ class Cache
     /**
      * Regenerate Tracker cache files
      *
-     * @param array|int $idSites  Array of idSites to clear cache for
+     * @param array|int $idSites Array of idSites to clear cache for
      */
     static public function regenerateCacheWebsiteAttributes($idSites = array())
     {
@@ -143,7 +179,7 @@ class Cache
     /**
      * Delete existing Tracker cache
      *
-     * @param string $idSite  (website ID of the site to clear cache for
+     * @param string $idSite (website ID of the site to clear cache for
      */
     static public function deleteCacheWebsiteAttributes($idSite)
     {

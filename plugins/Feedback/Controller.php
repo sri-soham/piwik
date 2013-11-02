@@ -11,21 +11,21 @@
 namespace Piwik\Plugins\Feedback;
 
 use Exception;
-use Piwik\Config;
-use Piwik\Piwik;
 use Piwik\Common;
+use Piwik\Config;
 use Piwik\IP;
 use Piwik\Mail;
 use Piwik\Nonce;
-use Piwik\View;
-use Piwik\Version;
+use Piwik\Piwik;
 use Piwik\Url;
+use Piwik\Version;
+use Piwik\View;
 
 /**
  *
  * @package Feedback
  */
-class Controller extends \Piwik\Controller
+class Controller extends \Piwik\Plugin\Controller
 {
     function index()
     {
@@ -54,16 +54,16 @@ class Controller extends \Piwik\Controller
                 || strpos($email, 'probe@') !== false
                 || strpos($body, '&lt;probe') !== false
             ) {
-                throw new Exception(Piwik_TranslateException('Feedback_ExceptionBodyLength', array($minimumBodyLength)));
+                throw new Exception(Piwik::translate('Feedback_ExceptionBodyLength', array($minimumBodyLength)));
             }
             if (!Piwik::isValidEmailString($email)) {
-                throw new Exception(Piwik_TranslateException('UsersManager_ExceptionInvalidEmail'));
+                throw new Exception(Piwik::translate('UsersManager_ExceptionInvalidEmail'));
             }
             if (preg_match('/https?:/i', $body)) {
-                throw new Exception(Piwik_TranslateException('Feedback_ExceptionNoUrls'));
+                throw new Exception(Piwik::translate('Feedback_ExceptionNoUrls'));
             }
             if (!Nonce::verifyNonce('Feedback.sendFeedback', $nonce)) {
-                throw new Exception(Piwik_TranslateException('General_ExceptionNonceMismatch'));
+                throw new Exception(Piwik::translate('General_ExceptionNonceMismatch'));
             }
             Nonce::discardNonce('Feedback.sendFeedback');
 
@@ -74,7 +74,7 @@ class Controller extends \Piwik\Controller
             $mail->setBodyText(Common::unsanitizeInputValue($body) . "\n"
                 . 'Piwik ' . Version::VERSION . "\n"
                 . 'IP: ' . IP::getIpFromHeader() . "\n"
-                . 'URL: ' . Url::getReferer() . "\n");
+                . 'URL: ' . Url::getReferrer() . "\n");
             @$mail->send();
         } catch (Exception $e) {
             $view->errorString = $e->getMessage();

@@ -11,14 +11,12 @@
 namespace Piwik\Db\Schema;
 
 use Exception;
-use Piwik\Config;
-use Piwik\Db\SchemaInterface;
-use Piwik\Piwik;
 use Piwik\Common;
+use Piwik\Config;
 use Piwik\Date;
+use Piwik\Db\SchemaInterface;
 use Piwik\Db;
-use Zend_Registry;
-
+use Piwik\DbHelper;
 
 /**
  * MySQL schema
@@ -36,7 +34,7 @@ class Myisam implements SchemaInterface
      */
     static private function hasStorageEngine($engineName)
     {
-        $db = \Zend_Registry::get('db');
+        $db = Db::get();
         $allEngines = $db->fetchAssoc('SHOW ENGINES');
         if (array_key_exists($engineName, $allEngines)) {
             $support = $allEngines[$engineName]['Support'];
@@ -128,50 +126,15 @@ class Myisam implements SchemaInterface
             ",
 
             'logger_message'        => "CREATE TABLE {$prefixTables}logger_message (
-                                      idlogger_message INTEGER UNSIGNED NOT NULL AUTO_INCREMENT,
-                                      timestamp TIMESTAMP NULL,
-                                      message TEXT NULL,
-                                      PRIMARY KEY(idlogger_message)
-                                    )  DEFAULT CHARSET=utf8
-            ",
+									  idlogger_message INTEGER UNSIGNED NOT NULL AUTO_INCREMENT,
+                                      tag VARCHAR(50) NULL,
+									  timestamp TIMESTAMP NULL,
+                                      level VARCHAR(16) NULL,
+									  message TEXT NULL,
+									  PRIMARY KEY(idlogger_message)
+									)  DEFAULT CHARSET=utf8
+			",
 
-            'logger_api_call'       => "CREATE TABLE {$prefixTables}logger_api_call (
-                                      idlogger_api_call INTEGER UNSIGNED NOT NULL AUTO_INCREMENT,
-                                      class_name VARCHAR(255) NULL,
-                                      method_name VARCHAR(255) NULL,
-                                      parameter_names_default_values TEXT NULL,
-                                      parameter_values TEXT NULL,
-                                      execution_time FLOAT NULL,
-                                      caller_ip VARBINARY(16) NOT NULL,
-                                      timestamp TIMESTAMP NULL,
-                                      returned_value TEXT NULL,
-                                      PRIMARY KEY(idlogger_api_call)
-                                    )  DEFAULT CHARSET=utf8
-            ",
-
-            'logger_error'          => "CREATE TABLE {$prefixTables}logger_error (
-                                      idlogger_error INTEGER UNSIGNED NOT NULL AUTO_INCREMENT,
-                                      timestamp TIMESTAMP NULL,
-                                      message TEXT NULL,
-                                      errno INTEGER UNSIGNED NULL,
-                                      errline INTEGER UNSIGNED NULL,
-                                      errfile VARCHAR(255) NULL,
-                                      backtrace TEXT NULL,
-                                      PRIMARY KEY(idlogger_error)
-                                    ) DEFAULT CHARSET=utf8
-            ",
-
-            'logger_exception'      => "CREATE TABLE {$prefixTables}logger_exception (
-                                      idlogger_exception INTEGER UNSIGNED NOT NULL AUTO_INCREMENT,
-                                      timestamp TIMESTAMP NULL,
-                                      message TEXT NULL,
-                                      errno INTEGER UNSIGNED NULL,
-                                      errline INTEGER UNSIGNED NULL,
-                                      errfile VARCHAR(255) NULL,
-                                      backtrace TEXT NULL,
-                                      PRIMARY KEY(idlogger_exception)
-                                    )  DEFAULT CHARSET=utf8
-            ",
 
             'log_action'            => "CREATE TABLE {$prefixTables}log_action (
                                       idaction INTEGER(10) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -185,68 +148,69 @@ class Myisam implements SchemaInterface
             ",
 
             'log_visit'             => "CREATE TABLE {$prefixTables}log_visit (
-                              idvisit INTEGER(10) UNSIGNED NOT NULL AUTO_INCREMENT,
-                              idsite INTEGER(10) UNSIGNED NOT NULL,
-                              idvisitor BINARY(8) NOT NULL,
-                              visitor_localtime TIME NOT NULL,
-                              visitor_returning TINYINT(1) NOT NULL,
-                              visitor_count_visits SMALLINT(5) UNSIGNED NOT NULL,
-                              visitor_days_since_last SMALLINT(5) UNSIGNED NOT NULL,
-                              visitor_days_since_order SMALLINT(5) UNSIGNED NOT NULL,
-                              visitor_days_since_first SMALLINT(5) UNSIGNED NOT NULL,
-                              visit_first_action_time DATETIME NOT NULL,
-                              visit_last_action_time DATETIME NOT NULL,
-                              visit_exit_idaction_url INTEGER(11) UNSIGNED NULL DEFAULT 0,
-                              visit_exit_idaction_name INTEGER(11) UNSIGNED NOT NULL,
-                              visit_entry_idaction_url INTEGER(11) UNSIGNED NOT NULL,
-                              visit_entry_idaction_name INTEGER(11) UNSIGNED NOT NULL,
-                              visit_total_actions SMALLINT(5) UNSIGNED NOT NULL,
-                              visit_total_searches SMALLINT(5) UNSIGNED NOT NULL,
-                              visit_total_time SMALLINT(5) UNSIGNED NOT NULL,
-                              visit_goal_converted TINYINT(1) NOT NULL,
-                              visit_goal_buyer TINYINT(1) NOT NULL,
-                              referer_type TINYINT(1) UNSIGNED NULL,
-                              referer_name VARCHAR(70) NULL,
-                              referer_url TEXT NOT NULL,
-                              referer_keyword VARCHAR(255) NULL,
-                              config_id BINARY(8) NOT NULL,
-                              config_os CHAR(3) NOT NULL,
-                              config_browser_name VARCHAR(10) NOT NULL,
-                              config_browser_version VARCHAR(20) NOT NULL,
-                              config_resolution VARCHAR(9) NOT NULL,
-                              config_pdf TINYINT(1) NOT NULL,
-                              config_flash TINYINT(1) NOT NULL,
-                              config_java TINYINT(1) NOT NULL,
-                              config_director TINYINT(1) NOT NULL,
-                              config_quicktime TINYINT(1) NOT NULL,
-                              config_realplayer TINYINT(1) NOT NULL,
-                              config_windowsmedia TINYINT(1) NOT NULL,
-                              config_gears TINYINT(1) NOT NULL,
-                              config_silverlight TINYINT(1) NOT NULL,
-                              config_cookie TINYINT(1) NOT NULL,
-                              location_ip VARBINARY(16) NOT NULL,
-                              location_browser_lang VARCHAR(20) NOT NULL,
-                              location_country CHAR(3) NOT NULL,
-                              location_region char(2) DEFAULT NULL,
-                              location_city varchar(255) DEFAULT NULL,
-                              location_latitude float(10, 6) DEFAULT NULL,
-                              location_longitude float(10, 6) DEFAULT NULL,
-                              custom_var_k1 VARCHAR(200) DEFAULT NULL,
-                              custom_var_v1 VARCHAR(200) DEFAULT NULL,
-                              custom_var_k2 VARCHAR(200) DEFAULT NULL,
-                              custom_var_v2 VARCHAR(200) DEFAULT NULL,
-                              custom_var_k3 VARCHAR(200) DEFAULT NULL,
-                              custom_var_v3 VARCHAR(200) DEFAULT NULL,
-                              custom_var_k4 VARCHAR(200) DEFAULT NULL,
-                              custom_var_v4 VARCHAR(200) DEFAULT NULL,
-                              custom_var_k5 VARCHAR(200) DEFAULT NULL,
-                              custom_var_v5 VARCHAR(200) DEFAULT NULL,
-                              PRIMARY KEY(idvisit),
-                              INDEX index_idsite_config_datetime (idsite, config_id, visit_last_action_time),
-                              INDEX index_idsite_datetime (idsite, visit_last_action_time),
-                              INDEX index_idsite_idvisitor (idsite, idvisitor)
-                            )  DEFAULT CHARSET=utf8
-            ",
+							  idvisit INTEGER(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+							  idsite INTEGER(10) UNSIGNED NOT NULL,
+							  idvisitor BINARY(8) NOT NULL,
+							  visitor_localtime TIME NOT NULL,
+							  visitor_returning TINYINT(1) NOT NULL,
+							  visitor_count_visits SMALLINT(5) UNSIGNED NOT NULL,
+							  visitor_days_since_last SMALLINT(5) UNSIGNED NOT NULL,
+							  visitor_days_since_order SMALLINT(5) UNSIGNED NOT NULL,
+							  visitor_days_since_first SMALLINT(5) UNSIGNED NOT NULL,
+							  visit_first_action_time DATETIME NOT NULL,
+							  visit_last_action_time DATETIME NOT NULL,
+							  visit_exit_idaction_url INTEGER(11) UNSIGNED NULL DEFAULT 0,
+							  visit_exit_idaction_name INTEGER(11) UNSIGNED NOT NULL,
+							  visit_entry_idaction_url INTEGER(11) UNSIGNED NOT NULL,
+							  visit_entry_idaction_name INTEGER(11) UNSIGNED NOT NULL,
+							  visit_total_actions SMALLINT(5) UNSIGNED NOT NULL,
+							  visit_total_searches SMALLINT(5) UNSIGNED NOT NULL,
+							  visit_total_events SMALLINT(5) UNSIGNED NOT NULL,
+							  visit_total_time SMALLINT(5) UNSIGNED NOT NULL,
+							  visit_goal_converted TINYINT(1) NOT NULL,
+							  visit_goal_buyer TINYINT(1) NOT NULL,
+							  referer_type TINYINT(1) UNSIGNED NULL,
+							  referer_name VARCHAR(70) NULL,
+							  referer_url TEXT NOT NULL,
+							  referer_keyword VARCHAR(255) NULL,
+							  config_id BINARY(8) NOT NULL,
+							  config_os CHAR(3) NOT NULL,
+							  config_browser_name VARCHAR(10) NOT NULL,
+							  config_browser_version VARCHAR(20) NOT NULL,
+							  config_resolution VARCHAR(9) NOT NULL,
+							  config_pdf TINYINT(1) NOT NULL,
+							  config_flash TINYINT(1) NOT NULL,
+							  config_java TINYINT(1) NOT NULL,
+							  config_director TINYINT(1) NOT NULL,
+							  config_quicktime TINYINT(1) NOT NULL,
+							  config_realplayer TINYINT(1) NOT NULL,
+							  config_windowsmedia TINYINT(1) NOT NULL,
+							  config_gears TINYINT(1) NOT NULL,
+							  config_silverlight TINYINT(1) NOT NULL,
+							  config_cookie TINYINT(1) NOT NULL,
+							  location_ip VARBINARY(16) NOT NULL,
+							  location_browser_lang VARCHAR(20) NOT NULL,
+							  location_country CHAR(3) NOT NULL,
+							  location_region char(2) DEFAULT NULL,
+							  location_city varchar(255) DEFAULT NULL,
+							  location_latitude float(10, 6) DEFAULT NULL,
+							  location_longitude float(10, 6) DEFAULT NULL,
+							  custom_var_k1 VARCHAR(200) DEFAULT NULL,
+							  custom_var_v1 VARCHAR(200) DEFAULT NULL,
+							  custom_var_k2 VARCHAR(200) DEFAULT NULL,
+							  custom_var_v2 VARCHAR(200) DEFAULT NULL,
+							  custom_var_k3 VARCHAR(200) DEFAULT NULL,
+							  custom_var_v3 VARCHAR(200) DEFAULT NULL,
+							  custom_var_k4 VARCHAR(200) DEFAULT NULL,
+							  custom_var_v4 VARCHAR(200) DEFAULT NULL,
+							  custom_var_k5 VARCHAR(200) DEFAULT NULL,
+							  custom_var_v5 VARCHAR(200) DEFAULT NULL,
+							  PRIMARY KEY(idvisit),
+							  INDEX index_idsite_config_datetime (idsite, config_id, visit_last_action_time),
+							  INDEX index_idsite_datetime (idsite, visit_last_action_time),
+							  INDEX index_idsite_idvisitor (idsite, idvisitor)
+							)  DEFAULT CHARSET=utf8
+			",
 
             'log_conversion_item'   => "CREATE TABLE `{$prefixTables}log_conversion_item` (
                                                   idsite int(10) UNSIGNED NOT NULL,
@@ -320,32 +284,34 @@ class Myisam implements SchemaInterface
             ",
 
             'log_link_visit_action' => "CREATE TABLE {$prefixTables}log_link_visit_action (
-                                              idlink_va INTEGER(11) UNSIGNED NOT NULL AUTO_INCREMENT,
-                                              idsite int(10) UNSIGNED NOT NULL,
-                                              idvisitor BINARY(8) NOT NULL,
-                                              server_time DATETIME NOT NULL,
-                                              idvisit INTEGER(10) UNSIGNED NOT NULL,
-                                              idaction_url INTEGER(10) UNSIGNED DEFAULT NULL,
-                                              idaction_url_ref INTEGER(10) UNSIGNED NULL DEFAULT 0,
-                                              idaction_name INTEGER(10) UNSIGNED,
-                                              idaction_name_ref INTEGER(10) UNSIGNED NOT NULL,
-                                              time_spent_ref_action INTEGER(10) UNSIGNED NOT NULL,
-                                              custom_var_k1 VARCHAR(200) DEFAULT NULL,
-                                              custom_var_v1 VARCHAR(200) DEFAULT NULL,
-                                              custom_var_k2 VARCHAR(200) DEFAULT NULL,
-                                              custom_var_v2 VARCHAR(200) DEFAULT NULL,
-                                              custom_var_k3 VARCHAR(200) DEFAULT NULL,
-                                              custom_var_v3 VARCHAR(200) DEFAULT NULL,
-                                              custom_var_k4 VARCHAR(200) DEFAULT NULL,
-                                              custom_var_v4 VARCHAR(200) DEFAULT NULL,
-                                              custom_var_k5 VARCHAR(200) DEFAULT NULL,
-                                              custom_var_v5 VARCHAR(200) DEFAULT NULL,
-                                              custom_float FLOAT NULL DEFAULT NULL,
-                                              PRIMARY KEY(idlink_va),
-                                              INDEX index_idvisit(idvisit),
-                                              INDEX index_idsite_servertime ( idsite, server_time )
-                                            )  DEFAULT CHARSET=utf8
-            ",
+											  idlink_va INTEGER(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+									          idsite int(10) UNSIGNED NOT NULL,
+									  		  idvisitor BINARY(8) NOT NULL,
+									          server_time DATETIME NOT NULL,
+											  idvisit INTEGER(10) UNSIGNED NOT NULL,
+											  idaction_url INTEGER(10) UNSIGNED DEFAULT NULL,
+											  idaction_url_ref INTEGER(10) UNSIGNED NULL DEFAULT 0,
+											  idaction_name INTEGER(10) UNSIGNED,
+											  idaction_name_ref INTEGER(10) UNSIGNED NOT NULL,
+											  idaction_event_category INTEGER(10) UNSIGNED,
+											  idaction_event_action INTEGER(10) UNSIGNED,
+											  time_spent_ref_action INTEGER(10) UNSIGNED NOT NULL,
+											  custom_var_k1 VARCHAR(200) DEFAULT NULL,
+											  custom_var_v1 VARCHAR(200) DEFAULT NULL,
+											  custom_var_k2 VARCHAR(200) DEFAULT NULL,
+											  custom_var_v2 VARCHAR(200) DEFAULT NULL,
+											  custom_var_k3 VARCHAR(200) DEFAULT NULL,
+											  custom_var_v3 VARCHAR(200) DEFAULT NULL,
+											  custom_var_k4 VARCHAR(200) DEFAULT NULL,
+											  custom_var_v4 VARCHAR(200) DEFAULT NULL,
+											  custom_var_k5 VARCHAR(200) DEFAULT NULL,
+											  custom_var_v5 VARCHAR(200) DEFAULT NULL,
+											  custom_float FLOAT NULL DEFAULT NULL,
+											  PRIMARY KEY(idlink_va),
+											  INDEX index_idvisit(idvisit),
+									          INDEX index_idsite_servertime ( idsite, server_time )
+											)  DEFAULT CHARSET=utf8
+			",
 
             'log_profiling'         => "CREATE TABLE {$prefixTables}log_profiling (
                                   query TEXT NOT NULL,
@@ -414,7 +380,7 @@ class Myisam implements SchemaInterface
      */
     public function getTableCreateSql($tableName)
     {
-        $tables = Piwik::getTablesCreateSql();
+        $tables = DbHelper::getTablesCreateSql();
 
         if (!isset($tables[$tableName])) {
             throw new Exception("The table '$tableName' SQL creation code couldn't be found.");
@@ -446,7 +412,7 @@ class Myisam implements SchemaInterface
     /**
      * Get list of tables installed
      *
-     * @param bool $forceReload  Invalidate cache
+     * @param bool $forceReload Invalidate cache
      * @return array  installed Tables
      */
     public function getTablesInstalled($forceReload = true)
@@ -454,7 +420,7 @@ class Myisam implements SchemaInterface
         if (is_null($this->tablesInstalled)
             || $forceReload === true
         ) {
-            $db = \Zend_Registry::get('db');
+            $db = Db::get();
             $config = Config::getInstance();
             $prefixTables = $config->database['tables_prefix'];
 
@@ -493,7 +459,7 @@ class Myisam implements SchemaInterface
     /**
      * Create database
      *
-     * @param string $dbName  Name of the database to create
+     * @param string $dbName Name of the database to create
      */
     public function createDatabase($dbName = null)
     {
@@ -517,7 +483,7 @@ class Myisam implements SchemaInterface
      */
     public function createTables()
     {
-        $db = \Zend_Registry::get('db');
+        $db = Db::get();
         $config = Config::getInstance();
         $prefixTables = $config->database['tables_prefix'];
 
@@ -541,7 +507,7 @@ class Myisam implements SchemaInterface
     {
         // The anonymous user is the user that is assigned by default
         // note that the token_auth value is anonymous, which is assigned by default as well in the Login plugin
-        $db = \Zend_Registry::get('db');
+        $db = Db::get();
         $db->query("INSERT INTO " . Common::prefixTable("user") . "
                     VALUES ( 'anonymous', '', 'anonymous', 'anonymous@example.org', 'anonymous', '" . Date::factory('now')->getDatetime() . "' );");
     }
@@ -560,12 +526,12 @@ class Myisam implements SchemaInterface
     /**
      * Drop specific tables
      *
-     * @param array $doNotDelete  Names of tables to not delete
+     * @param array $doNotDelete Names of tables to not delete
      */
     public function dropTables($doNotDelete = array())
     {
         $tablesAlreadyInstalled = $this->getTablesInstalled();
-        $db = \Zend_Registry::get('db');
+        $db = Db::get();
 
         $doNotDeletePattern = '/(' . implode('|', $doNotDelete) . ')/';
 

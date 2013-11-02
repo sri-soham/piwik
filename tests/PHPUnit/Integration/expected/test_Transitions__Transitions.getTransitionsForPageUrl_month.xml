@@ -22,10 +22,10 @@
 		</row>
 	</previousSiteSearches>
 	<pageMetrics>
-		<loops>1</loops>
-		<pageviews>20</pageviews>
+		<loops>2</loops>
+		<pageviews>21</pageviews>
 		<entries>4</entries>
-		<exits>3</exits>
+		<exits>1</exits>
 	</pageMetrics>
 	<followingPages>
 		<row>
@@ -37,8 +37,13 @@
 			<referrals>2</referrals>
 		</row>
 		<row>
+<<<<<<< HEAD
 			<label>-1</label>
 			<referrals>3</referrals>
+=======
+			<label>Others</label>
+			<referrals>5</referrals>
+>>>>>>> piwik-master
 		</row>
 	</followingPages>
 	<followingSiteSearches>
@@ -49,7 +54,7 @@
 	</followingSiteSearches>
 	<outlinks>
 		<row>
-			<label>https://anothersite.com/to/outlink/page.html</label>
+			<label>http://www.anothersite.com/to/outlink/page.html</label>
 			<referrals>1</referrals>
 		</row>
 		<row>
@@ -63,11 +68,11 @@
 	</outlinks>
 	<downloads>
 		<row>
-			<label>http://example.org/downloads/29.tar.gz</label>
+			<label>http://example.org/downloads/33.tar.gz</label>
 			<referrals>1</referrals>
 		</row>
 		<row>
-			<label>https://example.org/downloads/31.tar.gz</label>
+			<label>https://example.org/downloads/35.tar.gz</label>
 			<referrals>1</referrals>
 		</row>
 		<row>

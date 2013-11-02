@@ -8,6 +8,9 @@
  * @category Piwik
  * @package Updates
  */
+
+namespace Piwik\Updates;
+
 use Piwik\Common;
 use Piwik\Updater;
 use Piwik\Updates;
@@ -15,14 +18,14 @@ use Piwik\Updates;
 /**
  * @package Updates
  */
-class Piwik_Updates_1_9_3_b8 extends Updates
+class Updates_1_9_3_b8 extends Updates
 {
     static function getSql($schema = 'Myisam')
     {
         return array(
             // ignore existing column name error (1060)
             'ALTER TABLE ' . Common::prefixTable('site')
-                . " ADD COLUMN excluded_user_agents TEXT NOT NULL AFTER excluded_parameters" => 1060,
+            . " ADD COLUMN excluded_user_agents TEXT NOT NULL AFTER excluded_parameters" => 1060,
         );
     }
 

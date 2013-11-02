@@ -12,34 +12,24 @@ namespace Piwik\Plugins\VisitFrequency;
 
 use Piwik\API\Request;
 use Piwik\Piwik;
+use Piwik\Plugins\VisitsSummary\API as APIVisitsSummary;
 use Piwik\SegmentExpression;
-use Piwik\Plugins\VisitsSummary\API as VisitsSummaryAPI;
 
 /**
  * VisitFrequency API lets you access a list of metrics related to Returning Visitors.
  * @package VisitFrequency
  */
-class API
+class API extends \Piwik\Plugin\API
 {
-    const RETURNING_VISITOR_SEGMENT = "visitorType==returning";
+    const RETURNING_VISITOR_SEGMENT = "visitorType==returning,visitorType==returningCustomer";
     const COLUMN_SUFFIX = "_returning";
 
-    static private $instance = null;
-
-    static public function getInstance()
-    {
-        if (self::$instance == null) {
-            self::$instance = new self;
-        }
-        return self::$instance;
-    }
-
     /**
-     * @param int         $idSite
-     * @param string      $period
-     * @param string      $date
+     * @param int $idSite
+     * @param string $period
+     * @param string $date
      * @param bool|string $segment
-     * @param bool|array  $columns
+     * @param bool|array $columns
      * @return mixed
      */
     public function get($idSite, $period, $date, $segment = false, $columns = false)
@@ -83,7 +73,7 @@ class API
     protected function prefixColumns($table, $period)
     {
         $rename = array();
-        foreach (VisitsSummaryAPI::getInstance()->getColumns($period) as $oldColumn) {
+        foreach (APIVisitsSummary::getInstance()->getColumns($period) as $oldColumn) {
             $rename[$oldColumn] = $oldColumn . self::COLUMN_SUFFIX;
         }
         $table->filter('ReplaceColumnNames', array($rename));

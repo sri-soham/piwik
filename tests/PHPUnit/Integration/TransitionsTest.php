@@ -10,7 +10,6 @@ class Test_Piwik_Integration_Transitions extends IntegrationTestCase
     /**
      * @dataProvider getApiForTesting
      * @group        Integration
-     * @group        Transitions
      */
     public function testApi($api, $params)
     {
@@ -71,7 +70,7 @@ class Test_Piwik_Integration_Transitions extends IntegrationTestCase
         return $return;
     }
 
-    public function getOutputPrefix()
+    public static function getOutputPrefix()
     {
         return 'Transitions';
     }

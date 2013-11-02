@@ -84,8 +84,8 @@ DataTable_RowActions_Registry.register({
     order: 20,
 
     dataTableIconTooltip: [
-        _pk_translate('General_TransitionsRowActionTooltipTitle_js'),
-        _pk_translate('General_TransitionsRowActionTooltip_js')
+        _pk_translate('General_TransitionsRowActionTooltipTitle'),
+        _pk_translate('General_TransitionsRowActionTooltip')
     ],
 
     createInstance: function (dataTable) {
@@ -807,7 +807,7 @@ Piwik_Transitions_Canvas.prototype.isNarrowMode = function () {
 
 /**
  * Helper to create horizontal gradients
- * TODO
+ *
  * @param    {String} colorGroup
  * @param    {String} position    left|right
  * @param    {Boolean} isHighlighted

@@ -11,21 +11,20 @@
 namespace Piwik;
 
 use Exception;
-use Piwik\Piwik;
-use Piwik\Common;
 
 /**
- * Code originally inspired from OpenX
- * - openx/plugins_repo/openXDeliveryCacheStore/extensions/deliveryCacheStore/oxCacheFile/oxCacheFile.class.php
- * - openx/plugins_repo/openXDeliveryCacheStore/extensions/deliveryCacheStore/oxCacheFile/oxCacheFile.delivery.php
+ * This class is used to cache data on the filesystem.
  *
- * We may want to add support for cache expire, storing last modification time in the file. See code in:
- * - openx/lib/max/Delivery/cache.php
+ * It is for example used by the Tracker process to cache various settings and websites attributes in tmp/cache/tracker/*
  *
  * @package Piwik
  */
 class CacheFile
 {
+    // for testing purposes since tests run on both CLI/FPM (changes in CLI can't invalidate
+    // opcache in FPM, so we have to invalidate before reading)
+    public static $invalidateOpCacheBeforeRead = false;
+
     /**
      * @var string
      */
@@ -41,12 +40,14 @@ class CacheFile
     const MINIMUM_TTL = 60;
 
     /**
-     * @param string $directory            directory to use
-     * @param int $timeToLiveInSeconds  TTL
+     * @param string $directory directory to use
+     * @param int $timeToLiveInSeconds TTL
      */
     public function __construct($directory, $timeToLiveInSeconds = 300)
     {
-        $this->cachePath = PIWIK_USER_PATH . '/tmp/cache/' . $directory . '/';
+        $cachePath = PIWIK_USER_PATH . '/tmp/cache/' . $directory . '/';
+        $this->cachePath = SettingsPiwik::rewriteTmpPathWithHostname($cachePath);
+
         if ($timeToLiveInSeconds < self::MINIMUM_TTL) {
             $timeToLiveInSeconds = self::MINIMUM_TTL;
         }
@@ -56,7 +57,7 @@ class CacheFile
     /**
      * Function to fetch a cache entry
      *
-     * @param string $id  The cache entry ID
+     * @param string $id The cache entry ID
      * @return array|bool  False on error, or array the cache content
      */
     public function get($id)
@@ -72,6 +73,10 @@ class CacheFile
 
         // We are assuming that most of the time cache will exists
         $cacheFilePath = $this->cachePath . $id . '.php';
+        if (self::$invalidateOpCacheBeforeRead) {
+            $this->opCacheInvalidate($cacheFilePath);
+        }
+
         $ok = @include($cacheFilePath);
 
         if ($ok && $cache_complete == true) {
@@ -94,7 +99,7 @@ class CacheFile
 
     protected function cleanupId($id)
     {
-        if (!Common::isValidFilename($id)) {
+        if (!Filesystem::isValidFilename($id)) {
             throw new Exception("Invalid cache ID request $id");
         }
         return $id;
@@ -103,8 +108,9 @@ class CacheFile
     /**
      * A function to store content a cache entry.
      *
-     * @param string $id       The cache entry ID
-     * @param array $content  The cache content
+     * @param string $id The cache entry ID
+     * @param array $content The cache content
+     * @throws \Exception
      * @return bool  True if the entry was succesfully stored
      */
     public function set($id, $content)
@@ -113,7 +119,7 @@ class CacheFile
             return false;
         }
         if (!is_dir($this->cachePath)) {
-            Common::mkdir($this->cachePath);
+            Filesystem::mkdir($this->cachePath);
         }
         if (!is_writable($this->cachePath)) {
             return false;
@@ -121,6 +127,10 @@ class CacheFile
         $id = $this->cleanupId($id);
 
         $id = $this->cachePath . $id . '.php';
+
+        if (is_object($content)) {
+            throw new \Exception('You cannot use the CacheFile to cache an object, only arrays, strings and numbers.');
+        }
 
         $cache_literal = "<" . "?php\n";
         $cache_literal .= "$" . "content   = " . var_export($content, true) . ";\n";
@@ -145,6 +155,9 @@ class CacheFile
                     @unlink($tmp_filename);
                 }
             }
+
+            $this->opCacheInvalidate($id);
+
             return true;
         }
         return false;
@@ -153,7 +166,7 @@ class CacheFile
     /**
      * A function to delete a single cache entry
      *
-     * @param string $id  The cache entry ID
+     * @param string $id The cache entry ID
      * @return bool  True if the entry was succesfully deleted
      */
     public function delete($id)
@@ -165,6 +178,7 @@ class CacheFile
 
         $filename = $this->cachePath . $id . '.php';
         if (file_exists($filename)) {
+            $this->opCacheInvalidate($filename);
             @unlink($filename);
             return true;
         }
@@ -176,6 +190,20 @@ class CacheFile
      */
     public function deleteAll()
     {
-        Piwik::unlinkRecursive($this->cachePath, $deleteRootToo = false);
+        $self = $this;
+        $beforeUnlink = function ($path) use ($self) {
+            $self->opCacheInvalidate($path);
+        };
+
+        Filesystem::unlinkRecursive($this->cachePath, $deleteRootToo = false, $beforeUnlink);
+    }
+
+    public function opCacheInvalidate($filepath)
+    {
+        if (function_exists('opcache_invalidate')
+            && is_file($filepath)
+        ) {
+            opcache_invalidate($filepath, $force = true);
+        }
     }
 }

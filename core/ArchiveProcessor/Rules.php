@@ -11,12 +11,16 @@
 namespace Piwik\ArchiveProcessor;
 
 use Exception;
-use Piwik\Config;
-use Piwik\Piwik;
 use Piwik\Common;
-use Piwik\Segment;
-use Piwik\Site;
+use Piwik\Config;
 use Piwik\Date;
+use Piwik\Log;
+use Piwik\Option;
+use Piwik\Piwik;
+use Piwik\Segment;
+use Piwik\SettingsPiwik;
+use Piwik\SettingsServer;
+use Piwik\Site;
 use Piwik\Tracker\Cache;
 
 /**
@@ -59,7 +63,7 @@ class Rules
             return true;
         }
 
-        $segmentsToProcess = Piwik::getKnownSegmentsToArchive();
+        $segmentsToProcess = SettingsPiwik::getKnownSegmentsToArchive();
         if (!empty($segmentsToProcess)) {
             // If the requested segment is one of the segments to pre-process
             // we ensure that any call to the API will trigger archiving of all reports for this segment
@@ -111,7 +115,7 @@ class Rules
             return false;
         }
         $key = self::FLAG_TABLE_PURGED . "blob_" . $date->toString('Y_m');
-        $timestamp = Piwik_GetOption($key);
+        $timestamp = Option::get($key);
 
         // we shall purge temporary archives after their timeout is finished, plus an extra 6 hours
         // in case archiving is disabled or run once a day, we give it this extra time to run
@@ -127,7 +131,7 @@ class Rules
             && (!$timestamp
                 || $timestamp < time() - $purgeEveryNSeconds)
         ) {
-            Piwik_SetOption($key, time());
+            Option::set($key, time());
 
             if (self::isBrowserTriggerEnabled()) {
                 // If Browser Archiving is enabled, it is likely there are many more temporary archives
@@ -140,7 +144,7 @@ class Rules
             return $purgeArchivesOlderThan;
         }
 
-        Piwik::log("Purging temporary archives: skipped.");
+        Log::info("Purging temporary archives: skipped.");
         return false;
     }
 
@@ -171,14 +175,14 @@ class Rules
     {
         $timeToLiveSeconds = (int)$timeToLiveSeconds;
         if ($timeToLiveSeconds <= 0) {
-            throw new Exception(Piwik_TranslateException('General_ExceptionInvalidArchiveTimeToLive'));
+            throw new Exception(Piwik::translate('General_ExceptionInvalidArchiveTimeToLive'));
         }
-        Piwik_SetOption(self::OPTION_TODAY_ARCHIVE_TTL, $timeToLiveSeconds, $autoLoad = true);
+        Option::set(self::OPTION_TODAY_ARCHIVE_TTL, $timeToLiveSeconds, $autoLoad = true);
     }
 
     public static function getTodayArchiveTimeToLive()
     {
-        $timeToLive = Piwik_GetOption(self::OPTION_TODAY_ARCHIVE_TTL);
+        $timeToLive = Option::get(self::OPTION_TODAY_ARCHIVE_TTL);
         if ($timeToLive !== false) {
             return $timeToLive;
         }
@@ -201,7 +205,7 @@ class Rules
                 && $isArchivingDisabled
                 && Config::getInstance()->General['browser_archiving_disabled_enforce']
             ) {
-                Piwik::log("Archiving is disabled because of config setting browser_archiving_disabled_enforce=1");
+                Log::debug("Archiving is disabled because of config setting browser_archiving_disabled_enforce=1");
                 return true;
             }
             return false;
@@ -212,15 +216,15 @@ class Rules
     protected static function isRequestAuthorizedToArchive()
     {
         return !self::$archivingDisabledByTests &&
-            (Rules::isBrowserTriggerEnabled()
-                || Common::isPhpCliMode()
-                || (Piwik::isUserIsSuperUser()
-                    && Common::isArchivePhpTriggered()));
+        (Rules::isBrowserTriggerEnabled()
+            || Common::isPhpCliMode()
+            || (Piwik::isUserIsSuperUser()
+                && SettingsServer::isArchivePhpTriggered()));
     }
 
     public static function isBrowserTriggerEnabled()
     {
-        $browserArchivingEnabled = Piwik_GetOption(self::OPTION_BROWSER_TRIGGER_ARCHIVING);
+        $browserArchivingEnabled = Option::get(self::OPTION_BROWSER_TRIGGER_ARCHIVING);
         if ($browserArchivingEnabled !== false) {
             return (bool)$browserArchivingEnabled;
         }
@@ -232,7 +236,7 @@ class Rules
         if (!is_bool($enabled)) {
             throw new Exception('Browser trigger archiving must be set to true or false.');
         }
-        Piwik_SetOption(self::OPTION_BROWSER_TRIGGER_ARCHIVING, (int)$enabled, $autoLoad = true);
+        Option::set(self::OPTION_BROWSER_TRIGGER_ARCHIVING, (int)$enabled, $autoLoad = true);
         Cache::clearCacheGeneral();
     }
 }

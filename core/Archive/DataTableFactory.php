@@ -11,9 +11,9 @@
 
 namespace Piwik\Archive;
 
-use Piwik\Site;
 use Piwik\DataTable;
 use Piwik\DataTable\Row;
+use Piwik\Site;
 
 /**
  * Creates a DataTable or Set instance based on an array
@@ -53,7 +53,7 @@ class DataTableFactory
     /**
      * The maximum number of subtable levels to create when creating an expanded
      * DataTable.
-     * 
+     *
      * @var int
      */
     private $maxSubtableDepth = null;
@@ -98,7 +98,7 @@ class DataTableFactory
      * Tells the factory instance to expand the DataTables that are created by
      * creating subtables and setting the subtable IDs of rows w/ subtables correctly.
      *
-     * @param null|int $maxSubtableDepth  max depth for subtables.
+     * @param null|int $maxSubtableDepth max depth for subtables.
      * @param bool $addMetadataSubtableId Whether to add the subtable ID used in the
      *                                    database to the in-memory DataTables as
      *                                    metadata or not.
@@ -149,7 +149,7 @@ class DataTableFactory
 
             $dataTable = $this->createDataTable($index, $keyMetadata = array());
         } else {
-            $dataTable = $this->createDataTableArrayFromIndex($index, $resultIndices);
+            $dataTable = $this->createDataTableMapFromIndex($index, $resultIndices);
         }
 
         $this->transformMetadata($dataTable);
@@ -205,7 +205,7 @@ class DataTableFactory
         }
 
         // set table metadata
-        $table->metadata = DataCollection::getDataRowMetadata($blobRow);
+        $table->setMetadataValues(DataCollection::getDataRowMetadata($blobRow));
 
         if ($this->expandDataTable) {
             $table->enableRecursiveFilters();
@@ -231,7 +231,7 @@ class DataTableFactory
 
         foreach ($blobRow as $name => $blob) {
             $newTable = DataTable::fromSerializedArray($blob);
-            $newTable->metadata = $tableMetadata;
+            $newTable->setAllTableMetadata($tableMetadata);
 
             $table->addTable($newTable, $name);
         }
@@ -247,7 +247,7 @@ class DataTableFactory
      * @param array $keyMetadata The metadata to add to the table when it's created.
      * @return DataTable\Map
      */
-    private function createDataTableArrayFromIndex($index, $resultIndices, $keyMetadata = array())
+    private function createDataTableMapFromIndex($index, $resultIndices, $keyMetadata = array())
     {
         $resultIndexLabel = reset($resultIndices);
         $resultIndex = key($resultIndices);
@@ -263,7 +263,7 @@ class DataTableFactory
             if (empty($resultIndices)) {
                 $newTable = $this->createDataTable($value, $keyMetadata);
             } else {
-                $newTable = $this->createDataTableArrayFromIndex($value, $resultIndices, $keyMetadata);
+                $newTable = $this->createDataTableMapFromIndex($value, $resultIndices, $keyMetadata);
             }
 
             $result->addTable($newTable, $this->prettifyIndexLabel($resultIndex, $label));
@@ -287,7 +287,7 @@ class DataTableFactory
             $table = new DataTable\Simple();
 
             if (!empty($data)) {
-                $table->metadata = DataCollection::getDataRowMetadata($data);
+                $table->setAllTableMetadata(DataCollection::getDataRowMetadata($data));
 
                 DataCollection::removeMetadataFromDataRow($data);
 
@@ -331,10 +331,10 @@ class DataTableFactory
      * the subtable IDs of each DataTable row.
      *
      * @param DataTable $dataTable
-     * @param array     $blobRow An array associating record names (w/ subtable if applicable)
+     * @param array $blobRow An array associating record names (w/ subtable if applicable)
      *                           with blob values. This should hold every subtable blob for
      *                           the loaded DataTable.
-     * @param int       $treeLevel
+     * @param int $treeLevel
      */
     private function setSubtables($dataTable, $blobRow, $treeLevel = 0)
     {
@@ -383,8 +383,8 @@ class DataTableFactory
     {
         $periods = $this->periods;
         $table->filter(function ($table) use ($periods) {
-            $table->metadata['site'] = new Site($table->metadata['site']);
-            $table->metadata['period'] = $periods[$table->metadata['period']];
+            $table->setMetadata('site', new Site($table->getMetadata('site')));
+            $table->setMetadata('period', $periods[$table->getMetadata('period')]);
         });
     }
 

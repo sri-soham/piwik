@@ -1,0 +1,44 @@
+{% extends 'admin.twig' %}
+
+{% block content %}
+
+    <div class="pluginslistActionBar">
+
+        <h2>Extend Piwik by installing a new plugin</h2>
+
+        <div class="infoBox">
+            Plugins that are not authored by Piwik team must be used with care: we did not review them.
+        </div>
+
+        {% include "@CorePluginsAdmin/browsePluginsActions.twig" %}
+    </div>
+
+    {% if not isSuperUser %}
+        <div class="pluginslistNonSuperUserHint">
+            You can browse the list of plugins that can be installed to customize or extend your Piwik platform. Please
+            contact your administrator if you need any of these installed.
+        </div>
+    {% endif %}
+
+    <div class="pluginslist">
+
+        {% if plugins|length %}
+            {% for plugin in plugins %}
+
+                <div class="plugin">
+                    <div class="content">
+                        {% include "@CorePluginsAdmin/pluginOverview.twig" %}
+                    </div>
+
+                    <div class="footer">
+                        {% include "@CorePluginsAdmin/pluginMetadata.twig" %}
+                    </div>
+                </div>
+
+            {% endfor %}
+
+        {% else %}
+            No plugins found
+        {% endif %}
+    </div>
+{% endblock %}

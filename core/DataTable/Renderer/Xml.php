@@ -11,11 +11,10 @@
 namespace Piwik\DataTable\Renderer;
 
 use Exception;
-use Piwik\DataTable;
 use Piwik\DataTable\Map;
-use Piwik\DataTable\Renderer\Php;
-use Piwik\DataTable\Simple;
 use Piwik\DataTable\Renderer;
+use Piwik\DataTable;
+use Piwik\DataTable\Simple;
 use Piwik\Piwik;
 
 /**
@@ -93,7 +92,7 @@ class Xml extends Renderer
     {
         $array = $this->getArrayFromDataTable($table);
         if ($table instanceof Map) {
-            $out = $this->renderDataTableArray($table, $array, $prefixLines);
+            $out = $this->renderDataTableMap($table, $array, $prefixLines);
 
             if ($returnOnlyDataTableXml) {
                 return $out;
@@ -183,6 +182,12 @@ class Xml extends Renderer
                     $prefix = "<row key=\"$key\">";
                     $suffix = "</row>";
                     $emptyNode = "<row key=\"$key\"/>";
+                } else if (strpos($key, '=') !== false) {
+                    list($keyAttributeName, $key) = explode('=', $key, 2);
+
+                    $prefix = "<row $keyAttributeName=\"$key\">";
+                    $suffix = "</row>";
+                    $emptyNode = "<row $keyAttributeName=\"$key\">";
                 } else {
                     $prefix = "<$key>";
                     $suffix = "</$key>";
@@ -207,7 +212,7 @@ class Xml extends Renderer
                 } else {
                     $result .= $prefixLines . $prefix . "\n";
                     if ($value instanceof Map) {
-                        $result .= $this->renderDataTableArray($value, $this->getArrayFromDataTable($value), $prefixLines);
+                        $result .= $this->renderDataTableMap($value, $this->getArrayFromDataTable($value), $prefixLines);
                     } else if ($value instanceof Simple) {
                         $result .= $this->renderDataTableSimple($this->getArrayFromDataTable($value), $prefixLines);
                     } else {
@@ -238,7 +243,7 @@ class Xml extends Renderer
      * @param string $prefixLines
      * @return string
      */
-    protected function renderDataTableArray($table, $array, $prefixLines = "")
+    protected function renderDataTableMap($table, $array, $prefixLines = "")
     {
         // CASE 1
         //array
@@ -262,7 +267,7 @@ class Xml extends Renderer
             return $xml;
         }
 
-        $subTables = $table->getArray();
+        $subTables = $table->getDataTables();
         $firstTable = current($subTables);
 
         // CASE 2
@@ -335,7 +340,7 @@ class Xml extends Renderer
 
         if ($firstTable instanceof Map) {
             $xml = '';
-            $tables = $table->getArray();
+            $tables = $table->getDataTables();
             $nameDescriptionAttribute = $table->getKeyName();
             foreach ($tables as $valueAttribute => $tableInArray) {
                 $out = $this->renderTable($tableInArray, true, $prefixLines . "\t");
@@ -367,6 +372,7 @@ class Xml extends Renderer
                 }
                 continue;
             }
+
 
             // Handing case idgoal=7, creating a new array for that one
             $rowAttribute = '';

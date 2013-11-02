@@ -34,7 +34,7 @@ class Test_Piwik_Integration_ApiGetReportMetadata extends IntegrationTestCase
         Proxy::getInstance()->setHideIgnoredFunctions(true);
     }
 
-    public function getOutputPrefix()
+    public static function getOutputPrefix()
     {
         return 'apiGetReportMetadata';
     }
@@ -76,7 +76,6 @@ class Test_Piwik_Integration_ApiGetReportMetadata extends IntegrationTestCase
     /**
      * @dataProvider getApiForTesting
      * @group        Integration
-     * @group        ApiGetReportMetadata
      */
     public function testApi($api, $params)
     {

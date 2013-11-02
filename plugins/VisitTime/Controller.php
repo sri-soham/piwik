@@ -10,14 +10,14 @@
  */
 namespace Piwik\Plugins\VisitTime;
 
-use Piwik\ViewDataTable;
 use Piwik\View;
+use Piwik\ViewDataTable\Factory;
 
 /**
  *
  * @package VisitTime
  */
-class Controller extends \Piwik\Controller
+class Controller extends \Piwik\Plugin\Controller
 {
     public function index()
     {
@@ -29,16 +29,16 @@ class Controller extends \Piwik\Controller
 
     public function getVisitInformationPerServerTime($fetch = false)
     {
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 
     public function getVisitInformationPerLocalTime($fetch = false)
     {
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 
     public function getByDayOfWeek($fetch = false)
     {
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 }

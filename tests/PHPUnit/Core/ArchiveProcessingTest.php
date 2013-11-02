@@ -6,19 +6,21 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
 
+use Piwik\Access;
 use Piwik\ArchiveProcessor\Rules;
+use Piwik\ArchiveProcessor;
+use Piwik\Common;
 use Piwik\Config;
 use Piwik\DataAccess\ArchiveTableCreator;
+use Piwik\Date;
+use Piwik\Db\BatchInsert;
+use Piwik\Db;
 use Piwik\Period;
 use Piwik\Piwik;
-use Piwik\Common;
-use Piwik\Access;
-use Piwik\Date;
-use Piwik\ArchiveProcessor;
 use Piwik\Plugins\SitesManager\API;
 use Piwik\Segment;
+use Piwik\SettingsServer;
 use Piwik\Site;
-use Piwik\Db;
 
 class ArchiveProcessingTest extends DatabaseTestCase
 {
@@ -79,7 +81,6 @@ class ArchiveProcessingTest extends DatabaseTestCase
     /**
      * test of validity of an archive, for a month not finished
      * @group Core
-     * @group ArchiveProcessor
      */
     public function testInitCurrentMonth()
     {
@@ -98,7 +99,7 @@ class ArchiveProcessingTest extends DatabaseTestCase
         $timeout = Rules::getTodayArchiveTimeToLive();
         $this->assertTrue($timeout >= 10);
         $dateMinArchived = $now - $timeout;
-        $this->compareTimestamps($dateMinArchived, $archiveProcessor->getMinTimeArchivedProcessed());
+        $this->compareTimestamps($dateMinArchived, $archiveProcessor->getMinTimeArchiveProcessed());
 
         $this->assertTrue($archiveProcessor->isArchiveTemporary());
     }
@@ -113,7 +114,6 @@ class ArchiveProcessingTest extends DatabaseTestCase
     /**
      * test of validity of an archive, for a month in the past
      * @group Core
-     * @group ArchiveProcessor
      */
     public function testInitDayInPast()
     {
@@ -121,7 +121,7 @@ class ArchiveProcessingTest extends DatabaseTestCase
 
         // min finished timestamp considered when looking at archive timestamp 
         $dateMinArchived = Date::factory('2010-01-02')->getTimestamp();
-        $this->assertEquals($archiveProcessor->getMinTimeArchivedProcessed() + 1, $dateMinArchived);
+        $this->assertEquals($archiveProcessor->getMinTimeArchiveProcessed() + 1, $dateMinArchived);
 
         $this->assertEquals('2010-01-01 00:00:00', $archiveProcessor->getDateStart()->getDateStartUTC());
         $this->assertEquals('2010-01-01 23:59:59', $archiveProcessor->getDateEnd()->getDateEndUTC());
@@ -131,7 +131,6 @@ class ArchiveProcessingTest extends DatabaseTestCase
     /**
      * test of validity of an archive, for a non UTC date in the past
      * @group Core
-     * @group ArchiveProcessor
      */
     public function testInitDayInPastNonUTCWebsite()
     {
@@ -139,7 +138,7 @@ class ArchiveProcessingTest extends DatabaseTestCase
         $archiveProcessor = $this->_createArchiveProcessor('day', '2010-01-01', $timezone);
         // min finished timestamp considered when looking at archive timestamp 
         $dateMinArchived = Date::factory('2010-01-01 18:30:00');
-        $this->assertEquals($archiveProcessor->getMinTimeArchivedProcessed() + 1, $dateMinArchived->getTimestamp());
+        $this->assertEquals($archiveProcessor->getMinTimeArchiveProcessed() + 1, $dateMinArchived->getTimestamp());
 
         $this->assertEquals('2009-12-31 18:30:00', $archiveProcessor->getDateStart()->getDateStartUTC());
         $this->assertEquals('2010-01-01 18:29:59', $archiveProcessor->getDateEnd()->getDateEndUTC());
@@ -149,7 +148,6 @@ class ArchiveProcessingTest extends DatabaseTestCase
     /**
      * test of validity of an archive, for a non UTC month in the past
      * @group Core
-     * @group ArchiveProcessor
      */
     public function testInitMonthInPastNonUTCWebsite()
     {
@@ -157,7 +155,7 @@ class ArchiveProcessingTest extends DatabaseTestCase
         $archiveProcessor = $this->_createArchiveProcessor('month', '2010-01-02', $timezone);
         // min finished timestamp considered when looking at archive timestamp 
         $dateMinArchived = Date::factory('2010-02-01 05:30:00');
-        $this->assertEquals($archiveProcessor->getMinTimeArchivedProcessed() + 1, $dateMinArchived->getTimestamp());
+        $this->assertEquals($archiveProcessor->getMinTimeArchiveProcessed() + 1, $dateMinArchived->getTimestamp());
 
         $this->assertEquals('2010-01-01 05:30:00', $archiveProcessor->getDateStart()->getDateStartUTC());
         $this->assertEquals('2010-02-01 05:29:59', $archiveProcessor->getDateEnd()->getDateEndUTC());
@@ -167,7 +165,6 @@ class ArchiveProcessingTest extends DatabaseTestCase
     /**
      * test of validity of an archive, for today's archive
      * @group Core
-     * @group ArchiveProcessor
      */
     public function testInitToday()
     {
@@ -183,7 +180,7 @@ class ArchiveProcessingTest extends DatabaseTestCase
 
         // we look at anything processed within the time to live range
         $dateMinArchived = $now - Rules::getTodayArchiveTimeToLive();
-        $this->compareTimestamps($dateMinArchived, $archiveProcessor->getMinTimeArchivedProcessed() );
+        $this->compareTimestamps($dateMinArchived, $archiveProcessor->getMinTimeArchiveProcessed() );
         $this->assertTrue($archiveProcessor->isArchiveTemporary());
 
         // when browsers don't trigger archives, we force ArchiveProcessor
@@ -195,7 +192,7 @@ class ArchiveProcessingTest extends DatabaseTestCase
         if (!Common::isPhpCliMode()) {
             $dateMinArchived = 0;
         }
-        $this->compareTimestamps($archiveProcessor->getMinTimeArchivedProcessed(), $dateMinArchived);
+        $this->compareTimestamps($archiveProcessor->getMinTimeArchiveProcessed(), $dateMinArchived);
 
         $this->assertEquals(date('Y-m-d', $timestamp) . ' 01:00:00', $archiveProcessor->getDateStart()->getDateStartUTC());
         $this->assertEquals(date('Y-m-d', $timestamp + 86400) . ' 00:59:59', $archiveProcessor->getDateEnd()->getDateEndUTC());
@@ -205,11 +202,10 @@ class ArchiveProcessingTest extends DatabaseTestCase
     /**
      * test of validity of an archive, for today's archive with european timezone
      * @group Core
-     * @group ArchiveProcessor
      */
     public function testInitTodayEurope()
     {
-        if (!Piwik::isTimezoneSupportEnabled()) {
+        if (!SettingsServer::isTimezoneSupportEnabled()) {
             $this->markTestSkipped('timezones needs to be supported');
         }
 
@@ -225,7 +221,7 @@ class ArchiveProcessingTest extends DatabaseTestCase
 
         // we look at anything processed within the time to live range
         $dateMinArchived = $now - Rules::getTodayArchiveTimeToLive();
-        $minTimeArchivedProcessed = $archiveProcessor->getMinTimeArchivedProcessed();
+        $minTimeArchivedProcessed = $archiveProcessor->getMinTimeArchiveProcessed();
         $this->compareTimestamps($dateMinArchived, $minTimeArchivedProcessed);
         $this->assertTrue($archiveProcessor->isArchiveTemporary());
 
@@ -238,7 +234,7 @@ class ArchiveProcessingTest extends DatabaseTestCase
         if (!Common::isPhpCliMode()) {
             $dateMinArchived = 0;
         }
-        $this->compareTimestamps($dateMinArchived, $archiveProcessor->getMinTimeArchivedProcessed());
+        $this->compareTimestamps($dateMinArchived, $archiveProcessor->getMinTimeArchiveProcessed());
 
         // this test varies with DST
         $this->assertTrue($archiveProcessor->getDateStart()->getDateStartUTC() == date('Y-m-d', $timestamp - 86400) . ' 22:00:00' ||
@@ -252,11 +248,10 @@ class ArchiveProcessingTest extends DatabaseTestCase
     /**
      * test of validity of an archive, for today's archive with toronto's timezone
      * @group Core
-     * @group ArchiveProcessor
      */
     public function testInitTodayToronto()
     {
-        if (!Piwik::isTimezoneSupportEnabled()) {
+        if (!SettingsServer::isTimezoneSupportEnabled()) {
             $this->markTestSkipped('timezones needs to be supported');
         }
 
@@ -272,7 +267,7 @@ class ArchiveProcessingTest extends DatabaseTestCase
 
         // we look at anything processed within the time to live range
         $dateMinArchived = $now - Rules::getTodayArchiveTimeToLive();
-        $this->compareTimestamps($dateMinArchived, $archiveProcessor->getMinTimeArchivedProcessed() );
+        $this->compareTimestamps($dateMinArchived, $archiveProcessor->getMinTimeArchiveProcessed() );
         $this->assertTrue($archiveProcessor->isArchiveTemporary());
 
         // when browsers don't trigger archives, we force ArchiveProcessor
@@ -284,7 +279,7 @@ class ArchiveProcessingTest extends DatabaseTestCase
         if (!Common::isPhpCliMode()) {
             $dateMinArchived = 0;
         }
-        $this->compareTimestamps($dateMinArchived, $archiveProcessor->getMinTimeArchivedProcessed());
+        $this->compareTimestamps($dateMinArchived, $archiveProcessor->getMinTimeArchiveProcessed());
 
         // this test varies with DST
         $this->assertTrue($archiveProcessor->getDateStart()->getDateStartUTC() == date('Y-m-d', $timestamp) . ' 04:00:00' ||
@@ -298,14 +293,13 @@ class ArchiveProcessingTest extends DatabaseTestCase
     /**
      * Testing batch insert
      * @group Core
-     * @group ArchiveProcessor
      */
     public function testTableInsertBatch()
     {
         $table = Common::prefixTable('site_url');
         $data = $this->_getDataInsert();
         try {
-            $didWeUseBulk = Piwik::tableInsertBatch($table,
+            $didWeUseBulk = BatchInsert::tableInsertBatch($table,
                 array('idsite', 'url'),
                 $data,
                 $throwException = true);
@@ -319,7 +313,7 @@ class ArchiveProcessingTest extends DatabaseTestCase
             $this->_checkTableIsExpected($table, $data);
 
             // INSERT again the bulk. Because we use keyword LOCAL the data will be REPLACED automatically (see mysql doc)
-            Piwik::tableInsertBatch($table, array('idsite', 'url'), $data);
+            BatchInsert::tableInsertBatch($table, array('idsite', 'url'), $data);
             $this->_checkTableIsExpected($table, $data);
         }
     }
@@ -350,21 +344,20 @@ class ArchiveProcessingTest extends DatabaseTestCase
     /**
      * Testing plain inserts
      * @group Core
-     * @group ArchiveProcessor
      */
     public function testTableInsertBatchIterate()
     {
         $table = Common::prefixTable('site_url');
         $data = $this->_getDataInsert();
-        Piwik::tableInsertBatchIterate($table, array('idsite', 'url'), $data);
+        BatchInsert::tableInsertBatchIterate($table, array('idsite', 'url'), $data);
         $this->_checkTableIsExpected($table, $data);
 
         // If we insert AGAIN, expect to throw an error because the primary key already exists
         try {
-            Piwik::tableInsertBatchIterate($table, array('idsite', 'url'), $data, $ignoreWhenDuplicate = false);
+            BatchInsert::tableInsertBatchIterate($table, array('idsite', 'url'), $data, $ignoreWhenDuplicate = false);
         } catch (Exception $e) {
             // However if we insert with keyword REPLACE, then the new data should be saved
-            Piwik::tableInsertBatchIterate($table, array('idsite', 'url'), $data, $ignoreWhenDuplicate = true);
+            BatchInsert::tableInsertBatchIterate($table, array('idsite', 'url'), $data, $ignoreWhenDuplicate = true);
             $this->_checkTableIsExpected($table, $data);
             return;
         }
@@ -374,7 +367,6 @@ class ArchiveProcessingTest extends DatabaseTestCase
     /**
      * Testing batch insert (BLOB)
      * @group Core
-     * @group ArchiveProcessor
      */
     public function testTableInsertBatchBlob()
     {
@@ -384,7 +376,7 @@ class ArchiveProcessingTest extends DatabaseTestCase
 
         $data = $this->_getBlobDataInsert();
         try {
-            $didWeUseBulk = Piwik::tableInsertBatch($table,
+            $didWeUseBulk = BatchInsert::tableInsertBatch($table,
                 array('idarchive', 'name', 'idsite', 'date1', 'date2', 'period', 'ts_archived', 'value'),
                 $data,
                 $throwException = true);
@@ -398,7 +390,7 @@ class ArchiveProcessingTest extends DatabaseTestCase
             $this->_checkTableIsExpectedBlob($table, $data);
         }
         // INSERT again the bulk. Because we use keyword LOCAL the data will be REPLACED automatically (see mysql doc)
-        $didWeUseBulk = Piwik::tableInsertBatch($table, array('idarchive', 'name', 'idsite', 'date1', 'date2', 'period', 'ts_archived', 'value'), $data);
+        $didWeUseBulk = BatchInsert::tableInsertBatch($table, array('idarchive', 'name', 'idsite', 'date1', 'date2', 'period', 'ts_archived', 'value'), $data);
         if ($didWeUseBulk === true) {
             $this->_checkTableIsExpectedBlob($table, $data);
         }
@@ -407,7 +399,6 @@ class ArchiveProcessingTest extends DatabaseTestCase
     /**
      * Testing plain inserts (BLOB)
      * @group Core
-     * @group ArchiveProcessor
      */
     public function testTableInsertBatchIterateBlob()
     {
@@ -416,15 +407,15 @@ class ArchiveProcessingTest extends DatabaseTestCase
         $table = ArchiveTableCreator::getBlobTable(Date::factory($dateLabel));
 
         $data = $this->_getBlobDataInsert();
-        Piwik::tableInsertBatchIterate($table, array('idarchive', 'name', 'idsite', 'date1', 'date2', 'period', 'ts_archived', 'value'), $data);
+        BatchInsert::tableInsertBatchIterate($table, array('idarchive', 'name', 'idsite', 'date1', 'date2', 'period', 'ts_archived', 'value'), $data);
         $this->_checkTableIsExpectedBlob($table, $data);
 
         // If we insert AGAIN, expect to throw an error because the primary key already exist
         try {
-            Piwik::tableInsertBatchIterate($table, array('idarchive', 'name', 'idsite', 'date1', 'date2', 'period', 'ts_archived', 'value'), $data, $ignoreWhenDuplicate = false);
+            BatchInsert::tableInsertBatchIterate($table, array('idarchive', 'name', 'idsite', 'date1', 'date2', 'period', 'ts_archived', 'value'), $data, $ignoreWhenDuplicate = false);
         } catch (Exception $e) {
             // However if we insert with keyword REPLACE, then the new data should be saved
-            Piwik::tableInsertBatchIterate($table, array('idarchive', 'name', 'idsite', 'date1', 'date2', 'period', 'ts_archived', 'value'), $data, $ignoreWhenDuplicate = true);
+            BatchInsert::tableInsertBatchIterate($table, array('idarchive', 'name', 'idsite', 'date1', 'date2', 'period', 'ts_archived', 'value'), $data, $ignoreWhenDuplicate = true);
             $this->_checkTableIsExpectedBlob($table, $data);
             return;
         }

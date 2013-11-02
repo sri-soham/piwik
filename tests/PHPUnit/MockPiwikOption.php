@@ -16,12 +16,12 @@ class MockPiwikOption extends Option
         $this->forcedOptionValue = $forcedOptionValue;
     }
 
-    public function get($name)
+    protected function getValue($name)
     {
         return $this->forcedOptionValue;
     }
 
-    public function set($name, $value, $autoLoad = 0)
+    protected function setValue($name, $value, $autoLoad = 0)
     {
         $this->forcedOptionValue = $value;
     }

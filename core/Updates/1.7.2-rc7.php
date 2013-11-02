@@ -8,15 +8,18 @@
  * @category Piwik
  * @package Updates
  */
+
+namespace Piwik\Updates;
+
 use Piwik\Common;
+use Piwik\Db;
 use Piwik\Updater;
 use Piwik\Updates;
-use Piwik\Db;
 
 /**
  * @package Updates
  */
-class Piwik_Updates_1_7_2_rc7 extends Updates
+class Updates_1_7_2_rc7 extends Updates
 {
     static function getSql($schema = 'Myisam')
     {
@@ -39,7 +42,7 @@ class Piwik_Updates_1_7_2_rc7 extends Updates
                 Db::query('UPDATE `' . Common::prefixTable('user_dashboard') . '` SET layout = ? WHERE iddashboard = ? AND login = ?', array($layout, $idDashboard, $login));
             }
             Updater::updateDatabase(__FILE__, self::getSql());
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
         }
     }
 }

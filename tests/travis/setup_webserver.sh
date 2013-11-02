@@ -14,12 +14,16 @@ echo "Configuring php-fpm"
 PHP_FPM_BIN="$HOME/.phpenv/versions/$TRAVIS_PHP_VERSION/sbin/php-fpm"
 PHP_FPM_CONF="$DIR/php-fpm.conf"
 PHP_FPM_SOCK=$(realpath "$DIR")/php-fpm.sock
+PHP_FPM_LOG="$TRAVIS_BUILD_DIR/../piwik/tmp/php-fpm.log"
 
 USER=$(whoami)
+
+touch "$PHP_FPM_LOG"
 
 # Adjust php-fpm.ini
 sed -i "s/@USER@/$USER/g" "$DIR/php-fpm.ini"
 sed -i "s|@PHP_FPM_SOCK@|$PHP_FPM_SOCK|g" "$DIR/php-fpm.ini"
+sed -i "s|@PHP_FPM_LOG@|$PHP_FPM_LOG|g" "$DIR/php-fpm.ini"
 
 # Setup nginx
 echo "Configuring nginx"

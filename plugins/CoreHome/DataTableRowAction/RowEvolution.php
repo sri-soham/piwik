@@ -11,14 +11,15 @@
 namespace Piwik\Plugins\CoreHome\DataTableRowAction;
 
 use Exception;
-use Piwik\API\ResponseBuilder;
 use Piwik\API\Request;
+use Piwik\API\ResponseBuilder;
 use Piwik\Common;
-use Piwik\Metrics;
 use Piwik\Date;
-use Piwik\ViewDataTable;
-use Piwik\Url;
+use Piwik\Metrics;
+use Piwik\Piwik;
 use Piwik\Plugins\CoreVisualizations\Visualizations\JqplotGraph\Evolution as EvolutionViz;
+use Piwik\Url;
+use Piwik\ViewDataTable\Factory;
 
 /**
  * ROW EVOLUTION
@@ -123,12 +124,12 @@ class RowEvolution
         $view->metrics = $this->getMetricsToggles();
 
         // available metrics text
-        $metricsText = Piwik_Translate('RowEvolution_AvailableMetrics');
+        $metricsText = Piwik::translate('RowEvolution_AvailableMetrics');
         $popoverTitle = '';
         if ($this->rowLabel) {
             $icon = $this->rowIcon ? '<img src="' . $this->rowIcon . '" alt="">' : '';
             $rowLabel = str_replace('/', '<wbr>/', str_replace('&', '<wbr>&', $this->rowLabel));
-            $metricsText = sprintf(Piwik_Translate('RowEvolution_MetricsFor'), $this->dimension . ': ' . $icon . ' ' . $rowLabel);
+            $metricsText = sprintf(Piwik::translate('RowEvolution_MetricsFor'), $this->dimension . ': ' . $icon . ' ' . $rowLabel);
             $popoverTitle = $icon . ' ' . $rowLabel;
         }
 
@@ -183,31 +184,32 @@ class RowEvolution
      * Do as much as possible from outside the controller.
      * @param string|bool $graphType
      * @param array|bool $metrics
-     * @return ViewDataTable
+     * @return Factory
      */
     public function getRowEvolutionGraph($graphType = false, $metrics = false)
     {
         // set up the view data table
-        $view = ViewDataTable::factory($graphType ? : $this->graphType, $this->apiMethod,
+        $view = Factory::build($graphType ? : $this->graphType, $this->apiMethod,
             $controllerAction = 'CoreHome.getRowEvolutionGraph', $forceDefault = true);
         $view->setDataTable($this->dataTable);
 
         if (!empty($this->graphMetrics)) { // In row Evolution popover, this is empty
-            $view->columns_to_display = array_keys($metrics ? : $this->graphMetrics);
+            $view->config->columns_to_display = array_keys($metrics ? : $this->graphMetrics);
         }
 
-        $view->show_goals = false;
-        $view->show_all_views_icons = false;
-        $view->show_active_view_icon = false;
-        $view->show_related_reports = false;
-        $view->visualization_properties->show_series_picker = false;
+        $view->config->show_goals = false;
+        $view->config->show_all_views_icons = false;
+        $view->config->show_active_view_icon = false;
+        $view->config->show_related_reports  = false;
+        $view->config->show_series_picker    = false;
+        $view->config->show_footer_message   = false;
 
         foreach ($this->availableMetrics as $metric => $metadata) {
-            $view->translations[$metric] = $metadata['name'];
+            $view->config->translations[$metric] = $metadata['name'];
         }
 
-        $view->visualization_properties->external_series_toggle = 'RowEvolutionSeriesToggle';
-        $view->visualization_properties->external_series_toggle_show_all = $this->initiallyShowAllMetrics;
+        $view->config->external_series_toggle = 'RowEvolutionSeriesToggle';
+        $view->config->external_series_toggle_show_all = $this->initiallyShowAllMetrics;
 
         return $view;
     }
@@ -229,7 +231,7 @@ class RowEvolution
             $min .= $unit;
             $max .= $unit;
 
-            $details = Piwik_Translate('RowEvolution_MetricBetweenText', array($min, $max));
+            $details = Piwik::translate('RowEvolution_MetricBetweenText', array($min, $max));
 
             if ($change !== false) {
                 $lowerIsBetter = Metrics::isLowerValueBetter($metric);
@@ -248,7 +250,7 @@ class RowEvolution
                     . ($changeImage ? '<img src="plugins/MultiSites/images/' . $changeImage . '.png" /> ' : '')
                     . $change . '</span>';
 
-                $details .= ', ' . Piwik_Translate('RowEvolution_MetricChangeText', $change);
+                $details .= ', ' . Piwik::translate('RowEvolution_MetricChangeText', $change);
             }
 
             $newMetric = array(

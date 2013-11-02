@@ -44,20 +44,29 @@ class Test_Piwik_Integration_CsvExport extends IntegrationTestCase
                                     'otherRequestParameters' => $deExtraParam,
                                     'language'               => 'de',
                                     'testSuffix'             => '_xp1_inner1_trans-de')),
+
+            array('Live.getLastVisitsDetails', array('idSite'                 => $idSite,
+                                                     'date'                   => $dateTime,
+                                                     'format'                 => 'csv',
+                                                     'otherRequestParameters' => array(
+                                                         'hideColumns' => 'serverDate,actionDetails,serverTimestamp,serverTimePretty,'
+                                                                        . 'serverDatePretty,serverDatePrettyFirstAction,serverTimePrettyFirstAction,'
+                                                                        . 'goalTimePretty,serverTimePretty,visitorId,visitServerHour,date,'
+                                                                        . 'prettyDate,serverDateTimePrettyFirstAction'
+                                                     )))
         );
     }
 
     /**
      * @dataProvider getApiForTesting
      * @group        Integration
-     * @group        CsvExport
      */
     public function testApi($api, $params)
     {
         $this->runApiTests($api, $params);
     }
 
-    public function getOutputPrefix()
+    public static function getOutputPrefix()
     {
         return 'csvExport';
     }

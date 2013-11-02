@@ -11,8 +11,9 @@
 namespace Piwik\Plugins\Annotations;
 
 use Exception;
-use Piwik\Piwik;
 use Piwik\Date;
+use Piwik\Option;
+use Piwik\Piwik;
 use Piwik\Site;
 
 /**
@@ -107,7 +108,7 @@ class AnnotationList
         $this->checkIdSiteIsLoaded($idSite);
 
         $optionName = self::getAnnotationCollectionOptionName($idSite);
-        Piwik_SetOption($optionName, serialize($this->annotations[$idSite]));
+        Option::set($optionName, serialize($this->annotations[$idSite]));
     }
 
     /**
@@ -312,7 +313,7 @@ class AnnotationList
         $result = array();
         foreach ($this->idSites as $id) {
             $optionName = self::getAnnotationCollectionOptionName($id);
-            $serialized = Piwik_GetOption($optionName);
+            $serialized = Option::get($optionName);
 
             if ($serialized !== false) {
                 $result[$id] = unserialize($serialized);
@@ -421,7 +422,7 @@ class AnnotationList
     public static function canUserAddNotesFor($idSite)
     {
         return Piwik::isUserHasViewAccess($idSite)
-            && !Piwik::isUserIsAnonymous($idSite);
+        && !Piwik::isUserIsAnonymous($idSite);
     }
 
     /**

@@ -17,7 +17,6 @@ class Test_Piwik_Integration_TrackCustomVariablesAndCampaigns_ForceUsingVisitIdN
     /**
      * @dataProvider getApiForTesting
      * @group        Integration
-     * @group        TrackCustomVariablesAndCampaigns_ForceUsingVisitIdNotHeuristics
      */
     public function testApi($api, $params)
     {
@@ -26,7 +25,7 @@ class Test_Piwik_Integration_TrackCustomVariablesAndCampaigns_ForceUsingVisitIdN
 
     public function getApiForTesting()
     {
-        $apiToCall = array('VisitsSummary.get', 'Referers.getCampaigns', 'Referers.getWebsites');
+        $apiToCall = array('VisitsSummary.get', 'Referrers.getCampaigns', 'Referrers.getWebsites');
 
         return array(
             // TOTAL should be: 1 visit, 1 converted goal, 1 page view
@@ -34,7 +33,7 @@ class Test_Piwik_Integration_TrackCustomVariablesAndCampaigns_ForceUsingVisitIdN
         );
     }
 
-    public function getOutputPrefix()
+    public static function getOutputPrefix()
     {
         return 'PiwikTracker_trackForceUsingVisitId_insteadOfHeuristics_alsoTestsCampaignTracking';
     }

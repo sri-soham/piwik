@@ -11,9 +11,10 @@
 namespace Piwik\Plugins\UsersManager;
 
 use Exception;
-use Piwik\Piwik;
+use Piwik\Menu\MenuAdmin;
 use Piwik\Option;
-use Piwik\Plugins\UsersManager\API;
+use Piwik\Piwik;
+use Piwik\SettingsPiwik;
 
 /**
  * Manage Piwik users
@@ -31,11 +32,12 @@ class UsersManager extends \Piwik\Plugin
     public function getListHooksRegistered()
     {
         return array(
-            'AdminMenu.add'                 => 'addMenu',
-            'AssetManager.getJsFiles'       => 'getJsFiles',
-            'AssetManager.getCssFiles'      => 'getCssFiles',
-            'SitesManager.deleteSite'       => 'deleteSite',
-            'Common.fetchWebsiteAttributes' => 'recordAdminUsersInCache',
+            'Menu.Admin.addItems'                    => 'addMenu',
+            'AssetManager.getJavaScriptFiles'        => 'getJsFiles',
+            'AssetManager.getStylesheetFiles'        => 'getStylesheetFiles',
+            'SitesManager.deleteSite.end'            => 'deleteSite',
+            'Site.getSiteAttributes'                 => 'recordAdminUsersInCache',
+            'Translate.getClientSideTranslationKeys' => 'getClientSideTranslationKeys',
         );
     }
 
@@ -44,11 +46,11 @@ class UsersManager extends \Piwik\Plugin
      * Will record in the tracker config file the list of Admin token_auth for this website. This
      * will be used when the Tracking API is used with setIp(), setForceDateTime(), setVisitorId(), etc.
      *
-     * @param $array
+     * @param $attributes
      * @param $idSite
      * @return void
      */
-    public function recordAdminUsersInCache(&$array, $idSite)
+    public function recordAdminUsersInCache(&$attributes, $idSite)
     {
         // add the 'hosts' entry in the website array
         $users = API::getInstance()->getUsersWithSiteAccess($idSite, 'admin');
@@ -57,14 +59,15 @@ class UsersManager extends \Piwik\Plugin
         foreach ($users as $user) {
             $tokens[] = $user['token_auth'];
         }
+        $attributes['admin_token_auth'] = $tokens;
     }
 
     /**
      * Delete user preferences associated with a particular site
      */
-    public function deleteSite(&$idSite)
+    public function deleteSite($idSite)
     {
-        Option::getInstance()->deleteLike('%\_' . API::PREFERENCE_DEFAULT_REPORT, $idSite);
+        Option::deleteLike('%\_' . API::PREFERENCE_DEFAULT_REPORT, $idSite);
     }
 
     /**
@@ -81,9 +84,9 @@ class UsersManager extends \Piwik\Plugin
     /**
      * Get CSS files
      */
-    function getCssFiles(&$cssFiles)
+    function getStylesheetFiles(&$stylesheets)
     {
-        $cssFiles[] = "plugins/UsersManager/stylesheets/usersManager.less";
+        $stylesheets[] = "plugins/UsersManager/stylesheets/usersManager.less";
     }
 
     /**
@@ -91,11 +94,11 @@ class UsersManager extends \Piwik\Plugin
      */
     function addMenu()
     {
-        Piwik_AddAdminSubMenu('CoreAdminHome_MenuManage', 'UsersManager_MenuUsers',
+        MenuAdmin::getInstance()->add('CoreAdminHome_MenuManage', 'UsersManager_MenuUsers',
             array('module' => 'UsersManager', 'action' => 'index'),
             Piwik::isUserHasSomeAdminAccess(),
             $order = 2);
-        Piwik_AddAdminSubMenu('CoreAdminHome_MenuManage', 'UsersManager_MenuUserSettings',
+        MenuAdmin::getInstance()->add('CoreAdminHome_MenuManage', 'UsersManager_MenuUserSettings',
             array('module' => 'UsersManager', 'action' => 'userSettings'),
             Piwik::isUserHasSomeViewAccess(),
             $order = 3);
@@ -109,7 +112,7 @@ class UsersManager extends \Piwik\Plugin
      */
     public static function isValidPasswordString($input)
     {
-        if (!Piwik::isChecksEnabled()
+        if (!SettingsPiwik::isUserCredentialsSanityCheckEnabled()
             && !empty($input)
         ) {
             return true;
@@ -121,7 +124,7 @@ class UsersManager extends \Piwik\Plugin
     public static function checkPassword($password)
     {
         if (!self::isValidPasswordString($password)) {
-            throw new Exception(Piwik_TranslateException('UsersManager_ExceptionInvalidPassword', array(self::PASSWORD_MIN_LENGTH,
+            throw new Exception(Piwik::translate('UsersManager_ExceptionInvalidPassword', array(self::PASSWORD_MIN_LENGTH,
                                                                                                         self::PASSWORD_MAX_LENGTH)));
         }
     }
@@ -131,5 +134,12 @@ class UsersManager extends \Piwik\Plugin
         // if change here, should also edit the installation process
         // to change how the root pwd is saved in the config file
         return md5($password);
+    }
+
+    public function getClientSideTranslationKeys(&$translationKeys)
+    {
+        $translationKeys[] = "General_OrCancel";
+        $translationKeys[] = "General_Save";
+        $translationKeys[] = "UsersManager_DeleteConfirm";
     }
 }

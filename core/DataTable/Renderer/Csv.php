@@ -10,14 +10,15 @@
  */
 namespace Piwik\DataTable\Renderer;
 
-use Piwik\DataTable\Simple;
+use Piwik\Common;
 use Piwik\DataTable\Renderer;
+use Piwik\DataTable\Simple;
+use Piwik\DataTable;
+use Piwik\Date;
 use Piwik\Period;
 use Piwik\Period\Range;
 use Piwik\Piwik;
-use Piwik\Common;
-use Piwik\Date;
-use Piwik\DataTable;
+use Piwik\ProxyHttp;
 
 /**
  * CSV export
@@ -137,7 +138,7 @@ class Csv extends Renderer
         }
 
         if ($table instanceof DataTable\Map) {
-            $str = $this->renderDataTableArray($table, $allColumns);
+            $str = $this->renderDataTableMap($table, $allColumns);
         } else {
             $str = $this->renderDataTable($table, $allColumns);
         }
@@ -151,10 +152,10 @@ class Csv extends Renderer
      * @param array $allColumns
      * @return string
      */
-    protected function renderDataTableArray($table, &$allColumns = array())
+    protected function renderDataTableMap($table, &$allColumns = array())
     {
         $str = '';
-        foreach ($table->getArray() as $currentLinePrefix => $dataTable) {
+        foreach ($table->getDataTables() as $currentLinePrefix => $dataTable) {
             $returned = explode("\n", $this->renderTable($dataTable, $allColumns));
 
             // get rid of the columns names
@@ -202,36 +203,10 @@ class Csv extends Renderer
                 }
             }
         }
+
         $csv = array();
         foreach ($table->getRows() as $row) {
-            $csvRow = array();
-
-            $columns = $row->getColumns();
-            foreach ($columns as $name => $value) {
-                //goals => array( 'idgoal=1' =>array(..), 'idgoal=2' => array(..))
-                if (is_array($value)) {
-                    foreach ($value as $key => $subValues) {
-                        if (is_array($subValues)) {
-                            foreach ($subValues as $subKey => $subValue) {
-                                if ($this->translateColumnNames) {
-                                    $subName = $name != 'goals' ? $name . ' ' . $key
-                                        : Piwik_Translate('Goals_GoalX', $key);
-                                    $columnName = $this->translateColumnName($subKey)
-                                        . ' (' . $subName . ')';
-                                } else {
-                                    // goals_idgoal=1
-                                    $columnName = $name . "_" . $key . "_" . $subKey;
-                                }
-                                $allColumns[$columnName] = true;
-                                $csvRow[$columnName] = $subValue;
-                            }
-                        }
-                    }
-                } else {
-                    $allColumns[$name] = true;
-                    $csvRow[$name] = $value;
-                }
-            }
+            $csvRow = $this->flattenColumnArray($row->getColumns());
 
             if ($this->exportMetadata) {
                 $metadata = $row->getMetadata();
@@ -241,14 +216,17 @@ class Csv extends Renderer
                     }
                     //if a metadata and a column have the same name make sure they dont overwrite
                     if ($this->translateColumnNames) {
-                        $name = Piwik_Translate('General_Metadata') . ': ' . $name;
+                        $name = Piwik::translate('General_Metadata') . ': ' . $name;
                     } else {
                         $name = 'metadata_' . $name;
                     }
 
-                    $allColumns[$name] = true;
                     $csvRow[$name] = $value;
                 }
+            }
+
+            foreach ($csvRow as $name => $value) {
+                $allColumns[$name] = true;
             }
 
             if ($this->exportIdSubtable) {
@@ -351,7 +329,7 @@ class Csv extends Renderer
      */
     protected function renderHeader()
     {
-        $fileName = 'Piwik ' . Piwik_Translate('General_Export');
+        $fileName = 'Piwik ' . Piwik::translate('General_Export');
 
         $period = Common::getRequestVar('period', false);
         $date = Common::getRequestVar('date', false);
@@ -376,6 +354,49 @@ class Csv extends Renderer
         // silent fail otherwise unit tests fail
         @header('Content-Type: application/vnd.ms-excel');
         @header('Content-Disposition: attachment; filename="' . $fileName . '"');
-        Piwik::overrideCacheControlHeaders();
+        ProxyHttp::overrideCacheControlHeaders();
+    }
+
+    /**
+     * Flattens an array of column values so they can be outputted as CSV (which does not support
+     * nested structures).
+     */
+    private function flattenColumnArray($columns, &$csvRow = array(), $csvColumnNameTemplate = '%s')
+    {
+        foreach ($columns as $name => $value) {
+            $csvName = sprintf($csvColumnNameTemplate, $this->getCsvColumnName($name));
+
+            if (is_array($value)) {
+                // if we're translating column names and this is an array of arrays, the column name
+                // format becomes a bit more complicated. also in this case, we assume $value is not
+                // nested beyond 2 levels (ie, array(0 => array(0 => 1, 1 => 2)), but not array(
+                // 0 => array(0 => array(), 1 => array())) )
+                if ($this->translateColumnNames
+                    && is_array(reset($value))
+                ) {
+                    foreach ($value as $level1Key => $level1Value) {
+                        $inner = $name == 'goals' ? Piwik::translate('Goals_GoalX', $level1Key) : $name . ' ' . $level1Key;
+                        $columnNameTemplate = '%s (' . $inner . ')';
+
+                        $this->flattenColumnArray($level1Value, $csvRow, $columnNameTemplate);
+                    }
+                } else {
+                    $this->flattenColumnArray($value, $csvRow, $csvName . '_%s');
+                }
+            } else {
+                $csvRow[$csvName] = $value;
+            }
+        }
+
+        return $csvRow;
+    }
+
+    private function getCsvColumnName($name)
+    {
+        if ($this->translateColumnNames) {
+            return $this->translateColumnName($name);
+        } else {
+            return $name;
+        }
     }
 }

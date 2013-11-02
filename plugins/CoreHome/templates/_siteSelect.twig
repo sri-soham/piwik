@@ -29,7 +29,7 @@
         {% if switchSiteOnSelect is not defined or switchSiteOnSelect %}data-switch-site-on-select="1"{% endif %}>
     <div class="custom_select">
 
-        <a href="#" onclick="return false" class="custom_select_main_link" siteid="{% if idSite is defined %}{{ idSite }}{% else %}{{ sites[0].idsite }}{% endif %}">
+        <a href="#" onclick="return false" class="custom_select_main_link" data-loading="0" data-siteid="{% if idSite is defined %}{{ idSite }}{% else %}{{ sites[0].idsite }}{% endif %}">
             <span>{% if siteName is defined %}{{ siteName|raw }}{% else %}{{ sites[0].name|raw }}{% endif %}</span>
         </a>
 
@@ -41,7 +41,7 @@
                 <ul class="custom_select_ul_list">
                     {% for info in sites %}
                         <li {% if (showSelectedSite is not defined or showSelectedSite == false) and idSite == info.idsite %} style="display: none;"{% endif %}>
-                            <a href="#" siteid="{{ info.idsite }}">{{ info.name|raw }}</a>
+                            <a href="#" data-siteid="{{ info.idsite }}">{{ info.name|raw }}</a>
                         </li>
                     {% endfor %}
                 </ul>

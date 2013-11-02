@@ -10,16 +10,15 @@
  */
 namespace Piwik\Plugins\SegmentEditor;
 
-use Piwik\Piwik;
 use Piwik\Common;
-use Piwik\Plugins\SegmentEditor\API;
+use Piwik\Piwik;
+use Piwik\Plugins\API\API as APIMetadata;
 use Piwik\View;
-use Piwik\Plugins\API\API as MetaAPI;
 
 /**
  * @package SegmentEditor
  */
-class Controller extends \Piwik\Controller
+class Controller extends \Piwik\Plugin\Controller
 {
 
     public function getSelector()
@@ -27,14 +26,14 @@ class Controller extends \Piwik\Controller
         $view = new View('@SegmentEditor/getSelector');
         $idSite = Common::getRequestVar('idSite');
         $this->setGeneralVariablesView($view);
-        $segments = MetaAPI::getInstance()->getSegmentsMetadata($idSite);
+        $segments = APIMetadata::getInstance()->getSegmentsMetadata($idSite);
 
         $segmentsByCategory = $customVariablesSegments = array();
         foreach ($segments as $segment) {
-            if ($segment['category'] == Piwik_Translate('General_Visit')
+            if ($segment['category'] == Piwik::translate('General_Visit')
                 && $segment['type'] == 'metric'
             ) {
-                $metricsLabel = Piwik_Translate('General_Metrics');
+                $metricsLabel = Piwik::translate('General_Metrics');
                 $metricsLabel[0] = strtolower($metricsLabel[0]);
                 $segment['category'] .= ' (' . $metricsLabel . ')';
             }
@@ -59,7 +58,7 @@ class Controller extends \Piwik\Controller
     public function sortSegmentCategories($a, $b)
     {
         // Custom Variables last
-        if ($a == Piwik_Translate('CustomVariables_CustomVariables')) {
+        if ($a == Piwik::translate('CustomVariables_CustomVariables')) {
             return 1;
         }
         return 0;
@@ -86,12 +85,10 @@ class Controller extends \Piwik\Controller
             'General_Edit',
             'General_Search',
             'General_SearchNoResults',
-            '',
-            '',
-            '',
         );
+        $translations = array();
         foreach ($translationKeys as $key) {
-            $translations[$key] = Piwik_Translate($key);
+            $translations[$key] = Piwik::translate($key);
         }
         return $translations;
     }

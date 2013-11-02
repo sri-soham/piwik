@@ -11,17 +11,15 @@
  */
 namespace Piwik\Plugins\LanguagesManager;
 
-use Piwik\Piwik;
 use Piwik\Common;
-use Piwik\Plugins\LanguagesManager\API;
+use Piwik\DbHelper;
+use Piwik\Piwik;
 use Piwik\Url;
-use Piwik\Plugins\LanguagesManager\LanguagesManager;
-use Zend_Registry;
 
 /**
  * @package LanguagesManager
  */
-class Controller extends \Piwik\Controller
+class Controller extends \Piwik\Plugin\Controller
 {
     /**
      * anonymous = in the session
@@ -32,16 +30,16 @@ class Controller extends \Piwik\Controller
         $language = Common::getRequestVar('language');
 
         // Prevent CSRF only when piwik is not installed yet (During install user can change language)
-        if (Piwik::isInstalled()) {
+        if (DbHelper::isInstalled()) {
             $this->checkTokenInUrl();
         }
         LanguagesManager::setLanguageForSession($language);
-        if (Zend_Registry::isRegistered('access')) {
+        if (\Piwik\Registry::isRegistered('access')) {
             $currentUser = Piwik::getCurrentUserLogin();
             if ($currentUser && $currentUser !== 'anonymous') {
                 API::getInstance()->setLanguageForUser($currentUser, $language);
             }
         }
-        Url::redirectToReferer();
+        Url::redirectToReferrer();
     }
 }

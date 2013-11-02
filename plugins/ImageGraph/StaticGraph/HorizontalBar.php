@@ -9,8 +9,8 @@
  * @package StaticGraph
  */
 namespace Piwik\Plugins\ImageGraph\StaticGraph;
+use Piwik\Piwik;
 
-use Piwik\Plugins\ImageGraph\StaticGraph\GridGraph;
 
 /**
  *
@@ -81,7 +81,7 @@ class HorizontalBar extends GridGraph
                 $truncatedOrdinateSeries[$column][] = $sumOfOthers[$column];
             }
 
-            $truncatedAbscissaSeries[] = Piwik_Translate('General_Others');
+            $truncatedAbscissaSeries[] = Piwik::translate('General_Others');
             $this->abscissaSeries = $truncatedAbscissaSeries;
             $this->ordinateSeries = $truncatedOrdinateSeries;
             $this->abscissaLogos = $truncatedAbscissaLogos;
@@ -117,10 +117,10 @@ class HorizontalBar extends GridGraph
         $gridLeftMarginWithoutLabels = $this->getGridLeftMargin($horizontalGraph = true, $withLabel = false);
         $labelWidthLimit =
             $this->width
-                - $gridLeftMarginWithoutLabels
-                - $gridRightMargin
-                - $paddingWidth
-                - $minGraphSize;
+            - $gridLeftMarginWithoutLabels
+            - $gridRightMargin
+            - $paddingWidth
+            - $minGraphSize;
 
         // truncate labels if needed
         foreach ($this->abscissaSeries as &$label) {
@@ -170,10 +170,10 @@ class HorizontalBar extends GridGraph
 
                     $logoYPosition =
                         ($logoInterleave * $i)
-                            + $this->getGridTopMargin(true, $verticalLegend)
-                            + $graphData['Axis'][1]['Margin']
-                            - $logoHeight / 2
-                            + 1;
+                        + $this->getGridTopMargin(true, $verticalLegend)
+                        + $graphData['Axis'][1]['Margin']
+                        - $logoHeight / 2
+                        + 1;
 
                     if (method_exists($this->pImage, $drawingFunction)) {
                         $this->pImage->$drawingFunction(

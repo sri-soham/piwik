@@ -166,7 +166,7 @@ function SitesManager(_timezones, _currencies, _defaultTimezone, _defaultCurrenc
 
             var numberOfRows = $('table#editSites')[0].rows.length;
             var newRowId = 'rowNew' + numberOfRows;
-            var submitButtonHtml = '<input type="submit" class="addsite submit" value="' + _pk_translate('General_Save_js') + '" />';
+            var submitButtonHtml = '<input type="submit" class="addsite submit" value="' + _pk_translate('General_Save') + '" />';
             $($.parseHTML(' <tr id="' + newRowId + '">\
 				<td>&nbsp;</td>\
 				<td><input id="name" value="Name" size="15" /><br/><br/><br/>' + submitButtonHtml + '</td>\
@@ -179,7 +179,7 @@ function SitesManager(_timezones, _currencies, _defaultTimezone, _defaultCurrenc
 				<td>' + getCurrencySelector(defaultCurrency) + '<br />' + currencyHelp + '</td>\
 				<td>' + getEcommerceSelector(0) + '<br />' + ecommerceHelp + '</td>\
 				<td>' + submitButtonHtml + '</td>\
-	  			<td><span class="cancel link_but">' + sprintf(_pk_translate('General_OrCancel_js'), "", "") + '</span></td>\
+	  			<td><span class="cancel link_but">' + sprintf(_pk_translate('General_OrCancel'), "", "") + '</span></td>\
 	 		</tr>'))
                 .appendTo('#editSites')
             ;
@@ -205,8 +205,9 @@ function SitesManager(_timezones, _currencies, _defaultTimezone, _defaultCurrenc
                 var nameToDelete = $(this).parent().parent().find('input#siteName').val() || $(this).parent().parent().find('td#siteName').html();
                 var idsiteToDelete = $(this).parent().parent().find('#idSite').html();
 
-                $('#confirm').find('h2').text(sprintf(_pk_translate('SitesManager_DeleteConfirm_js'), '"' + nameToDelete + '" (idSite = ' + idsiteToDelete + ')'));
-                piwikHelper.modalConfirm('#confirm', {yes: function () {
+                $('#confirm').find('h2').text(sprintf(_pk_translate('SitesManager_DeleteConfirm'), '"' + nameToDelete + '" (idSite = ' + idsiteToDelete + ')'));
+                piwikHelper.modalConfirm('#confirm', { yes: function () {
+
                     sendDeleteSiteAJAX(idsiteToDelete);
                 }});
             }
@@ -219,7 +220,7 @@ function SitesManager(_timezones, _currencies, _defaultTimezone, _defaultCurrenc
                 var idRow = $(this).attr('id');
                 if (alreadyEdited[idRow] == 1) return;
                 if (siteBeingEdited) {
-                    $('#alert').find('h2').text(sprintf(_pk_translate('SitesManager_OnlyOneSiteAtTime_js'), '"' + $("<div/>").html(siteBeingEditedName).text() + '"'));
+                    $('#alert').find('h2').text(sprintf(_pk_translate('SitesManager_OnlyOneSiteAtTime'), '"' + $("<div/>").html(siteBeingEditedName).text() + '"'));
                     piwikHelper.modalConfirm('#alert', {});
                     return;
                 }
@@ -235,11 +236,11 @@ function SitesManager(_timezones, _currencies, _defaultTimezone, _defaultCurrenc
                         var idName = $(n).attr('id');
                         if (idName == 'siteName') {
                             siteBeingEditedName = contentBefore;
-                            var contentAfter = '<input id="' + idName + '" value="' + contentBefore + '" size="15" />';
+                            var contentAfter = '<input id="' + idName + '" value="' + piwikHelper.htmlEntities( piwikHelper.htmlDecode(contentBefore))+ '" size="15" />';
 
-                            var inputSave = $('<br/><input style="margin-top:50px" type="submit" class="submit" value="' + _pk_translate('General_Save_js') + '" />')
+                            var inputSave = $('<br/><input style="margin-top:50px" type="submit" class="submit" value="' + _pk_translate('General_Save') + '" />')
                                 .click(function () { submitUpdateSite($(this).parent()); });
-                            var spanCancel = $('<div><br/>' + sprintf(_pk_translate('General_OrCancel_js'), "", "") + '</div>')
+                            var spanCancel = $('<div><br/>' + sprintf(_pk_translate('General_OrCancel'), "", "") + '</div>')
                                 .click(function () { piwikHelper.refreshAfter(0); });
                             $(n)
                                 .html(contentAfter)
@@ -293,7 +294,7 @@ function SitesManager(_timezones, _currencies, _defaultTimezone, _defaultCurrenc
                 $(this)
                     .toggle()
                     .parent()
-                    .prepend($('<input type="submit" class="updateSite submit" value="' + _pk_translate('General_Save_js') + '" />')
+                    .prepend($('<input type="submit" class="updateSite submit" value="' + _pk_translate('General_Save') + '" />')
                         .click(function () { sendUpdateSiteAJAX($('tr#' + idRow)); })
                     );
             });
@@ -334,21 +335,26 @@ function SitesManager(_timezones, _currencies, _defaultTimezone, _defaultCurrenc
 
         if (searchGlobalHasValues) {
             var checkedStr = checked ? ' checked ' : '';
-            html += '<label><span id="sitesearchUseDefault"' + (!enabled ? ' style="display:none" ' : '') + '><input type="checkbox" '
+            html += '<span id="sitesearchUseDefault"' + (!enabled ? ' style="display:none" ' : '') + '><input type="checkbox" '
                 + checkedStr + ' id="sitesearchUseDefaultCheck" onclick="return onClickSiteSearchUseDefault();"> '
                 + sitesearchUseDefault + ' </span>';
                 + '</label>';
 
             html += '<div ' + ((checked && enabled) ? '' : 'style="display-none"') + ' class="searchDisplayParams form-description">'
                 + searchKeywordLabel + ' (' + strDefault + ') ' + ': '
-                + globalKeywordParameters
-                + (globalCategoryParameters.length ? ', ' + searchCategoryLabel + ': ' + globalCategoryParameters : '')
+                + piwikHelper.htmlEntities( globalKeywordParameters )
+                + (globalCategoryParameters.length ? ', ' + searchCategoryLabel + ': ' + piwikHelper.htmlEntities(globalCategoryParameters) : '')
                 + '</div>';
         }
         html += '<div id="sitesearchIntro">' + sitesearchIntro + '</div>';
 
         html += '<div id="searchSiteParameters">';
-        html += '<br/><label><div style="margin-bottom:3px">' + searchKeywordLabel + '</div><input type="text" size="22" id="searchKeywordParameters" value="' + searchKeywordParameters + '" style="margin-bottom: -10px;font-size:9pt;font-family:monospace"></input>' + searchKeywordHelp + '</label>';
+        html += '<br/><label><div style="margin-bottom:3px">'
+                + piwikHelper.htmlEntities(searchKeywordLabel)
+                + '</div><input type="text" size="22" id="searchKeywordParameters" value="'
+                + piwikHelper.htmlEntities(searchKeywordParameters)
+                + '" style="margin-bottom: -10px;font-size:9pt;font-family:monospace"></input>'
+                + searchKeywordHelp + '</label>';
 
         // if custom var plugin is disabled, category tracking not supported
         if (globalCategoryParameters != 'globalSearchCategoryParametersIsDisabled') {

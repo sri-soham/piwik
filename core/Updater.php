@@ -10,7 +10,7 @@
  */
 namespace Piwik;
 
-use Piwik\Common;
+use Piwik\Db;
 use Piwik\Db\Factory;
 use Piwik\Version;
 
@@ -56,10 +56,10 @@ class Updater
      * @param string $name
      * @param string $version
      */
-    public function recordComponentSuccessfullyUpdated($name, $version)
+    public static function recordComponentSuccessfullyUpdated($name, $version)
     {
         try {
-            Piwik_SetOption($this->getNameInOptionTable($name), $version, $autoLoad = 1);
+            Option::set(self::getNameInOptionTable($name), $version, $autoLoad = 1);
         } catch (\Exception $e) {
             // case when the option table is not yet created (before 0.2.10)
         }
@@ -70,7 +70,7 @@ class Updater
      * @param string $name
      * @return string
      */
-    private function getNameInOptionTable($name)
+    private static function getNameInOptionTable($name)
     {
         return 'version_' . $name;
     }
@@ -96,7 +96,7 @@ class Updater
     public function hasNewVersion($componentName)
     {
         return isset($this->componentsWithNewVersion) &&
-            isset($this->componentsWithNewVersion[$componentName]);
+        isset($this->componentsWithNewVersion[$componentName]);
     }
 
     /**
@@ -114,6 +114,7 @@ class Updater
      * Returns the list of SQL queries that would be executed during the update
      *
      * @return array of SQL queries
+     * @throws \Exception
      */
     public function getSqlQueriesToExecute()
     {
@@ -124,14 +125,14 @@ class Updater
                 require_once $file; // prefixed by PIWIK_INCLUDE_PATH
 
                 $className = $this->getUpdateClassName($componentName, $fileVersion);
-                if (class_exists($className, false)) {
-                    $queriesForComponent = call_user_func(array($className, 'getSql'));
-                    foreach ($queriesForComponent as $query => $error) {
-                        $queries[] = $query . ';';
-                    }
-
-                    $this->hasMajorDbUpdate = $this->hasMajorDbUpdate || call_user_func(array($className, 'isMajorUpdate'));
+                if (!class_exists($className, false)) {
+                    throw new \Exception("The class $className was not found in $file");
                 }
+                $queriesForComponent = call_user_func(array($className, 'getSql'));
+                foreach ($queriesForComponent as $query => $error) {
+                    $queries[] = $query . ';';
+                }
+                $this->hasMajorDbUpdate = $this->hasMajorDbUpdate || call_user_func(array($className, 'isMajorUpdate'));
             }
             // unfortunately had to extract this query from the Piwik_Option class
             $queries[] = $Option->sqlUpdate(
@@ -144,19 +145,20 @@ class Updater
 
     private function getUpdateClassName($componentName, $fileVersion)
     {
-        ////unprefixClass TODOA FIXME
         $suffix = strtolower(str_replace(array('-', '.'), '_', $fileVersion));
+        $className = 'Updates_' . $suffix;
+
         if ($componentName == 'core') {
-            return 'Piwik_Updates_' . $suffix;
+            return '\\Piwik\\Updates\\' . $className;
         }
-        return 'Piwik_' . $componentName . '_Updates_' . $suffix;
+        return '\\Piwik\\Plugins\\' . $componentName . '\\' . $className;
     }
 
     /**
      * Update the named component
      *
      * @param string $componentName 'core', or plugin name
-     * @throws \Exception|Updater_UpdateErrorException
+     * @throws \Exception|UpdaterErrorException
      * @return array of warning strings if applicable
      */
     public function update($componentName)
@@ -168,11 +170,12 @@ class Updater
 
                 $className = $this->getUpdateClassName($componentName, $fileVersion);
                 if (class_exists($className, false)) {
+                    // update()
                     call_user_func(array($className, 'update'));
                 }
 
-                $this->recordComponentSuccessfullyUpdated($componentName, $fileVersion);
-            } catch (Updater_UpdateErrorException $e) {
+                self::recordComponentSuccessfullyUpdated($componentName, $fileVersion);
+            } catch (UpdaterErrorException $e) {
                 throw $e;
             } catch (\Exception $e) {
                 $warningMessages[] = $e->getMessage();
@@ -180,7 +183,7 @@ class Updater
         }
 
         // to debug, create core/Updates/X.php, update the core/Version.php, throw an Exception in the try, and comment the following line
-        $this->recordComponentSuccessfullyUpdated($componentName, $this->componentsWithNewVersion[$componentName][self::INDEX_NEW_VERSION]);
+        self::recordComponentSuccessfullyUpdated($componentName, $this->componentsWithNewVersion[$componentName][self::INDEX_NEW_VERSION]);
         return $warningMessages;
     }
 
@@ -223,7 +226,7 @@ class Updater
                 uasort($componentsWithUpdateFile[$name], "version_compare");
             } else {
                 // there are no update file => nothing to do, update to the new version is successful
-                $this->recordComponentSuccessfullyUpdated($name, $newVersion);
+                self::recordComponentSuccessfullyUpdated($name, $newVersion);
             }
         }
         return $componentsWithUpdateFile;
@@ -248,11 +251,10 @@ class Updater
 
         foreach ($this->componentsToCheck as $name => $version) {
             try {
-                $currentVersion = Piwik_GetOption('version_' . $name);
+                $currentVersion = Option::get(self::getNameInOptionTable($name));
             } catch (\Exception $e) {
                 // mysql error 1146: table doesn't exist
-                // need common check for postgresql and mysql
-                if (\Zend_Registry::get('db')->isErrNo($e, '1146')) {
+                if (Db::get()->isErrNo($e, '1146')) {
                     // case when the option table is not yet created (before 0.2.10)
                     $currentVersion = false;
                 } else {
@@ -265,9 +267,11 @@ class Updater
                     // This should not happen
                     $currentVersion = Version::VERSION;
                 } else {
-                    $currentVersion = '0.0.1';
+                    // When plugins have been installed since Piwik 2.0 this should not happen
+                    // We "fix" the data for any plugin that may have been ported from Piwik 1.x
+                    $currentVersion = $version;
                 }
-                $this->recordComponentSuccessfullyUpdated($name, $currentVersion);
+                self::recordComponentSuccessfullyUpdated($name, $currentVersion);
             }
 
             $versionCompare = version_compare($currentVersion, $version);
@@ -277,7 +281,7 @@ class Updater
                     self::INDEX_NEW_VERSION     => $version
                 );
             } else if ($versionCompare == 1) {
-                // the version in the DB is newest.. we choose to ignore (for the time being)
+                // the version in the DB is newest.. we choose to ignore
             }
         }
         return $componentsToUpdate;
@@ -288,7 +292,7 @@ class Updater
      *
      * @param string $file Update script filename
      * @param array $sqlarray An array of SQL queries to be executed
-     * @throws Updater_UpdateErrorException
+     * @throws UpdaterErrorException
      */
     static function updateDatabase($file, $sqlarray)
     {
@@ -297,10 +301,10 @@ class Updater
                 Db::exec($update);
             } catch (\Exception $e) {
                 if (($ignoreError === false)
-                    || !\Zend_Registry::get('db')->isErrNo($e, $ignoreError)
+                    || !Db::get()->isErrNo($e, $ignoreError)
                 ) {
                     $message = $file . ":\nError trying to execute the query '" . $update . "'.\nThe error was: " . $e->getMessage();
-                    throw new Updater_UpdateErrorException($message);
+                    throw new UpdaterErrorException($message);
                 }
             }
         }
@@ -313,6 +317,6 @@ class Updater
  * @package Piwik
  * @subpackage Updater
  */
-class Updater_UpdateErrorException extends \Exception
+class UpdaterErrorException extends \Exception
 {
 }

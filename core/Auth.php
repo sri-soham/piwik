@@ -12,7 +12,7 @@
 namespace Piwik;
 
 /**
- * Interface for authentication modules
+ * Base for authentication modules
  *
  * @package Piwik
  * @subpackage Piwik_Auth
@@ -32,6 +32,11 @@ interface Auth
      * @return AuthResult
      */
     public function authenticate();
+
+    /**
+     * Authenticates the user and initializes the session.
+     */
+    public function initSession($login, $md5Password, $rememberMe);
 }
 
 /**
@@ -39,35 +44,57 @@ interface Auth
  *
  * @package Piwik
  * @subpackage Piwik_Auth
- * @see Zend_AuthResult, libs/Zend/Auth/Result.php
- * @link http://framework.zend.com/manual/en/zend.auth.html
  */
-class AuthResult extends \Zend_Auth_Result
+class AuthResult
 {
+    const FAILURE = 0;
+    const SUCCESS = 1;
+    const SUCCESS_SUPERUSER_AUTH_CODE = 42;
+
     /**
      * token_auth parameter used to authenticate in the API
      *
      * @var string
      */
-    protected $_token_auth = null;
+    protected $tokenAuth = null;
 
-    const SUCCESS_SUPERUSER_AUTH_CODE = 42;
+    /**
+     * The login used to authenticate.
+     *
+     * @var string
+     */
+    protected $login = null;
+
+    /**
+     * The authentication result code. Can be self::FAILURE, self::SUCCESS, or
+     * self::SUCCESS_SUPERUSER_AUTH_CODE.
+     *
+     * @var int
+     */
+    protected $code = null;
 
     /**
      * Constructor for AuthResult
      *
      * @param int $code
      * @param string $login identity
-     * @param string $token_auth
-     * @param array $messages
+     * @param string $tokenAuth
      */
-    public function __construct($code, $login, $token_auth, array $messages = array())
+    public function __construct($code, $login, $tokenAuth)
     {
-        // AuthResult::SUCCESS_SUPERUSER_AUTH_CODE, AuthResult::SUCCESS, AuthResult::FAILURE
-        $this->_code = (int)$code;
-        $this->_identity = $login;
-        $this->_messages = $messages;
-        $this->_token_auth = $token_auth;
+        $this->code = (int)$code;
+        $this->login = $login;
+        $this->tokenAuth = $tokenAuth;
+    }
+
+    /**
+     * Returns the login used to authenticate.
+     *
+     * @return string
+     */
+    public function getIdentity()
+    {
+        return $this->login;
     }
 
     /**
@@ -77,6 +104,26 @@ class AuthResult extends \Zend_Auth_Result
      */
     public function getTokenAuth()
     {
-        return $this->_token_auth;
+        return $this->tokenAuth;
+    }
+
+    /**
+     * Returns the authentication result code.
+     *
+     * @return int
+     */
+    public function getCode()
+    {
+        return $this->code;
+    }
+
+    /**
+     * Returns true if this result was successfully authentication.
+     *
+     * @return bool
+     */
+    public function wasAuthenticationSuccessful()
+    {
+        return $this->code > self::FAILURE;
     }
 }

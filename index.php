@@ -9,6 +9,8 @@
  */
 
 use Piwik\FrontController;
+use Piwik\Error;
+use Piwik\ExceptionHandler;
 
 define('PIWIK_DOCUMENT_ROOT', dirname(__FILE__) == '/' ? '' : dirname(__FILE__));
 if (file_exists(PIWIK_DOCUMENT_ROOT . '/bootstrap.php')) {
@@ -36,13 +38,16 @@ session_cache_limiter('nocache');
 @date_default_timezone_set('UTC');
 require_once PIWIK_INCLUDE_PATH . '/vendor/autoload.php';
 require_once PIWIK_INCLUDE_PATH . '/core/Loader.php';
-require_once PIWIK_INCLUDE_PATH . '/core/functions.php';
+
+if(!defined('PIWIK_PRINT_ERROR_BACKTRACE')) {
+    define('PIWIK_PRINT_ERROR_BACKTRACE', false);
+}
 
 if (!defined('PIWIK_ENABLE_ERROR_HANDLER') || PIWIK_ENABLE_ERROR_HANDLER) {
-    require_once PIWIK_INCLUDE_PATH . '/core/ErrorHandler.php';
+    require_once PIWIK_INCLUDE_PATH . '/core/Error.php';
+    Error::setErrorHandler();
     require_once PIWIK_INCLUDE_PATH . '/core/ExceptionHandler.php';
-    set_error_handler('Piwik_ErrorHandler');
-    set_exception_handler('Piwik_ExceptionHandler');
+    ExceptionHandler::setUp();
 }
 
 if (!defined('PIWIK_ENABLE_DISPATCH') || PIWIK_ENABLE_DISPATCH) {

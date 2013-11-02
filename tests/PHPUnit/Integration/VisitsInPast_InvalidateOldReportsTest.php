@@ -17,7 +17,6 @@ class Test_Piwik_Integration_VisitsInPast_InvalidateOldReports extends Integrati
     /**
      * @dataProvider getApiForTesting
      * @group        Integration
-     * @group        VisitsInPast_InvalidateOldReports
      */
     public function testApi($api, $params)
     {
@@ -61,7 +60,6 @@ class Test_Piwik_Integration_VisitsInPast_InvalidateOldReports extends Integrati
      * @depends      testApi
      * @dataProvider getAnotherApiForTesting
      * @group        Integration
-     * @group        VisitsInPast_InvalidateOldReports
      */
     public function testAnotherApi($api, $params)
     {
@@ -115,7 +113,7 @@ class Test_Piwik_Integration_VisitsInPast_InvalidateOldReports extends Integrati
         );
     }
 
-    public function getOutputPrefix()
+    public static function getOutputPrefix()
     {
         return 'VisitsInPast_InvalidateOldReports';
     }

@@ -15,7 +15,7 @@ use Piwik\Archive;
  * - Tracks 4 page views: 3 clicks and a file download
  * - URLs parameters exclude is tested
  * - In a returning visit, tracks a Goal conversion
- *   URL matching, with custom referer and keyword
+ *   URL matching, with custom referrer and keyword
  *   NO cookie support
  */
 class Test_Piwik_Integration_OneVisitorTwoVisits extends IntegrationTestCase
@@ -35,7 +35,6 @@ class Test_Piwik_Integration_OneVisitorTwoVisits extends IntegrationTestCase
     /**
      * @dataProvider getApiForTesting
      * @group        Integration
-     * @group        OneVisitorTwoVisits
      */
     public function testApi($api, $params)
     {
@@ -157,12 +156,11 @@ class Test_Piwik_Integration_OneVisitorTwoVisits extends IntegrationTestCase
     }
 
     /**
-     * Test that Archive_Single::preFetchBlob won't fetch extra unnecessary blobs.
+     * Test that Archive::getBlob won't fetch extra unnecessary blobs.
      *
      * @group        Integration
-     * @group        OneVisitorTwoVisits
      */
-    public function testArchiveSinglePreFetchBlob()
+    public function testArchiveSingleGetBlob()
     {
         $archive = Archive::build(self::$fixture->idSite, 'day', self::$fixture->dateTime);
         $cache = $archive->getBlob('Actions_actions', 'all');
@@ -186,7 +184,6 @@ class Test_Piwik_Integration_OneVisitorTwoVisits extends IntegrationTestCase
      * works when building an archive query object.
      * 
      * @group        Integration
-     * @group        OneVisitorTwoVisits
      */
     public function testArchiveSitesWhenRestrictingToLogin()
     {
@@ -205,4 +202,3 @@ class Test_Piwik_Integration_OneVisitorTwoVisits extends IntegrationTestCase
 
 Test_Piwik_Integration_OneVisitorTwoVisits::$fixture = new Test_Piwik_Fixture_OneVisitorTwoVisits();
 Test_Piwik_Integration_OneVisitorTwoVisits::$fixture->excludeMozilla = true;
-

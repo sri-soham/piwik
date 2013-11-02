@@ -12,10 +12,10 @@
 namespace Piwik\DataAccess;
 
 use Exception;
-use Piwik\Piwik;
 use Piwik\Common;
 use Piwik\Date;
-use Zend_Registry;
+use Piwik\Db;
+use Piwik\DbHelper;
 
 class ArchiveTableCreator
 {
@@ -51,8 +51,8 @@ class ArchiveTableCreator
         }
 
         if (!in_array($tableName, self::$tablesAlreadyInstalled)) {
-            $db = \Zend_Registry::get('db');
-            $sql = Piwik::getTableCreateSql($tableNamePrefix);
+            $db = Db::get();
+            $sql = DbHelper::getTableCreateSql($tableNamePrefix);
 
             // replace table name template by real name
             $tableNamePrefix = Common::prefixTable($tableNamePrefix);
@@ -76,7 +76,7 @@ class ArchiveTableCreator
 
     static public function refreshTableList($forceReload = false)
     {
-        self::$tablesAlreadyInstalled = Piwik::getTablesInstalled($forceReload);
+        self::$tablesAlreadyInstalled = DbHelper::getTablesInstalled($forceReload);
     }
 
     /**

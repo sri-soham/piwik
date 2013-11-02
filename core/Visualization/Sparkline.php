@@ -12,6 +12,7 @@
 namespace Piwik\Visualization;
 
 use Piwik\Common;
+use Piwik\Piwik;
 use Piwik\View\ViewInterface;
 use Sparkline_Line;
 
@@ -32,6 +33,8 @@ class Sparkline implements ViewInterface
 {
     const DEFAULT_WIDTH = 100;
     const DEFAULT_HEIGHT = 25;
+
+    public static $enableSparklineImages = true;
 
     private static $colorNames = array('backgroundColor', 'lineColor', 'minPointColor', 'lastPointColor', 'maxPointColor');
 
@@ -112,7 +115,7 @@ class Sparkline implements ViewInterface
 
         $min = $max = $last = null;
         $i = 0;
-        $toRemove = array('%', str_replace('%s', '', Piwik_Translate('General_Seconds')));
+        $toRemove = array('%', str_replace('%s', '', Piwik::translate('General_Seconds')));
         foreach ($this->values as $value) {
             // 50% and 50s should be plotted as 50
             $value = str_replace($toRemove, '', $value);
@@ -147,7 +150,9 @@ class Sparkline implements ViewInterface
 
     public function render()
     {
-        $this->sparkline->Output();
+        if (self::$enableSparklineImages) {
+            $this->sparkline->Output();
+        }
     }
 
     /**
@@ -158,11 +163,19 @@ class Sparkline implements ViewInterface
     private function setSparklineColors($sparkline)
     {
         $colors = Common::getRequestVar('colors', false, 'json');
-        if (!empty($colors)) {
-            foreach (self::$colorNames as $name) {
-                if (!empty($colors[$name])) {
-                    $sparkline->SetColorHtml($name, $colors[$name]);
-                }
+        if (empty($colors)) { // quick fix so row evolution sparklines will have color in widgetize's iframes
+            $colors = array(
+                'backgroundColor' => '#ffffff',
+                'lineColor'       => '#162C4A',
+                'minPointColor'   => '#ff7f7f',
+                'lastPointColor'  => '#55AAFF',
+                'maxPointColor'   => '#75BF7C'
+            );
+        }
+
+        foreach (self::$colorNames as $name) {
+            if (!empty($colors[$name])) {
+                $sparkline->SetColorHtml($name, $colors[$name]);
             }
         }
     }

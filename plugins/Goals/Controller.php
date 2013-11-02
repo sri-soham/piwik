@@ -12,22 +12,22 @@ namespace Piwik\Plugins\Goals;
 
 use Exception;
 use Piwik\API\Request;
-use Piwik\DataTable\Filter\AddColumnsProcessedMetricsGoal;
-use Piwik\Piwik;
 use Piwik\Common;
+use Piwik\DataTable\Filter\AddColumnsProcessedMetricsGoal;
 use Piwik\DataTable;
 use Piwik\FrontController;
+use Piwik\Piwik;
+use Piwik\Plugins\Referrers\API as APIReferrers;
+use Piwik\Plugins\VisitFrequency\VisitFrequency;
 use Piwik\View\ReportsByDimension;
-use Piwik\ViewDataTable;
 use Piwik\View;
-use Piwik\Plugins\Goals\Goals;
-use Piwik\Plugins\Referers\API as ReferersAPI;
+use Piwik\ViewDataTable\Factory;
 
 /**
  *
  * @package Goals
  */
-class Controller extends \Piwik\Controller
+class Controller extends \Piwik\Plugin\Controller
 {
     const CONVERSION_RATE_PRECISION = 1;
 
@@ -87,7 +87,7 @@ class Controller extends \Piwik\Controller
 
     public function ecommerceReport()
     {
-        if (!\Piwik\PluginsManager::getInstance()->isPluginActivated('CustomVariables')) {
+        if (!\Piwik\Plugin\Manager::getInstance()->isPluginActivated('CustomVariables')) {
             throw new Exception("Ecommerce Tracking requires that the plugin Custom Variables is enabled. Please enable the plugin CustomVariables (or ask your admin).");
         }
 
@@ -111,7 +111,7 @@ class Controller extends \Piwik\Controller
     {
         $view = new View('@Goals/getGoalReportView');
         if ($idGoal == Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_ORDER) {
-            $goalDefinition['name'] = Piwik_Translate('Goals_Ecommerce');
+            $goalDefinition['name'] = Piwik::translate('Goals_Ecommerce');
             $goalDefinition['allow_multiple'] = true;
             $ecommerce = $view->ecommerce = true;
         } else {
@@ -140,7 +140,7 @@ class Controller extends \Piwik\Controller
         $view->topDimensions = $this->getTopDimensions($idGoal);
 
         // conversion rate for new and returning visitors
-        $segment = 'visitorType==returning,visitorType==returningCustomer';
+        $segment = \Piwik\Plugins\VisitFrequency\API::RETURNING_VISITOR_SEGMENT;
         $conversionRateReturning = API::getInstance()->getConversionRate($this->idSite, Common::getRequestVar('period'), Common::getRequestVar('date'), $segment, $idGoal);
         $view->conversion_rate_returning = $this->formatConversionRate($conversionRateReturning);
         $segment = 'visitorType==new';
@@ -255,16 +255,16 @@ class Controller extends \Piwik\Controller
             $idGoal = Common::getRequestVar('idGoal', false, 'string');
         }
         $view = $this->getLastUnitGraph($this->pluginName, __FUNCTION__, 'Goals.get');
-        $view->request_parameters_to_modify['idGoal'] = $idGoal;
+        $view->requestConfig->request_parameters_to_modify['idGoal'] = $idGoal;
 
         $nameToLabel = $this->goalColumnNameToLabel;
         if ($idGoal == Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_ORDER) {
             $nameToLabel['nb_conversions'] = 'General_EcommerceOrders';
         } elseif ($idGoal == Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_CART) {
-            $nameToLabel['nb_conversions'] = Piwik_Translate('General_VisitsWith', Piwik_Translate('Goals_AbandonedCart'));
+            $nameToLabel['nb_conversions'] = Piwik::translate('General_VisitsWith', Piwik::translate('Goals_AbandonedCart'));
             $nameToLabel['conversion_rate'] = $nameToLabel['nb_conversions'];
-            $nameToLabel['revenue'] = Piwik_Translate('Goals_LeftInCart', Piwik_Translate('Goals_ColumnRevenue'));
-            $nameToLabel['items'] = Piwik_Translate('Goals_LeftInCart', Piwik_Translate('Goals_Products'));
+            $nameToLabel['revenue'] = Piwik::translate('Goals_LeftInCart', Piwik::translate('General_ColumnRevenue'));
+            $nameToLabel['items'] = Piwik::translate('Goals_LeftInCart', Piwik::translate('Goals_Products'));
         }
 
         $selectableColumns = array('nb_conversions', 'conversion_rate', 'revenue');
@@ -278,22 +278,22 @@ class Controller extends \Piwik\Controller
             // find the right translation for this column, eg. find 'revenue' if column is Goal_1_revenue
             foreach ($nameToLabel as $metric => $metricTranslation) {
                 if (strpos($columnName, $metric) !== false) {
-                    $columnTranslation = Piwik_Translate($metricTranslation);
+                    $columnTranslation = Piwik::translate($metricTranslation);
                     break;
                 }
             }
 
             if (!empty($idGoal) && isset($this->goals[$idGoal])) {
                 $goalName = $this->goals[$idGoal]['name'];
-                $columnTranslation = "$columnTranslation (" . Piwik_Translate('Goals_GoalX', "$goalName") . ")";
+                $columnTranslation = "$columnTranslation (" . Piwik::translate('Goals_GoalX', "$goalName") . ")";
             }
-            $view->translations[$columnName] = $columnTranslation;
+            $view->config->translations[$columnName] = $columnTranslation;
         }
-        $view->columns_to_display = $columns;
-        $view->visualization_properties->selectable_columns = $selectableColumns;
+        $view->config->columns_to_display = $columns;
+        $view->config->selectable_columns = $selectableColumns;
 
         $langString = $idGoal ? 'Goals_SingleGoalOverviewDocumentation' : 'Goals_GoalsOverviewDocumentation';
-        $view->documentation = Piwik_Translate($langString, '<br />');
+        $view->config->documentation = Piwik::translate($langString, '<br />');
 
         return $this->renderView($view, $fetch);
     }
@@ -305,18 +305,18 @@ class Controller extends \Piwik\Controller
 
         $topDimensionsToLoad = array();
 
-        if (\Piwik\PluginsManager::getInstance()->isPluginActivated('UserCountry')) {
+        if (\Piwik\Plugin\Manager::getInstance()->isPluginActivated('UserCountry')) {
             $topDimensionsToLoad += array(
                 'country' => 'UserCountry.getCountry',
             );
         }
 
         $keywordNotDefinedString = '';
-        if (\Piwik\PluginsManager::getInstance()->isPluginActivated('Referers')) {
-            $keywordNotDefinedString = ReferersAPI::getKeywordNotDefinedString();
+        if (\Piwik\Plugin\Manager::getInstance()->isPluginActivated('Referrers')) {
+            $keywordNotDefinedString = APIReferrers::getKeywordNotDefinedString();
             $topDimensionsToLoad += array(
-                'keyword' => 'Referers.getKeywords',
-                'website' => 'Referers.getWebsites',
+                'keyword' => 'Referrers.getKeywords',
+                'website' => 'Referrers.getWebsites',
             );
         }
         $topDimensions = array();
@@ -441,7 +441,7 @@ class Controller extends \Piwik\Controller
 
             $allReports = Goals::getReportsWithGoalMetrics();
             foreach ($allReports as $category => $reports) {
-                $categoryText = Piwik_Translate('Goals_ViewGoalsBy', $category);
+                $categoryText = Piwik::translate('Goals_ViewGoalsBy', $category);
                 foreach ($reports as $report) {
                     $customParams['viewDataTable'] = 'tableGoals';
                     if (in_array($report['action'], array('getVisitsUntilConversion', 'getDaysToConversion'))) {
@@ -463,26 +463,26 @@ class Controller extends \Piwik\Controller
 
     public function getItemsSku($fetch = false)
     {
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 
     public function getItemsName($fetch = false)
     {
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 
     public function getItemsCategory($fetch = false)
     {
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 
     public function getVisitsUntilConversion($fetch = false)
     {
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 
     public function getDaysToConversion($fetch = false)
     {
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 }

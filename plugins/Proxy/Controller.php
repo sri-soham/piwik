@@ -10,19 +10,22 @@
  */
 namespace Piwik\Plugins\Proxy;
 
-use Piwik\Piwik;
-use Piwik\Common;
 use Piwik\AssetManager;
+use Piwik\Common;
+use Piwik\Piwik;
+use Piwik\ProxyHttp;
 use Piwik\Url;
+use Piwik\UrlHelper;
 
 /**
  * Controller for proxy services
  *
  * @package Proxy
  */
-class Controller extends \Piwik\Controller
+class Controller extends \Piwik\Plugin\Controller
 {
     const TRANSPARENT_PNG_PIXEL = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQMAAAAl21bKAAAAA1BMVEUAAACnej3aAAAAAXRSTlMAQObYZgAAAApJREFUCNdjYAAAAAIAAeIhvDMAAAAASUVORK5CYII=';
+    const JS_MIME_TYPE = "application/javascript; charset=UTF-8";
 
     /**
      * Output the merged CSS file.
@@ -33,7 +36,7 @@ class Controller extends \Piwik\Controller
     public function getCss()
     {
         $cssMergedFile = AssetManager::getMergedCssFileLocation();
-        Piwik::serveStaticFile($cssMergedFile, "text/css");
+        ProxyHttp::serverStaticFile($cssMergedFile, "text/css");
     }
 
     /**
@@ -45,7 +48,7 @@ class Controller extends \Piwik\Controller
     public function getJs()
     {
         $jsMergedFile = AssetManager::getMergedJsFileLocation();
-        Piwik::serveStaticFile($jsMergedFile, "application/javascript; charset=UTF-8");
+        ProxyHttp::serverStaticFile($jsMergedFile, self::JS_MIME_TYPE);
     }
 
     /**
@@ -59,11 +62,11 @@ class Controller extends \Piwik\Controller
         $url = Common::getRequestVar('url', '', 'string', $_GET);
 
         // validate referrer
-        $referrer = Url::getReferer();
+        $referrer = Url::getReferrer();
         if (empty($referrer) || !Url::isLocalUrl($referrer)) {
             die('Invalid Referrer detected - This means that your web browser is not sending the "Referrer URL" which is
 				required to proceed with the redirect. Verify your browser settings and add-ons, to check why your browser
-				 is not sending this referer.
+				 is not sending this referrer.
 
 				<br/><br/>You can access the page at: ' . $url);
         }
@@ -72,7 +75,7 @@ class Controller extends \Piwik\Controller
         if (!self::isPiwikUrl($url)) {
             Piwik::checkUserHasSomeViewAccess();
         }
-        if (!Common::isLookLikeUrl($url)) {
+        if (!UrlHelper::isLookLikeUrl($url)) {
             die('Please check the &url= parameter: it should to be a valid URL');
         }
         @header('Content-Type: text/html; charset=utf-8');

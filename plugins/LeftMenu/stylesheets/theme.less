@@ -2,10 +2,17 @@
   clear: left;
 }
 
+#content.home {
+    padding-top: 15px;
+    display:inline-block;
+    width:100%;
+}
+
 .Menu--dashboard {
   padding: 0;
   float: left;
   width: 240px;
+  padding-top: 10px;
 }
 
 .Menu--dashboard > .Menu-tabList {
@@ -121,9 +128,12 @@
 }
 
 .pageWrap {
-  overflow: hidden;
   margin-left: 240px;
   border-width: 0;
   padding-top: 0;
   max-height: none;
+}
+
+.widget:first-child {
+    margin-top: 0;
 }

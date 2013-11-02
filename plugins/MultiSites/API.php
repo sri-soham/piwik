@@ -13,20 +13,20 @@ namespace Piwik\Plugins\MultiSites;
 use Exception;
 use Piwik\API\Request;
 use Piwik\Archive;
+use Piwik\Common;
 use Piwik\DataTable\Filter\CalculateEvolutionFilter;
+use Piwik\DataTable;
 use Piwik\Period\Range;
 use Piwik\Piwik;
-use Piwik\Common;
-use Piwik\DataTable;
 use Piwik\Plugins\Goals\Archiver;
-use Piwik\TaskScheduler;
+use Piwik\Plugins\SitesManager\API as APISitesManager;
 use Piwik\Site;
-use Piwik\Plugins\SitesManager\API as SitesManagerAPI;
+use Piwik\TaskScheduler;
 
 /**
  * The MultiSites API lets you request the key metrics (visits, page views, revenue) for all Websites in Piwik.
  */
-class API
+class API extends \Piwik\Plugin\API
 {
     const METRIC_TRANSLATION_KEY = 'translation';
     const METRIC_EVOLUTION_COL_NAME_KEY = 'evolution_column_name';
@@ -64,26 +64,6 @@ class API
     );
 
     /**
-     * The singleton instance of this class.
-     */
-    static private $instance = null;
-
-    /**
-     * Returns the singleton instance of this class. The instance is created
-     * if it hasn't been already.
-     *
-     * @return \Piwik\Plugins\MultiSites\API
-     */
-    static public function getInstance()
-    {
-        if (self::$instance == null) {
-            self::$instance = new self;
-        }
-
-        return self::$instance;
-    }
-
-    /**
      * Returns a report displaying the total visits, actions and revenue, as
      * well as the evolution of these values, of all existing sites over a
      * specified period of time.
@@ -95,7 +75,7 @@ class API
      * This function will merge the result of the archive query so each
      * row in the result DataTable will correspond to the metrics of a single
      * site. If a date range is specified, the result will be a
-     * DataTable_Array, but it will still be merged.
+     * DataTable\Map, but it will still be merged.
      *
      * @param string $period The period type to get data for.
      * @param string $date The date(s) to get data for.
@@ -190,11 +170,11 @@ class API
                 && !TaskScheduler::isTaskBeingExecuted()
             ) {
                 Site::setSites(
-                    SitesManagerAPI::getInstance()->getAllSites()
+                    APISitesManager::getInstance()->getAllSites()
                 );
             } else {
                 Site::setSitesFromArray(
-                    SitesManagerAPI::getInstance()->getSitesWithAtLeastViewAccess($limit = false, $_restrictSitesToLogin)
+                    APISitesManager::getInstance()->getSitesWithAtLeastViewAccess($limit = false, $_restrictSitesToLogin)
                 );
             }
         }
@@ -226,7 +206,7 @@ class API
         // $dataTable instanceOf Set
         $dataTable = $archive->getDataTableFromNumeric($fieldsToGet);
 
-        // get rid of the DataTable_Array that is created by the IndexedBySite archive type
+        // get rid of the DataTable\Map that is created by the IndexedBySite archive type
         if ($dataTable instanceof DataTable\Map
             && $multipleWebsitesRequested
         ) {
@@ -251,7 +231,7 @@ class API
         if ($strLastDate !== false) {
             if ($lastPeriod !== false) {
                 // NOTE: no easy way to set last period date metadata when range of dates is requested.
-                //       will be easier if DataTable_Array::metadata is removed, and metadata that is
+                //       will be easier if DataTable\Map::metadata is removed, and metadata that is
                 //       put there is put directly in DataTable::metadata.
                 $dataTable->setMetadata(self::getLastPeriodMetadataName('date'), $lastPeriod);
             }
@@ -314,7 +294,9 @@ class API
                 'ColumnCallbackDeleteRow',
                 array(
                      self::NB_VISITS_METRIC,
-                     create_function('$value', 'return $value != 0;')
+                     function ($value) {
+                         return $value == 0;
+                     }
                 )
             );
         }
@@ -340,8 +322,8 @@ class API
         }
 
         if ($currentData instanceof DataTable\Map) {
-            $pastArray = $pastData->getArray();
-            foreach ($currentData->getArray() as $subTable) {
+            $pastArray = $pastData->getDataTables();
+            foreach ($currentData->getDataTables() as $subTable) {
                 $this->calculateEvolutionPercentages($subTable, current($pastArray), $apiMetrics);
                 next($pastArray);
             }
@@ -370,7 +352,7 @@ class API
     private function setMetricsTotalsMetadata($dataTable, $apiMetrics)
     {
         if ($dataTable instanceof DataTable\Map) {
-            foreach ($dataTable->getArray() as $table) {
+            foreach ($dataTable->getDataTables() as $table) {
                 $this->setMetricsTotalsMetadata($table, $apiMetrics);
             }
         } else {
@@ -409,8 +391,8 @@ class API
     private function setPastDataMetadata($dataTable, $pastData, $apiMetrics)
     {
         if ($dataTable instanceof DataTable\Map) {
-            $pastArray = $pastData->getArray();
-            foreach ($dataTable->getArray() as $subTable) {
+            $pastArray = $pastData->getDataTables();
+            foreach ($dataTable->getDataTables() as $subTable) {
                 $this->setPastDataMetadata($subTable, current($pastArray), $apiMetrics);
                 next($pastArray);
             }
@@ -446,7 +428,7 @@ class API
         if (Common::isGoalPluginEnabled()) {
             // goal revenue metric
             $metrics[self::GOAL_REVENUE_METRIC] = array(
-                self::METRIC_TRANSLATION_KEY        => 'Goals_ColumnRevenue',
+                self::METRIC_TRANSLATION_KEY        => 'General_ColumnRevenue',
                 self::METRIC_EVOLUTION_COL_NAME_KEY => self::GOAL_REVENUE_METRIC . '_evolution',
                 self::METRIC_RECORD_NAME_KEY        => Archiver::getRecordName(self::GOAL_REVENUE_METRIC),
                 self::METRIC_IS_ECOMMERCE_KEY       => false,

@@ -1,9 +1,3 @@
 <div class="jqplot-graph">
-    <div class="piwik-graph"
-        data-data="{{ data|e('html') }}"
-        {% if properties.visualization_properties.external_series_toggle %}
-        data-external-series-toggle="{{ properties.visualization_properties.external_series_toggle }}"
-        data-external-series-show-all="{% if properties.visualization_properties.external_series_toggle_show_all %}1{% else %}0{% endif %}"
-        {% endif %}>
-    </div>
+    <div class="piwik-graph" data-data="{{ visualization.getGraphData(dataTable, properties)|json_encode }}"></div>
 </div>

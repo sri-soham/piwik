@@ -10,12 +10,13 @@
  */
 namespace Piwik\Plugins\Transitions;
 
+use Piwik\Piwik;
 use Piwik\View;
 
 /**
  * @package Transitions
  */
-class Controller extends \Piwik\Controller
+class Controller extends \Piwik\Plugin\Controller
 {
 
     /**
@@ -25,27 +26,27 @@ class Controller extends \Piwik\Controller
      * translation keys.
      */
     private static $metricTranslations = array(
-        'pageviewsInline'                => 'Transitions_PageviewsInline',
+        'pageviewsInline'                => 'VisitsSummary_NbPageviewsDescription',
         'loopsInline'                    => 'Transitions_LoopsInline',
         'fromPreviousPages'              => 'Transitions_FromPreviousPages',
         'fromPreviousPagesInline'        => 'Transitions_FromPreviousPagesInline',
         'fromPreviousSiteSearches'       => 'Transitions_FromPreviousSiteSearches',
         'fromPreviousSiteSearchesInline' => 'Transitions_FromPreviousSiteSearchesInline',
         'fromSearchEngines'              => 'Transitions_FromSearchEngines',
-        'fromSearchEnginesInline'        => 'Transitions_FromSearchEnginesInline',
+        'fromSearchEnginesInline'        => 'Referrers_TypeSearchEngines',
         'fromWebsites'                   => 'Transitions_FromWebsites',
-        'fromWebsitesInline'             => 'Transitions_FromWebsitesInline',
+        'fromWebsitesInline'             => 'Referrers_TypeWebsites',
         'fromCampaigns'                  => 'Transitions_FromCampaigns',
-        'fromCampaignsInline'            => 'Transitions_FromCampaignsInline',
+        'fromCampaignsInline'            => 'Referrers_TypeCampaigns',
         'directEntries'                  => 'Transitions_DirectEntries',
-        'directEntriesInline'            => 'Referers_TypeDirectEntries',
+        'directEntriesInline'            => 'Referrers_TypeDirectEntries',
         'toFollowingPages'               => 'Transitions_ToFollowingPages',
         'toFollowingPagesInline'         => 'Transitions_ToFollowingPagesInline',
         'toFollowingSiteSearches'        => 'Transitions_ToFollowingSiteSearches',
         'toFollowingSiteSearchesInline'  => 'Transitions_ToFollowingSiteSearchesInline',
-        'downloads'                      => 'Actions_ColumnDownloads',
+        'downloads'                      => 'General_Downloads',
         'downloadsInline'                => 'VisitsSummary_NbDownloadsDescription',
-        'outlinks'                       => 'Actions_ColumnOutlinks',
+        'outlinks'                       => 'General_Outlinks',
         'outlinksInline'                 => 'VisitsSummary_NbOutlinksDescription',
         'exits'                          => 'General_ColumnExits',
         'exitsInline'                    => 'Transitions_ExitsInline',
@@ -68,7 +69,7 @@ class Controller extends \Piwik\Controller
 
     public static function getTranslation($key)
     {
-        return Piwik_Translate(self::$metricTranslations[$key]);
+        return Piwik::translate(self::$metricTranslations[$key]);
     }
 
     /**
@@ -86,7 +87,7 @@ class Controller extends \Piwik\Controller
     {
         $translations = self::$metricTranslations + self::$jsTranslations;
         foreach ($translations as &$message) {
-            $message = Piwik_Translate($message);
+            $message = Piwik::translate($message);
         }
         return $translations;
     }

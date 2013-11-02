@@ -12,12 +12,9 @@ namespace Piwik\Plugins\SegmentEditor;
 
 use Exception;
 use Piwik\Common;
-use Piwik\Plugins\SegmentEditor\API;
-use Piwik\Plugins\SegmentEditor\Controller;
-use Piwik\Version;
 use Piwik\Db;
 use Piwik\Db\Factory;
-use Zend_Registry;
+use Piwik\Version;
 
 /**
  * @package SegmentEditor
@@ -43,11 +40,11 @@ class SegmentEditor extends \Piwik\Plugin
     public function getListHooksRegistered()
     {
         return array(
-            'Piwik.getKnownSegmentsToArchiveForSite'  => 'getKnownSegmentsToArchiveForSite',
-            'Piwik.getKnownSegmentsToArchiveAllSites' => 'getKnownSegmentsToArchiveAllSites',
-            'AssetManager.getJsFiles'                 => 'getJsFiles',
-            'AssetManager.getCssFiles'                => 'getCssFiles',
-            'template_nextToCalendar'                 => 'getSegmentEditorHtml',
+            'Segments.getKnownSegmentsToArchiveForSite'  => 'getKnownSegmentsToArchiveForSite',
+            'Segments.getKnownSegmentsToArchiveAllSites' => 'getKnownSegmentsToArchiveAllSites',
+            'AssetManager.getJavaScriptFiles'            => 'getJsFiles',
+            'AssetManager.getStylesheetFiles'            => 'getStylesheetFiles',
+            'Template.nextToCalendar'                    => 'getSegmentEditorHtml',
         );
     }
 
@@ -86,8 +83,8 @@ class SegmentEditor extends \Piwik\Plugin
         $jsFiles[] = "plugins/SegmentEditor/javascripts/Segmentation.js";
     }
 
-    public function getCssFiles(&$cssFiles)
+    public function getStylesheetFiles(&$stylesheets)
     {
-        $cssFiles[] = "plugins/SegmentEditor/stylesheets/segmentation.less";
+        $stylesheets[] = "plugins/SegmentEditor/stylesheets/segmentation.less";
     }
 }

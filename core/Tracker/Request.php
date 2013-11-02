@@ -2,13 +2,12 @@
 namespace Piwik\Tracker;
 
 use Exception;
-use Piwik\Config;
 use Piwik\Common;
+use Piwik\Config;
 use Piwik\Cookie;
 use Piwik\IP;
+use Piwik\Piwik;
 use Piwik\Tracker;
-use Piwik\Tracker\Cache;
-use Piwik\Plugins\UserCountry\LocationProvider;
 
 /**
  * Piwik - Open source web analytics
@@ -18,8 +17,8 @@ use Piwik\Plugins\UserCountry\LocationProvider;
  *
  * @category Piwik
  * @package Piwik
+ * @api
  */
-
 class Request
 {
     /**
@@ -28,6 +27,10 @@ class Request
     protected $params;
 
     protected $forcedVisitorId = false;
+
+    protected $isAuthenticated = false;
+
+    const UNKNOWN_RESOLUTION = 'unknown';
 
     /**
      * @param $params
@@ -42,7 +45,7 @@ class Request
         $this->timestamp = time();
         $this->enforcedIp = false;
 
-        // When the 'url' and referer url parameter are not given, we might be in the 'Simple Image Tracker' mode.
+        // When the 'url' and referrer url parameter are not given, we might be in the 'Simple Image Tracker' mode.
         // The URL can default to the Referrer, which will be in this case
         // the URL of the page containing the Simple Image beacon
         if (empty($this->params['urlref'])
@@ -55,10 +58,6 @@ class Request
         }
         $this->authenticateTrackingApi($tokenAuth);
     }
-
-    protected $isAuthenticated = false;
-
-    const UNKNOWN_RESOLUTION = 'unknown';
 
     /**
      * @return bool
@@ -76,7 +75,7 @@ class Request
     {
         $shouldAuthenticate = Config::getInstance()->Tracker['tracking_requests_require_authentication'];
         if ($shouldAuthenticate) {
-            $tokenAuth = $tokenAuthFromBulkRequest || Common::getRequestVar('token_auth', false, 'string', $this->params);
+            $tokenAuth = $tokenAuthFromBulkRequest ? $tokenAuthFromBulkRequest : Common::getRequestVar('token_auth', false, 'string', $this->params);
             try {
                 $idSite = $this->getIdSite();
                 $this->isAuthenticated = $this->authenticateSuperUserOrAdmin($tokenAuth, $idSite);
@@ -95,22 +94,19 @@ class Request
 
     public static function authenticateSuperUserOrAdmin($tokenAuth, $idSite)
     {
-        if (!$tokenAuth) {
+        if (empty($tokenAuth)) {
             return false;
         }
         $superUserLogin = Config::getInstance()->superuser['login'];
         $superUserPassword = Config::getInstance()->superuser['password'];
-        if (md5($superUserLogin . $superUserPassword) == $tokenAuth) {
+        if (md5($superUserLogin . $superUserPassword) === $tokenAuth) {
             return true;
         }
 
         // Now checking the list of admin token_auth cached in the Tracker config file
-        if (!empty($idSite)
-            && $idSite > 0
-        ) {
+        if (!empty($idSite) && $idSite > 0) {
             $website = Cache::getCacheWebsiteAttributes($idSite);
-            $adminTokenAuth = $website['admin_token_auth'];
-            if (in_array($tokenAuth, $adminTokenAuth)) {
+            if (array_key_exists('admin_token_auth', $website) && in_array($tokenAuth, $website['admin_token_auth'])) {
                 return true;
             }
         }
@@ -226,7 +222,7 @@ class Request
 
     public function getParam($name)
     {
-        $supportedParams = array(
+        static $supportedParams = array(
             // Name => array( defaultValue, type )
             '_refts'       => array(0, 'int'),
             '_ref'         => array('', 'string'),
@@ -242,6 +238,7 @@ class Request
             'idgoal'       => array(-1, 'int'),
 
             // other
+            'bots'         => array(0, 'int'),
             'dp'           => array(0, 'int'),
             'rec'          => array(false, 'int'),
             'new_visit'    => array(0, 'int'),
@@ -253,6 +250,12 @@ class Request
             'ec_sh'        => array(false, 'float'),
             'ec_dt'        => array(false, 'float'),
             'ec_items'     => array('', 'string'),
+
+            // Events
+            'e_c'          => array(false, 'string'),
+            'e_a'          => array(false, 'string'),
+            'e_n'          => array(false, 'string'),
+            'e_v'          => array(false, 'float'),
 
             // some visitor attributes can be overwritten
             'cip'          => array(false, 'string'),
@@ -289,15 +292,28 @@ class Request
     protected function isTimestampValid($time)
     {
         return $time <= $this->getCurrentTimestamp()
-            && $time > $this->getCurrentTimestamp() - 10 * 365 * 86400;
+        && $time > $this->getCurrentTimestamp() - 10 * 365 * 86400;
     }
 
     public function getIdSite()
     {
         $idSite = Common::getRequestVar('idsite', 0, 'int', $this->params);
-        Piwik_PostEvent('Tracker.setRequest.idSite', array(&$idSite, $this->params));
+
+        /**
+         * Triggered when obtaining the ID of the site that is currently being tracked.
+         * 
+         * This event can be used to modify the site ID from what is specified by the **idsite**
+         * query parameter.
+         * 
+         * @param int &$idSite Initialized to the value of the **idsite** query parameter. If a
+         *                     subscriber sets this variable, the value it uses must be greater
+         *                     than 0.
+         * @param array $params The entire array of request parameters passed with this tracking
+         *                      request.
+         */
+        Piwik::postEvent('Tracker.Request.getIdSite', array(&$idSite, $this->params));
         if ($idSite <= 0) {
-            throw new Exception('Invalid idSite');
+            throw new Exception('Invalid idSite: \'' . $idSite . '\'');
         }
         return $idSite;
     }
@@ -346,7 +362,7 @@ class Request
         return $customVariables;
     }
 
-    static public function truncateCustomVariable($input)
+    public static function truncateCustomVariable($input)
     {
         return substr(trim($input), 0, Tracker::MAX_LENGTH_CUSTOM_VARIABLE);
     }
@@ -458,7 +474,7 @@ class Request
 
     public function setForceIp($ip)
     {
-        if(!empty($ip)) {
+        if (!empty($ip)) {
             $this->enforcedIp = $ip;
         }
     }
@@ -468,14 +484,14 @@ class Request
         if (!is_numeric($dateTime)) {
             $dateTime = strtotime($dateTime);
         }
-        if(!empty($dateTime)) {
+        if (!empty($dateTime)) {
             $this->timestamp = $dateTime;
         }
     }
 
     public function setForcedVisitorId($visitorId)
     {
-        if(!empty($visitorId)) {
+        if (!empty($visitorId)) {
             $this->forcedVisitorId = $visitorId;
         }
     }
@@ -485,34 +501,34 @@ class Request
         return $this->forcedVisitorId;
     }
 
-    public function enrichLocation($location)
+    public function overrideLocation(&$visitorInfo)
     {
         if (!$this->isAuthenticated()) {
-            return $location;
+            return;
         }
 
         // check for location override query parameters (ie, lat, long, country, region, city)
-        $locationOverrideParams = array(
-            'country' => array('string', LocationProvider::COUNTRY_CODE_KEY),
-            'region'  => array('string', LocationProvider::REGION_CODE_KEY),
-            'city'    => array('string', LocationProvider::CITY_NAME_KEY),
-            'lat'     => array('float', LocationProvider::LATITUDE_KEY),
-            'long'    => array('float', LocationProvider::LONGITUDE_KEY),
+        static $locationOverrideParams = array(
+            'country' => array('string', 'location_country'),
+            'region'  => array('string', 'location_region'),
+            'city'    => array('string', 'location_city'),
+            'lat'     => array('float', 'location_latitude'),
+            'long'    => array('float', 'location_longitude'),
         );
         foreach ($locationOverrideParams as $queryParamName => $info) {
-            list($type, $locationResultKey) = $info;
+            list($type, $visitorInfoKey) = $info;
 
             $value = Common::getRequestVar($queryParamName, false, $type, $this->params);
             if (!empty($value)) {
-                $location[$locationResultKey] = $value;
+                $visitorInfo[$visitorInfoKey] = $value;
             }
         }
-        return $location;
+        return;
     }
 
     public function getPlugins()
     {
-        $pluginsInOrder = array('fla', 'java', 'dir', 'qt', 'realp', 'pdf', 'wma', 'gears', 'ag', 'cookie');
+        static $pluginsInOrder = array('fla', 'java', 'dir', 'qt', 'realp', 'pdf', 'wma', 'gears', 'ag', 'cookie');
         $plugins = array();
         foreach ($pluginsInOrder as $param) {
             $plugins[] = Common::getRequestVar($param, 0, 'int', $this->params);
@@ -523,5 +539,18 @@ class Request
     public function getParamsCount()
     {
         return count($this->params);
+    }
+
+    const GENERATION_TIME_MS_MAXIMUM = 3600000; // 1 hour
+
+    public function getPageGenerationTime()
+    {
+        $generationTime = $this->getParam('gt_ms');
+        if ($generationTime > 0
+            && $generationTime < self::GENERATION_TIME_MS_MAXIMUM
+        ) {
+            return (int)$generationTime;
+        }
+        return false;
     }
 }

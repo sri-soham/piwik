@@ -11,10 +11,12 @@
 
 namespace Piwik\Plugins\DevicesDetection;
 
+use Piwik\Piwik;
 use UserAgentParserEnhanced;
 
 function getBrandLogo($label)
 {
+    $label = str_replace(" ", "_", $label);
     $path = dirname(__FILE__) . '/images/brand/' . $label . '.ico';
     if (file_exists($path)) {
         return 'plugins/DevicesDetection/images/brand/' . $label . '.ico';
@@ -30,7 +32,7 @@ function getBrowserFamilyFullNameExtended($label)
             return $name;
         }
     }
-    return Piwik_Translate('General_Unknown');
+    return Piwik::translate('General_Unknown');
 }
 
 function getBrowserFamilyLogoExtended($label)
@@ -50,7 +52,7 @@ function getBrowserNameExtended($label)
     if (array_key_exists($short, UserAgentParserEnhanced::$browsers)) {
         return trim(ucfirst(UserAgentParserEnhanced::$browsers[$short]) . ' ' . $ver);
     } else {
-        return Piwik_Translate('General_Unknown');
+        return Piwik::translate('General_Unknown');
     }
 }
 
@@ -69,7 +71,7 @@ function getDeviceBrandLabel($label)
     if (array_key_exists($label, UserAgentParserEnhanced::$deviceBrands)) {
         return ucfirst(UserAgentParserEnhanced::$deviceBrands[$label]);
     } else {
-        return Piwik_Translate('General_Unknown');
+        return Piwik::translate('General_Unknown');
     }
 }
 
@@ -78,19 +80,19 @@ function getDeviceTypeLabel($label)
     if (isset(UserAgentParserEnhanced::$deviceTypes[$label])) {
         return UserAgentParserEnhanced::$deviceTypes[$label];
     } else {
-        return Piwik_Translate('General_Unknown');
+        return Piwik::translate('General_Unknown');
     }
 }
 
 function getDeviceTypeLogo($label)
 {
     $deviceTypeLogos = Array(
-        "Desktop" => "normal.gif",
-        "Smartphone" => "smartphone.png",
-        "Tablet" => "tablet.png",
-        "Tv" => "tv.png",
+        "Desktop"       => "normal.gif",
+        "Smartphone"    => "smartphone.png",
+        "Tablet"        => "tablet.png",
+        "Tv"            => "tv.png",
         "Feature phone" => "mobile.gif",
-        "Console" => "console.gif");
+        "Console"       => "console.gif");
 
     if (!array_key_exists($label, $deviceTypeLogos) || $label == "Unknown") {
         $label = 'unknown.gif';
@@ -104,7 +106,7 @@ function getDeviceTypeLogo($label)
 function getModelName($label)
 {
     if (!$label) {
-        return Piwik_Translate('General_Unknown');
+        return Piwik::translate('General_Unknown');
     }
     return $label;
 }
@@ -116,7 +118,7 @@ function getOSFamilyFullNameExtended($label)
             return $name;
         }
     }
-    return Piwik_Translate('General_Unknown');
+    return Piwik::translate('General_Unknown');
 }
 
 function getOsFamilyLogoExtended($label)
@@ -135,13 +137,12 @@ function getOsFullNameExtended($label)
         $os = substr($label, 0, 3);
         $ver = substr($label, 4, 15);
         $name = UserAgentParserEnhanced::getOsNameFromId($os, $ver);
-        if(!empty($name)) {
+        if (!empty($name)) {
             return $name;
         }
     }
-    return Piwik_Translate('General_Unknown');
+    return Piwik::translate('General_Unknown');
 }
-
 
 
 function getOsLogoExtended($label)

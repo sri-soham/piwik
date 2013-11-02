@@ -5,13 +5,58 @@
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
-use Piwik\Piwik;
 use Piwik\Access;
+use Piwik\Filesystem;
+use Piwik\MetricsFormatter;
+use Piwik\Piwik;
 use Piwik\Plugins\SitesManager\API;
 use Piwik\Translate;
 
 class PiwikTest extends DatabaseTestCase
 {
+    /**
+     * Tests the generated JS code
+     * @group Core
+     */
+    public function testJavascriptTrackingCode_withAllOptions()
+    {
+        $jsTag = Piwik::getJavascriptCode($idSite = 1, $piwikUrl = 'http://localhost/piwik',
+            $mergeSubdomains = true, $groupPageTitlesByDomain = true, $mergeAliasUrls = true,
+            $visitorCustomVariables = array( array("name", "value"), array("name 2", "value 2") ),
+            $pageCustomVariables = array( array("page cvar", "page cvar value") ),
+            $customCampaignNameQueryParam = "campaignKey", $customCampaignKeywordParam = "keywordKey",
+            $doNotTrack = true);
+
+        $expected = "&lt;!-- Piwik --&gt;
+&lt;script type=&quot;text/javascript&quot;&gt;
+  var _paq = _paq || [];
+  _paq.push([\"setDocumentTitle\", document.domain + \"/\" + document.title]);
+  // you can set up to 5 custom variables for each visitor
+  _paq.push([\"setCustomVariable\", 0, \"name\", \"value\", \"visit\"]);
+  _paq.push([\"setCustomVariable\", 1, \"name 2\", \"value 2\", \"visit\"]);
+  // you can set up to 5 custom variables for each action (page view, download, click, site search)
+  _paq.push([\"setCustomVariable\", 0, \"page cvar\", \"page cvar value\", \"page\"]);
+  _paq.push([\"setCampaignNameKey\", \"campaignKey\"]);
+  _paq.push([\"setCampaignKeywordKey\", \"keywordKey\"]);
+  _paq.push([\"setDoNotTrack\", true]);
+  _paq.push(['trackPageView']);
+  _paq.push(['enableLinkTracking']);
+  (function() {
+    var u=((&quot;https:&quot; == document.location.protocol) ? &quot;https&quot; : &quot;http&quot;) + &quot;://localhost/piwik&quot;;
+    _paq.push(['setTrackerUrl', u+'piwik.php']);
+    _paq.push(['setSiteId', 1]);
+    var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0]; g.type='text/javascript';
+    g.defer=true; g.async=true; g.src=u+'piwik.js'; s.parentNode.insertBefore(g,s);
+  })();
+
+&lt;/script&gt;
+&lt;noscript&gt;&lt;p&gt;&lt;img src=&quot;http://localhost/piwikpiwik.php?idsite=1&quot; style=&quot;border:0;&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;&lt;/noscript&gt;
+&lt;!-- End Piwik Code --&gt;
+";
+
+        $this->assertEquals($jsTag, $expected);
+    }
+
     /**
      * Dataprovider for testIsNumericValid
      */
@@ -32,7 +77,7 @@ class PiwikTest extends DatabaseTestCase
 
     /**
      * @group Core
-     * @group Piwik
+     *
      * @dataProvider getValidNumeric
      */
     public function testIsNumericValid($toTest)
@@ -56,7 +101,7 @@ class PiwikTest extends DatabaseTestCase
 
     /**
      * @group Core
-     * @group Piwik
+     *
      * @dataProvider getInvalidNumeric
      */
     public function testIsNumericNotValid($toTest)
@@ -66,7 +111,6 @@ class PiwikTest extends DatabaseTestCase
 
     /**
      * @group Core
-     * @group Piwik
      */
     public function testSecureDiv()
     {
@@ -95,18 +139,18 @@ class PiwikTest extends DatabaseTestCase
             array((86400 * (365.25 + 10)), array('1 years 10 days', '9006:00:00')),
             array(1.342, array('1.34s', '00:00:01.34')),
             array(.342, array('0.34s', '00:00:00.34')),
-			array(.02, array('0.02s', '00:00:00.02')),
+            array(.02, array('0.02s', '00:00:00.02')),
             array(.002, array('0.002s', '00:00:00')),
-			array(1.002, array('1s', '00:00:01')),
-			array(1.02, array('1.02s', '00:00:01.02')),
-			array(1.2, array('1.2s', '00:00:01.20')),
-			array(122.1, array('2 min 2.1s', '00:02:02.10'))
+            array(1.002, array('1s', '00:00:01')),
+            array(1.02, array('1.02s', '00:00:01.02')),
+            array(1.2, array('1.2s', '00:00:01.20')),
+            array(122.1, array('2 min 2.1s', '00:02:02.10'))
         );
     }
 
     /**
      * @group Core
-     * @group Piwik
+     *
      * @dataProvider getPrettyTimeFromSecondsData
      */
     public function testGetPrettyTimeFromSeconds($seconds, $expected)
@@ -114,15 +158,15 @@ class PiwikTest extends DatabaseTestCase
         if (($seconds * 100) > PHP_INT_MAX) {
             $this->markTestSkipped("Will not pass on 32-bit machine.");
         }
-        
-        Translate::getInstance()->loadEnglishTranslation();
+
+        Translate::loadEnglishTranslation();
 
         $sentenceExpected = str_replace(' ', '&nbsp;', $expected[0]);
         $numericExpected = $expected[1];
-        $this->assertEquals($sentenceExpected, Piwik::getPrettyTimeFromSeconds($seconds, $sentence = true));
-        $this->assertEquals($numericExpected, Piwik::getPrettyTimeFromSeconds($seconds, $sentence = false));
+        $this->assertEquals($sentenceExpected, MetricsFormatter::getPrettyTimeFromSeconds($seconds, $sentence = true));
+        $this->assertEquals($numericExpected, MetricsFormatter::getPrettyTimeFromSeconds($seconds, $sentence = false));
 
-        Translate::getInstance()->unloadEnglishTranslation();
+        Translate::unloadEnglishTranslation();
     }
 
     /**
@@ -152,7 +196,7 @@ class PiwikTest extends DatabaseTestCase
 
     /**
      * @group Core
-     * @group Piwik
+     *
      * @dataProvider getInvalidLoginStringData
      */
     public function testCheckInvalidLoginString($toTest)
@@ -183,7 +227,7 @@ class PiwikTest extends DatabaseTestCase
 
     /**
      * @group Core
-     * @group Piwik
+     *
      * @dataProvider getValidLoginStringData
      */
     public function testCheckValidLoginString($toTest)
@@ -208,12 +252,12 @@ class PiwikTest extends DatabaseTestCase
 
     /**
      * @group Core
-     * @group Piwik
+     *
      * @dataProvider getGetPrettyValueTestCases
      */
     public function testGetPrettyValue($columnName, $value, $expected)
     {
-        Translate::getInstance()->loadEnglishTranslation();
+        Translate::loadEnglishTranslation();
 
         $access = Access::getInstance();
         $access->setSuperUser(true);
@@ -222,10 +266,10 @@ class PiwikTest extends DatabaseTestCase
 
         $this->assertEquals(
             $expected,
-            Piwik::getPrettyValue($idsite, $columnName, $value, false, false)
+            MetricsFormatter::getPrettyValue($idsite, $columnName, $value, false, false)
         );
 
-        Translate::getInstance()->unloadEnglishTranslation();
+        Translate::unloadEnglishTranslation();
     }
 
     /**
@@ -245,7 +289,7 @@ class PiwikTest extends DatabaseTestCase
 
     /**
      * @group Core
-     * @group Piwik
+     *
      * @dataProvider getIsAssociativeArrayTestCases
      */
     public function testIsAssociativeArray($array, $expected)
@@ -255,10 +299,9 @@ class PiwikTest extends DatabaseTestCase
 
     /**
      * @group Core
-     * @group Piwik
      */
     public function testCheckIfFileSystemIsNFSOnNonNFS()
     {
-        $this->assertFalse(Piwik::checkIfFileSystemIsNFS());
+        $this->assertFalse(Filesystem::checkIfFileSystemIsNFS());
     }
 }

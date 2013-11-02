@@ -11,13 +11,13 @@
 namespace Piwik\Plugins\Annotations;
 
 use Exception;
+use Piwik\Date;
+
 use Piwik\Period;
 use Piwik\Period\Range;
 use Piwik\Piwik;
-use Piwik\Date;
-use Piwik\Plugins\Annotations\AnnotationList;
-use Piwik\ViewDataTable;
 use Piwik\Plugins\CoreVisualizations\Visualizations\JqplotGraph\Evolution as EvolutionViz;
+use Piwik\ViewDataTable\Factory;
 
 /**
  * @see plugins/Annotations/AnnotationList.php
@@ -30,23 +30,8 @@ require_once PIWIK_INCLUDE_PATH . '/plugins/Annotations/AnnotationList.php';
  *
  * @package Annotations
  */
-class API
+class API extends \Piwik\Plugin\API
 {
-    static private $instance = null;
-
-    /**
-     * Returns this API's singleton instance.
-     *
-     * @return \Piwik\Plugins\Annotations\API
-     */
-    static public function getInstance()
-    {
-        if (self::$instance == null) {
-            self::$instance = new self;
-        }
-        return self::$instance;
-    }
-
     /**
      * Create a new annotation for a site.
      *
@@ -283,7 +268,7 @@ class API
     private function checkUserCanModifyOrDelete($idSite, $annotation)
     {
         if (!$annotation['canEditOrDelete']) {
-            throw new Exception(Piwik_Translate('Annotations_YouCannotModifyThisNote'));
+            throw new Exception(Piwik::translate('Annotations_YouCannotModifyThisNote'));
         }
     }
 
@@ -308,7 +293,7 @@ class API
      * @param string|bool $date The start date of the period (or the date range of a range
      *                           period).
      * @param string $period The period type ('day', 'week', 'month', 'year' or 'range').
-     * @param bool|int $lastN  Whether to include the last N periods in the range or not.
+     * @param bool|int $lastN Whether to include the last N periods in the range or not.
      *                         Ignored if period == range.
      *
      * @return Date[]   array of Date objects or array(false, false)

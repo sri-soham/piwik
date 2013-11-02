@@ -40,7 +40,7 @@ class LogLinkVisitAction extends Base
         # MySQL on the other hand, is returning in ascending order of serverTimePretty; when
         # serverTimePretty is equal, result set is in ascending order of pageId.
         $sql = 'SELECT '
-             . '   COALESCE(log_action.type,log_action_title.type) AS type '
+			 . '   COALESCE(log_action_event_category.type, log_action.type, log_action_title.type) AS type '
              . ' , log_action.name AS url '
              . ' , log_action.url_prefix '
              . ' , log_action_title.name AS ' . $this->db->quoteIdentifier('pageTitle') .' '
@@ -50,11 +50,17 @@ class LogLinkVisitAction extends Base
              . ' , log_link_visit_action.time_spent_ref_action AS ' . $timeSpentRef . ' '
              . ' , log_link_visit_action.custom_float '
              . $customVariables . ' '
+			 . ' , log_action_event_category.name AS ' . $this->db->quoteIdentifier('eventCategory') . ' '
+			 . ' , log_action_event_action.name AS ' . $this->db->quoteIdentifier('eventAction') . ' '
              . 'FROM ' . $this->table . ' AS log_link_visit_action '
              . 'LEFT OUTER JOIN ' . Common::prefixTable('log_action') . ' AS log_action '
              . '    ON log_link_visit_action.idaction_url = log_action.idaction '
              . 'LEFT OUTER JOIN ' . Common::prefixTable('log_action') . ' AS log_action_title '
              . '    ON log_link_visit_action.idaction_name = log_action_title.idaction '
+		     . 'LEFT JOIN ' . Common::prefixTable('log_action') . ' AS log_action_event_category '
+			 . '    ON  log_link_visit_action.idaction_event_category = log_action_event_category.idaction '
+			 . 'LEFT JOIN ' . Common::prefixTable('log_action') . ' AS log_action_event_action '
+		     . '	ON  log_link_visit_action.idaction_event_action = log_action_event_action.idaction '
              . 'WHERE log_link_visit_action.idvisit = ? '
              . 'ORDER BY ' . $serverTimePretty . ', ' . $pageId . ' '
              . 'LIMIT ' . $actionsLimit . ' OFFSET 0';
@@ -64,13 +70,13 @@ class LogLinkVisitAction extends Base
 
     public function record($idvisit, $idsite, $idvisitor, $server_time,
                         $url, $name, $ref_url, $ref_name, $time_spent,
-                        $time_generation, $custom_variables
+                        $custom_value, $custom_variables, $actionIdsCached
                         )
     {
         list($sql, $bind) = $this->paramsRecord(
             $idvisit, $idsite, $idvisitor, $server_time,
             $url, $name, $ref_url, $ref_name, $time_spent,
-            $time_generation, $custom_variables
+            $custom_value, $custom_variables, $actionIdsCached
         );
 
         $this->db->query($sql, $bind);
@@ -121,7 +127,7 @@ class LogLinkVisitAction extends Base
     
     protected function paramsRecord($idvisit, $idsite, $idvisitor, $server_time,
                         $url, $name, $ref_url, $ref_name, $time_spent,
-                        $time_generation, $custom_variables
+                        $custom_value, $custom_variables, $actionIdsCached
                         )
     {
         $Generic = Factory::getGeneric($this->db);
@@ -136,24 +142,21 @@ class LogLinkVisitAction extends Base
             'idaction_name_ref' => $ref_name,
             'time_spent_ref_action' => $time_spent
         );
-        if (!empty($time_generation)) {
-            $insert[Action::DB_COLUMN_TIME_GENERATION] = $time_generation;
+        foreach($actionIdsCached as $field => $idAction) {
+            $insert[$field] = $idAction;
+        }
+
+        if (!empty($custom_value)) {
+            $insert[Action::DB_COLUMN_CUSTOM_FLOAT] = $custom_value;
         }
 
         $insert = array_merge($insert, $custom_variables);
 
-        // Mysqli apparently does not like NULL inserts?
-        $insertWithoutNulls = array();
-        foreach ($insert as $column => $value) {
-            if (!is_null($value) || $column == 'idaction_url_ref') {
-                $insertWithoutNulls[$column] = $value;
-            }
-        }
-
-        $fields = implode(', ', array_keys($insertWithoutNulls));
-        $bind   = array_values($insertWithoutNulls);
-        $values = Common::getSqlStringFieldsArray($insertWithoutNulls);
-        Common::printDebug($insertWithoutNulls);
+        $fields = implode(', ', array_keys($insert));
+        $bind   = array_values($insert);
+        $values = Common::getSqlStringFieldsArray($insert);
+        Common::printDebug("About to inserted new action:");
+        Common::printDebug($insert);
 
         $sql = 'INSERT INTO ' . $this->table . '( ' . $fields . ') VALUES ( ' . $values . ')';
 

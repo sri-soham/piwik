@@ -58,7 +58,7 @@ class Segment extends Base
             $bind[] = $idSite;
         }
 
-        $bind[] = Piwik::getCurrentUserLogin();
+        $bind[] = $login;
 
         $extraWhere = '';
         if ($returnOnlyAutoArchived) {

@@ -12,21 +12,22 @@ namespace Piwik\Plugins\SitesManager;
 
 use Exception;
 use Piwik\API\ResponseBuilder;
-use Piwik\DataTable\Renderer\Json;
-use Piwik\Piwik;
 use Piwik\Common;
+use Piwik\DataTable\Renderer\Json;
 use Piwik\Date;
 use Piwik\IP;
-use Piwik\Plugins\SitesManager\API;
-use Piwik\View;
-use Piwik\Url;
+use Piwik\Piwik;
+use Piwik\SettingsServer;
 use Piwik\Site;
+use Piwik\Url;
+use Piwik\UrlHelper;
+use Piwik\View;
 
 /**
  *
  * @package SitesManager
  */
-class Controller extends \Piwik\Controller\Admin
+class Controller extends \Piwik\Plugin\ControllerAdmin
 {
     /**
      * Main view showing listing of websites and settings
@@ -54,7 +55,7 @@ class Controller extends \Piwik\Controller\Admin
         $view->adminSitesCount = count($sites);
 
         $timezones = API::getInstance()->getTimezonesList();
-        $view->timezoneSupported = Piwik::isTimezoneSupportEnabled();
+        $view->timezoneSupported = SettingsServer::isTimezoneSupportEnabled();
         $view->timezones = Common::json_encode($timezones);
         $view->defaultTimezone = API::getInstance()->getDefaultTimezone();
 
@@ -72,7 +73,7 @@ class Controller extends \Piwik\Controller\Admin
 
         $view->globalSearchKeywordParameters = API::getInstance()->getSearchKeywordParametersGlobal();
         $view->globalSearchCategoryParameters = API::getInstance()->getSearchCategoryParametersGlobal();
-        $view->isSearchCategoryTrackingEnabled = \Piwik\PluginsManager::getInstance()->isPluginActivated('CustomVariables');
+        $view->isSearchCategoryTrackingEnabled = \Piwik\Plugin\Manager::getInstance()->isPluginActivated('CustomVariables');
         $view->allowSiteSpecificUserAgentExclude =
             API::getInstance()->isSiteSpecificUserAgentExcludeEnabled();
 
@@ -161,7 +162,7 @@ class Controller extends \Piwik\Controller\Admin
         $view->idSite = Common::getRequestVar('idSite');
         $url = Common::getRequestVar('piwikUrl', '', 'string');
         if (empty($url)
-            || !Common::isLookLikeUrl($url)
+            || !UrlHelper::isLookLikeUrl($url)
         ) {
             $url = $view->piwikUrl;
         }
@@ -176,7 +177,7 @@ class Controller extends \Piwik\Controller\Admin
         $sites = API::getInstance()->getPatternMatchSites($pattern);
         $pattern = str_replace('%', '', $pattern);
         if (!count($sites)) {
-            $results[] = array('label' => Piwik_Translate('SitesManager_NotFound') . "&nbsp;<span class='autocompleteMatched'>$pattern</span>.", 'id' => '#');
+            $results[] = array('label' => Piwik::translate('SitesManager_NotFound') . "&nbsp;<span class='autocompleteMatched'>$pattern</span>.", 'id' => '#');
         } else {
             if (strpos($pattern, '/') !== false
                 && strpos($pattern, '\\/') === false

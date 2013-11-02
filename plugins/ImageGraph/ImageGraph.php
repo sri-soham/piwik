@@ -11,30 +11,31 @@
 namespace Piwik\Plugins\ImageGraph;
 
 use Piwik\Common;
-use Piwik\Period;
-use Piwik\Url;
-use Piwik\Site;
 use Piwik\Config;
+use Piwik\Period;
+use Piwik\Site;
+use Piwik\Url;
+use Piwik\Period\Range;
 
 class ImageGraph extends \Piwik\Plugin
 {
-    static private $CONSTANT_ROW_COUNT_REPORT_EXCEPTIONS = array(
-        'Referers_getRefererType',
-    );
-
-    // row evolution support not yet implemented for these APIs
-    static private $REPORTS_DISABLED_EVOLUTION_GRAPH = array(
-        'Referers_getAll',
-    );
-
     public function getInformation()
     {
         $suffix = ' Debug: <a href="' . Url::getCurrentQueryStringWithParametersModified(
-            array('module' => 'ImageGraph', 'action' => 'index')) . '">All images</a>';
+                array('module' => 'ImageGraph', 'action' => 'index')) . '">All images</a>';
         $info = parent::getInformation();
         $info['description'] .= ' ' . $suffix;
         return $info;
     }
+
+    static private $CONSTANT_ROW_COUNT_REPORT_EXCEPTIONS = array(
+        'Referrers_getReferrerType',
+    );
+
+    // row evolution support not yet implemented for these APIs
+    static private $REPORTS_DISABLED_EVOLUTION_GRAPH = array(
+        'Referrers_getAll',
+    );
 
     /**
      * @see Piwik_Plugin::getListHooksRegistered
@@ -91,7 +92,7 @@ class ImageGraph extends \Piwik\Plugin
                 $dateForMultiplePeriodGraph = $dateForSinglePeriodGraph;
             } else {
                 $periodForMultiplePeriodGraph = $periodForSinglePeriodGraph;
-                $dateForMultiplePeriodGraph = \Piwik\Controller::getDateRangeRelativeToEndDate(
+                $dateForMultiplePeriodGraph = Range::getRelativeToEndDate(
                     $periodForSinglePeriodGraph,
                     'last' . self::GRAPH_EVOLUTION_LAST_PERIODS,
                     $dateForSinglePeriodGraph,

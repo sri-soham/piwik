@@ -12,10 +12,15 @@ namespace Piwik\Plugins\VisitTime;
 
 use Exception;
 use Piwik\ArchiveProcessor;
+
 use Piwik\Common;
 use Piwik\Db\Factory;
+use Piwik\Menu\MenuMain;
 use Piwik\Period;
-use Piwik\Plugins\VisitTime\Archiver;
+use Piwik\Piwik;
+use Piwik\Plugin\ViewDataTable;
+use Piwik\Plugins\CoreVisualizations\Visualizations\Graph;
+use Piwik\Plugins\CoreVisualizations\Visualizations\JqplotGraph\Bar;
 use Piwik\Site;
 use Piwik\WidgetsList;
 
@@ -31,14 +36,15 @@ class VisitTime extends \Piwik\Plugin
     public function getListHooksRegistered()
     {
         $hooks = array(
-            'ArchiveProcessing_Day.compute'            => 'archiveDay',
-            'ArchiveProcessing_Period.compute'         => 'archivePeriod',
-            'WidgetsList.add'                          => 'addWidgets',
-            'Menu.add'                                 => 'addMenu',
-            'Goals.getReportsWithGoalMetrics'          => 'getReportsWithGoalMetrics',
-            'API.getReportMetadata'                    => 'getReportMetadata',
-            'API.getSegmentsMetadata'                  => 'getSegmentsMetadata',
-            'ViewDataTable.getReportDisplayProperties' => 'getReportDisplayProperties',
+            'ArchiveProcessor.Day.compute'    => 'archiveDay',
+            'ArchiveProcessor.Period.compute' => 'archivePeriod',
+            'WidgetsList.addWidgets'          => 'addWidgets',
+            'Menu.Reporting.addItems'         => 'addMenu',
+            'Goals.getReportsWithGoalMetrics' => 'getReportsWithGoalMetrics',
+            'API.getReportMetadata'           => 'getReportMetadata',
+            'API.getSegmentsMetadata'         => 'getSegmentsMetadata',
+            'ViewDataTable.configure'         => 'configureViewDataTable',
+            'ViewDataTable.getDefaultType'    => 'getDefaultTypeViewDataTable'
         );
         return $hooks;
     }
@@ -46,34 +52,34 @@ class VisitTime extends \Piwik\Plugin
     public function getReportMetadata(&$reports)
     {
         $reports[] = array(
-            'category'          => Piwik_Translate('VisitsSummary_VisitsSummary'),
-            'name'              => Piwik_Translate('VisitTime_WidgetLocalTime'),
+            'category'          => Piwik::translate('VisitsSummary_VisitsSummary'),
+            'name'              => Piwik::translate('VisitTime_WidgetLocalTime'),
             'module'            => 'VisitTime',
             'action'            => 'getVisitInformationPerLocalTime',
-            'dimension'         => Piwik_Translate('VisitTime_ColumnLocalTime'),
-            'documentation'     => Piwik_Translate('VisitTime_WidgetLocalTimeDocumentation', array('<strong>', '</strong>')),
+            'dimension'         => Piwik::translate('VisitTime_ColumnLocalTime'),
+            'documentation'     => Piwik::translate('VisitTime_WidgetLocalTimeDocumentation', array('<strong>', '</strong>')),
             'constantRowsCount' => true,
             'order'             => 20
         );
 
         $reports[] = array(
-            'category'          => Piwik_Translate('VisitsSummary_VisitsSummary'),
-            'name'              => Piwik_Translate('VisitTime_WidgetServerTime'),
+            'category'          => Piwik::translate('VisitsSummary_VisitsSummary'),
+            'name'              => Piwik::translate('VisitTime_WidgetServerTime'),
             'module'            => 'VisitTime',
             'action'            => 'getVisitInformationPerServerTime',
-            'dimension'         => Piwik_Translate('VisitTime_ColumnServerTime'),
-            'documentation'     => Piwik_Translate('VisitTime_WidgetServerTimeDocumentation', array('<strong>', '</strong>')),
+            'dimension'         => Piwik::translate('VisitTime_ColumnServerTime'),
+            'documentation'     => Piwik::translate('VisitTime_WidgetServerTimeDocumentation', array('<strong>', '</strong>')),
             'constantRowsCount' => true,
             'order'             => 15,
         );
 
         $reports[] = array(
-            'category'          => Piwik_Translate('VisitsSummary_VisitsSummary'),
-            'name'              => Piwik_Translate('VisitTime_VisitsByDayOfWeek'),
+            'category'          => Piwik::translate('VisitsSummary_VisitsSummary'),
+            'name'              => Piwik::translate('VisitTime_VisitsByDayOfWeek'),
             'module'            => 'VisitTime',
             'action'            => 'getByDayOfWeek',
-            'dimension'         => Piwik_Translate('VisitTime_DayOfWeek'),
-            'documentation'     => Piwik_Translate('VisitTime_WidgetByDayOfWeekDocumentation'),
+            'dimension'         => Piwik::translate('VisitTime_DayOfWeek'),
+            'documentation'     => Piwik::translate('VisitTime_WidgetByDayOfWeekDocumentation'),
             'constantRowsCount' => true,
             'order'             => 25,
         );
@@ -88,13 +94,13 @@ class VisitTime extends \Piwik\Plugin
 
     function addMenu()
     {
-        Piwik_AddMenu('General_Visitors', 'VisitTime_SubmenuTimes', array('module' => 'VisitTime', 'action' => 'index'));
+        MenuMain::getInstance()->add('General_Visitors', 'VisitTime_SubmenuTimes', array('module' => 'VisitTime', 'action' => 'index'));
     }
 
     public function getReportsWithGoalMetrics(&$dimensions)
     {
-        $dimensions[] = array('category' => Piwik_Translate('VisitTime_ColumnServerTime'),
-                              'name'     => Piwik_Translate('VisitTime_ColumnServerTime'),
+        $dimensions[] = array('category' => Piwik::translate('VisitTime_ColumnServerTime'),
+                              'name'     => Piwik::translate('VisitTime_ColumnServerTime'),
                               'module'   => 'VisitTime',
                               'action'   => 'getVisitInformationPerServerTime',
         );
@@ -107,8 +113,8 @@ class VisitTime extends \Piwik\Plugin
         $acceptedValues = "0, 1, 2, 3, ..., 20, 21, 22, 23";
         $segments[] = array(
             'type'           => 'dimension',
-            'category'       => Piwik_Translate('General_Visit'),
-            'name'           => Piwik_Translate('VisitTime_ColumnServerTime'),
+            'category'       => Piwik::translate('General_Visit'),
+            'name'           => Piwik::translate('VisitTime_ColumnServerTime'),
             'segment'        => 'visitServerHour',
             'sqlSegment'     => $Generic->hour('log_visit.visit_last_action_time'),
             'sqlFilter'      => array('Piwik\Common', 'dummyWhenNotTime'),
@@ -116,8 +122,8 @@ class VisitTime extends \Piwik\Plugin
         );
         $segments[] = array(
             'type'           => 'dimension',
-            'category'       => Piwik_Translate('General_Visit'),
-            'name'           => Piwik_Translate('VisitTime_ColumnLocalTime'),
+            'category'       => Piwik::translate('General_Visit'),
+            'name'           => Piwik::translate('VisitTime_ColumnLocalTime'),
             'segment'        => 'visitLocalHour',
             'sqlSegment'     => $Generic->hour('log_visit.visitor_localtime'),
             'sqlFilter'      => array('Piwik\Common', 'dummyWhenNotTime'),
@@ -125,60 +131,73 @@ class VisitTime extends \Piwik\Plugin
         );
     }
 
-    public function getReportDisplayProperties(&$properties)
+    public function getDefaultTypeViewDataTable(&$defaultViewTypes)
     {
-        $commonProperties = array(
-            'filter_sort_column'          => 'label',
-            'filter_sort_order'           => 'asc',
-            'show_search'                 => false,
-            'show_exclude_low_population' => false,
-            'show_offset_information'     => false,
-            'show_pagination_control'     => false,
-            'default_view_type'           => 'graphVerticalBar'
-        );
+        $defaultViewTypes['VisitTime.getVisitInformationPerServerTime'] = Bar::ID;
+        $defaultViewTypes['VisitTime.getVisitInformationPerLocalTime']  = Bar::ID;
+        $defaultViewTypes['VisitTime.getByDayOfWeek']                   = Bar::ID;
+    }
 
-        $properties['VisitTime.getVisitInformationPerServerTime'] = array_merge($commonProperties, array(
-            'filter_limit' => 24,
-            'show_goals' => true,
-            'translations' => array('label' => Piwik_Translate('VisitTime_ColumnServerTime')),
-            'request_parameters_to_modify' => array('hideFutureHoursWhenToday' => 1),
-            'visualization_properties' => array(
-                'graph' => array(
-                    'max_graph_elements' => false,
-                )
-            )
-        ));
-            
-        $properties['VisitTime.getVisitInformationPerLocalTime'] = array_merge($commonProperties, array(
-            'filter_limit' => 24,
-            'title' => Piwik_Translate('VisitTime_ColumnLocalTime'),
-            'translations' => array('label' => Piwik_Translate('VisitTime_LocalTime')),
-            'visualization_properties' => array(
-                'graph' => array(
-                    'max_graph_elements' => false,
-                )
-            )
-        ));
-            
-        $properties['VisitTime.getByDayOfWeek'] = array_merge($commonProperties, array(
-            'filter_limit' => 7,
-            'enable_sort' => false,
-            'show_footer_message' =>
-                Piwik_Translate('General_ReportGeneratedFrom', self::getDateRangeForFooterMessage()),
-            'translations' => array('label' => Piwik_Translate('VisitTime_DayOfWeek')),
-            'visualization_properties' => array(
-                'graph' => array(
-                    'show_all_ticks' => true,
-                    'max_graph_elements' => false,
-                )
-            )
-        ));
+    public function configureViewDataTable(ViewDataTable $view)
+    {
+        switch ($view->requestConfig->apiMethodToRequestDataTable) {
+            case 'VisitTime.getVisitInformationPerServerTime':
+                $this->setBasicConfigViewProperties($view);
+                $this->configureViewForVisitInformationPerServerTime($view);
+                break;
+            case 'VisitTime.getVisitInformationPerLocalTime':
+                $this->setBasicConfigViewProperties($view);
+                $this->configureViewForVisitInformationPerLocalTime($view);
+                break;
+            case 'VisitTime.getByDayOfWeek':
+                $this->setBasicConfigViewProperties($view);
+                $this->configureViewForByDayOfWeek($view);
+                break;
+        }
+    }
+
+    protected function configureViewForVisitInformationPerServerTime(ViewDataTable $view)
+    {
+        $view->requestConfig->filter_limit = 24;
+        $view->requestConfig->request_parameters_to_modify['hideFutureHoursWhenToday'] = 1;
+
+        $view->config->show_goals = true;
+        $view->config->addTranslation('label', Piwik::translate('VisitTime_ColumnServerTime'));
+
+        if ($view->isViewDataTableId(Graph::ID)) {
+            $view->config->max_graph_elements = false;
+        }
+    }
+
+    protected function configureViewForVisitInformationPerLocalTime(ViewDataTable $view)
+    {
+        $view->requestConfig->filter_limit = 24;
+
+        $view->config->title = Piwik::translate('VisitTime_ColumnLocalTime');
+        $view->config->addTranslation('label', Piwik::translate('VisitTime_LocalTime'));
+
+        if ($view->isViewDataTableId(Graph::ID)) {
+            $view->config->max_graph_elements = false;
+        }
 
         // add the visits by day of week as a related report, if the current period is not 'day'
         if (Common::getRequestVar('period', 'day') != 'day') {
-            $properties['VisitTime.getVisitInformationPerLocalTime']['related_reports'] = array(
-                'VisitTime.getByDayOfWeek' => Piwik_Translate('VisitTime_VisitsByDayOfWeek')
-            );
+            $view->config->addRelatedReport('VisitTime.getByDayOfWeek', Piwik::translate('VisitTime_VisitsByDayOfWeek'));
+        }
+
+    }
+
+    protected function configureViewForByDayOfWeek(ViewDataTable $view)
+    {
+        $view->requestConfig->filter_limit = 7;
+
+        $view->config->enable_sort = false;
+        $view->config->show_footer_message = Piwik::translate('General_ReportGeneratedFrom', self::getDateRangeForFooterMessage());
+        $view->config->addTranslation('label', Piwik::translate('VisitTime_DayOfWeek'));
+
+        if ($view->isViewDataTableId(Graph::ID)) {
+            $view->config->max_graph_elements = false;
+            $view->config->show_all_ticks     = true;
         }
     }
 
@@ -221,5 +240,19 @@ class VisitTime extends \Piwik\Plugin
             $dateRange = $start . " &ndash; " . $end;
         }
         return $dateRange;
+    }
+
+    /**
+     * @param ViewDataTable $view
+     */
+    private function setBasicConfigViewProperties(ViewDataTable $view)
+    {
+        $view->requestConfig->filter_sort_column = 'label';
+        $view->requestConfig->filter_sort_order = 'asc';
+        $view->config->show_search = false;
+        $view->config->show_limit_control = false;
+        $view->config->show_exclude_low_population = false;
+        $view->config->show_offset_information = false;
+        $view->config->show_pagination_control = false;
     }
 }

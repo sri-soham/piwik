@@ -10,31 +10,31 @@
  */
 namespace Piwik;
 
-use Piwik\Common;
 use Piwik\Session\SessionNamespace;
-use Piwik\Url;
 
 /**
  * Nonce class.
  *
- * A cryptographic nonce -- "number used only once" -- is often recommended as part of a robust defense against cross-site request forgery (CSRF/XSRF).
- * Desrable characteristics: limited lifetime, uniqueness, unpredictability (pseudo-randomness).
+ * A cryptographic nonce -- "number used only once" -- is often recommended as
+ * part of a robust defense against cross-site request forgery (CSRF/XSRF). This
+ * class provides static methods that create and manage nonce values.
+ * 
+ * Nonces in Piwik are stored as a session variable and have a configurable expiration:
  *
- * We use a session-dependent nonce with a configurable expiration that combines and hashes:
- * - a private salt because it's non-public
- * - time() because it's unique
- * - a mix of PRNGs (pseudo-random number generators) to increase entropy and make it less predictable
- *
+ * Learn more about nonces [here](http://en.wikipedia.org/wiki/Cryptographic_nonce).
+ * 
  * @package Piwik
+ * @api
  */
 class Nonce
 {
     /**
-     * Generate nonce
+     * Returns the existing nonce. If none exists, a new nonce will be generated.
      *
-     * @param string $id   Unique id to avoid namespace conflicts, e.g., ModuleName.ActionName
-     * @param int $ttl  Optional time-to-live in seconds; default is 5 minutes
-     * @return string  Nonce
+     * @param string $id Unique id to avoid namespace conflicts, e.g., `'ModuleName.ActionName'`.
+     * @param int $ttl Optional time-to-live in seconds; default is 5 minutes. (ie, in 5 minutes,
+     *                 the nonce will no longer be valid).
+     * @return string
      */
     static public function getNonce($id, $ttl = 300)
     {
@@ -46,7 +46,7 @@ class Nonce
         // to handle browser pre-fetch or double fetch caused by some browser add-ons/extensions
         if (empty($nonce)) {
             // generate a new nonce
-            $nonce = md5(Common::getSalt() . time() . Common::generateUniqId());
+            $nonce = md5(SettingsPiwik::getSalt() . time() . Common::generateUniqId());
             $ns->nonce = $nonce;
             $ns->setExpirationSeconds($ttl, 'nonce');
         }
@@ -55,10 +55,16 @@ class Nonce
     }
 
     /**
-     * Verify nonce and check referrer (if present, i.e., it may be suppressed by the browser or a proxy/network).
+     * Returns if a nonce is valid and comes from a valid request.
+     * 
+     * A nonce is valid if it matches the current nonce and if the current nonce
+     * has not expired.
+     * 
+     * The request is valid if the referrer is a local URL (see [Url::isLocalUrl](#))
+     * and if the HTTP origin is valid (see [getAcceptableOrigins](#getAcceptableOrigins)).
      *
-     * @param string $id      Unique id
-     * @param string $cnonce  Nonce sent to client
+     * @param string $id Unique id
+     * @param string $cnonce Nonce sent to client
      * @return bool  true if valid; false otherwise
      */
     static public function verifyNonce($id, $cnonce)
@@ -71,9 +77,9 @@ class Nonce
             return false;
         }
 
-        // validate referer
-        $referer = Url::getReferer();
-        if (!empty($referer) && !Url::isLocalUrl($referer)) {
+        // validate referrer
+        $referrer = Url::getReferrer();
+        if (!empty($referrer) && !Url::isLocalUrl($referrer)) {
             return false;
         }
 
@@ -90,9 +96,9 @@ class Nonce
     }
 
     /**
-     * Discard nonce ("now" as opposed to waiting for garbage collection)
+     * Force expiration of the current nonce.
      *
-     * @param string $id  Unique id
+     * @param string $id The unique nonce ID.
      */
     static public function discardNonce($id)
     {
@@ -101,8 +107,8 @@ class Nonce
     }
 
     /**
-     * Get ORIGIN header, false if not found
-     *
+     * Returns Origin HTTP header or false if not found.
+     * 
      * @return string|bool
      */
     static public function getOrigin()
@@ -114,8 +120,7 @@ class Nonce
     }
 
     /**
-     * Returns acceptable origins (not simply scheme://host) that
-     * should handle a variety of proxy and web server (mis)configurations,.
+     * Returns a list acceptable values for the HTTP Origin header.
      *
      * @return array
      */

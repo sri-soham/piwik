@@ -10,15 +10,15 @@
  */
 namespace Piwik\Plugins\DBStats;
 
+use Piwik\MetricsFormatter;
 use Piwik\Piwik;
-use Piwik\Plugins\DBStats\API;
-use Piwik\ViewDataTable;
 use Piwik\View;
+use Piwik\ViewDataTable\Factory;
 
 /**
  * @package DBStats
  */
-class Controller extends \Piwik\Controller\Admin
+class Controller extends \Piwik\Plugin\ControllerAdmin
 {
     /**
      * Returns the index for this plugin. Shows every other report defined by this plugin,
@@ -40,9 +40,9 @@ class Controller extends \Piwik\Controller\Admin
         $view->adminDataSummary = $this->getAdminDataSummary(true);
 
         list($siteCount, $userCount, $totalSpaceUsed) = API::getInstance()->getGeneralInformation();
-        $view->siteCount = Piwik::getPrettyNumber($siteCount);
-        $view->userCount = Piwik::getPrettyNumber($userCount);
-        $view->totalSpaceUsed = Piwik::getPrettySizeFromBytes($totalSpaceUsed);
+        $view->siteCount = MetricsFormatter::getPrettyNumber($siteCount);
+        $view->userCount = MetricsFormatter::getPrettyNumber($userCount);
+        $view->totalSpaceUsed = MetricsFormatter::getPrettySizeFromBytes($totalSpaceUsed);
 
         echo $view->render();
     }
@@ -58,7 +58,7 @@ class Controller extends \Piwik\Controller\Admin
     public function getDatabaseUsageSummary($fetch = false)
     {
         Piwik::checkUserIsSuperUser();
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 
     /**
@@ -72,7 +72,7 @@ class Controller extends \Piwik\Controller\Admin
     public function getTrackerDataSummary($fetch = false)
     {
         Piwik::checkUserIsSuperUser();
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 
     /**
@@ -86,7 +86,7 @@ class Controller extends \Piwik\Controller\Admin
     public function getMetricDataSummary($fetch = false)
     {
         Piwik::checkUserIsSuperUser();
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 
     /**
@@ -100,7 +100,7 @@ class Controller extends \Piwik\Controller\Admin
     public function getMetricDataSummaryByYear($fetch = false)
     {
         Piwik::checkUserIsSuperUser();
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 
     /**
@@ -114,7 +114,7 @@ class Controller extends \Piwik\Controller\Admin
     public function getReportDataSummary($fetch = false)
     {
         Piwik::checkUserIsSuperUser();
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 
     /**
@@ -128,7 +128,7 @@ class Controller extends \Piwik\Controller\Admin
     public function getReportDataSummaryByYear($fetch = false)
     {
         Piwik::checkUserIsSuperUser();
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 
     /**
@@ -144,7 +144,7 @@ class Controller extends \Piwik\Controller\Admin
     public function getIndividualReportsSummary($fetch = false)
     {
         Piwik::checkUserIsSuperUser();
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 
     /**
@@ -160,7 +160,7 @@ class Controller extends \Piwik\Controller\Admin
     public function getIndividualMetricsSummary($fetch = false)
     {
         Piwik::checkUserIsSuperUser();
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 
     /**
@@ -177,6 +177,6 @@ class Controller extends \Piwik\Controller\Admin
     public function getAdminDataSummary($fetch = false)
     {
         Piwik::checkUserIsSuperUser();
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 }

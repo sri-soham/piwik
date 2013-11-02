@@ -9,14 +9,23 @@
  * @package Piwik
  */
 namespace Piwik;
-use Piwik\Piwik;
+
+
+require_once PIWIK_INCLUDE_PATH . "/core/Piwik.php";
 
 /**
- * This class holds the various mappings we use to internally store and manipulate metrics.
+ * This class contains metadata regarding core metrics and contains several
+ * related helper functions.
+ * 
+ * Of note are the `INDEX_...` constants. In the database, metric column names
+ * are stored in DataTable rows are stored as integers to save space. The integer
+ * values used are determined by these constants.
+ *
+ * @api
  */
 class Metrics
 {
-    /**
+    /*
      * When saving DataTables in the DB, we replace all columns name with these IDs. This saves many bytes,
      * eg. INDEX_NB_UNIQ_VISITORS is an integer: 4 bytes, but 'nb_uniq_visitors' is 16 bytes at least
      */
@@ -71,6 +80,7 @@ class Metrics
     const INDEX_GOAL_ECOMMERCE_REVENUE_SHIPPING = 6;
     const INDEX_GOAL_ECOMMERCE_REVENUE_DISCOUNT = 7;
     const INDEX_GOAL_ECOMMERCE_ITEMS = 8;
+
     static public $mappingFromIdToName = array(
         Metrics::INDEX_NB_UNIQ_VISITORS                      => 'nb_uniq_visitors',
         Metrics::INDEX_NB_VISITS                             => 'nb_visits',
@@ -111,6 +121,7 @@ class Metrics
         Metrics::INDEX_ECOMMERCE_ITEM_PRICE_VIEWED           => 'price_viewed',
         Metrics::INDEX_ECOMMERCE_ORDERS                      => 'orders',
     );
+
     static public $mappingFromIdToNameGoal = array(
         Metrics::INDEX_GOAL_NB_CONVERSIONS             => 'nb_conversions',
         Metrics::INDEX_GOAL_NB_VISITS_CONVERTED        => 'nb_visits_converted',
@@ -121,6 +132,7 @@ class Metrics
         Metrics::INDEX_GOAL_ECOMMERCE_REVENUE_DISCOUNT => 'revenue_discount',
         Metrics::INDEX_GOAL_ECOMMERCE_ITEMS            => 'items',
     );
+
     static public $mappingFromNameToId = array(
         'nb_uniq_visitors'           => Metrics::INDEX_NB_UNIQ_VISITORS,
         'nb_visits'                  => Metrics::INDEX_NB_VISITS,
@@ -134,6 +146,7 @@ class Metrics
         'goals'                      => Metrics::INDEX_GOALS,
         'sum_daily_nb_uniq_visitors' => Metrics::INDEX_SUM_DAILY_NB_UNIQ_VISITORS,
     );
+    
     static protected $metricsAggregatedFromLogs = array(
         Metrics::INDEX_NB_UNIQ_VISITORS,
         Metrics::INDEX_NB_VISITS,
@@ -194,7 +207,7 @@ class Metrics
     {
         $nameToUnit = array(
             '_rate'   => '%',
-            'revenue' => Piwik::getCurrency($idSite),
+            'revenue' => MetricsFormatter::getCurrencySymbol($idSite),
             '_time_'  => 's'
         );
 
@@ -223,7 +236,7 @@ class Metrics
             'sum_visit_length_returning'    => 'VisitFrequency_ColumnSumVisitLengthReturning',
             'nb_visits_converted'           => 'General_ColumnVisitsWithConversions',
             'nb_conversions'                => 'Goals_ColumnConversions',
-            'revenue'                       => 'Goals_ColumnRevenue',
+            'revenue'                       => 'General_ColumnRevenue',
             'nb_hits'                       => 'General_ColumnPageviews',
             'entry_nb_visits'               => 'General_ColumnEntrances',
             'entry_nb_uniq_visitors'        => 'General_ColumnUniqueEntrances',
@@ -234,16 +247,16 @@ class Metrics
             'exit_rate'                     => 'General_ColumnExitRate'
         );
 
-        $trans = array_map('Piwik_Translate', $trans);
+        $trans = array_map(array('\\Piwik\\Piwik','translate'), $trans);
 
-        $dailySum = ' (' . Piwik_Translate('General_DailySum') . ')';
-        $afterEntry = ' ' . Piwik_Translate('General_AfterEntry');
+        $dailySum = ' (' . Piwik::translate('General_DailySum') . ')';
+        $afterEntry = ' ' . Piwik::translate('General_AfterEntry');
 
-        $trans['sum_daily_nb_uniq_visitors'] = Piwik_Translate('General_ColumnNbUniqVisitors') . $dailySum;
-        $trans['sum_daily_entry_nb_uniq_visitors'] = Piwik_Translate('General_ColumnUniqueEntrances') . $dailySum;
-        $trans['sum_daily_exit_nb_uniq_visitors'] = Piwik_Translate('General_ColumnUniqueExits') . $dailySum;
-        $trans['entry_nb_actions'] = Piwik_Translate('General_ColumnNbActions') . $afterEntry;
-        $trans['entry_sum_visit_length'] = Piwik_Translate('General_ColumnSumVisitLength') . $afterEntry;
+        $trans['sum_daily_nb_uniq_visitors'] = Piwik::translate('General_ColumnNbUniqVisitors') . $dailySum;
+        $trans['sum_daily_entry_nb_uniq_visitors'] = Piwik::translate('General_ColumnUniqueEntrances') . $dailySum;
+        $trans['sum_daily_exit_nb_uniq_visitors'] = Piwik::translate('General_ColumnUniqueExits') . $dailySum;
+        $trans['entry_nb_actions'] = Piwik::translate('General_ColumnNbActions') . $afterEntry;
+        $trans['entry_sum_visit_length'] = Piwik::translate('General_ColumnSumVisitLength') . $afterEntry;
 
         $trans = array_merge(self::getDefaultMetrics(), self::getDefaultProcessedMetrics(), $trans);
 
@@ -257,7 +270,7 @@ class Metrics
             'nb_uniq_visitors' => 'General_ColumnNbUniqVisitors',
             'nb_actions'       => 'General_ColumnNbActions',
         );
-        $translations = array_map('Piwik_Translate', $translations);
+        $translations = array_map(array('\\Piwik\\Piwik','translate'), $translations);
         return $translations;
     }
 
@@ -270,7 +283,7 @@ class Metrics
             'bounce_rate'          => 'General_ColumnBounceRate',
             'conversion_rate'      => 'General_ColumnConversionRate',
         );
-        return array_map('Piwik_Translate', $translations);
+        return array_map(array('\\Piwik\\Piwik','translate'), $translations);
     }
 
     static public function getDefaultMetricsDocumentation()
@@ -287,12 +300,12 @@ class Metrics
             'nb_hits'              => 'General_ColumnPageviewsDocumentation',
             'exit_rate'            => 'General_ColumnExitRateDocumentation'
         );
-        return array_map('Piwik_Translate', $documentation);
+        return array_map(array('\\Piwik\\Piwik','translate'), $documentation);
     }
 
     public static function getPercentVisitColumn()
     {
-        $percentVisitsLabel = str_replace(' ', html_entity_decode('&nbsp;'), Piwik_Translate('General_ColumnPercentageVisits'));
+        $percentVisitsLabel = str_replace(' ', '&nbsp;', Piwik::translate('General_ColumnPercentageVisits'));
         return $percentVisitsLabel;
     }
 }

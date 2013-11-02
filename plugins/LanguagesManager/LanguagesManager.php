@@ -12,16 +12,16 @@
 namespace Piwik\Plugins\LanguagesManager;
 
 use Exception;
-use Piwik\Config;
-use Piwik\Piwik;
 use Piwik\Common;
+use Piwik\Config;
 use Piwik\Cookie;
-use Piwik\Plugins\LanguagesManager\API;
-use Piwik\View;
+
 use Piwik\Db;
 use Piwik\Db\Factory;
+use Piwik\Menu\MenuTop;
+use Piwik\Piwik;
 use Piwik\Translate;
-use Zend_Registry;
+use Piwik\View;
 
 /**
  *
@@ -35,18 +35,18 @@ class LanguagesManager extends \Piwik\Plugin
     public function getListHooksRegistered()
     {
         return array(
-            'AssetManager.getCssFiles'    => 'getCssFiles',
-            'AssetManager.getJsFiles'     => 'getJsFiles',
-            'TopMenu.add'                 => 'showLanguagesSelector',
-            'Translate.getLanguageToLoad' => 'getLanguageToLoad',
-            'UsersManager.deleteUser'     => 'deleteUserLanguage',
-            'template_topBar'             => 'addLanguagesManagerToOtherTopBar',
+            'AssetManager.getStylesheetFiles' => 'getStylesheetFiles',
+            'AssetManager.getJavaScriptFiles' => 'getJsFiles',
+            'Menu.Top.addItems'               => 'showLanguagesSelector',
+            'User.getLanguage'                => 'getLanguageToLoad',
+            'UsersManager.deleteUser'         => 'deleteUserLanguage',
+            'Template.topBar'                 => 'addLanguagesManagerToOtherTopBar',
         );
     }
 
-    public function getCssFiles(&$cssFiles)
+    public function getStylesheetFiles(&$stylesheets)
     {
-        $cssFiles[] = "plugins/Zeitgeist/stylesheets/base.less";
+        $stylesheets[] = "plugins/Zeitgeist/stylesheets/base.less";
     }
 
     public function getJsFiles(&$jsFiles)
@@ -56,7 +56,7 @@ class LanguagesManager extends \Piwik\Plugin
 
     public function showLanguagesSelector()
     {
-        Piwik_AddTopMenu('LanguageSelector', $this->getLanguagesSelector(), true, $order = 30, true);
+        MenuTop::addEntry('LanguageSelector', $this->getLanguagesSelector(), true, $order = 30, true);
     }
 
     /**
@@ -92,7 +92,7 @@ class LanguagesManager extends \Piwik\Plugin
             $language = self::getLanguageCodeForCurrentUser();
         }
         if (!API::getInstance()->isLanguageAvailable($language)) {
-            $language = Translate::getInstance()->getLanguageDefault();
+            $language = Translate::getLanguageDefault();
         }
     }
 
@@ -130,7 +130,7 @@ class LanguagesManager extends \Piwik\Plugin
             $languageCode = Common::extractLanguageCodeFromBrowserLanguage(Common::getBrowserLanguage(), API::getInstance()->getAvailableLanguages());
         }
         if (!API::getInstance()->isLanguageAvailable($languageCode)) {
-            $languageCode = Translate::getInstance()->getLanguageDefault();
+            $languageCode = Translate::getLanguageDefault();
         }
         return $languageCode;
     }
@@ -147,6 +147,7 @@ class LanguagesManager extends \Piwik\Plugin
                 return $language['name'];
             }
         }
+        return false;
     }
 
     /**
@@ -197,5 +198,6 @@ class LanguagesManager extends \Piwik\Plugin
         $cookie = new Cookie($cookieName, 0);
         $cookie->set('language', $languageCode);
         $cookie->save();
+        return true;
     }
 }

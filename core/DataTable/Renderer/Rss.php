@@ -13,8 +13,8 @@ namespace Piwik\DataTable\Renderer;
 use Exception;
 use Piwik\Common;
 use Piwik\DataTable\Renderer;
-use Piwik\Date;
 use Piwik\DataTable;
+use Piwik\Date;
 use Piwik\Url;
 
 /**
@@ -72,7 +72,7 @@ class Rss extends Renderer
         $piwikUrl = Url::getCurrentUrlWithoutFileName()
             . "?module=CoreHome&action=index&idSite=" . $idSite . "&period=" . $period;
         $out = "";
-        $moreRecentFirst = array_reverse($table->getArray(), true);
+        $moreRecentFirst = array_reverse($table->getDataTables(), true);
         foreach ($moreRecentFirst as $date => $subtable) {
             /** @var DataTable $subtable */
             $timestamp = $subtable->getMetadata('period')->getDateStart()->getTimestamp();

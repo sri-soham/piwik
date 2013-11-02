@@ -12,9 +12,9 @@ namespace Piwik\Plugins\MobileMessaging\ReportRenderer;
 
 use Piwik\Common;
 use Piwik\Plugins\MultiSites\API;
-use Piwik\View;
 use Piwik\ReportRenderer;
 use Piwik\Site;
+use Piwik\View;
 
 /**
  *
@@ -70,24 +70,21 @@ class Sms extends ReportRenderer
             $evolutionMetrics[] = $metricSettings[API::METRIC_EVOLUTION_COL_NAME_KEY];
         }
 
+        $floatRegex = self::FLOAT_REGEXP;
         // no decimal for all metrics to shorten SMS content (keeps the monetary sign for revenue metrics)
         $reportData->filter(
             'ColumnCallbackReplace',
             array(
                  array_merge(array_keys($multiSitesAPIMetrics), $evolutionMetrics),
-                 create_function(
-                     '$value',
-                     '
-                     return preg_replace_callback (
-                         "' . self::FLOAT_REGEXP . '",
-						create_function (
-							\'$matches\',
-							\'return round($matches[0]);\'
-						),
-						$value
-					);
-					'
-                 )
+                 function ($value) use ($floatRegex) {
+                     return preg_replace_callback(
+                         $floatRegex,
+                         function ($matches) {
+                             return round($matches[0]);
+                         },
+                         $value
+                     );
+                 }
             )
         );
 
@@ -99,13 +96,10 @@ class Sms extends ReportRenderer
             'ColumnCallbackReplace',
             array(
                  $evolutionMetrics,
-                 create_function(
-                     '$value',
-                     '
-                     $matched = preg_match("' . self::FLOAT_REGEXP . '", $value, $matches);
-					return $matched ? sprintf("%+d",$matches[0]) : $value;
-					'
-                 )
+                 function ($value) use ($floatRegex) {
+                     $matched = preg_match($floatRegex, $value, $matches);
+                     return $matched ? sprintf("%+d", $matches[0]) : $value;
+                 }
             )
         );
 

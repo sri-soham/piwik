@@ -10,13 +10,26 @@
  */
 
 namespace Piwik;
+
 use Exception;
-use Piwik\Date;
 use Piwik\Plugins\SitesManager\API;
 
 /**
- *
+ * Provides access to individual site data (such as name, URL, etc.).
+ * 
+ * ### Examples
+ * 
+ * **Basic usage**
+ * 
+ *     $site = new Site($idSite);
+ *     $name = $site->getName();
+ * 
+ * **Without allocation**
+ * 
+ *     $name = Site::getNameFor($idSite);
+ * 
  * @package Piwik
+ * @api
  */
 class Site
 {
@@ -31,9 +44,11 @@ class Site
     public static $infoSites = array();
 
     /**
-     * @param int $idsite
+     * Constructor.
+     * 
+     * @param int $idsite The ID of the site we want data for.
      */
-    function __construct($idsite)
+    public function __construct($idsite)
     {
         $this->id = (int)$idsite;
         if (!isset(self::$infoSites[$this->id])) {
@@ -42,10 +57,14 @@ class Site
     }
 
     /**
-     * Sets the cached Site data with an array that associates site IDs with
+     * Sets the cached site data with an array that associates site IDs with
      * individual site data.
      *
-     * @param array $sites  The array of sites data. Indexed by site ID.
+     * @param array $sites The array of sites data. Indexed by site ID. eg,
+     *                     ```
+     *                     array('1' => array('name' => 'Site 1', ...),
+     *                           '2' => array('name' => 'Site 2', ...))`
+     *                     ```
      */
     public static function setSites($sites)
     {
@@ -54,8 +73,14 @@ class Site
 
     /**
      * Sets the cached Site data with a non-associated array of site data.
-     *
-     * @param array $sites  The array of sites data.
+     * 
+     * @param array $sites The array of sites data. eg,
+     *                     ```
+     *                     array(
+     *                         array('idsite' => '1', 'name' => 'Site 1', ...),
+     *                         array('idsite' => '2', 'name' => 'Site 2', ...),
+     *                     )
+     *                     ```
      */
     public static function setSitesFromArray($sites)
     {
@@ -67,6 +92,10 @@ class Site
     }
 
     /**
+     * Returns a string representation of the site this instance references.
+     * 
+     * Useful for debugging.
+     * 
      * @return string
      */
     public function __toString()
@@ -81,9 +110,10 @@ class Site
     }
 
     /**
-     * Returns the name of the site
+     * Returns the name of the site.
      *
      * @return string
+     * @throws Exception if data for the site cannot be found.
      */
     public function getName()
     {
@@ -91,9 +121,10 @@ class Site
     }
 
     /**
-     * Returns the main url of the site
+     * Returns the main url of the site.
      *
      * @return string
+     * @throws Exception if data for the site cannot be found.
      */
     public function getMainUrl()
     {
@@ -101,9 +132,10 @@ class Site
     }
 
     /**
-     * Returns the id of the site
+     * Returns the id of the site.
      *
      * @return int
+     * @throws Exception if data for the site cannot be found.
      */
     public function getId()
     {
@@ -111,8 +143,9 @@ class Site
     }
 
     /**
-     * Returns a site property
-     * @param string $name  property to return
+     * Returns a site property by name.
+     * 
+     * @param string $name Name of the property to return (eg, `'main_url'` or `'name'`).
      * @return mixed
      * @throws Exception
      */
@@ -125,9 +158,10 @@ class Site
     }
 
     /**
-     * Returns the creation date of the site
+     * Returns the creation date of the site.
      *
      * @return Date
+     * @throws Exception if data for the site cannot be found.
      */
     public function getCreationDate()
     {
@@ -136,9 +170,10 @@ class Site
     }
 
     /**
-     * Returns the timezone of the size
+     * Returns the timezone of the size.
      *
      * @return string
+     * @throws Exception if data for the site cannot be found.
      */
     public function getTimezone()
     {
@@ -146,9 +181,10 @@ class Site
     }
 
     /**
-     * Returns the currency of the site
+     * Returns the currency of the site.
      *
      * @return string
+     * @throws Exception if data for the site cannot be found.
      */
     public function getCurrency()
     {
@@ -156,9 +192,10 @@ class Site
     }
 
     /**
-     * Returns the excluded ips of the site
+     * Returns the excluded ips of the site.
      *
      * @return string
+     * @throws Exception if data for the site cannot be found.
      */
     public function getExcludedIps()
     {
@@ -166,9 +203,10 @@ class Site
     }
 
     /**
-     * Returns the excluded query parameters of the site
+     * Returns the excluded query parameters of the site.
      *
      * @return string
+     * @throws Exception if data for the site cannot be found.
      */
     public function getExcludedQueryParameters()
     {
@@ -176,29 +214,43 @@ class Site
     }
 
     /**
-     * Returns whether ecommerce id enabled for the site
+     * Returns whether ecommerce is enabled for the site.
      *
      * @return bool
+     * @throws Exception if data for the site cannot be found.
      */
     public function isEcommerceEnabled()
     {
         return $this->get('ecommerce') == 1;
     }
 
+    /**
+     * Returns the site search keyword query parameters for the site.
+     * 
+     * @return string
+     * @throws Exception if data for the site cannot be found.
+     */
     public function getSearchKeywordParameters()
     {
         return $this->get('sitesearch_keyword_parameters');
     }
 
+    /**
+     * Returns the site search category query parameters for the site.
+     * 
+     * @return string
+     * @throws Exception if data for the site cannot be found.
+     */
     public function getSearchCategoryParameters()
     {
         return $this->get('sitesearch_category_parameters');
     }
 
     /**
-     * Returns whether Site Search Tracking is enabled for the site
+     * Returns whether Site Search Tracking is enabled for the site.
      *
      * @return bool
+     * @throws Exception if data for the site cannot be found.
      */
     public function isSiteSearchEnabled()
     {
@@ -206,11 +258,11 @@ class Site
     }
 
     /**
-     * Checks the given string for valid site ids and returns them as an array
+     * Checks the given string for valid site ids and returns them as an array.
      *
-     * @param string $ids comma separated idSite list
+     * @param string $ids Comma separated idSite list, eg, `'1,2,3,4'`.
      * @param bool|string $_restrictSitesToLogin Used only when running as a scheduled task.
-     * @return array of valid integer
+     * @return array An array of valid, unique integers.
      */
     static public function getIdSitesFromIdSitesString($ids, $_restrictSitesToLogin = false)
     {
@@ -235,7 +287,9 @@ class Site
     }
 
     /**
-     * Clears the site cache
+     * Clears the site data cache.
+     * 
+     * See also [setSites](#setSites) and [setSitesFromArray](#setSitesFromArray).
      */
     public static function clearCache()
     {
@@ -246,9 +300,9 @@ class Site
      * Utility function. Returns the value of the specified field for the
      * site with the specified ID.
      *
-     * @param int|string $idsite  The ID of the site whose data is being
+     * @param int|string $idsite The ID of the site whose data is being
      *                             accessed.
-     * @param string $field   The name of the field to get.
+     * @param string $field The name of the field to get.
      * @return mixed
      */
     protected static function getFor($idsite, $field)
@@ -265,7 +319,7 @@ class Site
     /**
      * Returns the name of the site with the specified ID.
      *
-     * @param int $idsite  The site ID.
+     * @param int $idsite The site ID.
      * @return string
      */
     public static function getNameFor($idsite)
@@ -276,7 +330,7 @@ class Site
     /**
      * Returns the timezone of the site with the specified ID.
      *
-     * @param int $idsite  The site ID.
+     * @param int $idsite The site ID.
      * @return string
      */
     public static function getTimezoneFor($idsite)
@@ -287,7 +341,7 @@ class Site
     /**
      * Returns the creation date of the site with the specified ID.
      *
-     * @param int $idsite  The site ID.
+     * @param int $idsite The site ID.
      * @return string
      */
     public static function getCreationDateFor($idsite)
@@ -298,7 +352,7 @@ class Site
     /**
      * Returns the url for the site with the specified ID.
      *
-     * @param int $idsite  The site ID.
+     * @param int $idsite The site ID.
      * @return string
      */
     public static function getMainUrlFor($idsite)
@@ -309,7 +363,7 @@ class Site
     /**
      * Returns whether the site with the specified ID is ecommerce enabled
      *
-     * @param int $idsite  The site ID.
+     * @param int $idsite The site ID.
      * @return string
      */
     public static function isEcommerceEnabledFor($idsite)
@@ -320,7 +374,7 @@ class Site
     /**
      * Returns whether the site with the specified ID is Site Search enabled
      *
-     * @param int $idsite  The site ID.
+     * @param int $idsite The site ID.
      * @return string
      */
     public static function isSiteSearchEnabledFor($idsite)
@@ -331,7 +385,7 @@ class Site
     /**
      * Returns the currency of the site with the specified ID.
      *
-     * @param int $idsite  The site ID.
+     * @param int $idsite The site ID.
      * @return string
      */
     public static function getCurrencyFor($idsite)
@@ -342,7 +396,7 @@ class Site
     /**
      * Returns the excluded IP addresses of the site with the specified ID.
      *
-     * @param int $idsite  The site ID.
+     * @param int $idsite The site ID.
      * @return string
      */
     public static function getExcludedIpsFor($idsite)
@@ -353,7 +407,7 @@ class Site
     /**
      * Returns the excluded query parameters for the site with the specified ID.
      *
-     * @param int $idsite  The site ID.
+     * @param int $idsite The site ID.
      * @return string
      */
     public static function getExcludedQueryParametersFor($idsite)

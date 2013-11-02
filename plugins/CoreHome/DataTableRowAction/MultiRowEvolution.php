@@ -11,8 +11,8 @@
 namespace Piwik\Plugins\CoreHome\DataTableRowAction;
 
 use Piwik\Common;
-use Piwik\ViewDataTable;
-use Piwik\Plugins\CoreHome\DataTableRowAction\RowEvolution;
+use Piwik\Piwik;
+use Piwik\ViewDataTable\Factory;
 
 /**
  * MULTI ROW EVOLUTION
@@ -68,7 +68,7 @@ class MultiRowEvolution extends RowEvolution
         $view->selectedMetric = $this->metric;
 
         $view->availableRecordsText = $this->dimension . ': '
-            . Piwik_Translate('RowEvolution_ComparingRecords', array(count($this->availableMetrics)));
+            . Piwik::translate('RowEvolution_ComparingRecords', array(count($this->availableMetrics)));
 
         return parent::renderPopover($controller, $view);
     }

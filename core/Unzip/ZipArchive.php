@@ -11,7 +11,6 @@
 namespace Piwik\Unzip;
 
 use Exception;
-use Piwik\Unzip\UncompressInterface;
 
 /**
  * Unzip wrapper around ZipArchive
@@ -33,7 +32,7 @@ class ZipArchive implements UncompressInterface
     /**
      * Constructor
      *
-     * @param string $filename  Name of the .zip archive
+     * @param string $filename Name of the .zip archive
      * @throws Exception
      */
     public function __construct($filename)
@@ -48,7 +47,7 @@ class ZipArchive implements UncompressInterface
     /**
      * Extract files from archive to target directory
      *
-     * @param string $pathExtracted  Absolute path of target directory
+     * @param string $pathExtracted Absolute path of target directory
      * @return mixed  Array of filenames if successful; or 0 if an error occurred
      */
     public function extract($pathExtracted)

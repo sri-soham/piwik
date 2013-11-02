@@ -5,11 +5,11 @@
     {% for visitor in visitors %}
         <li id="{{ visitor.idVisit }}" class="visit">
             <div style="display:none;" class="idvisit">{{ visitor.idVisit }}</div>
-            <div title="{{ visitor.actionDetails|length }} {{ 'Live_Actions'|translate }}" class="datetime">
+            <div title="{{ visitor.actionDetails|length }} {{ 'General_Actions'|translate }}" class="datetime">
                 <span style="display:none;" class="serverTimestamp">{{ visitor.serverTimestamp|raw }}</span>
                 {{ visitor.serverDatePretty }} - {{ visitor.serverTimePretty }} {% if visitor.visitDuration > 0 %}<em>({{ visitor.visitDurationPretty|raw }})</em>{% endif %}
                 &nbsp;<img src="{{ visitor.countryFlag }}" title="{{ visitor.location }}, {{ 'Provider_ColumnProvider'|translate }} {{ visitor.providerName }}"/>
-                &nbsp;<img src="{{ visitor.browserIcon }}" title="{{ visitor.browserName }}, {{ 'UserSettings_Plugins'|translate }}: {{ visitor.plugins }}"/>
+                &nbsp;<img src="{{ visitor.browserIcon }}" title="{{ visitor.browserName }}, {{ 'General_Plugins'|translate }}: {{ visitor.plugins }}"/>
                 &nbsp;<img src="{{ visitor.operatingSystemIcon }}" title="{{ visitor.operatingSystem }}, {{ visitor.resolution }}"/>
                 &nbsp;
                 {% if visitor.visitConverted %}
@@ -24,16 +24,19 @@
                 </span>
                 {% endif %}
                 {% if visitor.visitorTypeIcon %}
-                    <a class="rightLink" href="javascript:broadcast.propagateAjax('module=Live&action=getVisitorLog&period=month&segment=visitorId=={{ visitor.visitorId }}')">
-                        &nbsp;- <img src="{{ visitor.visitorTypeIcon }}" title="{{ 'General_ReturningVisitor'|translate }} - {{ 'General_ReturningVisitorAllVisits'|translate }}"/>
-                    </a>
+                    &nbsp;- <img src="{{ visitor.visitorTypeIcon }}" title="{{ 'General_ReturningVisitor'|translate }} - {{ 'Live_ViewVisitorProfile'|translate }}"/>
+                {% endif %}
+                {% if visitor.visitorId is defined %}
+                <a class="visits-live-launch-visitor-profile rightLink" title="{{ 'Live_ViewVisitorProfile'|translate }}" data-visitor-id="{{ visitor.visitorId }}">
+                    <img src="plugins/Live/images/visitorProfileLaunch.png"/>
+                </a>
                 {% endif %}
                 {% if visitor.visitIp %}- <span title="{% if visitor.visitorId is not empty %}{{ 'General_VisitorID'|translate }}: {{ visitor.visitorId }}{% endif %}">
                     IP: {{ visitor.visitIp }}</span>
                 {% endif %}
             </div>
             <!--<div class="settings"></div>-->
-            <div class="referer">
+            <div class="referrer">
                 {% if visitor.referrerType != 'direct' %}
                     {{ 'General_FromReferrer'|translate }}
                     {% if visitor.referrerUrl is not empty %}
@@ -56,11 +59,11 @@
                         </span>
                     {% endif %}
                 {% else %}
-                    {{ 'Referers_DirectEntry'|translate }}
+                    {{ 'Referrers_DirectEntry'|translate }}
                 {% endif %}
             </div>
             <div id="{{ visitor.idVisit }}_actions" class="settings">
-                <span class="pagesTitle" title="{{ visitor.actionDetails|length }} {{ 'Live_Actions'|translate }}">{{ 'Actions_SubmenuPages'|translate }}:</span>&nbsp;
+                <span class="pagesTitle" title="{{ visitor.actionDetails|length }} {{ 'General_Actions'|translate }}">{{ 'General_Pages'|translate }}:</span>&nbsp;
                 {% set col = 0 %}
                 {% for action in visitor.actionDetails %}
                     {% if loop.index <= maxPagesDisplayedByVisitor %}
@@ -73,10 +76,10 @@
                                 {% endif %}
                                 -
                                 {% if action.type == 'ecommerceOrder' %}
-                                    {{ 'Live_GoalRevenue'|translate }}:
+                                    {{ 'General_ColumnRevenue'|translate }}:
                                 {% else %}
                                     {% set revenueLeft %}
-                                        {{ 'Live_GoalRevenue'|translate }}
+                                        {{ 'General_ColumnRevenue'|translate }}
                                     {% endset %}
                                     {{ 'Goals_LeftInCart'|translate(revenueLeft) }}:
                                 {% endif %}
@@ -90,7 +93,7 @@
                             <span title="{{ title }}">
 						        <img class='iconPadding' src="{{ action.icon }}"/>
                                 {% if action.type == 'ecommerceOrder' %}
-                                    {{ 'Live_GoalRevenue'|translate }}: {{ action.revenue|money(idSite) }}
+                                    {{ 'General_ColumnRevenue'|translate }}: {{ action.revenue|money(idSite) }}
                                 {% endif %}
                             </span>
                         {% else %}
@@ -118,7 +121,7 @@
                                          title="{{ 'Actions_SubmenuSitesearch'|translate }}: {{ action.siteSearchKeyword }} - {{ action.serverTimePretty }}"/>
                                 {% else %}
                                     <img class='iconPadding' src="{{ action.icon }}"
-                                         title="{{ action.goalName }} - {% if action.revenue > 0 %}{{ 'Live_GoalRevenue'|translate }}: {{ action.revenue|money(idSite) }} - {% endif %} {{ action.serverTimePretty }}"/>
+                                         title="{{ action.goalName }} - {% if action.revenue > 0 %}{{ 'General_ColumnRevenue'|translate }}: {{ action.revenue|money(idSite) }} - {% endif %} {{ action.serverTimePretty }}"/>
                                 {% endif %}
                             </a>
                         {% endif %}
@@ -131,3 +134,10 @@
         </li>
     {% endfor %}
 </ul>
+<script type="text/javascript">
+$('#visitsLive').on('click', '.visits-live-launch-visitor-profile', function (e) {
+    e.preventDefault();
+    broadcast.propagateNewPopoverParameter('visitorProfile', $(this).attr('data-visitor-id'));
+    return false;
+});
+</script>

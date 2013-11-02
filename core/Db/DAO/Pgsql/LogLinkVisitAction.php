@@ -25,13 +25,13 @@ class LogLinkVisitAction extends \Piwik\Db\DAO\Mysql\LogLinkVisitAction
 
     public function record($idvisit, $idsite, $idvisitor, $server_time,
                         $url, $name, $ref_url, $ref_name, $time_spent,
-                        $time_generation, $custom_variables
+                        $custom_value, $custom_variables, $actionIdsCached
                         )
     {
         list($sql, $bind) = $this->paramsRecord(
             $idvisit, $idsite, $idvisitor, $server_time,
             $url, $name, $ref_url, $ref_name, $time_spent,
-            $time_generation, $custom_variables
+            $custom_value, $custom_variables, $actionIdsCached
         );
 
         $this->db->query($sql, $bind);

@@ -10,12 +10,13 @@
  */
 
 namespace Piwik\API;
+
 use Exception;
 use Piwik\Common;
-use Piwik\Timer;
+use Piwik\Piwik;
+use Piwik\Singleton;
 use ReflectionClass;
 use ReflectionMethod;
-use Zend_Registry;
 
 /**
  * Proxy is a singleton that has the knowledge of every method available, their parameters
@@ -27,8 +28,9 @@ use Zend_Registry;
  *
  * @package Piwik
  * @subpackage Piwik_API
+ * @static \Piwik\API\Proxy getInstance()
  */
-class Proxy
+class Proxy extends Singleton
 {
     // array of already registered plugins names
     protected $alreadyRegistered = array();
@@ -40,30 +42,11 @@ class Proxy
     private $noDefaultValue;
 
     /**
-     * Singleton instance
-     * @var \Piwik\API\Proxy|null
-     */
-    static private $instance = null;
-
-    /**
      * protected constructor
      */
     protected function __construct()
     {
         $this->noDefaultValue = new NoDefaultValue();
-    }
-
-    /**
-     * Singleton, returns instance
-     *
-     * @return \Piwik\API\Proxy
-     */
-    static public function getInstance()
-    {
-        if (self::$instance == null) {
-            self::$instance = new self;
-        }
-        return self::$instance;
     }
 
     /**
@@ -84,11 +67,11 @@ class Proxy
      * The module to be registered must be
      * - a singleton (providing a getInstance() method)
      * - the API file must be located in plugins/ModuleName/API.php
-     *   for example plugins/Referers/API.php
+     *   for example plugins/Referrers/API.php
      *
      * The method will introspect the methods, their parameters, etc.
      *
-     * @param string $className  ModuleName eg. "API"
+     * @param string $className ModuleName eg. "API"
      */
     public function registerClass($className)
     {
@@ -110,8 +93,8 @@ class Proxy
     /**
      * Will be displayed in the API page
      *
-     * @param ReflectionClass $rClass     Instance of ReflectionClass
-     * @param string $className  Name of the class
+     * @param ReflectionClass $rClass Instance of ReflectionClass
+     * @param string $className Name of the class
      */
     private function setDocumentation($rClass, $className)
     {
@@ -146,9 +129,9 @@ class Proxy
      * It also logs the API calls, with the parameters values, the returned value, the performance, etc.
      * You can enable logging in config/global.ini.php (log_api_call)
      *
-     * @param string $className          The class name (eg. API)
-     * @param string $methodName         The method name
-     * @param array $parametersRequest  The parameters pairs (name=>value)
+     * @param string $className The class name (eg. API)
+     * @param string $methodName The method name
+     * @param array $parametersRequest The parameters pairs (name=>value)
      *
      * @return mixed|null
      * @throws Exception|\Piwik\NoAccessException
@@ -168,7 +151,7 @@ class Proxy
             $this->registerClass($className);
 
             // instanciate the object
-            $object = call_user_func(array($className, "getInstance"));
+            $object = $className::getInstance();
 
             // check method exists
             $this->checkMethodExists($className, $methodName);
@@ -179,39 +162,98 @@ class Proxy
             // load parameters in the right order, etc.
             $finalParameters = $this->getRequestParametersArray($parameterNamesDefaultValues, $parametersRequest);
 
-            // start the timer
-            $timer = new Timer();
+            // allow plugins to manipulate the value
+            $pluginName = $this->getModuleNameFromClassName($className);
+
+            /**
+             * Triggered before an API request is dispatched.
+             * 
+             * This event can be used to modify the input that is passed to every API method or just
+             * one.
+             * 
+             * @param array &$finalParameters List of parameters that will be passed to the API method.
+             * @param string $pluginName The name of the plugin being dispatched to.
+             * @param string $methodName The name of the API method that will be called.
+             */
+            Piwik::postEvent('API.Request.dispatch', array(&$finalParameters, $pluginName, $methodName));
+
+            /**
+             * This event exists for convenience and is triggered directly after the [API.Request.dispatch](#)
+             * event is triggered.
+             * 
+             * It can be used to modify the input that is passed to a single API method. This is also
+             * possible with the [API.Request.dispatch](#) event, however that event requires event handlers
+             * check if the plugin name and method name are correct before modifying the parameters.
+             * 
+             * **Example**
+             * 
+             *     Piwik::addAction('API.Actions.getPageUrls', function (&$parameters) {
+             *         // ...
+             *     });
+             * 
+             * @param array &$finalParameters List of parameters that will be passed to the API method.
+             */
+            Piwik::postEvent(sprintf('API.%s.%s', $pluginName, $methodName), array(&$finalParameters));
 
             // call the method
             $returnedValue = call_user_func_array(array($object, $methodName), $finalParameters);
 
-            // allow plugins to manipulate the value
-            $pluginName = $this->getModuleNameFromClassName($className);
-            Piwik_PostEvent('API.Proxy.processReturnValue', array(
-                                                                 &$returnedValue,
-                                                                 array('className'  => $className,
-                                                                       'module'     => $pluginName,
-                                                                       'action'     => $methodName,
-                                                                       'parameters' => &$parametersRequest)
-                                                            ));
+            $endHookParams = array(
+                &$returnedValue,
+                array('className'  => $className,
+                      'module'     => $pluginName,
+                      'action'     => $methodName,
+                      'parameters' => $finalParameters)
+            );
+
+            /**
+             * This event exists for convenience and is triggered immediately before the
+             * [API.Request.dispatch.end](#) event.
+             * 
+             * It can be used to modify the output of a single API method. This is also possible with
+             * the [API.Request.dispatch.end](#) event, however that event requires event handlers
+             * check if the plugin name and method name are correct before modifying the output.
+             *
+             * @param mixed &$returnedValue The value returned from the API method. This will not be
+             *                              a rendered string, but an actual object. For example, it
+             *                              could be a [DataTable](#).
+             * @param array $extraInfo An array holding information regarding the API request. Will
+             *                         contain the following data:
+             * 
+             *                         - **className**: The name of the namespace-d class name of the
+             *                                          API instance that's being called.
+             *                         - **module**: The name of the plugin the API request was
+             *                                       dispatched to.
+             *                         - **action**: The name of the API method that was executed.
+             *                         - **parameters**: The array of parameters passed to the API
+             *                                           method.
+             */
+            Piwik::postEvent(sprintf('API.%s.%s.end', $pluginName, $methodName), $endHookParams);
+
+            /**
+             * Triggered directly after an API request is dispatched.
+             * 
+             * This event can be used to modify the output of any API method.
+             * 
+             * @param mixed &$returnedValue The value returned from the API method. This will not be
+             *                              a rendered string, but an actual object. For example, it
+             *                              could be a [DataTable](#).
+             * @param array $extraInfo An array holding information regarding the API request. Will
+             *                         contain the following data:
+             * 
+             *                         - **className**: The name of the namespace-d class name of the
+             *                                          API instance that's being called.
+             *                         - **module**: The name of the plugin the API request was
+             *                                       dispatched to.
+             *                         - **action**: The name of the API method that was executed.
+             *                         - **parameters**: The array of parameters passed to the API
+             *                                           method.
+             */
+            Piwik::postEvent(sprintf('API.Request.dispatch.end', $pluginName, $methodName), $endHookParams);
 
             // Restore the request
             $_GET = $saveGET;
             $_SERVER['QUERY_STRING'] = $saveQUERY_STRING;
-
-            // log the API Call
-            try {
-                \Zend_Registry::get('logger_api_call')->logEvent(
-                    $className,
-                    $methodName,
-                    $parameterNamesDefaultValues,
-                    $finalParameters,
-                    $timer->getTimeMs(),
-                    $returnedValue
-                );
-            } catch (Exception $e) {
-                // logger can fail (eg. Tracker request)
-            }
         } catch (Exception $e) {
             $_GET = $saveGET;
             throw $e;
@@ -224,8 +266,8 @@ class Proxy
      * Returns the parameters names and default values for the method $name
      * of the class $class
      *
-     * @param string $class  The class name
-     * @param string $name   The method name
+     * @param string $class The class name
+     * @param string $name The method name
      * @return array  Format array(
      *                            'testParameter' => null, // no default value
      *                            'life'          => 42, // default value = 42
@@ -240,12 +282,25 @@ class Proxy
     /**
      * Returns the 'moduleName' part of 'Piwik_moduleName_API' classname
      *
-     * @param string $className  "API"
-     * @return string "Referers"
+     * @param string $className "API"
+     * @return string "Referrers"
      */
     public function getModuleNameFromClassName($className)
     {
         return str_replace(array('\\Piwik\\Plugins\\', '\\API'), '', $className);
+    }
+
+    public function isExistingApiAction($pluginName, $apiAction)
+    {
+        $namespacedApiClassName = "\\Piwik\\Plugins\\$pluginName\\API";
+        $api = $namespacedApiClassName::getInstance();
+
+        return method_exists($api, $apiAction);
+    }
+
+    public function buildApiActionName($pluginName, $apiAction)
+    {
+        return sprintf("%s.%s", $pluginName, $apiAction);
     }
 
     /**
@@ -265,7 +320,7 @@ class Proxy
     /**
      * Returns an array containing the values of the parameters to pass to the method to call
      *
-     * @param array $requiredParameters  array of (parameter name, default value)
+     * @param array $requiredParameters array of (parameter name, default value)
      * @param array $parametersRequest
      * @throws Exception
      * @return array values to pass to the function call
@@ -298,7 +353,7 @@ class Proxy
                     }
                 }
             } catch (Exception $e) {
-                throw new Exception(Piwik_TranslateException('General_PleaseSpecifyValue', array($name)));
+                throw new Exception(Piwik::translate('General_PleaseSpecifyValue', array($name)));
             }
             $finalParameters[] = $requestValue;
         }
@@ -308,7 +363,7 @@ class Proxy
     /**
      * Includes the class API by looking up plugins/UserSettings/API.php
      *
-     * @param string $fileName  api class name eg. "API"
+     * @param string $fileName api class name eg. "API"
      * @throws Exception
      */
     private function includeApiFile($fileName)
@@ -324,8 +379,8 @@ class Proxy
     }
 
     /**
-     * @param string $class   name of a class
-     * @param ReflectionMethod $method  instance of ReflectionMethod
+     * @param string $class name of a class
+     * @param ReflectionMethod $method instance of ReflectionMethod
      */
     private function loadMethodMetadata($class, $method)
     {
@@ -357,22 +412,22 @@ class Proxy
     /**
      * Checks that the method exists in the class
      *
-     * @param string $className   The class name
-     * @param string $methodName  The method name
+     * @param string $className The class name
+     * @param string $methodName The method name
      * @throws Exception If the method is not found
      */
     private function checkMethodExists($className, $methodName)
     {
         if (!$this->isMethodAvailable($className, $methodName)) {
-            throw new Exception(Piwik_TranslateException('General_ExceptionMethodNotFound', array($methodName, $className)));
+            throw new Exception(Piwik::translate('General_ExceptionMethodNotFound', array($methodName, $className)));
         }
     }
 
     /**
      * Returns the number of required parameters (parameters without default values).
      *
-     * @param string $class  The class name
-     * @param string $name   The method name
+     * @param string $class The class name
+     * @param string $name The method name
      * @return int The number of required parameters
      */
     private function getNumberOfRequiredParameters($class, $name)
@@ -383,8 +438,8 @@ class Proxy
     /**
      * Returns true if the method is found in the API of the given class name.
      *
-     * @param string $className   The class name
-     * @param string $methodName  The method name
+     * @param string $className The class name
+     * @param string $methodName The method name
      * @return bool
      */
     private function isMethodAvailable($className, $methodName)
@@ -395,7 +450,7 @@ class Proxy
     /**
      * Checks that the class is a Singleton (presence of the getInstance() method)
      *
-     * @param string $className  The class name
+     * @param string $className The class name
      * @throws Exception If the class is not a Singleton
      */
     private function checkClassIsSingleton($className)

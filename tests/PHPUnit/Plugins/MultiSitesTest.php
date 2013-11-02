@@ -7,8 +7,8 @@
  */
 
 use Piwik\Access;
-use Piwik\Plugins\MultiSites\API as MultiSitesAPI;
-use Piwik\Plugins\SitesManager\API as SitesManagerAPI;
+use Piwik\Plugins\MultiSites\API as APIMultiSites;
+use Piwik\Plugins\SitesManager\API as APISitesManager;
 
 class MultiSitesTest extends DatabaseTestCase
 {
@@ -21,10 +21,10 @@ class MultiSitesTest extends DatabaseTestCase
         $access = Access::getInstance();
         $access->setSuperUser(true);
 
-        $this->idSiteAccess = SitesManagerAPI::getInstance()->addSite("test", "http://test");
+        $this->idSiteAccess = APISitesManager::getInstance()->addSite("test", "http://test");
 
-        \Piwik\PluginsManager::getInstance()->loadPlugins(array('MultiSites', 'VisitsSummary', 'Actions'));
-        \Piwik\PluginsManager::getInstance()->installLoadedPlugins();
+        \Piwik\Plugin\Manager::getInstance()->loadPlugins(array('MultiSites', 'VisitsSummary', 'Actions'));
+        \Piwik\Plugin\Manager::getInstance()->installLoadedPlugins();
     }
 
 
@@ -33,11 +33,10 @@ class MultiSitesTest extends DatabaseTestCase
      * This is necessary otherwise ResponseBuilder throws 'Call to a member function getColumns() on a non-object'
      *
      * @group Plugins
-     * @group MultiSites
      */
     public function testWhenNoDataGetOneReturnsRow()
     {
-        $dataTable = MultiSitesAPI::getInstance()->getOne($this->idSiteAccess, 'month', '01-01-2010');
+        $dataTable = APIMultiSites::getInstance()->getOne($this->idSiteAccess, 'month', '01-01-2010');
         $this->assertEquals(1, $dataTable->getRowsCount());
 
         // safety net

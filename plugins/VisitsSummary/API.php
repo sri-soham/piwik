@@ -11,7 +11,9 @@
 namespace Piwik\Plugins\VisitsSummary;
 
 use Piwik\Archive;
+use Piwik\MetricsFormatter;
 use Piwik\Piwik;
+use Piwik\SettingsPiwik;
 
 /**
  * VisitsSummary API lets you access the core web analytics metrics (visits, unique visitors,
@@ -19,26 +21,13 @@ use Piwik\Piwik;
  *
  * @package VisitsSummary
  */
-class API
+class API extends \Piwik\Plugin\API
 {
-    static private $instance = null;
-
-    /**
-     * @return \Piwik\Plugins\VisitsSummary\API
-     */
-    static public function getInstance()
-    {
-        if (self::$instance == null) {
-            self::$instance = new self;
-        }
-        return self::$instance;
-    }
-
     public function get($idSite, $period, $date, $segment = false, $columns = false)
     {
         Piwik::checkUserHasViewAccess($idSite);
         $archive = Archive::build($idSite, $period, $date, $segment);
-        
+
         // array values are comma separated
         $columns = Piwik::getArrayFromApiParameter($columns);
         $tempColumns = array();
@@ -108,7 +97,7 @@ class API
             'sum_visit_length',
             'max_actions'
         );
-        if (Piwik::isUniqueVisitorsEnabled($period)) {
+        if (SettingsPiwik::isUniqueVisitorsEnabled($period)) {
             $columns = array_merge(array('nb_uniq_visitors'), $columns);
         }
         $columns = array_values($columns);
@@ -163,9 +152,9 @@ class API
         $table = $this->getSumVisitsLength($idSite, $period, $date, $segment);
         if (is_object($table)) {
             $table->filter('ColumnCallbackReplace',
-                array('sum_visit_length', '\Piwik\Piwik::getPrettyTimeFromSeconds'));
+                array('sum_visit_length', '\Piwik\MetricsFormatter::getPrettyTimeFromSeconds'));
         } else {
-            $table = Piwik::getPrettyTimeFromSeconds($table);
+            $table = MetricsFormatter::getPrettyTimeFromSeconds($table);
         }
         return $table;
     }

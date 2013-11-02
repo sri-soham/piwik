@@ -15,9 +15,9 @@ use Piwik\Common;
 use Piwik\Config;
 use Piwik\Date;
 use Piwik\Db;
+use Piwik\DbHelper;
 use Piwik\Db\SchemaInterface;
 use Piwik\Piwik;
-use Zend_Registry;
 
 /**
  * PgSql schema
@@ -112,49 +112,13 @@ class Pgsql implements SchemaInterface
                             )
             ",
 
-            'logger_message' => "CREATE TABLE {$prefixTables}logger_message (
+            'logger_message'        => "CREATE TABLE {$prefixTables}logger_message (
                                       idlogger_message SERIAL8 NOT NULL,
+                                      tag VARCHAR(50) NULL,
                                       timestamp TIMESTAMP NULL,
+                                      level VARCHAR(16) NULL,
                                       message TEXT NULL,
                                       PRIMARY KEY(idlogger_message)
-                                    )
-            ",
-
-            'logger_api_call' => "CREATE TABLE {$prefixTables}logger_api_call (
-                                      idlogger_api_call SERIAL8 NOT NULL,
-                                      class_name VARCHAR(255) NULL,
-                                      method_name VARCHAR(255) NULL,
-                                      parameter_names_default_values TEXT NULL,
-                                      parameter_values TEXT NULL,
-                                      execution_time FLOAT NULL,
-                                      caller_ip INET NOT NULL,
-                                      timestamp TIMESTAMP NULL,
-                                      returned_value TEXT NULL,
-                                      PRIMARY KEY(idlogger_api_call)
-                                    )
-            ",
-
-            'logger_error' => "CREATE TABLE {$prefixTables}logger_error (
-                                      idlogger_error SERIAL8 NOT NULL,
-                                      timestamp TIMESTAMP NULL,
-                                      message TEXT NULL,
-                                      errno INTEGER NULL,
-                                      errline INTEGER NULL,
-                                      errfile VARCHAR(255) NULL,
-                                      backtrace TEXT NULL,
-                                      PRIMARY KEY(idlogger_error)
-                                    )
-            ",
-
-            'logger_exception' => "CREATE TABLE {$prefixTables}logger_exception (
-                                      idlogger_exception SERIAL8 NOT NULL,
-                                      timestamp TIMESTAMP NULL,
-                                      message TEXT NULL,
-                                      errno INTEGER NULL,
-                                      errline INTEGER NULL,
-                                      errfile VARCHAR(255) NULL,
-                                      backtrace TEXT NULL,
-                                      PRIMARY KEY(idlogger_exception)
                                     )
             ",
 
@@ -186,6 +150,7 @@ class Pgsql implements SchemaInterface
                               visit_entry_idaction_name INTEGER NOT NULL,
                               visit_total_actions SMALLINT NOT NULL,
                               visit_total_searches SMALLINT NOT NULL,
+                              visit_total_events SMALLINT NOT NULL,
                               visit_total_time SMALLINT NOT NULL,
                               visit_goal_converted SMALLINT NOT NULL,
                               visit_goal_buyer SMALLINT NOT NULL, 
@@ -306,6 +271,8 @@ class Pgsql implements SchemaInterface
                                               idaction_url_ref INTEGER DEFAULT 0,
                                               idaction_name INTEGER,
                                               idaction_name_ref INTEGER NOT NULL,
+                                              idaction_event_category INTEGER,
+                                              idaction_event_action INTEGER,
                                               time_spent_ref_action INTEGER NOT NULL,
                                               custom_var_k1 VARCHAR(200) DEFAULT NULL,
                                               custom_var_v1 VARCHAR(200) DEFAULT NULL,
@@ -451,7 +418,7 @@ class Pgsql implements SchemaInterface
      */
     public function getTableCreateSql( $tableName )
     {
-        $tables = Piwik::getTablesCreateSql();
+        $tables = DbHelper::getTablesCreateSql();
 
         if(!isset($tables[$tableName]))
         {
@@ -491,7 +458,7 @@ class Pgsql implements SchemaInterface
         if(is_null($this->tablesInstalled)
             || $forceReload === true)
         {
-            $db = Zend_Registry::get('db');
+            $db = Db::get();
             $config = Config::getInstance();
             $prefixTables = $config->database['tables_prefix'];
 
@@ -561,7 +528,7 @@ class Pgsql implements SchemaInterface
 
         $config = Config::getInstance();
         $prefix = $config->database['tables_prefix'];
-        $db = Zend_Registry::get('db');
+        $db = Db::get();
         $tables = array('report', 'segment');
         foreach ($tables as $table) {
             $db->query('DROP TABLE IF EXISTS "'.$prefix.$table.'"');
@@ -573,7 +540,7 @@ class Pgsql implements SchemaInterface
      */
     public function createTables()
     {
-        $db = Zend_Registry::get('db');
+        $db = Db::get();
         $config = Config::getInstance();
         $prefixTables = $config->database['tables_prefix'];
 
@@ -615,7 +582,7 @@ class Pgsql implements SchemaInterface
     {
         // The anonymous user is the user that is assigned by default
         // note that the token_auth value is anonymous, which is assigned by default as well in the Login plugin
-        $db = Zend_Registry::get('db');
+        $db = Db::get();
         $sql = 'INSERT INTO "' . Common::prefixTable('user'). '" '
              . "VALUES ('anonymous', '', 'anonymous', 'anonymous@example.org', 'anonymous', '".Date::factory('now')->getDateTime()."' );";
         $db->query($sql);
@@ -641,7 +608,7 @@ class Pgsql implements SchemaInterface
     public function dropTables( $doNotDelete = array() )
     {
         $tablesAlreadyInstalled = $this->getTablesInstalled();
-        $db = Zend_Registry::get('db');
+        $db = Db::get();
 
         $doNotDeletePattern = '/('.implode('|',$doNotDelete).')/';
 

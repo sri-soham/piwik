@@ -10,6 +10,8 @@
  */
 namespace Piwik\Plugins\VisitsSummary;
 
+use Piwik\Menu\MenuMain;
+use Piwik\Piwik;
 use Piwik\WidgetsList;
 
 /**
@@ -28,17 +30,17 @@ class VisitsSummary extends \Piwik\Plugin
     public function getListHooksRegistered()
     {
         return array(
-            'API.getReportMetadata' => 'getReportMetadata',
-            'WidgetsList.add'       => 'addWidgets',
-            'Menu.add'              => 'addMenu',
+            'API.getReportMetadata'   => 'getReportMetadata',
+            'WidgetsList.addWidgets'  => 'addWidgets',
+            'Menu.Reporting.addItems' => 'addMenu',
         );
     }
 
     public function getReportMetadata(&$reports)
     {
         $reports[] = array(
-            'category'         => Piwik_Translate('VisitsSummary_VisitsSummary'),
-            'name'             => Piwik_Translate('VisitsSummary_VisitsSummary'),
+            'category'         => Piwik::translate('VisitsSummary_VisitsSummary'),
+            'name'             => Piwik::translate('VisitsSummary_VisitsSummary'),
             'module'           => 'VisitsSummary',
             'action'           => 'get',
             'metrics'          => array(
@@ -47,8 +49,8 @@ class VisitsSummary extends \Piwik\Plugin
                 'nb_actions',
                 'nb_actions_per_visit',
                 'bounce_rate',
-                'avg_time_on_site' => Piwik_Translate('General_VisitDuration'),
-                'max_actions'      => Piwik_Translate('General_ColumnMaxActions'),
+                'avg_time_on_site' => Piwik::translate('General_VisitDuration'),
+                'max_actions'      => Piwik::translate('General_ColumnMaxActions'),
 // Used to process metrics, not displayed/used directly
 //								'sum_visit_length',
 //								'nb_visits_converted',
@@ -67,8 +69,8 @@ class VisitsSummary extends \Piwik\Plugin
 
     function addMenu()
     {
-        Piwik_AddMenu('General_Visitors', '', array('module' => 'VisitsSummary', 'action' => 'index'), true, 10);
-        Piwik_AddMenu('General_Visitors', 'VisitsSummary_SubmenuOverview', array('module' => 'VisitsSummary', 'action' => 'index'), true, 1);
+        MenuMain::getInstance()->add('General_Visitors', '', array('module' => 'VisitsSummary', 'action' => 'index'), true, 10);
+        MenuMain::getInstance()->add('General_Visitors', 'General_Overview', array('module' => 'VisitsSummary', 'action' => 'index'), true, 1);
     }
 }
 

@@ -10,10 +10,10 @@
  */
 namespace Piwik\API\DataTableManipulator;
 
+use Piwik\API\DataTableManipulator;
 use Piwik\Common;
 use Piwik\DataTable;
 use Piwik\DataTable\Row;
-use Piwik\API\DataTableManipulator;
 
 /**
  * This class is responsible for handling the label parameter that can be
@@ -42,8 +42,8 @@ class LabelFilter extends DataTableManipulator
      * for the recursive search. If the label is not recursive, these parameters
      * are not needed.
      *
-     * @param string $labels      the labels to search for
-     * @param DataTable $dataTable  the data table to be filtered
+     * @param string $labels the labels to search for
+     * @param DataTable $dataTable the data table to be filtered
      * @param bool $addLabelIndex Whether to add label_index metadata describing which
      *                            label a row corresponds to.
      * @return DataTable

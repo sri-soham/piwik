@@ -41,7 +41,6 @@ class Test_Piwik_Integration_PeriodIsRange_DateIsLastN_MetadataAndNormalAPI exte
     /**
      * @dataProvider getApiForTesting
      * @group        Integration
-     * @group        PeriodIsRange_DateIsLastN_MetadataAndNormalAPI
      */
     public function testApi($api, $params)
     {
@@ -61,8 +60,8 @@ class Test_Piwik_Integration_PeriodIsRange_DateIsLastN_MetadataAndNormalAPI exte
             'Actions.getPageUrls',
             'Goals.get',
             'CustomVariables.getCustomVariables',
-            'Referers.getCampaigns',
-            'Referers.getKeywords',
+            'Referrers.getCampaigns',
+            'Referrers.getKeywords',
             'VisitsSummary.get',
             'Live');
 
@@ -93,7 +92,7 @@ class Test_Piwik_Integration_PeriodIsRange_DateIsLastN_MetadataAndNormalAPI exte
         return $result;
     }
 
-    public function getOutputPrefix()
+    public static function getOutputPrefix()
     {
         return 'periodIsRange_dateIsLastN_MetadataAndNormalAPI';
     }

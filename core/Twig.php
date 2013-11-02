@@ -11,13 +11,7 @@
 namespace Piwik;
 
 use Exception;
-use Piwik\API\Request;
-use Piwik\Piwik;
-use Piwik\Common;
-use Piwik\AssetManager;
 use Piwik\Translate;
-use Piwik\Url;
-use Piwik\PluginsManager;
 use Piwik\Visualization\Sparkline;
 use Twig_Environment;
 use Twig_Extension_Debug;
@@ -36,7 +30,7 @@ class Twig
 {
     const SPARKLINE_TEMPLATE = '<img alt="" data-src="%s" width="%d" height="%d" />
     <script type="text/javascript">$(function() { piwik.initSparklines(); });</script>';
-    
+
     /**
      * @var Twig_Environment
      */
@@ -52,11 +46,14 @@ class Twig
         $chainLoader = new Twig_Loader_Chain(array($loader));
 
         // Create new Twig Environment and set cache dir
+        $templatesCompiledPath = PIWIK_USER_PATH . '/tmp/templates_c';
+        $templatesCompiledPath = SettingsPiwik::rewriteTmpPathWithHostname($templatesCompiledPath);
+
         $this->twig = new Twig_Environment($chainLoader,
             array(
                  'debug'            => true, // to use {{ dump(var) }} in twig templates
                  'strict_variables' => true, // throw an exception if variables are invalid
-                 'cache'            => PIWIK_USER_PATH . '/tmp/templates_c',
+                 'cache'            => $templatesCompiledPath,
             )
         );
         $this->twig->addExtension(new Twig_Extension_Debug());
@@ -67,20 +64,31 @@ class Twig
         $this->addFilter_sumTime();
         $this->addFilter_money();
         $this->addFilter_truncate();
+        $this->addFilter_notificiation();
         $this->twig->addFilter(new Twig_SimpleFilter('implode', 'implode'));
+        $this->twig->addFilter(new Twig_SimpleFilter('ucwords', 'ucwords'));
 
         $this->addFunction_includeAssets();
         $this->addFunction_linkTo();
-        $this->addFunction_loadJavascriptTranslations();
         $this->addFunction_sparkline();
         $this->addFunction_postEvent();
         $this->addFunction_isPluginLoaded();
+        $this->addFunction_getJavascriptTranslations();
+    }
+
+    protected function addFunction_getJavascriptTranslations()
+    {
+        $getJavascriptTranslations = new Twig_SimpleFunction(
+            'getJavascriptTranslations',
+            array('Piwik\\Translate', 'getJavascriptTranslations')
+        );
+        $this->twig->addFunction($getJavascriptTranslations);
     }
 
     protected function addFunction_isPluginLoaded()
     {
         $isPluginLoadedFunction = new Twig_SimpleFunction('isPluginLoaded', function ($pluginName) {
-            return PluginsManager::getInstance()->isPluginLoaded($pluginName);
+            return \Piwik\Plugin\Manager::getInstance()->isPluginLoaded($pluginName);
         });
         $this->twig->addFunction($isPluginLoadedFunction);
     }
@@ -109,7 +117,7 @@ class Twig
     {
         $postEventFunction = new Twig_SimpleFunction('postEvent', function ($eventName) {
             $str = '';
-            Piwik_PostEvent($eventName, array(&$str));
+            Piwik::postEvent($eventName, array(&$str));
             return $str;
         }, array('is_safe' => array('html')));
         $this->twig->addFunction($postEventFunction);
@@ -123,28 +131,6 @@ class Twig
             return sprintf(Twig::SPARKLINE_TEMPLATE, $src, $width, $height);
         }, array('is_safe' => array('html')));
         $this->twig->addFunction($sparklineFunction);
-    }
-
-    protected function addFunction_loadJavascriptTranslations()
-    {
-        $loadJsTranslationsFunction = new Twig_SimpleFunction('loadJavascriptTranslations', function (array $plugins, $disableScriptTag = false) {
-            static $pluginTranslationsAlreadyLoaded = array();
-            if (in_array($plugins, $pluginTranslationsAlreadyLoaded)) {
-                return;
-            }
-            $pluginTranslationsAlreadyLoaded[] = $plugins;
-            $jsTranslations = Translate::getInstance()->getJavascriptTranslations($plugins);
-            $jsCode = '';
-            if ($disableScriptTag) {
-                $jsCode .= $jsTranslations;
-            } else {
-                $jsCode .= '<script type="text/javascript">';
-                $jsCode .= $jsTranslations;
-                $jsCode .= '</script>';
-            }
-            return $jsCode;
-        }, array('is_safe' => array('html')));
-        $this->twig->addFunction($loadJsTranslationsFunction);
     }
 
     protected function addFunction_linkTo()
@@ -161,7 +147,7 @@ class Twig
     private function getDefaultThemeLoader()
     {
         $themeLoader = new Twig_Loader_Filesystem(array(
-                                                       sprintf("%s/plugins/%s/templates/", PIWIK_INCLUDE_PATH, PluginsManager::DEFAULT_THEME)
+                                                       sprintf("%s/plugins/%s/templates/", PIWIK_INCLUDE_PATH, \Piwik\Plugin\Manager::DEFAULT_THEME)
                                                   ));
 
         return $themeLoader;
@@ -170,6 +156,29 @@ class Twig
     public function getTwigEnvironment()
     {
         return $this->twig;
+    }
+
+    protected function addFilter_notificiation()
+    {
+        $twigEnv = $this->getTwigEnvironment();
+        $notificationFunction = new Twig_SimpleFilter('notification', function ($message, $options) use ($twigEnv) {
+
+            $template = '<div style="display:none" data-role="notification" ';
+
+            foreach ($options as $key => $value) {
+                if (ctype_alpha($key)) {
+                    $template .= sprintf('data-%s="%s" ', $key, twig_escape_filter($twigEnv, $value, 'html_attr'));
+                }
+            }
+
+            $template .= '>';
+            $template .= $message;
+            $template .= '</div>';
+
+            return $template;
+
+        }, array('is_safe' => array('html')));
+        $this->twig->addFilter($notificationFunction);
     }
 
     protected function addFilter_truncate()
@@ -193,7 +202,7 @@ class Twig
             }
             $idSite = func_get_args();
             $idSite = $idSite[1];
-            return Piwik::getPrettyMoney($amount, $idSite);
+            return MetricsFormatter::getPrettyMoney($amount, $idSite);
         });
         $this->twig->addFilter($moneyFilter);
     }
@@ -201,7 +210,7 @@ class Twig
     protected function addFilter_sumTime()
     {
         $sumtimeFilter = new Twig_SimpleFilter('sumtime', function ($numberOfSeconds) {
-            return Piwik::getPrettyTimeFromSeconds($numberOfSeconds);
+            return MetricsFormatter::getPrettyTimeFromSeconds($numberOfSeconds);
         });
         $this->twig->addFilter($sumtimeFilter);
     }
@@ -227,7 +236,7 @@ class Twig
             }
 
             try {
-                $stringTranslated = Piwik_Translate($stringToken, $aValues);
+                $stringTranslated = Piwik::translate($stringToken, $aValues);
             } catch (Exception $e) {
                 $stringTranslated = $stringToken;
             }
@@ -238,7 +247,7 @@ class Twig
 
     private function addPluginNamespaces(Twig_Loader_Filesystem $loader)
     {
-        $plugins = PluginsManager::getInstance()->getLoadedPluginsName();
+        $plugins = \Piwik\Plugin\Manager::getInstance()->getLoadedPluginsName();
         foreach ($plugins as $name) {
             $path = sprintf("%s/plugins/%s/templates/", PIWIK_INCLUDE_PATH, $name);
             if (is_dir($path)) {

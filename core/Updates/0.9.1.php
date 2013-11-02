@@ -8,19 +8,22 @@
  * @category Piwik
  * @package Updates
  */
-use Piwik\Piwik;
+
+namespace Piwik\Updates;
+
 use Piwik\Common;
+use Piwik\SettingsServer;
 use Piwik\Updater;
 use Piwik\Updates;
 
 /**
  * @package Updates
  */
-class Piwik_Updates_0_9_1 extends Updates
+class Updates_0_9_1 extends Updates
 {
     static function getSql($schema = 'Myisam')
     {
-        if (!Piwik::isTimezoneSupportEnabled()) {
+        if (!SettingsServer::isTimezoneSupportEnabled()) {
             return array();
         }
         // @see http://bugs.php.net/46111
@@ -39,7 +42,7 @@ class Piwik_Updates_0_9_1 extends Updates
         return array(
             'UPDATE ' . Common::prefixTable('site') . '
 				SET timezone = "UTC" 
-				WHERE timezone IN (' . $timezoneList . ')'                                                                  => false,
+				WHERE timezone IN (' . $timezoneList . ')'                                                            => false,
 
             'UPDATE `' . Common::prefixTable('option') . '`
 				SET option_value = "UTC" 
@@ -50,7 +53,7 @@ class Piwik_Updates_0_9_1 extends Updates
 
     static function update()
     {
-        if (Piwik::isTimezoneSupportEnabled()) {
+        if (SettingsServer::isTimezoneSupportEnabled()) {
             Updater::updateDatabase(__FILE__, self::getSql());
         }
     }

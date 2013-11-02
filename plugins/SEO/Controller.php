@@ -12,15 +12,14 @@ namespace Piwik\Plugins\SEO;
 
 use Piwik\Common;
 use Piwik\DataTable\Renderer;
-use Piwik\Plugins\SEO\API;
-use Piwik\View;
 use Piwik\Site;
-use Piwik\Plugins\SEO\RankChecker;
+use Piwik\UrlHelper;
+use Piwik\View;
 
 /**
  * @package SEO
  */
-class Controller extends \Piwik\Controller
+class Controller extends \Piwik\Plugin\Controller
 {
     function getRank()
     {
@@ -33,7 +32,7 @@ class Controller extends \Piwik\Controller
             $url = 'http://' . $url;
         }
 
-        if (empty($url) || !Common::isLookLikeUrl($url)) {
+        if (empty($url) || !UrlHelper::isLookLikeUrl($url)) {
             $url = $site->getMainUrl();
         }
 

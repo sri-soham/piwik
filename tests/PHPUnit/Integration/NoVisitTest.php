@@ -18,7 +18,6 @@ class Test_Piwik_Integration_NoVisit extends IntegrationTestCase
     /**
      * @dataProvider getApiForTesting
      * @group        Integration
-     * @group        NoVisit
      */
     public function testApi($api, $params)
     {
@@ -39,7 +38,7 @@ class Test_Piwik_Integration_NoVisit extends IntegrationTestCase
         );
     }
 
-    public function getOutputPrefix()
+    public static function getOutputPrefix()
     {
         return 'noVisit';
     }

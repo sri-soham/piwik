@@ -10,24 +10,22 @@
  */
 namespace Piwik;
 
-use Piwik\Config;
-use Piwik\Piwik;
-use Piwik\Url;
 use Zend_Mail;
 
 /**
  * Class for sending mails, for more information see:
+ * [http://framework.zend.com/manual/en/zend.mail.html](#http://framework.zend.com/manual/en/zend.mail.html)
  *
  * @package Piwik
  * @see Zend_Mail, libs/Zend/Mail.php
- * @link http://framework.zend.com/manual/en/zend.mail.html
+ * @api
  */
 class Mail extends Zend_Mail
 {
     /**
-     * Default charset utf-8
+     * Constructor.
      *
-     * @param string $charset  charset, defaults to utf-8
+     * @param string $charset charset, defaults to utf-8
      */
     public function __construct($charset = 'utf-8')
     {
@@ -36,10 +34,10 @@ class Mail extends Zend_Mail
     }
 
     /**
-     * Sets the sender to use
+     * Sets the sender.
      *
-     * @param string $email
-     * @param null|string $name
+     * @param string $email Email address of the sender.
+     * @param null|string $name Name of the sender.
      * @return Zend_Mail
      */
     public function setFrom($email, $name = null)
@@ -48,7 +46,7 @@ class Mail extends Zend_Mail
         $piwikHost = Url::getCurrentHost($hostname);
 
         // If known Piwik URL, use it instead of "localhost"
-        $piwikUrl = Piwik::getPiwikUrl();
+        $piwikUrl = SettingsPiwik::getPiwikUrl();
         $url = parse_url($piwikUrl);
         if (isset($url['host'])
             && $url['host'] != 'localhost'

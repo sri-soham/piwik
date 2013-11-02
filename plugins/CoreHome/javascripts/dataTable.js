@@ -9,43 +9,89 @@
 //								DataTable
 //-----------------------------------------------------------------------------
 
-/**
- * DataTable
- * @constructor
- */
-function dataTable() {
-    this.param = {};
-}
+(function ($, require) {
+
+var exports = require('piwik/UI'),
+    UIControl = exports.UIControl;
 
 /**
  * This class contains the client side logic for viewing and interacting with
  * Piwik datatables.
  * 
- * The id attribute for DataTables is set dynamically by the DataTableManager
- * class, and this class instance is stored using the jQuery $.data function
- * with the 'piwikDataTable' key.
+ * The id attribute for DataTables is set dynamically by the initNewDataTables
+ * method, and this class instance is stored using the jQuery $.data function
+ * with the 'uiControlObject' key.
  * 
  * To find a datatable element by report (ie, 'UserSettings.getBrowser'),
- * use piwik.DataTableManager.getDataTableByReport.
+ * use piwik.DataTable.getDataTableByReport.
  * 
  * To get the dataTable JS instance (an instance of this class) for a
- * datatable HTML element, use $(element).data('piwikDataTable').
+ * datatable HTML element, use $(element).data('uiControlObject').
+ * 
+ * @constructor
  */
-dataTable.prototype =
-{
-    //initialisation function
-    init: function (workingDivId, domElem) {
-        if (typeof domElem == "undefined") {
-            domElem = $('#' + workingDivId);
-        }
+function DataTable(element) {
+    UIControl.call(this, element);
 
-        this.workingDivId = workingDivId;
+    this.init();
+}
+
+DataTable._footerIconHandlers = {};
+
+DataTable.initNewDataTables = function () {
+    $('div.dataTable').each(function () {
+        if (!$(this).attr('id')) {
+            var tableType = $(this).attr('data-table-type') || 'DataTable',
+                klass = require('piwik/UI')[tableType] || require(tableType),
+                table = new klass(this);
+        }
+    });
+};
+
+DataTable.registerFooterIconHandler = function (id, handler) {
+    var handlers = DataTable._footerIconHandlers;
+
+    if (handlers[id]) {
+        setTimeout(function () { // fail gracefully
+            throw new Exception("DataTable footer icon handler '" + id + "' is already being used.")
+        }, 1);
+        return;
+    }
+
+    handlers[id] = handler;
+};
+
+/**
+ * Returns the first datatable div displaying a specific report.
+ *
+ * @param {string} report  The report, eg, UserSettings.getWideScreen
+ * @return {Element} The datatable div displaying the report, or undefined if
+ *                   it cannot be found.
+ */
+DataTable.getDataTableByReport = function (report) {
+    var result = undefined;
+    $('.dataTable').each(function () {
+        if ($(this).attr('data-report') == report) {
+            result = this;
+            return false;
+        }
+    });
+    return result;
+};
+
+$.extend(DataTable.prototype, UIControl.prototype, {
+
+    //initialisation function
+    init: function () {
+        var domElem = this.$element;
+
+        this.workingDivId = this._createDivId();
+        domElem.attr('id', this.workingDivId);
+
         this.loadedSubDataTable = {};
         this.isEmpty = $('.pk-emptyDataTable', domElem).length > 0;
         this.bindEventsAndApplyStyle(domElem);
         this.initialized = true;
-
-        domElem.data('piwikDataTable', this);
     },
 
     //function triggered when user click on column sort
@@ -82,6 +128,7 @@ dataTable.prototype =
             'filter_pattern_recursive',
             'enable_filter_excludelowpop',
             'filter_offset',
+            'filter_limit',
             'filter_sort_column',
             'filter_sort_order',
             'disable_generic_filters',
@@ -272,12 +319,7 @@ dataTable.prototype =
         // setup limit control
         $('.limitSelection', domElem).append('<div><span>' + self.param[limitParamName] + '</span></div><ul></ul>');
 
-        if (self.param.viewDataTable == 'table'
-            || self.param.viewDataTable == 'tableAllColumns'
-            || self.param.viewDataTable == 'tableGoals'
-            || self.param.viewDataTable == 'ecommerceOrder'
-            || self.param.viewDataTable == 'ecommerceAbandonedCart'
-            || self.param.viewDataTable == 'graphEvolution') {
+        if (self.props.show_limit_control) {
             $('.limitSelection ul', domElem).hide();
             for (var i = 0; i < numbers.length; i++) {
                 $('.limitSelection ul', domElem).append('<li value="' + numbers[i] + '"><span>' + numbers[i] + '</span></li>');
@@ -350,28 +392,30 @@ dataTable.prototype =
             return imageSortSrc;
         }
 
-        if (self.param.enable_sort) {
+        if (self.props.enable_sort) {
             $('.sortable', domElem).off('click.dataTableSort').on('click.dataTableSort',
                 function () {
                     $(this).off('click.dataTableSort');
                     self.onClickSort(this);
                 }
             );
+        }
 
-            if (self.param.filter_sort_column != '') {
-                // are we in a subdatatable?
-                var currentIsSubDataTable = $(domElem).parent().hasClass('cellSubDataTable');
-                var imageSortSrc = getSortImageSrc();
-                var imageSortWidth = 16;
-                var imageSortHeight = 16;
-                var ImageSortClass = self.param.filter_sort_order.charAt(0).toUpperCase() + self.param.filter_sort_order.substr(1);
+        if (self.param.filter_sort_column) {
+            // are we in a subdatatable?
+            var currentIsSubDataTable = $(domElem).parent().hasClass('cellSubDataTable');
+            var imageSortSrc = getSortImageSrc();
+            var imageSortWidth = 16;
+            var imageSortHeight = 16;
 
-                // we change the style of the column currently used as sort column
-                // adding an image and the class columnSorted to the TD
-                $(".sortable#" + self.param.filter_sort_column + ' #thDIV', domElem).parent()
-                    .addClass('columnSorted')
-                    .prepend('<div class="sortIconContainer sortIconContainer' + ImageSortClass + '"><img class="sortIcon" width="' + imageSortWidth + '" height="' + imageSortHeight + '" src="' + imageSortSrc + '" /></div>');
-            }
+            var sortOrder = self.param.filter_sort_order || 'desc';
+            var ImageSortClass = sortOrder.charAt(0).toUpperCase() + sortOrder.substr(1);
+
+            // we change the style of the column currently used as sort column
+            // adding an image and the class columnSorted to the TD
+            $("th#" + self.param.filter_sort_column + ' #thDIV', domElem).parent()
+                .addClass('columnSorted')
+                .prepend('<div class="sortIconContainer sortIconContainer' + ImageSortClass + '"><img class="sortIcon" width="' + imageSortWidth + '" height="' + imageSortHeight + '" src="' + imageSortSrc + '" /></div>');
         }
     },
 
@@ -460,13 +504,13 @@ dataTable.prototype =
                 var totalRows = Number(self.param.totalRows);
                 var offsetEndDisp = offsetEnd;
 
-                if (self.props.keep_summary_row == 1) --totalRows;
+                if (self.param.keep_summary_row == 1) --totalRows;
 
                 if (offsetEnd > totalRows) offsetEndDisp = totalRows;
 
                 // only show this string if there is some rows in the datatable
                 if (totalRows != 0) {
-                    var str = sprintf(_pk_translate('CoreHome_PageOf_js'), offset + '-' + offsetEndDisp, totalRows);
+                    var str = sprintf(_pk_translate('CoreHome_PageOf'), offset + '-' + offsetEndDisp, totalRows);
                     $(this).text(str);
                 }
             }
@@ -478,7 +522,7 @@ dataTable.prototype =
                 var offsetEnd = Number(self.param.filter_offset)
                     + Number(self.param.filter_limit);
                 var totalRows = Number(self.param.totalRows);
-                if (self.props.keep_summary_row == 1) --totalRows;
+                if (self.param.keep_summary_row == 1) --totalRows;
                 if (offsetEnd < totalRows) {
                     $(this).css('display', 'inline');
                 }
@@ -579,10 +623,10 @@ dataTable.prototype =
                                 function (manager) {
                                     manager.attr('data-is-range', 0);
                                     $('.annotationView img', domElem)
-                                        .attr('title', _pk_translate('Annotations_IconDesc_js'));
+                                        .attr('title', _pk_translate('Annotations_IconDesc'));
 
-                                    var viewAndAdd = _pk_translate('Annotations_ViewAndAddAnnotations_js'),
-                                        hideNotes = _pk_translate('Annotations_HideAnnotationsFor_js');
+                                    var viewAndAdd = _pk_translate('Annotations_ViewAndAddAnnotations'),
+                                        hideNotes = _pk_translate('Annotations_HideAnnotationsFor');
 
                                     // change the tooltip of the previously clicked evolution icon (if any)
                                     if (oldDate) {
@@ -660,11 +704,11 @@ dataTable.prototype =
                 && annotationManager.attr('data-is-range') == 1) {
                 if (annotationManager.is(':hidden')) {
                     annotationManager.slideDown('slow'); // showing
-                    $('img', this).attr('title', _pk_translate('Annotations_IconDescHideNotes_js'));
+                    $('img', this).attr('title', _pk_translate('Annotations_IconDescHideNotes'));
                 }
                 else {
                     annotationManager.slideUp('slow'); // hiding
-                    $('img', this).attr('title', _pk_translate('Annotations_IconDesc_js'));
+                    $('img', this).attr('title', _pk_translate('Annotations_IconDesc'));
                 }
             }
             else {
@@ -682,7 +726,7 @@ dataTable.prototype =
                 );
 
                 // change the tooltip of the view annotation icon
-                $('img', this).attr('title', _pk_translate('Annotations_IconDescHideNotes_js'));
+                $('img', this).attr('title', _pk_translate('Annotations_IconDescHideNotes'));
             }
         });
     },
@@ -705,43 +749,23 @@ dataTable.prototype =
         );
 
         //footer arrow position element name
-        self.jsViewDataTable = $('.dataTableFooterWrap', domElem).attr('var');
+        self.jsViewDataTable = self.param.viewDataTable;
 
-        $('.tableAllColumnsSwitch a', domElem)
-            .show()
-            .click(
-            function () {
-                // we only reset the limit filter, in case switch to table view from cloud view where limit is custom set to 30
-                // this value is stored in config file General->datatable_default_limit but this is more an edge case so ok to set it to 10
+        $('.tableAllColumnsSwitch a', domElem).show();
 
-                var viewDataTable = $(this).attr('format');
-                self.param.viewDataTable = viewDataTable;
-
-                //self.resetAllFilters();
-
-                // when switching to display simple table, do not exclude low pop by default
-                delete self.param.enable_filter_excludelowpop;
-                delete self.param.filter_sort_column;
-                delete self.param.filter_sort_order;
-                delete columns;
-                self.reloadAjaxDataTable();
-                self.notifyWidgetParametersChange($(this), {viewDataTable: self.param.viewDataTable});
+        $('.dataTableFooterIcons .tableIcon', domElem).click(function () {
+            var id = $(this).attr('data-footer-icon-id');
+            if (!id) {
+                return;
             }
-        );
+            
+            var handler = DataTable._footerIconHandlers[id];
+            if (!handler) {
+                handler = DataTable._footerIconHandlers['table'];
+            }
 
-        //handle Graph View icons
-        $('.tableGraphViews a', domElem)
-            .click(function () {
-                var viewDataTable = $(this).attr('format');
-
-                var filters = self.resetAllFilters();
-                self.param.flat = filters.flat;
-                self.param.columns = filters.columns;
-
-                self.param.viewDataTable = viewDataTable;
-                self.reloadAjaxDataTable();
-                self.notifyWidgetParametersChange($(this), {viewDataTable: self.param.viewDataTable});
-            });
+            handler(self, id);
+        });
 
         //Graph icon Collapsed functionality
         self.currentGraphViewIcon = 0;
@@ -752,7 +776,7 @@ dataTable.prototype =
         //define collapsed icons
         $('.tableGraphCollapsed a', domElem)
             .each(function (i) {
-                if (self.jsViewDataTable == $(this).attr('var')) {
+                if (self.jsViewDataTable == $(this).attr('data-footer-icon-id')) {
                     self.currentGraphViewIcon = i;
                     self.graphViewEnabled = true;
                 }
@@ -814,13 +838,20 @@ dataTable.prototype =
             // prevent click jacking attacks by dynamically adding the token auth when the link is clicked
             .click(function () {
                 $(this).attr('href', function () {
-                    return $(this).attr('href') + '&token_auth=' + piwik.token_auth;
+                    var url = $(this).attr('href') + '&token_auth=' + piwik.token_auth;
+
+                    var limit = $('.limitSelection>div>span', domElem).text();
+                    if (!limit || 'undefined' === limit) {
+                        limit = $(this).attr('filter_limit');
+                    }
+                    url += '&filter_limit=' + limit;
+
+                    return url;
                 })
             })
             .attr('href', function () {
                 var format = $(this).attr('format');
                 var method = $(this).attr('methodToCall');
-                var filter_limit = $(this).attr('filter_limit');
                 var segment = self.param.segment;
                 var label = self.param.label;
                 var idGoal = self.param.idGoal;
@@ -867,9 +898,6 @@ dataTable.prototype =
                     && idGoal != '-1') {
                     str += '&idGoal=' + idGoal;
                 }
-                if (filter_limit) {
-                    str += '&filter_limit=' + filter_limit;
-                }
                 if (label) {
                     label = label.split(',');
                     
@@ -889,7 +917,6 @@ dataTable.prototype =
     exportToFormatHide: function (domElem, noAnimation) {
         var self = this;
         if (self.exportToFormat) {
-            self.setActiveIcon(self.exportToFormat.lastActiveIcon, domElem);
             var animationSpeed = noAnimation ? 0 : 'fast';
             self.exportToFormat.target.hide(animationSpeed);
             self.exportToFormat.obj.show(animationSpeed);
@@ -961,7 +988,7 @@ dataTable.prototype =
             text = _pk_translate(text);
             if (text.indexOf('%s') > 0) {
                 text = text.replace('%s', '<br /><span class="action">&raquo; ');
-                if (addDefault) text += ' (' + _pk_translate('CoreHome_Default_js') + ')';
+                if (addDefault) text += ' (' + _pk_translate('CoreHome_Default') + ')';
                 text += '</span>';
             }
             return text;
@@ -986,12 +1013,12 @@ dataTable.prototype =
                     self.param.enable_filter_excludelowpop = 0;
                 }
                 if (Number(self.param.enable_filter_excludelowpop) != 0) {
-                    var string = getText('CoreHome_IncludeRowsWithLowPopulation_js', true);
+                    var string = getText('CoreHome_IncludeRowsWithLowPopulation', true);
                     self.param.enable_filter_excludelowpop = 1;
                     iconHighlighted = true;
                 }
                 else {
-                    var string = getText('CoreHome_ExcludeRowsWithLowPopulation_js');
+                    var string = getText('CoreHome_ExcludeRowsWithLowPopulation');
                     self.param.enable_filter_excludelowpop = 0;
                 }
                 $(this).html(string);
@@ -1001,14 +1028,14 @@ dataTable.prototype =
         // handle flatten
         $('.dataTableFlatten', domElem)
             .each(function () {
-                setText(this, 'flat', 'CoreHome_UnFlattenDataTable_js', 'CoreHome_FlattenDataTable_js');
+                setText(this, 'flat', 'CoreHome_UnFlattenDataTable', 'CoreHome_FlattenDataTable');
             })
             .click(generateClickCallback('flat'));
 
         $('.dataTableIncludeAggregateRows', domElem)
             .each(function () {
-                setText(this, 'include_aggregate_rows', 'CoreHome_DataTableExcludeAggregateRows_js',
-                    'CoreHome_DataTableIncludeAggregateRows_js');
+                setText(this, 'include_aggregate_rows', 'CoreHome_DataTableExcludeAggregateRows',
+                    'CoreHome_DataTableIncludeAggregateRows');
             })
             .click(generateClickCallback('include_aggregate_rows', function () {
                 if (self.param.include_aggregate_rows == 1) {
@@ -1048,7 +1075,7 @@ dataTable.prototype =
 
     // Tell parent widget that the parameters of this table was updated,
     notifyWidgetParametersChange: function (domWidget, parameters) {
-        var widget = $(domWidget).parents('[widgetId]');
+        var widget = $(domWidget).closest('[widgetId]');
         // trigger setParameters event on base element
         widget.trigger('setParameters', parameters);
     },
@@ -1142,7 +1169,7 @@ dataTable.prototype =
                         '<tr>' +
                             '<td colspan="' + numberOfColumns + '" class="cellSubDataTable">' +
                             '<div id="' + divIdToReplaceWithSubTable + '">' +
-                            '<span class="loadingPiwik" style="display:inline"><img src="plugins/Zeitgeist/images/loading-blue.gif" />' + _pk_translate('General_Loading_js') + '</span>' +
+                            '<span class="loadingPiwik" style="display:inline"><img src="plugins/Zeitgeist/images/loading-blue.gif" />' + _pk_translate('General_Loading') + '</span>' +
                             '</div>' +
                             '</td>' +
                             '</tr>'
@@ -1522,342 +1549,48 @@ dataTable.prototype =
             h2 = $('h2', domElem);
         }
         return h2;
+    },
+
+    _createDivId: function () {
+        return 'dataTable_' + this._controlId;
     }
+});
+
+// handle switch to All Columns/Goals/HtmlTable DataTable visualization
+var switchToHtmlTable = function (dataTable, viewDataTable) {
+    // we only reset the limit filter, in case switch to table view from cloud view where limit is custom set to 30
+    // this value is stored in config file General->datatable_default_limit but this is more an edge case so ok to set it to 10
+
+    dataTable.param.viewDataTable = viewDataTable;
+
+    // when switching to display simple table, do not exclude low pop by default
+    delete dataTable.param.enable_filter_excludelowpop;
+    delete dataTable.param.filter_sort_column;
+    delete dataTable.param.filter_sort_order;
+    delete dataTable.param.columns;
+    dataTable.reloadAjaxDataTable();
+    dataTable.notifyWidgetParametersChange(dataTable.$element, {viewDataTable: viewDataTable});
 };
 
+DataTable.registerFooterIconHandler('table', switchToHtmlTable);
+DataTable.registerFooterIconHandler('tableAllColumns', switchToHtmlTable);
+DataTable.registerFooterIconHandler('tableGoals', switchToHtmlTable);
+DataTable.registerFooterIconHandler('ecommerceOrder', switchToHtmlTable);
+DataTable.registerFooterIconHandler('ecommerceAbandonedCart', switchToHtmlTable);
 
-//-----------------------------------------------------------------------------
-//								Action Data Table
-//-----------------------------------------------------------------------------
+// generic function to handle switch to graph visualizations
+DataTable.switchToGraph = function (dataTable, viewDataTable) {
+    var filters = dataTable.resetAllFilters();
+    dataTable.param.flat = filters.flat;
+    dataTable.param.columns = filters.columns;
 
-//inheritance declaration
-//actionDataTable is a child of dataTable
-actionDataTable.prototype = new dataTable;
-actionDataTable.prototype.constructor = actionDataTable;
-
-/**
- * actionDataTable
- * @constructor
- */
-function actionDataTable() {
-    dataTable.call(this);
-    this.parentAttributeParent = '';
-    this.parentId = '';
-    this.disabledRowDom = {};	//to handle double click on '+' row
-}
-
-//Prototype of the actionDataTable object
-actionDataTable.prototype =
-{
-    //method inheritance
-    cleanParams: dataTable.prototype.cleanParams,
-    reloadAjaxDataTable: dataTable.prototype.reloadAjaxDataTable,
-    handleConfigurationBox: dataTable.prototype.handleConfigurationBox,
-    handleSearchBox: dataTable.prototype.handleSearchBox,
-    handleAnnotationsButton: dataTable.prototype.handleAnnotationsButton,
-    handleExportBox: dataTable.prototype.handleExportBox,
-    handleSort: dataTable.prototype.handleSort,
-    handleColumnDocumentation: dataTable.prototype.handleColumnDocumentation,
-    handleReportDocumentation: dataTable.prototype.handleReportDocumentation,
-    doHandleRowActions: dataTable.prototype.doHandleRowActions,
-    createRowActions: dataTable.prototype.createRowActions,
-    repositionRowActions: dataTable.prototype.repositionRowActions,
-    onClickSort: dataTable.prototype.onClickSort,
-    truncate: dataTable.prototype.truncate,
-    handleOffsetInformation: dataTable.prototype.handleOffsetInformation,
-    resetAllFilters: dataTable.prototype.resetAllFilters,
-    restoreAllFilters: dataTable.prototype.restoreAllFilters,
-    exportToFormatHide: dataTable.prototype.exportToFormatHide,
-    handleLimit: dataTable.prototype.handleLimit,
-    notifyWidgetParametersChange: dataTable.prototype.notifyWidgetParametersChange,
-    handleRelatedReports: dataTable.prototype.handleRelatedReports,
-    handleTriggeredEvents: dataTable.prototype.handleTriggeredEvents,
-	handleCellTooltips: dataTable.prototype.handleCellTooltips,
-    _findReportHeader: dataTable.prototype._findReportHeader,
-
-    //initialisation of the actionDataTable
-    init: function (workingDivId, domElem) {
-        if (typeof domElem == "undefined"
-            || domElem.length == 0) // needed for actions subtables where truncating was not working otherwise
-        {
-            domElem = $('#' + workingDivId);
-        }
-        this.workingDivId = workingDivId;
-        this.bindEventsAndApplyStyle(domElem);
-        this.initialized = true;
-
-        domElem.data('piwikDataTable', this);
-    },
-
-    //see dataTable::bindEventsAndApplyStyle
-    bindEventsAndApplyStyle: function (domElem, rows) {
-        var self = this;
-
-        self.cleanParams();
-        
-        if (!rows) {
-            rows = $('tr', domElem);
-        }
-
-        // we dont display the link on the row with subDataTable when we are already
-        // printing all the subTables (case of recursive search when the content is
-        // including recursively all the subtables
-        if (!self.param.filter_pattern_recursive) {
-            self.numberOfSubtables = rows.filter('.subDataTable').click(function () {
-                self.onClickActionSubDataTable(this)
-            }).size();
-        }
-
-        self.applyCosmetics(domElem, rows);
-        self.handleRowActions(domElem, rows);
-        self.handleLimit(domElem);
-        self.handleAnnotationsButton(domElem);
-        self.handleExportBox(domElem);
-        self.handleSort(domElem);
-        self.handleOffsetInformation(domElem);
-        if (self.workingDivId != undefined) {
-            var dataTableLoadedProxy = function (response) {
-                self.dataTableLoaded(response, self.workingDivId);
-            };
-
-            self.handleSearchBox(domElem, dataTableLoadedProxy);
-            self.handleConfigurationBox(domElem, dataTableLoadedProxy);
-        }
-
-        self.handleColumnDocumentation(domElem);
-        self.handleReportDocumentation(domElem);
-        self.handleRelatedReports(domElem);
-        self.handleTriggeredEvents(domElem);
-        self.handleCellTooltips(domElem);
-    },
-
-    //see dataTable::applyCosmetics
-    applyCosmetics: function (domElem, rows) {
-        var self = this;
-        var rowsWithSubtables = rows.filter('.subDataTable');
-
-        rowsWithSubtables.css('font-weight', 'bold');
-
-        $("th:first-child", domElem).addClass('label');
-        $('td span.label', domElem).each(function () { self.truncate($(this)); });
-        var imagePlusMinusWidth = 12;
-        var imagePlusMinusHeight = 12;
-        $('td:first-child', rowsWithSubtables)
-            .each(function () {
-                $(this).prepend('<img width="' + imagePlusMinusWidth + '" height="' + imagePlusMinusHeight + '" class="plusMinus" src="" />');
-                if (self.param.filter_pattern_recursive) {
-                    setImageMinus(this);
-                }
-                else {
-                    setImagePlus(this);
-                }
-            });
-
-        var rootRow = rows.first().prev();
-        
-        // we look at the style of the row before the new rows to determine the rows'
-        // level
-        var level = rootRow.length ? getLevelFromClass(rootRow.attr('class')) + 1 : 0;
-        
-        rows.each(function () {
-            var currentStyle = $(this).attr('class') || '';
-
-            if (currentStyle.indexOf('level') == -1) {
-                $(this).addClass('level' + level);
-            }
-
-            // we add an attribute parent that contains the ID of all the parent categories
-            // this ID is used when collapsing a parent row, it searches for all children rows
-            // which 'parent' attribute's value contains the collapsed row ID
-            $(this).prop('parent', function () {
-                return self.parentAttributeParent + ' ' + self.parentId;
-            });
-
-            // Add some styles on the cells even/odd
-            // label (first column of a data row) or not
-            $("td:first-child:odd", this).addClass('label labeleven');
-            $("td:first-child:even", this).addClass('label labelodd');
-            $("tr:odd td", domElem).slice(1).addClass('column columnodd');
-            $("tr:even td", domElem).slice(1).addClass('column columneven');
-        });
-    },
-
-    handleRowActions: function (domElem, rows) {
-        this.doHandleRowActions(rows);
-    },
-
-    // Called when the user click on an actionDataTable row
-    onClickActionSubDataTable: function (domElem) {
-        var self = this;
-
-        // get the idSubTable
-        var idSubTable = $(domElem).attr('id');
-
-        var divIdToReplaceWithSubTable = 'subDataTable_' + idSubTable;
-
-        var NextStyle = $(domElem).next().attr('class');
-        var CurrentStyle = $(domElem).attr('class');
-
-        var currentRowLevel = getLevelFromClass(CurrentStyle);
-        var nextRowLevel = getLevelFromClass(NextStyle);
-
-        // if the row has not been clicked
-        // which is the same as saying that the next row level is equal or less than the current row
-        // because when we click a row the level of the next rows is higher (level2 row gives level3 rows)
-        if (currentRowLevel >= nextRowLevel) {
-            //unbind click to avoid double click problem
-            $(domElem).off('click');
-            self.disabledRowDom = $(domElem);
-
-            var numberOfColumns = $(domElem).children().length;
-            $(domElem).after('\
-			<tr id="' + divIdToReplaceWithSubTable + '" class="cellSubDataTable">\
-				<td colspan="' + numberOfColumns + '">\
-						<span class="loadingPiwik" style="display:inline"><img src="plugins/Zeitgeist/images/loading-blue.gif" /> Loading...</span>\
-				</td>\
-			</tr>\
-			');
-            var savedActionVariable = self.param.action;
-
-            // reset all the filters from the Parent table
-            var filtersToRestore = self.resetAllFilters();
-
-            // Do not reset the sorting filters that must be applied to sub tables
-            this.param['filter_sort_column'] = filtersToRestore['filter_sort_column'];
-            this.param['filter_sort_order'] = filtersToRestore['filter_sort_order'];
-            this.param['enable_filter_excludelowpop'] = filtersToRestore['enable_filter_excludelowpop'];
-
-            self.param.idSubtable = idSubTable;
-            self.param.action = self.props.subtable_controller_action;
-
-            self.reloadAjaxDataTable(false, function (resp) {
-                self.actionsSubDataTableLoaded(resp, idSubTable);
-                self.repositionRowActions($(domElem));
-            });
-            self.param.action = savedActionVariable;
-
-            self.restoreAllFilters(filtersToRestore);
-
-            delete self.param.idSubtable;
-        }
-        // else we toggle all these rows
-        else {
-            var plusDetected = $('td img.plusMinus', domElem).attr('src').indexOf('plus') >= 0;
-
-            $(domElem).siblings().each(function () {
-                var parents = $(this).prop('parent').split(' ');
-                if (parents) {
-                    if (parents.indexOf(idSubTable) >= 0
-                        || parents.indexOf('subDataTable_' + idSubTable) >= 0) {
-                        if (plusDetected) {
-                            $(this).css('display', '');
-
-                            //unroll everything and display '-' sign
-                            //if the row is already opened
-                            var NextStyle = $(this).next().attr('class');
-                            var CurrentStyle = $(this).attr('class');
-
-                            var currentRowLevel = getLevelFromClass(CurrentStyle);
-                            var nextRowLevel = getLevelFromClass(NextStyle);
-
-                            if (currentRowLevel < nextRowLevel)
-                                setImageMinus(this);
-                        }
-                        else {
-                            $(this).css('display', 'none');
-                        }
-                        self.repositionRowActions($(domElem));
-                    }
-                }
-            });
-        }
-
-        // toggle the +/- image
-        var plusDetected = $('td img.plusMinus', domElem).attr('src').indexOf('plus') >= 0;
-        if (plusDetected) {
-            setImageMinus(domElem);
-        }
-        else {
-            setImagePlus(domElem);
-        }
-    },
-
-    //called when the full table actions is loaded
-    dataTableLoaded: function (response, workingDivId) {
-        var content = $(response);
-        var idToReplace = workingDivId || $(content).attr('id');
-
-        //reset parents id
-        self.parentAttributeParent = '';
-        self.parentId = '';
-
-        var dataTableSel = $('#' + idToReplace);
-
-        // keep the original list of related reports
-        var oldReportsElem = $('.datatableRelatedReports', dataTableSel);
-        $('.datatableRelatedReports', content).replaceWith(oldReportsElem);
-
-        dataTableSel.replaceWith(content);
-        piwikHelper.lazyScrollTo(content[0], 400);
-
-        return content;
-    },
-
-    // Called when a set of rows for a category of actions is loaded
-    actionsSubDataTableLoaded: function (response, idSubTable) {
-        var self = this;
-        var idToReplace = 'subDataTable_' + idSubTable;
-        var root = $('#' + self.workingDivId);
-
-        var response = $(response);
-        self.parentAttributeParent = $('tr#' + idToReplace).prev().prop('parent');
-        self.parentId = idToReplace;
-
-        $('tr#' + idToReplace, root).after(response).remove();
-
-        var missingColumns = (response.prev().find('td').size() - response.find('td').size());
-        for (var i = 0; i < missingColumns; i++) {
-            // if the subtable has fewer columns than the parent table, add some columns.
-            // this happens for example, when the parent table has performance metrics and the subtable doesn't.
-            response.append('<td>-</td>');
-        }
-
-        var re = /subDataTable_(\d+)/;
-        var ok = re.exec(self.parentId);
-        if (ok) {
-            self.parentId = ok[1];
-        }
-
-        // we execute the bindDataTableEvent function for the new DIV
-        self.bindEventsAndApplyStyle($('#' + self.workingDivId), response);
-
-        //bind back the click event (disabled to avoid double-click problem)
-        self.disabledRowDom.click(
-            function () {
-                self.onClickActionSubDataTable(this)
-            });
-    }
+    dataTable.param.viewDataTable = viewDataTable;
+    dataTable.reloadAjaxDataTable();
+    dataTable.notifyWidgetParametersChange(dataTable.$element, {viewDataTable: viewDataTable});
 };
 
-//helper function for actionDataTable
-function getLevelFromClass(style) {
-    if (!style || typeof style == "undefined") return 0;
+DataTable.registerFooterIconHandler('cloud', DataTable.switchToGraph);
 
-    var currentLevelIndex = style.indexOf('level');
-    var currentLevel = 0;
-    if (currentLevelIndex >= 0) {
-        currentLevel = Number(style.substr(currentLevelIndex + 5, 1));
-    }
-    return currentLevel;
-}
+exports.DataTable = DataTable;
 
-//helper function for actionDataTable
-function setImageMinus(domElem) {
-    $('img.plusMinus', domElem).attr('src', 'plugins/Zeitgeist/images/minus.png');
-}
-
-//helper function for actionDataTable
-function setImagePlus(domElem) {
-    $('img.plusMinus', domElem).attr('src', 'plugins/Zeitgeist/images/plus.png');
-}
-
+})(jQuery, require);

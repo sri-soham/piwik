@@ -1,6 +1,6 @@
 <?php
-use Piwik\Piwik;
-use Piwik\Common;
+use Piwik\Filesystem;
+use Piwik\SettingsServer;
 use Piwik\Tracker\Db;
 
 /**
@@ -19,7 +19,56 @@ class ReleaseCheckListTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group ReleaseCheckList
+     */
+    public function test_icoFilesIconsShouldBeInPngFormat()
+    {
+        $files = Filesystem::globr(PIWIK_INCLUDE_PATH . '/plugins', '*.ico');
+        $this->checkFilesAreInPngFormat($files);
+        $files = Filesystem::globr(PIWIK_INCLUDE_PATH . '/core', '*.ico');
+        $this->checkFilesAreInPngFormat($files);
+    }
+
+    /**
+     * @group Core
+     */
+    public function test_pngFilesIconsShouldBeInPngFormat()
+    {
+        $files = Filesystem::globr(PIWIK_INCLUDE_PATH . '/plugins', '*.png');
+        $this->checkFilesAreInPngFormat($files);
+        $files = Filesystem::globr(PIWIK_INCLUDE_PATH . '/core', '*.png');
+        $this->checkFilesAreInPngFormat($files);
+    }
+
+    /**
+     * @group Core
+     */
+    public function test_gifFilesIconsShouldBeInGifFormat()
+    {
+        $files = Filesystem::globr(PIWIK_INCLUDE_PATH . '/plugins', '*.gif');
+        $this->checkFilesAreInGifFormat($files);
+        $files = Filesystem::globr(PIWIK_INCLUDE_PATH . '/core', '*.gif');
+        $this->checkFilesAreInGifFormat($files);
+    }
+
+    /**
+     * @group Core
+     */
+    public function test_jpgImagesShouldBeInJpgFormat()
+    {
+        $files = Filesystem::globr(PIWIK_INCLUDE_PATH . '/plugins', '*.jpg');
+        $this->checkFilesAreInJpgFormat($files);
+        $files = Filesystem::globr(PIWIK_INCLUDE_PATH . '/core', '*.jpg');
+        $this->checkFilesAreInJpgFormat($files);
+        $files = Filesystem::globr(PIWIK_INCLUDE_PATH . '/plugins', '*.jpeg');
+        $this->checkFilesAreInJpgFormat($files);
+        $files = Filesystem::globr(PIWIK_INCLUDE_PATH . '/core', '*.jpeg');
+        $this->checkFilesAreInJpgFormat($files);
+
+    }
+
+
+    /**
+     * @group Core
      */
     public function testCheckThatConfigurationValuesAreProductionValues()
     {
@@ -33,10 +82,14 @@ class ReleaseCheckListTest extends PHPUnit_Framework_TestCase
         $this->_checkEqual(array('Tracker' => 'visit_standard_length'), '1800');
         $this->_checkEqual(array('Tracker' => 'trust_visitors_cookies'), '0');
         // logging messages are disabled
-        $this->_checkEqual(array('log' => 'logger_message'), '');
-        $this->_checkEqual(array('log' => 'logger_exception'), array('screen'));
-        $this->_checkEqual(array('log' => 'logger_error'), array('screen'));
+        $this->_checkEqual(array('log' => 'log_level'), 'WARN');
+        $this->_checkEqual(array('log' => 'log_writers'), array('screen'));
         $this->_checkEqual(array('log' => 'logger_api_call'), null);
+
+
+        require_once PIWIK_INCLUDE_PATH . "/core/TaskScheduler.php";
+        $this->assertFalse(DEBUG_FORCE_SCHEDULED_TASKS);
+
     }
 
     private function _checkEqual($key, $valueExpected)
@@ -52,12 +105,11 @@ class ReleaseCheckListTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group ReleaseCheckList
      */
     public function testTemplatesDontContainDebug()
     {
         $patternFailIfFound = 'dump(';
-        $files = Piwik::globr(PIWIK_INCLUDE_PATH . '/plugins', '*.twig');
+        $files = Filesystem::globr(PIWIK_INCLUDE_PATH . '/plugins', '*.twig');
         foreach ($files as $file) {
             $content = file_get_contents($file);
             $this->assertFalse(strpos($content, $patternFailIfFound), 'found in ' . $file);
@@ -66,15 +118,12 @@ class ReleaseCheckListTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group ReleaseCheckList
      */
     public function testCheckThatGivenPluginsAreDisabledByDefault()
     {
         $pluginsShouldBeDisabled = array(
             'AnonymizeIP',
-            'DBStats',
-            'SecurityInfo',
-            'VisitorGenerator',
+            'DBStats'
         );
         foreach ($pluginsShouldBeDisabled as $pluginName) {
             if (in_array($pluginName, $this->globalConfig['Plugins']['Plugins'])) {
@@ -87,7 +136,6 @@ class ReleaseCheckListTest extends PHPUnit_Framework_TestCase
     /**
      * test that the profiler is disabled (mandatory on a production server)
      * @group Core
-     * @group ReleaseCheckList
      */
     public function testProfilingDisabledInProduction()
     {
@@ -97,7 +145,6 @@ class ReleaseCheckListTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group ReleaseCheckList
      */
     public function testPiwikTrackerDebugIsOff()
     {
@@ -118,15 +165,14 @@ class ReleaseCheckListTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group ReleaseCheckList
      */
     public function testEndOfLines()
     {
-        if (Common::isWindows()) {
+        if (SettingsServer::isWindows()) {
             // SVN native does not make this work on windows
             return;
         }
-        foreach (Piwik::globr(PIWIK_DOCUMENT_ROOT, '*') as $file) {
+        foreach (Filesystem::globr(PIWIK_DOCUMENT_ROOT, '*') as $file) {
             // skip files in these folders
             if (strpos($file, '/.git/') !== false ||
                 strpos($file, '/documentation/') !== false ||
@@ -139,7 +185,7 @@ class ReleaseCheckListTest extends PHPUnit_Framework_TestCase
             }
 
             // skip files with these file extensions
-            if (preg_match('/\.(bmp|fdf|gif|deflate|gz|ico|jar|jpg|p12|pdf|png|rar|swf|vsd|z|zip|ttf|so|dat|eps|phar)$/', $file)) {
+            if (preg_match('/\.(bmp|fdf|gif|deflate|exe|gz|ico|jar|jpg|p12|pdf|png|rar|swf|vsd|z|zip|ttf|so|dat|eps|phar)$/', $file)) {
                 continue;
             }
 
@@ -163,7 +209,6 @@ class ReleaseCheckListTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group ReleaseCheckList
      */
     public function testPiwikJavaScript()
     {
@@ -176,5 +221,44 @@ class ReleaseCheckListTest extends PHPUnit_Framework_TestCase
 
         $contents = file_get_contents(PIWIK_DOCUMENT_ROOT . '/piwik.js');
         $this->assertTrue(preg_match($pattern, $contents) == 0);
+    }
+
+    /**
+     * @param $files
+     */
+    private function checkFilesAreInPngFormat($files)
+    {
+        $this->checkFilesAreInFormat($files, "png");
+    }
+    private function checkFilesAreInJpgFormat($files)
+    {
+        $this->checkFilesAreInFormat($files, "jpeg");
+    }
+
+    private function checkFilesAreInGifFormat($files)
+    {
+        $this->checkFilesAreInFormat($files, "gif");
+    }
+
+    /**
+     * @param $files
+     * @param $format
+     */
+    private function checkFilesAreInFormat($files, $format)
+    {
+        $errors = array();
+        foreach ($files as $file) {
+            $function = "imagecreatefrom" . $format;
+            $handle = @$function($file);
+            if (empty($handle)) {
+                $errors[] = $file;
+            }
+        }
+
+        if (!empty($errors)) {
+            $icons = var_export($errors, true);
+            $icons = "gimp " . implode(" ", $errors);
+            $this->fail("$format format failed for following icons $icons \n");
+        }
     }
 }

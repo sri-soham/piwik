@@ -11,20 +11,20 @@
 namespace Piwik\Plugins\VisitsSummary;
 
 use Piwik\API\Request;
-use Piwik\DataTable\Row;
-use Piwik\Piwik;
 use Piwik\Common;
+use Piwik\DataTable\Row;
 use Piwik\DataTable;
-use Piwik\Plugins\Actions\API;
-use Piwik\ViewDataTable;
-use Piwik\View;
+use Piwik\Piwik;
+use Piwik\Plugins\Actions\API as APIActions;
 use Piwik\Site;
+use Piwik\View;
+use Piwik\ViewDataTable\Factory;
 
 /**
  *
  * @package VisitsSummary
  */
-class Controller extends \Piwik\Controller
+class Controller extends \Piwik\Plugin\Controller
 {
     public function index()
     {
@@ -50,20 +50,20 @@ class Controller extends \Piwik\Controller
             $columns = Piwik::getArrayFromApiParameter($columns);
         }
 
-        $documentation = Piwik_Translate('VisitsSummary_VisitsSummaryDocumentation') . '<br />'
-            . Piwik_Translate('General_BrokenDownReportDocumentation') . '<br /><br />'
+        $documentation = Piwik::translate('VisitsSummary_VisitsSummaryDocumentation') . '<br />'
+            . Piwik::translate('General_BrokenDownReportDocumentation') . '<br /><br />'
 
-            . '<b>' . Piwik_Translate('General_ColumnNbVisits') . ':</b> '
-            . Piwik_Translate('General_ColumnNbVisitsDocumentation') . '<br />'
+            . '<b>' . Piwik::translate('General_ColumnNbVisits') . ':</b> '
+            . Piwik::translate('General_ColumnNbVisitsDocumentation') . '<br />'
 
-            . '<b>' . Piwik_Translate('General_ColumnNbUniqVisitors') . ':</b> '
-            . Piwik_Translate('General_ColumnNbUniqVisitorsDocumentation') . '<br />'
+            . '<b>' . Piwik::translate('General_ColumnNbUniqVisitors') . ':</b> '
+            . Piwik::translate('General_ColumnNbUniqVisitorsDocumentation') . '<br />'
 
-            . '<b>' . Piwik_Translate('General_ColumnNbActions') . ':</b> '
-            . Piwik_Translate('General_ColumnNbActionsDocumentation') . '<br />'
+            . '<b>' . Piwik::translate('General_ColumnNbActions') . ':</b> '
+            . Piwik::translate('General_ColumnNbActionsDocumentation') . '<br />'
 
-            . '<b>' . Piwik_Translate('General_ColumnActionsPerVisit') . ':</b> '
-            . Piwik_Translate('General_ColumnActionsPerVisitDocumentation');
+            . '<b>' . Piwik::translate('General_ColumnActionsPerVisit') . ':</b> '
+            . Piwik::translate('General_ColumnActionsPerVisitDocumentation');
 
         $selectableColumns = array(
             // columns from VisitsSummary.get
@@ -91,6 +91,7 @@ class Controller extends \Piwik\Controller
             $selectableColumns[] = 'nb_searches';
             $selectableColumns[] = 'nb_keywords';
         }
+
         $view = $this->getLastUnitGraphAcrossPlugins($this->pluginName, __FUNCTION__, $columns,
             $selectableColumns, $documentation);
 
@@ -140,7 +141,7 @@ class Controller extends \Piwik\Controller
         $dataTableVisit = self::getVisitsSummary();
         $dataRow = $dataTableVisit->getRowsCount() == 0 ? new Row() : $dataTableVisit->getFirstRow();
 
-        $dataTableActions = API::getInstance()->get($idSite, Common::getRequestVar('period'), Common::getRequestVar('date'),
+        $dataTableActions = APIActions::getInstance()->get($idSite, Common::getRequestVar('period'), Common::getRequestVar('date'),
             \Piwik\API\Request::getRawSegmentFromRequest());
         $dataActionsRow =
             $dataTableActions->getRowsCount() == 0 ? new Row() : $dataTableActions->getFirstRow();

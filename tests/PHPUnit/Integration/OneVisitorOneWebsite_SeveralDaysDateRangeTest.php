@@ -20,7 +20,6 @@ class Test_Piwik_Integration_OneVisitorOneWebsite_SeveralDaysDateRange extends I
     /**
      * @dataProvider getApiForTesting
      * @group        Integration
-     * @group        OneVisitorOneWebsite_SeveralDaysDateRange
      */
     public function testApi($api, $params)
     {
@@ -63,29 +62,29 @@ class Test_Piwik_Integration_OneVisitorOneWebsite_SeveralDaysDateRange extends I
 
             //---------------------------------------
             // THEN some Socials tests. Share these...
-            array('Referers.getSocials', array('idSite'  => 'all',
+            array('Referrers.getSocials', array('idSite'  => 'all',
                                                'date'    => '2010-12-13,2011-01-18',
                                                'periods' => array('range'))),
 
-            array('Referers.getSocials', array('idSite'       => 'all',
+            array('Referrers.getSocials', array('idSite'       => 'all',
                                                'date'         => '2010-12-10',
                                                'periods'      => array('day'),
                                                'setDateLastN' => true,
                                                'testSuffix'   => '_IndexedByDate')),
 
-            array('Referers.getUrlsForSocial', array('idSite'     => 'all', // test w/o idSubtable
+            array('Referrers.getUrlsForSocial', array('idSite'     => 'all', // test w/o idSubtable
                                                      'date'       => '2010-12-13,2011-01-18',
                                                      'periods'    => 'range',
                                                      'testSuffix' => '_noIdSubtable')),
 
-            array('Referers.getUrlsForSocial', array('idSite'        => 1, // test w/ idSubtable
+            array('Referrers.getUrlsForSocial', array('idSite'        => 1, // test w/ idSubtable
                                                      'date'          => '2010-12-13,2011-01-18',
                                                      'periods'       => 'range',
-                                                     'supertableApi' => 'Referers.getSocials')),
+                                                     'supertableApi' => 'Referrers.getSocials')),
         );
     }
 
-    public function getOutputPrefix()
+    public static function getOutputPrefix()
     {
         return 'oneVisitor_oneWebsite_severalDays_DateRange';
     }

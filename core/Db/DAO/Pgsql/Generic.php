@@ -35,24 +35,14 @@ class Generic extends \Piwik\Db\DAO\Generic
         return "ROUND(".$field."::numeric, ".GoalManager::REVENUE_PRECISION.")";
     }
 
-    // $where = array of the form
-    // array(' column1 = ? ', ' AND ', 'colum2 <= ? ', ' OR ', ' column3 > ?')
-    // Number of elements of where will always be odd. If there is more than
-    // one column in the where clause, first element will be the first condition
-    // second element will be the logical operator (AND or OR)
-    // third element will be the next condition
-    // and so on.
     // http://postgres.cz/wiki/PostgreSQL_SQL_Tricks#Fast_first_n_rows_removing
     // http://stackoverflow.com/questions/5170546/how-do-i-delete-a-fixed-number-of-rows-with-sorting-in-postgresql
-    public function deleteAll($table, $where, $maxRowsPerQuery, $parameters=array())
+    public function deleteAll($table, $where, $orderBy, $maxRowsPerQuery, $parameters=array())
     {
-        if (empty($where)) {
-            throw new Exception('This function will work only when there is a WHERE clause');
-        }
-
+        $orderByClause = $orderBy ? "ORDER BY $orderBy" : "";
         $sql = 'DELETE FROM ' . $table . ' WHERE ctid '
              . 'IN (SELECT ctid FROM ' . $table . ' '
-             . '    WHERE ' . implode(' ', $where) . ' LIMIT ' . (int)$maxRowsPerQuery
+             . "    $where $orderByClause LIMIT " . (int)$maxRowsPerQuery
              . '    )';
 
         $totalRowsDeleted = 0;

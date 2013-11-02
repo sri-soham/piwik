@@ -9,199 +9,554 @@
  * @package Piwik
  */
 namespace Piwik;
-use Piwik\Config;
-use Piwik\Common;
 
-use Piwik\Log\Exception;
-use Piwik\Log\Error;
-use Piwik\Log\APICall;
-use Piwik\Log\Message;
+use Piwik\Db;
 
 /**
+ * Logging utility class.
+ * 
+ * Log entries are made with a message and log level. The logging utility will tag each
+ * log entry with the name of the plugin that's doing the logging. If no plugin is found,
+ * the name of the current class is used.
+ * 
+ * You can log messages using one of the public static functions (eg, 'error', 'warning',
+ * 'info', etc.). Messages logged with the **error** level will **always** be logged to
+ * the screen, regardless of whether the [log] log_writer config option includes the
+ * screen writer.
  *
- * @package Piwik
- * @subpackage Log
- * @see Zend_Log, libs/Zend/Log.php
- * @link http://framework.zend.com/manual/en/zend.log.html
+ * Currently, Piwik supports the following logging backends:
+ * - logging to the screen
+ * - logging to a file
+ * - logging to a database
+ *
+ * ### Logging configuration
+ * 
+ * The logging utility can be configured by manipulating the INI config options in the
+ * [log] section.
+ * 
+ * The following configuration options can be set:
+ * 
+ * - `log_writers[]`: This is an array of log writer IDs. The three log writers provided
+ *                    by Piwik core are **file**, **screen** and **database**. You can
+ *                    get more by installing plugins. The default value is **screen**.
+ * - `log_level`: The current log level. Can be **ERROR**, **WARN**, **INFO**, **DEBUG**,
+ *                or **VERBOSE**. Log entries made with a log level that is as or more
+ *                severe than the current log level will be outputted. Others will be
+ *                ignored. The default level is **WARN**.
+ * - `log_only_when_cli`: 0 or 1. If 1, logging is only enabled when Piwik is executed
+ *                        in the command line (for example, by the archive.php cron
+ *                        script). Default: 0.
+ * - `log_only_when_debug_parameter`: 0 or 1. If 1, logging is only enabled when the
+ *                                    `debug` query parameter is 1. Default: 0.
+ * - `logger_file_path`: For the file log writer, specifies the path to the log file
+ *                       to log to or a path to a directory to store logs in. If a
+ *                       directory, the file name is piwik.log. Can be relative to
+ *                       Piwik's root dir or an absolute path. Defaults to **tmp/logs**.
+ * 
+ * ### Custom message formatting
+ * 
+ * If you'd like to format log messages differently for different backends, you can use
+ * one of the `'Log.format...Message'` events. These events are fired when an object is
+ * logged. You can create your own custom class containing the information to log and
+ * listen to this event.
+ * 
+ * ### Custom log writers
+ * 
+ * New logging backends can be added via the `'Log.getAvailableWriters'` event. A log
+ * writer is just a callback that accepts log entry information (such as the message,
+ * level, etc.), so any backend could conceivably be used (including existing PSR3
+ * backends).
+ * 
+ * ### Examples
+ * 
+ * **Basic logging**
+ * 
+ *     Log::error("This log message will end up on the screen and in a file.")
+ *     Log::verbose("This log message uses %s params, but %s will only be called if the"
+ *                . " configured log level includes %s.", "sprintf", "sprintf", "verbose");
+ * 
+ * @method static \Piwik\Log getInstance()
  */
-abstract class Log extends \Zend_Log
+class Log extends Singleton
 {
-    protected $logToDatabaseTableName = null;
-    protected $logToDatabaseColumnMapping = null;
-    protected $logToFileFilename = null;
-    protected $fileFormatter = null;
-    protected $screenFormatter = null;
-    protected $currentRequestKey;
+    // log levels
+    const NONE = 0;
+    const ERROR = 1;
+    const WARN = 2;
+    const INFO = 3;
+    const DEBUG = 4;
+    const VERBOSE = 5;
+
+    // config option names
+    const LOG_LEVEL_CONFIG_OPTION = 'log_level';
+    const LOG_WRITERS_CONFIG_OPTION = 'log_writers';
+    const LOGGER_FILE_PATH_CONFIG_OPTION = 'logger_file_path';
+    const STRING_MESSAGE_FORMAT_OPTION = 'string_message_format';
+
+    const FORMAT_FILE_MESSAGE_EVENT = 'Log.formatFileMessage';
+
+    const FORMAT_SCREEN_MESSAGE_EVENT = 'Log.formatScreenMessage';
+
+    const FORMAT_DATABASE_MESSAGE_EVENT = 'Log.formatDatabaseMessage';
+
+    const GET_AVAILABLE_WRITERS_EVENT = 'Log.getAvailableWriters';
 
     /**
-     * @param string                        $logToFileFilename    filename of logfile
-     * @param \Zend_Log_Formatter_Interface $fileFormatter
-     * @param \Zend_Log_Formatter_Interface $screenFormatter
-     * @param  string                       $logToDatabaseTableName
-     * @param  array                        $logToDatabaseColumnMapping
+     * The current logging level. Everything of equal or greater priority will be logged.
+     * Everything else will be ignored.
+     *
+     * @var int
      */
-    function __construct($logToFileFilename,
-                         $fileFormatter,
-                         $screenFormatter,
-                         $logToDatabaseTableName,
-                         $logToDatabaseColumnMapping)
+    private $currentLogLevel = self::WARN;
+
+    /**
+     * The array of callbacks executed when logging to a file. Each callback writes a log
+     * message to a logging backend.
+     *
+     * @var array
+     */
+    private $writers = array();
+
+    /**
+     * The log message format string that turns a tag name, date-time and message into
+     * one string to log.
+     *
+     * @var string
+     */
+    private $logMessageFormat = "%level% %tag%[%datetime%] %message%";
+
+    /**
+     * If we're logging to a file, this is the path to the file to log to.
+     *
+     * @var string
+     */
+    private $logToFilePath;
+
+    /**
+     * True if we're currently setup to log to a screen, false if otherwise.
+     *
+     * @var bool
+     */
+    private $loggingToScreen;
+
+    /**
+     * Constructor.
+     */
+    protected function __construct()
     {
-        parent::__construct();
-
-        $this->currentRequestKey = substr(Common::generateUniqId(), 0, 8);
-
-        $log_dir = Config::getInstance()->log['logger_file_path'];
-        if ($log_dir[0] != '/' && $log_dir[0] != DIRECTORY_SEPARATOR) {
-            $log_dir = PIWIK_USER_PATH . '/' . $log_dir;
-        }
-        $this->logToFileFilename = $log_dir . '/' . $logToFileFilename;
-
-        $this->fileFormatter = $fileFormatter;
-        $this->screenFormatter = $screenFormatter;
-        $this->logToDatabaseTableName = Common::prefixTable($logToDatabaseTableName);
-        $this->logToDatabaseColumnMapping = $logToDatabaseColumnMapping;
-    }
-
-    function addWriteToFile()
-    {
-        Common::mkdir(dirname($this->logToFileFilename));
-        $writerFile = new \Zend_Log_Writer_Stream($this->logToFileFilename);
-        $writerFile->setFormatter($this->fileFormatter);
-        $this->addWriter($writerFile);
-    }
-
-    function addWriteToNull()
-    {
-        $this->addWriter(new \Zend_Log_Writer_Null);
-    }
-
-    function addWriteToDatabase()
-    {
-        $writerDb = new \Zend_Log_Writer_Db(
-            \Zend_Registry::get('db'),
-            $this->logToDatabaseTableName,
-            $this->logToDatabaseColumnMapping);
-
-        $this->addWriter($writerDb);
-    }
-
-    function addWriteToScreen()
-    {
-        $writerScreen = new \Zend_Log_Writer_Stream('php://output');
-        $writerScreen->setFormatter($this->screenFormatter);
-        $this->addWriter($writerScreen);
-    }
-
-    public function getWritersCount()
-    {
-        return count($this->_writers);
+        $logConfig = Config::getInstance()->log;
+        $this->setCurrentLogLevelFromConfig($logConfig);
+        $this->setLogWritersFromConfig($logConfig);
+        $this->setLogFilePathFromConfig($logConfig);
+        $this->setStringLogMessageFormat($logConfig);
+        $this->disableLoggingBasedOnConfig($logConfig);
     }
 
     /**
-     * Log an event
-     * @param string $event
-     * @param int $priority
-     * @param null $extras
-     * @throws \Zend_Log_Exception
-     * @return void
+     * Logs a message using the ERROR log level.
+     *
+     * Note: Messages logged with the ERROR level are always logged to the screen in addition
+     * to configured writers.
+     *
+     * @param string $message The log message. This can be a sprintf format string.
+     * @param ... mixed Optional sprintf params.
+     * @api
      */
-    public function log($event, $priority, $extras = null)
+    public static function error($message /* ... */)
     {
-        // sanity checks
-        if (empty($this->_writers)) {
-            throw new \Zend_Log_Exception('No writers were added');
-        }
-
-        $event['timestamp'] = date('Y-m-d H:i:s');
-        $event['requestKey'] = $this->currentRequestKey;
-        // pack into event required by filters and writers
-        $event = array_merge($event, $this->_extras);
-
-        // one message must stay on one line
-        if (isset($event['message'])) {
-            $event['message'] = str_replace(array(PHP_EOL, "\n"), " ", $event['message']);
-        }
-
-        // Truncate the backtrace which can be too long to display in the browser
-        if (!empty($event['backtrace'])) {
-            $maxSizeOutputBytes = 1024 * 1024; // no more than 1M output please
-            $truncateBacktraceLineAfter = 1000;
-            $maxLines = ceil($maxSizeOutputBytes / $truncateBacktraceLineAfter);
-            $bt = explode("\n", $event['backtrace']);
-            foreach ($bt as $count => &$line) {
-                if (strlen($line) > $truncateBacktraceLineAfter) {
-                    $line = substr($line, 0, $truncateBacktraceLineAfter) . '...';
-                }
-                if ($count > $maxLines) {
-                    $line .= "\nTruncated error message.";
-                    break;
-                }
-            }
-            $event['backtrace'] = implode("\n", $bt);
-        }
-        // abort if rejected by the global filters
-        foreach ($this->_filters as $filter) {
-            if (!$filter->accept($event)) {
-                return;
-            }
-        }
-
-        // send to each writer
-        foreach ($this->_writers as $writer) {
-            $writer->write($event);
-        }
+        self::log(self::ERROR, $message, array_slice(func_get_args(), 1));
     }
 
+    /**
+     * Logs a message using the WARNING log level.
+     *
+     * @param string $message The log message. This can be a sprintf format string.
+     * @param ... mixed Optional sprintf params.
+     * @api
+     */
+    public static function warning($message /* ... */)
+    {
+        self::log(self::WARN, $message, array_slice(func_get_args(), 1));
+    }
 
     /**
-     * Create log object
-     * @throws Exception
+     * Logs a message using the INFO log level.
+     *
+     * @param string $message The log message. This can be a sprintf format string.
+     * @param ... mixed Optional sprintf params.
+     * @api
      */
-    static public function make()
+    public static function info($message /* ... */)
     {
-        $configAPI = Config::getInstance()->log;
+        self::log(self::INFO, $message, array_slice(func_get_args(), 1));
+    }
 
-        /** @var Log[] $aLoggers */
-        $aLoggers = array(
-            'logger_api_call' => new APICall,
-            'logger_exception' => new Exception,
-            'logger_error' => new Error,
-            'logger_message' => new Message,
+    /**
+     * Logs a message using the DEBUG log level.
+     *
+     * @param string $message The log message. This can be a sprintf format string.
+     * @param ... mixed Optional sprintf params.
+     * @api
+     */
+    public static function debug($message /* ... */)
+    {
+        self::log(self::DEBUG, $message, array_slice(func_get_args(), 1));
+    }
+
+    /**
+     * Logs a message using the VERBOSE log level.
+     *
+     * @param string $message The log message. This can be a sprintf format string.
+     * @param ... mixed Optional sprintf params.
+     * @api
+     */
+    public static function verbose($message /* ... */)
+    {
+        self::log(self::VERBOSE, $message, array_slice(func_get_args(), 1));
+    }
+
+    /**
+     * Creates log message combining logging info including a log level, tag name,
+     * date time, and caller provided log message. The log message can be set through
+     * the string_message_format ini option in the [log] section. By default it will
+     * create log messages like:
+     *
+     * [tag:datetime] log message
+     *
+     * @param int $level
+     * @param string $tag
+     * @param string $datetime
+     * @param string $message
+     * @return string
+     */
+    public function formatMessage($level, $tag, $datetime, $message)
+    {
+        return str_replace(
+            array("%tag%", "%message%", "%datetime%", "%level%"),
+            array($tag, $message, $datetime, $this->getStringLevel($level)),
+            $this->logMessageFormat
         );
+    }
 
-        foreach ($configAPI as $loggerType => $aRecordTo) {
-            if (isset($aLoggers[$loggerType])) {
-                $logger = $aLoggers[$loggerType];
+    private function setLogWritersFromConfig($logConfig)
+    {
+        $availableWritersByName = $this->getAvailableWriters();
 
-                foreach ($aRecordTo as $recordTo) {
-                    switch ($recordTo) {
-                        case 'screen':
-                            $logger->addWriteToScreen();
-                            break;
+        // set the log writers
+        $logWriters = $logConfig[self::LOG_WRITERS_CONFIG_OPTION];
 
-                        case 'database':
-                            $logger->addWriteToDatabase();
-                            break;
-
-                        case 'file':
-                            $logger->addWriteToFile();
-                            break;
-
-                        default:
-                            throw new \Exception("'$recordTo' is not a valid Log type. Valid logger types are: screen, database, file.");
-                            break;
-                    }
-                }
+        $logWriters = array_map('trim', $logWriters);
+        foreach ($logWriters as $writerName) {
+            if (empty($availableWritersByName[$writerName])) {
+                continue;
             }
-        }
 
-        foreach ($aLoggers as $loggerType => $logger) {
-            if ($logger->getWritersCount() == 0) {
-                $logger->addWriteToNull();
+            $this->writers[] = $availableWritersByName[$writerName];
+
+            if ($writerName == 'screen') {
+                $this->loggingToScreen = true;
             }
-            \Zend_Registry::set($loggerType, $logger);
         }
     }
 
-}
+    private function setCurrentLogLevelFromConfig($logConfig)
+    {
+        if (!empty($logConfig[self::LOG_LEVEL_CONFIG_OPTION])) {
+            $logLevel = $this->getLogLevelFromStringName($logConfig[self::LOG_LEVEL_CONFIG_OPTION]);
 
+            if ($logLevel >= self::NONE // sanity check
+                && $logLevel <= self::VERBOSE
+            ) {
+                $this->currentLogLevel = $logLevel;
+            }
+        }
+    }
+
+    private function setStringLogMessageFormat($logConfig)
+    {
+        if (isset($logConfig['string_message_format'])) {
+            $this->logMessageFormat = $logConfig['string_message_format'];
+        }
+    }
+
+    private function setLogFilePathFromConfig($logConfig)
+    {
+        $logPath = $logConfig[self::LOGGER_FILE_PATH_CONFIG_OPTION];
+        if (!SettingsServer::isWindows()
+            && $logPath[0] != '/'
+        ) {
+            $logPath = PIWIK_USER_PATH . DIRECTORY_SEPARATOR . $logPath;
+        }
+        $logPath = SettingsPiwik::rewriteTmpPathWithHostname($logPath);
+        if (is_dir($logPath)) {
+            $logPath .= '/piwik.log';
+        }
+        $this->logToFilePath = $logPath;
+    }
+
+    private function getAvailableWriters()
+    {
+        $writers = array();
+
+        /**
+         * This event is called when the Log instance is created. Plugins can use this event to
+         * make new logging writers available.
+         *
+         * A logging writer is a callback that takes the following arguments:
+         *   int $level, string $tag, string $datetime, string $message
+         *
+         * $level is the log level to use, $tag is the log tag used, $datetime is the date time
+         * of the logging call and $message is the formatted log message.
+         *
+         * Logging writers must be associated by name in the array passed to event handlers.
+         *
+         * ***Example**
+         * 
+         *     function (&$writers) {
+         *         $writers['myloggername'] = function ($level, $tag, $datetime, $message) {
+         *             // ...
+         *         };
+         *     }
+         *
+         *     // 'myloggername' can now be used in the log_writers config option.
+         * 
+         * @param $
+         */
+        Piwik::postEvent(self::GET_AVAILABLE_WRITERS_EVENT, array(&$writers));
+
+        $writers['file'] = array($this, 'logToFile');
+        $writers['screen'] = array($this, 'logToScreen');
+        $writers['database'] = array($this, 'logToDatabase');
+        return $writers;
+    }
+
+    private function logToFile($level, $tag, $datetime, $message)
+    {
+        if (is_string($message)) {
+            $message = $this->formatMessage($level, $tag, $datetime, $message);
+        } else {
+            $logger = $this;
+
+            /**
+             * This event is called when trying to log an object to a file. Plugins can use
+             * this event to convert objects to strings before they are logged.
+             *
+             * @param mixed &$message The object that is being logged. Event handlers should
+             *                        check if the object is of a certain type and if it is,
+             *                        set $message to the string that should be logged.
+             * @param int $level The log level used with this log entry.
+             * @param string $tag The current plugin that started logging (or if no plugin,
+             *                    the current class).
+             * @param string $datetime Datetime of the logging call.
+             * @param Log $logger The Log singleton.
+             */
+            Piwik::postEvent(self::FORMAT_FILE_MESSAGE_EVENT, array(&$message, $level, $tag, $datetime, $logger));
+        }
+
+        if (empty($message)) {
+            return;
+        }
+
+        if(!file_put_contents($this->logToFilePath, $message . "\n", FILE_APPEND)) {
+            $message = Filechecks::getErrorMessageMissingPermissions($this->logToFilePath);
+            throw new \Exception( $message );
+        }
+    }
+
+    private function logToScreen($level, $tag, $datetime, $message)
+    {
+        static $currentRequestKey;
+        if (empty($currentRequestKey)) {
+            $currentRequestKey = substr(Common::generateUniqId(), 0, 5);
+        }
+
+        if (is_string($message)) {
+            if (!defined('PIWIK_TEST_MODE')
+                || !PIWIK_TEST_MODE
+            ) {
+                $message = '[' . $currentRequestKey . '] ' . $message;
+            }
+            $message = $this->formatMessage($level, $tag, $datetime, $message);
+
+            if (!Common::isPhpCliMode()) {
+                $message = Common::sanitizeInputValue($message);
+                $message = '<pre>' . $message . '</pre>';
+            }
+
+        } else {
+            $logger = $this;
+
+            /**
+             * This event is called when trying to log an object to the screen. Plugins can use
+             * this event to convert objects to strings before they are logged.
+             *
+             * The result of this callback can be HTML so no sanitization is done on the result.
+             * This means YOU MUST SANITIZE THE MESSAGE YOURSELF if you use this event.
+             *
+             * @param mixed &$message The object that is being logged. Event handlers should
+             *                        check if the object is of a certain type and if it is,
+             *                        set $message to the string that should be logged.
+             * @param int $level The log level used with this log entry.
+             * @param string $tag The current plugin that started logging (or if no plugin,
+             *                    the current class).
+             * @param string $datetime Datetime of the logging call.
+             * @param Log $logger The Log singleton.
+             */
+            Piwik::postEvent(self::FORMAT_SCREEN_MESSAGE_EVENT, array(&$message, $level, $tag, $datetime, $logger));
+        }
+
+        if (empty($message)) {
+            return;
+        }
+
+        echo $message . "\n";
+    }
+
+    private function logToDatabase($level, $tag, $datetime, $message)
+    {
+        if (is_string($message)) {
+            $message = $this->formatMessage($level, $tag, $datetime, $message);
+        } else {
+            $logger = $this;
+
+            /**
+             * This event is called when trying to log an object to a database table. Plugins can use
+             * this event to convert objects to strings before they are logged.
+             *
+             * @param mixed &$message The object that is being logged. Event handlers should
+             *                        check if the object is of a certain type and if it is,
+             *                        set $message to the string that should be logged.
+             * @param int $level The log level used with this log entry.
+             * @param string $tag The current plugin that started logging (or if no plugin,
+             *                    the current class).
+             * @param string $datetime Datetime of the logging call.
+             * @param Log $logger The Log singleton.
+             */
+            Piwik::postEvent(self::FORMAT_DATABASE_MESSAGE_EVENT, array(&$message, $level, $tag, $datetime, $logger));
+        }
+
+        if (empty($message)) {
+            return;
+        }
+
+        $sql = "INSERT INTO " . Common::prefixTable('logger_message')
+            . " (tag, timestamp, level, message)"
+            . " VALUES (?, ?, ?, ?)";
+        Db::query($sql, array($tag, $datetime, self::getStringLevel($level), (string)$message));
+    }
+
+    private function doLog($level, $message, $sprintfParams = array())
+    {
+        if ($this->shouldLoggerLog($level)) {
+            $datetime = date("Y-m-d H:i:s");
+            if (is_string($message)
+                && !empty($sprintfParams)
+            ) {
+                $message = vsprintf($message, $sprintfParams);
+            }
+
+            $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+            $tag = Plugin::getPluginNameFromBacktrace($backtrace);
+
+            // if we can't determine the plugin, use the name of the calling class
+            if ($tag == false) {
+                $tag = $this->getClassNameThatIsLogging($backtrace);
+            }
+
+            $this->writeMessage($level, $tag, $datetime, $message);
+        }
+    }
+
+    private function writeMessage($level, $tag, $datetime, $message)
+    {
+        foreach ($this->writers as $writer) {
+            call_user_func($writer, $level, $tag, $datetime, $message);
+        }
+
+        // errors are always printed to screen
+        if ($level == self::ERROR
+            && !$this->loggingToScreen
+        ) {
+            $this->logToScreen($level, $tag, $datetime, $message);
+        }
+    }
+
+    private static function log($level, $message, $sprintfParams)
+    {
+        self::getInstance()->doLog($level, $message, $sprintfParams);
+    }
+
+    private function shouldLoggerLog($level)
+    {
+        return $level <= $this->currentLogLevel;
+    }
+
+    private function disableLoggingBasedOnConfig($logConfig)
+    {
+        $disableLogging = false;
+
+        if (!empty($logConfig['log_only_when_cli'])
+            && !Common::isPhpCliMode()
+        ) {
+            $disableLogging = true;
+        }
+
+        if (!empty($logConfig['log_only_when_debug_parameter'])
+            && !isset($_REQUEST['debug'])
+        ) {
+            $disableLogging = true;
+        }
+
+        if ($disableLogging) {
+            $this->currentLogLevel = self::NONE;
+        }
+    }
+
+    private function getLogLevelFromStringName($name)
+    {
+        $name = strtoupper($name);
+        switch ($name) {
+            case 'NONE':
+                return self::NONE;
+            case 'ERROR':
+                return self::ERROR;
+            case 'WARN':
+                return self::WARN;
+            case 'INFO':
+                return self::INFO;
+            case 'DEBUG':
+                return self::DEBUG;
+            case 'VERBOSE':
+                return self::VERBOSE;
+            default:
+                return -1;
+        }
+    }
+
+    private function getStringLevel($level)
+    {
+        static $levelToName = array(
+            self::NONE    => 'NONE',
+            self::ERROR   => 'ERROR',
+            self::WARN    => 'WARN',
+            self::INFO    => 'INFO',
+            self::DEBUG   => 'DEBUG',
+            self::VERBOSE => 'VERBOSE'
+        );
+        return $levelToName[$level];
+    }
+
+    private function getClassNameThatIsLogging($backtrace)
+    {
+        foreach ($backtrace as $tracepoint) {
+            if (isset($tracepoint['class'])
+                && $tracepoint['class'] != "Piwik\\Log"
+                && $tracepoint['class'] != "Piwik\\Piwik"
+                && $tracepoint['class'] != "CronArchive"
+            ) {
+                return $tracepoint['class'];
+            }
+        }
+        return false;
+    }
+}

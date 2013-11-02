@@ -8,12 +8,16 @@
  * @category Piwik
  * @package Updates
  */
+
+namespace Piwik\Updates;
+
+use Piwik\Piwik;
 use Piwik\Updates;
 
 /**
  * @package Updates
  */
-class Piwik_Updates_0_4_4 extends Updates
+class Updates_0_4_4 extends Updates
 {
     static function update()
     {
@@ -21,7 +25,7 @@ class Piwik_Updates_0_4_4 extends Updates
         if (file_exists($obsoleteFile)) {
             $rc = @unlink($obsoleteFile);
             if (!$rc) {
-                throw new Exception(Piwik_TranslateException('General_ExceptionUndeletableFile', array($obsoleteFile)));
+                throw new \Exception(Piwik::translate('General_ExceptionUndeletableFile', array($obsoleteFile)));
             }
         }
     }

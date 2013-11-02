@@ -15,12 +15,14 @@ namespace Piwik;
  * Piwik version information.
  *
  * @package Piwik
+ *
+ * @api
  */
 final class Version
 {
     /**
-     * Current Piwik version
+     * The current Piwik version.
      * @var string
      */
-    const VERSION = '2.0-a1';
+    const VERSION = '2.0-b3';
 }

@@ -68,6 +68,7 @@
             }
             $('*', this.element).off('.dashboardWidget'); // unbind all events
             $('.widgetContent', this.element).trigger('widget:destroy');
+            require('piwik/UI').UIControl.cleanupUnusedControls();
             return this;
         },
 
@@ -131,7 +132,7 @@
         /**
          * Reloads the widgets content with the currently set parameters
          */
-        reload: function (hideLoading, notJQueryUI) {
+        reload: function (hideLoading, notJQueryUI, overrideParams) {
             if (!notJQueryUI) {
                 piwikHelper.log('widget.reload() was called by jquery.ui, ignoring', arguments.callee.caller);
                 return;
@@ -155,7 +156,8 @@
                 $('.widgetContent', currentWidget).addClass('loading');
             }
 
-            widgetsHelper.loadWidgetAjax(this.uniqueId, this.widgetParameters, onWidgetLoadedReplaceElementWithContent);
+            var params = $.extend(this.widgetParameters, overrideParams || {});
+            widgetsHelper.loadWidgetAjax(this.uniqueId, params, onWidgetLoadedReplaceElementWithContent);
 
             return this;
         },
@@ -189,7 +191,7 @@
 
             var widgetName = widgetsHelper.getWidgetNameFromUniqueId(uniqueId);
             if (!widgetName) {
-                widgetName = _pk_translate('Dashboard_WidgetNotFound_js');
+                widgetName = _pk_translate('Dashboard_WidgetNotFound');
             }
 
             var emptyWidgetContent = widgetsHelper.getEmptyWidgetHtml(uniqueId, widgetName);

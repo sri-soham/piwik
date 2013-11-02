@@ -65,8 +65,8 @@ DataTable_RowActions_Registry.register({
     order: 50,
 
     dataTableIconTooltip: [
-        _pk_translate('General_RowEvolutionRowActionTooltipTitle_js'),
-        _pk_translate('General_RowEvolutionRowActionTooltip_js')
+        _pk_translate('General_RowEvolutionRowActionTooltipTitle'),
+        _pk_translate('General_RowEvolutionRowActionTooltip')
     ],
 
     createInstance: function (dataTable, param) {
@@ -78,9 +78,9 @@ DataTable_RowActions_Registry.register({
             // when row evolution is triggered from the url (not a click on the data table)
             // we look for the data table instance in the dom
             var report = param.split(':')[0];
-            var div = $(piwik.DataTableManager.getDataTableByReport(report));
-            if (div.size() > 0 && div.data('piwikDataTable')) {
-                dataTable = div.data('piwikDataTable');
+            var div = $(require('piwik/UI').DataTable.getDataTableByReport(report));
+            if (div.size() > 0 && div.data('uiControlObject')) {
+                dataTable = div.data('uiControlObject');
                 if (typeof dataTable.rowEvolutionActionInstance != 'undefined') {
                     return dataTable.rowEvolutionActionInstance;
                 }
@@ -179,7 +179,7 @@ DataTable_RowAction.prototype.trigger = function (tr, e, subTableLabel) {
     }
 
     // ascend in action reports
-    if (tr.hasClass('actionsDataTable') || tr.hasClass('subActionsDataTable')) {
+    if (subtable.closest('div.dataTableActions').length) {
         var allClasses = tr.attr('class');
         var matches = allClasses.match(/level[0-9]+/);
         var level = parseInt(matches[0].substring(5, matches[0].length), 10);

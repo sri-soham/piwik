@@ -160,7 +160,7 @@ function ajaxHelper() {
      * @param {string} url
      */
     this.setUrl = function (url) {
-        this.getUrl = url;
+        this.addParams(broadcast.getValuesFromUrl(url), 'GET');
     };
 
     /**
@@ -275,7 +275,7 @@ function ajaxHelper() {
      */
     this.setLoadingElement = function (element) {
         if (!element) {
-            element = '#ajaxLoading';
+            element = '#ajaxLoadingDiv';
         }
         this.loadingElement = element;
     };

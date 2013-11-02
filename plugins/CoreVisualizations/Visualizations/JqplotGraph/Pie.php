@@ -11,8 +11,8 @@
 
 namespace Piwik\Plugins\CoreVisualizations\Visualizations\JqplotGraph;
 
-use Piwik\Plugins\CoreVisualizations\Visualizations\JqplotGraph;
 use Piwik\Plugins\CoreVisualizations\JqplotDataGenerator;
+use Piwik\Plugins\CoreVisualizations\Visualizations\JqplotGraph;
 
 /**
  * Visualization that renders HTML for a Pie graph using jqPlot.
@@ -20,34 +20,37 @@ use Piwik\Plugins\CoreVisualizations\JqplotDataGenerator;
 class Pie extends JqplotGraph
 {
     const ID = 'graphPie';
+    const FOOTER_ICON       = 'plugins/Zeitgeist/images/chart_pie.png';
+    const FOOTER_ICON_TITLE = 'General_Piechart';
 
-    public function __construct($view)
+    public static function getDefaultConfig()
     {
-        parent::__construct($view);
-        $view->visualization_properties->show_all_ticks = true;
+        $config = new Config();
+        $config->max_graph_elements = 6;
+        $config->allow_multi_select_series_picker = false;
+
+        return $config;
     }
 
-    public function render($dataTable, $properties)
+    public function beforeRender()
     {
-        // make sure only one non-label column is displayed
-        $metricColumn = false;
-        foreach ($properties['columns_to_display'] as $column) {
-            if ($column != 'label') {
-                $metricColumn = $column;
-                break;
-            }
+        parent::beforeRender();
+
+        $this->config->show_all_ticks = true;
+        $this->config->datatable_js_type = 'JqplotPieGraphDataTable';
+    }
+
+    public function afterAllFilteresAreApplied()
+    {
+        parent::afterAllFilteresAreApplied();
+
+        $metricColumn = reset($this->config->columns_to_display);
+
+        if ($metricColumn == 'label') {
+            $metricColumn = next($this->config->columns_to_display);
         }
-        $properties['columns_to_display'] = array($metricColumn ?: 'nb_visits');
 
-        return parent::render($dataTable, $properties);
-    }
-
-    public static function getDefaultPropertyValues()
-    {
-        $result = parent::getDefaultPropertyValues();
-        $result['visualization_properties']['graph']['max_graph_elements'] = 6;
-        $result['visualization_properties']['graph']['allow_multi_select_series_picker'] = false;
-        return $result;
+        $this->config->columns_to_display = array($metricColumn ? : 'nb_visits');
     }
 
     protected function makeDataGenerator($properties)

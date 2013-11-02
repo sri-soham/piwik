@@ -64,8 +64,8 @@ class SegmentTest extends DatabaseTestCase
             // OR, with 2 value rewrites
             array('referrerType==search,referrerType==direct', array(
                 'where' => ' (log_visit.referer_type = ? OR log_visit.referer_type = ? )',
-                'bind'  => array(Common::REFERER_TYPE_SEARCH_ENGINE,
-                                 Common::REFERER_TYPE_DIRECT_ENTRY))),
+                'bind'  => array(Common::REFERRER_TYPE_SEARCH_ENGINE,
+                                 Common::REFERRER_TYPE_DIRECT_ENTRY))),
 
             // IS NOT NULL
             array('browserCode==ff;referrerKeyword!=', array(
@@ -93,7 +93,6 @@ class SegmentTest extends DatabaseTestCase
     /**
      * @dataProvider getCommonTestData
      * @group Core
-     * @group Segment
      */
     public function testCommon($segment, $expected)
     {
@@ -125,7 +124,6 @@ class SegmentTest extends DatabaseTestCase
 
     /**
      * @group Core
-     * @group Segment
      */
     public function testGetSelectQueryNoJoin()
     {
@@ -156,7 +154,6 @@ class SegmentTest extends DatabaseTestCase
 
     /**
      * @group Core
-     * @group Segment
      */
     public function testGetSelectQueryJoinVisitOnAction()
     {
@@ -188,7 +185,6 @@ class SegmentTest extends DatabaseTestCase
 
     /**
      * @group Core
-     * @group Segment
      */
     public function testGetSelectQueryJoinActionOnVisit()
     {
@@ -227,7 +223,6 @@ class SegmentTest extends DatabaseTestCase
 
     /**
      * @group Core
-     * @group Segment
      */
     public function testGetSelectQueryJoinConversionOnAction()
     {
@@ -259,7 +254,6 @@ class SegmentTest extends DatabaseTestCase
 
     /**
      * @group Core
-     * @group Segment
      */
     public function testGetSelectQueryJoinActionOnConversion()
     {
@@ -291,7 +285,6 @@ class SegmentTest extends DatabaseTestCase
 
     /**
      * @group Core
-     * @group Segment
      */
     public function testGetSelectQueryJoinConversionOnVisit()
     {
@@ -329,7 +322,6 @@ class SegmentTest extends DatabaseTestCase
 
     /**
      * @group Core
-     * @group Segemnt
      */
     public function testGetSelectQueryConversionOnly()
     {
@@ -360,7 +352,6 @@ class SegmentTest extends DatabaseTestCase
 
     /**
      * @group Core
-     * @group Segment
      */
     public function testGetSelectQueryJoinVisitOnConversion()
     {
@@ -395,7 +386,6 @@ class SegmentTest extends DatabaseTestCase
      * make sure that conversion is joined on action not visit
      *
      * @group Core
-     * @group Segment
      */
     public function testGetSelectQueryJoinVisitAndConversionOnAction()
     {
@@ -429,7 +419,6 @@ class SegmentTest extends DatabaseTestCase
      * make sure actions are joined before conversions
      *
      * @group Core
-     * @group Segment
      */
     public function testGetSelectQueryJoinConversionAndActionOnVisit()
     {
@@ -478,7 +467,7 @@ class SegmentTest extends DatabaseTestCase
 
     /**
      * @group Core
-     * @group Segment
+     * 
      * @dataProvider getBogusSegments
      */
     public function testBogusSegmentThrowsException($segment)

@@ -12,11 +12,9 @@ namespace Piwik\API;
 
 use Exception;
 use Piwik\DataTable\Row;
-use Piwik\Period\Range;
 use Piwik\DataTable;
+use Piwik\Period\Range;
 use Piwik\Plugins\API\API;
-use Piwik\API\Proxy;
-use Piwik\API\ResponseBuilder;
 
 /**
  * Base class for manipulating data tables.
@@ -67,7 +65,7 @@ abstract class DataTableManipulator
     protected function manipulate($dataTable)
     {
         if ($dataTable instanceof DataTable\Map) {
-            return $this->manipulateDataTableArray($dataTable);
+            return $this->manipulateDataTableMap($dataTable);
         } else if ($dataTable instanceof DataTable) {
             return $this->manipulateDataTable($dataTable);
         } else {
@@ -76,15 +74,15 @@ abstract class DataTableManipulator
     }
 
     /**
-     * Manipulates child DataTables of a DataTable_Array. See @manipulate for more info.
+     * Manipulates child DataTables of a DataTable\Map. See @manipulate for more info.
      *
-     * @param DataTable\Map  $dataTable
+     * @param DataTable\Map $dataTable
      * @return DataTable\Map
      */
-    protected function manipulateDataTableArray($dataTable)
+    protected function manipulateDataTableMap($dataTable)
     {
         $result = $dataTable->getEmptyClone();
-        foreach ($dataTable->getArray() as $tableLabel => $childTable) {
+        foreach ($dataTable->getDataTables() as $tableLabel => $childTable) {
             $newTable = $this->manipulate($childTable);
             $result->addTable($newTable, $tableLabel);
         }
@@ -121,7 +119,7 @@ abstract class DataTableManipulator
 
         $request['idSubtable'] = $idSubTable;
         if ($dataTable) {
-            $period = $dataTable->metadata['period'];
+            $period = $dataTable->getMetadata('period');
             if ($period instanceof Range) {
                 $request['date'] = $period->getDateStart() . ',' . $period->getDateEnd();
             } else {
@@ -129,7 +127,7 @@ abstract class DataTableManipulator
             }
         }
 
-        $class = Request::getClassNameAPI( $this->apiModule );
+        $class = Request::getClassNameAPI($this->apiModule);
         $method = $this->getApiMethodForSubtable();
 
         $this->manipulateSubtableRequest($request);

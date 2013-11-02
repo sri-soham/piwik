@@ -1,0 +1,47 @@
+{% extends 'admin.twig' %}
+
+{% block content %}
+
+    <div style="max-width:980px;">
+
+        <h2>Installing {{ plugin.name }}</h2>
+
+        {% if errorMessage %}
+            <div class="ajaxError" style="">{{ errorMessage }}</div>
+        {% else %}
+
+            <div>
+
+                {% if plugin.isTheme %}
+
+                    <p>Downloading theme from Marketplace</p>
+
+                    <p>Unzipping theme</p>
+
+                    <p>You have successfully installed the theme {{ plugin.name }} {{ plugin.latestVersion }}.</p>
+
+                    <p><strong><a href="{{ linkTo({'action': 'activate', 'pluginName': plugin.name, 'nonce': nonce}) }}">Activate Theme</a></strong>
+
+                        |
+                        <a href="{{ linkTo({'action': 'extend'}) }}">Back to Extend Piwik</a></p>
+
+                {% else %}
+
+                    <p>Downloading plugin from Marketplace</p>
+
+                    <p>Unzipping plugin</p>
+
+                    <p>You have successfully installed the Plugin {{ plugin.name }} {{ plugin.latestVersion }}.</p>
+
+                    <p><strong><a href="{{ linkTo({'action': 'activate', 'pluginName': plugin.name, 'nonce': nonce}) }}">Activate Plugin</a></strong>
+
+                        |
+                        <a href="{{ linkTo({'action': 'extend'}) }}">Back to Extend Piwik</a></p>
+
+                {% endif %}
+            </div>
+
+        {% endif %}
+    </div>
+
+{% endblock %}

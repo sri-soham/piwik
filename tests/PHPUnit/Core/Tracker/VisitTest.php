@@ -22,7 +22,7 @@ class Tracker_VisitTest extends DatabaseTestCase
         FakeAccess::$superUser = true;
         Access::setSingletonInstance($pseudoMockAccess);
 
-        \Piwik\PluginsManager::getInstance()->loadPlugins(array('SitesManager'));
+        \Piwik\Plugin\Manager::getInstance()->loadPlugins(array('SitesManager'));
     }
 
     /**
@@ -69,8 +69,6 @@ class Tracker_VisitTest extends DatabaseTestCase
 
     /**
      * @group Core
-     * @group Tracker
-     * @group Tracker_Visit
      * @dataProvider getExcludedIpTestData
      */
     public function testIsVisitorIpExcluded($excludedIp, $tests)
@@ -116,8 +114,6 @@ class Tracker_VisitTest extends DatabaseTestCase
 
     /**
      * @group Core
-     * @group Tracker
-     * @group Tracker_Visit
      * @dataProvider getExcludedUserAgentTestData
      */
     public function testIsVisitorUserAgentExcluded($excludedUserAgent, $tests)

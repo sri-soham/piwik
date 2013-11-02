@@ -2,7 +2,7 @@
 
 {% block content %}
 {% spaceless %}
-<span style="float:right;">{{ postEvent('template_topBar')|raw }}</span>
+<span style="float:right;">{{ postEvent('Template.topBar')|raw }}</span>
 {% set helpMessage %}
     {{ 'CoreUpdater_HelpMessageContent'|translate('<a target="_blank" href="?module=Proxy&action=redirect&url=http://piwik.org/faq/">','</a>','</li><li>')|raw }}
 {% endset %}
@@ -48,7 +48,7 @@
                     disable visitor Tracking and put the Piwik User Interface in maintenance mode</a>.
             </li>
             <li>{{ 'CoreUpdater_YouCouldManuallyExecuteSqlQueries'|translate }}<br/>
-                <a href="#" id="showSql" style="margin-left:20px;">› {{ 'CoreUpdater_ClickHereToViewSqlQueries'|translate }}</a>
+                <a href="#titleUpdate" id="showSql" style="margin-left:20px;">› {{ 'CoreUpdater_ClickHereToViewSqlQueries'|translate }}</a>
 
                 <div id="sqlQueries" style="display:none;">
                     <br/>
@@ -81,7 +81,7 @@
         <form action="index.php" id="upgradeCorePluginsForm">
             <input type="hidden" name="updateCorePlugins" value="1"/>
             {% if queries|length == 1 %}
-                <input type="submit" class="submit" value="{{ 'CoreUpdater_ContinueToPiwik'|translate }}"/>
+                <input type="submit" class="submit" value="{{ 'General_ContinueToPiwik'|translate }}"/>
             {% else %}
                 <input type="submit" class="submit" value="{{ 'CoreUpdater_UpgradePiwik'|translate }}"/>
             {% endif %}
@@ -92,7 +92,7 @@
         {% endif %}
         <br/>
         <form action="index.php">
-            <input type="submit" class="submit" value="{{ 'CoreUpdater_ContinueToPiwik'|translate }}"/>
+            <input type="submit" class="submit" value="{{ 'General_ContinueToPiwik'|translate }}"/>
         </form>
     {% endif %}
 {% endif %}

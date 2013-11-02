@@ -39,10 +39,10 @@ class DataTable_Renderer_CSVTest extends PHPUnit_Framework_TestCase
 
         $array = array(
             array(Row::COLUMNS  => array('label' => 'Google&copy;', 'bool' => false, 'goals' => array('idgoal=1' => array('revenue' => 5.5, 'nb_conversions' => 10)), 'nb_uniq_visitors' => 11, 'nb_visits' => 11, 'nb_actions' => 17, 'max_actions' => '5', 'sum_visit_length' => 517, 'bounce_count' => 9),
-                  Row::METADATA => array('url' => 'http://www.google.com/display"and,properly', 'logo' => './plugins/Referers/images/searchEngines/www.google.com.png'),
+                  Row::METADATA => array('url' => 'http://www.google.com/display"and,properly', 'logo' => './plugins/Referrers/images/searchEngines/www.google.com.png'),
             ),
             array(Row::COLUMNS              => array('label' => 'Yahoo!', 'nb_uniq_visitors' => 15, 'bool' => true, 'nb_visits' => 151, 'nb_actions' => 147, 'max_actions' => '50', 'sum_visit_length' => 517, 'bounce_count' => 90),
-                  Row::METADATA             => array('url' => 'http://www.yahoo.com', 'logo' => './plugins/Referers/images/searchEngines/www.yahoo.com.png'),
+                  Row::METADATA             => array('url' => 'http://www.yahoo.com', 'logo' => './plugins/Referrers/images/searchEngines/www.yahoo.com.png'),
                   Row::DATATABLE_ASSOCIATED => $subDataTableForRow2,
             )
         );
@@ -93,9 +93,6 @@ class DataTable_Renderer_CSVTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_CSV
      */
     public function testCSVTest1()
     {
@@ -105,8 +102,8 @@ class DataTable_Renderer_CSVTest extends PHPUnit_Framework_TestCase
         $render->setTable($dataTable);
         $render->convertToUnicode = false;
         $expected = "label,bool,goals_idgoal=1_revenue,goals_idgoal=1_nb_conversions,nb_uniq_visitors,nb_visits,nb_actions,max_actions,sum_visit_length,bounce_count,metadata_url,metadata_logo\n" .
-            "Google©,0,5.5,10,11,11,17,5,517,9,\"http://www.google.com/display\"\"and,properly\",./plugins/Referers/images/searchEngines/www.google.com.png\n" .
-            "Yahoo!,1,,,15,151,147,50,517,90,http://www.yahoo.com,./plugins/Referers/images/searchEngines/www.yahoo.com.png";
+            "Google©,0,5.5,10,11,11,17,5,517,9,\"http://www.google.com/display\"\"and,properly\",./plugins/Referrers/images/searchEngines/www.google.com.png\n" .
+            "Yahoo!,1,,,15,151,147,50,517,90,http://www.yahoo.com,./plugins/Referrers/images/searchEngines/www.yahoo.com.png";
 
         $rendered = $render->render();
         $this->assertEquals($expected, $rendered);
@@ -114,9 +111,6 @@ class DataTable_Renderer_CSVTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_CSV
      */
     public function testCSVTest2()
     {
@@ -131,9 +125,6 @@ class DataTable_Renderer_CSVTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_CSV
      */
     public function testCSVTest3()
     {
@@ -148,26 +139,6 @@ class DataTable_Renderer_CSVTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_CSV
-     */
-    public function testCSVTest4()
-    {
-        $dataTable = $this->_getDataTableEmpty();
-        $render = new Csv();
-        $render->setTable($dataTable);
-        $render->convertToUnicode = false;
-        $expected = 'No data available';
-        $rendered = $render->render();
-        $this->assertEquals($expected, $rendered);
-    }
-
-    /**
-     * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_CSV
      */
     public function testCSVTest5()
     {
@@ -182,9 +153,20 @@ class DataTable_Renderer_CSVTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_CSV
+     */
+    public function testCSVTest4()
+    {
+        $dataTable = $this->_getDataTableEmpty();
+        $render = new Csv();
+        $render->setTable($dataTable);
+        $render->convertToUnicode = false;
+        $expected = 'No data available';
+        $rendered = $render->render();
+        $this->assertEquals($expected, $rendered);
+    }
+
+    /**
+     * @group Core
      */
     public function testCSVTest6()
     {
@@ -201,15 +183,14 @@ class DataTable_Renderer_CSVTest extends PHPUnit_Framework_TestCase
      * DATA OF DATATABLE_ARRAY
      * -------------------------
      */
-
-    protected function _getDataTableArrayTest()
+    protected function _getDataTableMapTest()
     {
         $array1 = array(
             array(Row::COLUMNS  => array('label' => 'Google', 'nb_uniq_visitors' => 11, 'nb_visits' => 11,),
-                  Row::METADATA => array('url' => 'http://www.google.com', 'logo' => './plugins/Referers/images/searchEngines/www.google.com.png'),
+                  Row::METADATA => array('url' => 'http://www.google.com', 'logo' => './plugins/Referrers/images/searchEngines/www.google.com.png'),
             ),
             array(Row::COLUMNS  => array('label' => 'Yahoo!', 'nb_uniq_visitors' => 15, 'nb_visits' => 151,),
-                  Row::METADATA => array('url' => 'http://www.yahoo.com', 'logo' => './plugins/Referers/images/searchEngines/www.yahoo.com.png'),
+                  Row::METADATA => array('url' => 'http://www.yahoo.com', 'logo' => './plugins/Referrers/images/searchEngines/www.yahoo.com.png'),
             )
         );
         $table1 = new DataTable();
@@ -218,10 +199,10 @@ class DataTable_Renderer_CSVTest extends PHPUnit_Framework_TestCase
 
         $array2 = array(
             array(Row::COLUMNS  => array('label' => 'Google1&copy;', 'nb_uniq_visitors' => 110, 'nb_visits' => 110,),
-                  Row::METADATA => array('url' => 'http://www.google.com1', 'logo' => './plugins/Referers/images/searchEngines/www.google.com.png1'),
+                  Row::METADATA => array('url' => 'http://www.google.com1', 'logo' => './plugins/Referrers/images/searchEngines/www.google.com.png1'),
             ),
             array(Row::COLUMNS  => array('label' => 'Yahoo!1', 'nb_uniq_visitors' => 150, 'nb_visits' => 1510,),
-                  Row::METADATA => array('url' => 'http://www.yahoo.com1', 'logo' => './plugins/Referers/images/searchEngines/www.yahoo.com.png1'),
+                  Row::METADATA => array('url' => 'http://www.yahoo.com1', 'logo' => './plugins/Referrers/images/searchEngines/www.yahoo.com.png1'),
             )
         );
         $table2 = new DataTable();
@@ -239,7 +220,7 @@ class DataTable_Renderer_CSVTest extends PHPUnit_Framework_TestCase
         return $table;
     }
 
-    protected function _getDataTableSimpleArrayTest()
+    protected function _getDataTableSimpleMapTest()
     {
         $array1 = array('max_actions' => 14.0, 'nb_uniq_visitors' => 57.0,);
         $table1 = new Simple;
@@ -260,7 +241,7 @@ class DataTable_Renderer_CSVTest extends PHPUnit_Framework_TestCase
         return $table;
     }
 
-    protected function _getDataTableSimpleOneRowArrayTest()
+    protected function _getDataTableSimpleOneRowMapTest()
     {
         $array1 = array('nb_visits' => 14.0);
         $table1 = new Simple;
@@ -280,47 +261,44 @@ class DataTable_Renderer_CSVTest extends PHPUnit_Framework_TestCase
         return $table;
     }
 
-    protected function _getDataTableArray_containsDataTableArray_normal()
+    protected function _getDataTableMap_containsDataTableMap_normal()
     {
         $table = new DataTable\Map();
         $table->setKeyName('parentArrayKey');
-        $table->addTable($this->_getDataTableArrayTest(), 'idSite');
+        $table->addTable($this->_getDataTableMapTest(), 'idSite');
         return $table;
     }
 
-    protected function _getDataTableArray_containsDataTableArray_simple()
+    protected function _getDataTableMap_containsDataTableMap_simple()
     {
         $table = new DataTable\Map();
         $table->setKeyName('parentArrayKey');
-        $table->addTable($this->_getDataTableSimpleArrayTest(), 'idSite');
+        $table->addTable($this->_getDataTableSimpleMapTest(), 'idSite');
         return $table;
     }
 
-    protected function _getDataTableArray_containsDataTableArray_simpleOneRow()
+    protected function _getDataTableMap_containsDataTableMap_simpleOneRow()
     {
         $table = new DataTable\Map();
         $table->setKeyName('parentArrayKey');
-        $table->addTable($this->_getDataTableSimpleOneRowArrayTest(), 'idSite');
+        $table->addTable($this->_getDataTableSimpleOneRowMapTest(), 'idSite');
         return $table;
     }
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_CSV
      */
-    public function testCSVArrayTest1()
+    public function testCSVMapTest1()
     {
-        $dataTable = $this->_getDataTableArrayTest();
+        $dataTable = $this->_getDataTableMapTest();
         $render = new Csv();
         $render->setTable($dataTable);
         $render->convertToUnicode = false;
         $expected = "testKey,label,nb_uniq_visitors,nb_visits,metadata_url,metadata_logo\n" .
-            "date1,Google,11,11,http://www.google.com,./plugins/Referers/images/searchEngines/www.google.com.png\n" .
-            "date1,Yahoo!,15,151,http://www.yahoo.com,./plugins/Referers/images/searchEngines/www.yahoo.com.png\n" .
-            "date2,Google1©,110,110,http://www.google.com1,./plugins/Referers/images/searchEngines/www.google.com.png1\n" .
-            "date2,Yahoo!1,150,1510,http://www.yahoo.com1,./plugins/Referers/images/searchEngines/www.yahoo.com.png1";
+            "date1,Google,11,11,http://www.google.com,./plugins/Referrers/images/searchEngines/www.google.com.png\n" .
+            "date1,Yahoo!,15,151,http://www.yahoo.com,./plugins/Referrers/images/searchEngines/www.yahoo.com.png\n" .
+            "date2,Google1©,110,110,http://www.google.com1,./plugins/Referrers/images/searchEngines/www.google.com.png1\n" .
+            "date2,Yahoo!1,150,1510,http://www.yahoo.com1,./plugins/Referrers/images/searchEngines/www.yahoo.com.png1";
 
         $rendered = $render->render();
         $this->assertEquals($expected, $rendered);
@@ -328,13 +306,10 @@ class DataTable_Renderer_CSVTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_CSV
      */
-    public function testCSVArrayTest2()
+    public function testCSVMapTest2()
     {
-        $dataTable = $this->_getDataTableSimpleArrayTest();
+        $dataTable = $this->_getDataTableSimpleMapTest();
         $render = new Csv();
         $render->setTable($dataTable);
         $render->convertToUnicode = false;
@@ -346,13 +321,10 @@ class DataTable_Renderer_CSVTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_CSV
      */
-    public function testCSVArrayTest3()
+    public function testCSVMapTest3()
     {
-        $dataTable = $this->_getDataTableSimpleOneRowArrayTest();
+        $dataTable = $this->_getDataTableSimpleOneRowMapTest();
         $render = new Csv();
         $render->setTable($dataTable);
         $render->convertToUnicode = false;
@@ -363,21 +335,18 @@ class DataTable_Renderer_CSVTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_CSV
      */
-    public function testCSVArrayisMadeOfArrayTest1()
+    public function testCSVMapisMadeOfMapTest1()
     {
-        $dataTable = $this->_getDataTableArray_containsDataTableArray_normal();
+        $dataTable = $this->_getDataTableMap_containsDataTableMap_normal();
         $render = new Csv();
         $render->setTable($dataTable);
         $render->convertToUnicode = false;
         $expected = "parentArrayKey,testKey,label,nb_uniq_visitors,nb_visits,metadata_url,metadata_logo\n" .
-            "idSite,date1,Google,11,11,http://www.google.com,./plugins/Referers/images/searchEngines/www.google.com.png\n" .
-            "idSite,date1,Yahoo!,15,151,http://www.yahoo.com,./plugins/Referers/images/searchEngines/www.yahoo.com.png\n" .
-            "idSite,date2,Google1©,110,110,http://www.google.com1,./plugins/Referers/images/searchEngines/www.google.com.png1\n" .
-            "idSite,date2,Yahoo!1,150,1510,http://www.yahoo.com1,./plugins/Referers/images/searchEngines/www.yahoo.com.png1";
+            "idSite,date1,Google,11,11,http://www.google.com,./plugins/Referrers/images/searchEngines/www.google.com.png\n" .
+            "idSite,date1,Yahoo!,15,151,http://www.yahoo.com,./plugins/Referrers/images/searchEngines/www.yahoo.com.png\n" .
+            "idSite,date2,Google1©,110,110,http://www.google.com1,./plugins/Referrers/images/searchEngines/www.google.com.png1\n" .
+            "idSite,date2,Yahoo!1,150,1510,http://www.yahoo.com1,./plugins/Referrers/images/searchEngines/www.yahoo.com.png1";
 
         $rendered = $render->render();
         $this->assertEquals($expected, $rendered);
@@ -385,13 +354,10 @@ class DataTable_Renderer_CSVTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_CSV
      */
-    public function testCSVArrayIsMadeOfArrayTest2()
+    public function testCSVMapIsMadeOfMapTest2()
     {
-        $dataTable = $this->_getDataTableArray_containsDataTableArray_simple();
+        $dataTable = $this->_getDataTableMap_containsDataTableMap_simple();
         $render = new Csv();
         $render->setTable($dataTable);
         $render->convertToUnicode = false;
@@ -403,13 +369,10 @@ class DataTable_Renderer_CSVTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_CSV
      */
-    public function testCSVArrayIsMadeOfArrayTest3()
+    public function testCSVMapIsMadeOfMapTest3()
     {
-        $dataTable = $this->_getDataTableArray_containsDataTableArray_simpleOneRow();
+        $dataTable = $this->_getDataTableMap_containsDataTableMap_simpleOneRow();
         $render = new Csv();
         $render->setTable($dataTable);
         $render->convertToUnicode = false;
@@ -420,9 +383,6 @@ class DataTable_Renderer_CSVTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_XML
      */
     public function testRenderArray1()
     {
@@ -438,9 +398,6 @@ class DataTable_Renderer_CSVTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_XML
      */
     public function testRenderArray2()
     {
@@ -458,9 +415,6 @@ c';
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_XML
      */
     public function testRenderArray3()
     {
@@ -477,9 +431,6 @@ b,d,f,g';
 
     /**
      * @group Core
-     * @group DataTable
-     * @group DataTable_Renderer
-     * @group DataTable_Renderer_XML
      */
     public function testRenderArray4()
     {

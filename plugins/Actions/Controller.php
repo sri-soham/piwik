@@ -10,15 +10,16 @@
  */
 namespace Piwik\Plugins\Actions;
 
-use Piwik\ViewDataTable;
+use Piwik\Piwik;
 use Piwik\View;
+use Piwik\ViewDataTable\Factory;
 
 /**
  * Actions controller
  *
  * @package Actions
  */
-class Controller extends \Piwik\Controller
+class Controller extends \Piwik\Plugin\Controller
 {
     //
     // Actions that render whole pages
@@ -27,21 +28,21 @@ class Controller extends \Piwik\Controller
     public function indexPageUrls($fetch = false)
     {
         return View::singleReport(
-            Piwik_Translate('Actions_SubmenuPages'),
+            Piwik::translate('General_Pages'),
             $this->getPageUrls(true), $fetch);
     }
 
     public function indexEntryPageUrls($fetch = false)
     {
         return View::singleReport(
-            Piwik_Translate('Actions_SubmenuPagesEntry'),
+            Piwik::translate('Actions_SubmenuPagesEntry'),
             $this->getEntryPageUrls(true), $fetch);
     }
 
     public function indexExitPageUrls($fetch = false)
     {
         return View::singleReport(
-            Piwik_Translate('Actions_SubmenuPagesExit'),
+            Piwik::translate('Actions_SubmenuPagesExit'),
             $this->getExitPageUrls(true), $fetch);
     }
 
@@ -53,7 +54,7 @@ class Controller extends \Piwik\Controller
         $view->noResultKeywords = $this->getSiteSearchNoResultKeywords(true);
         $view->pagesUrlsFollowingSiteSearch = $this->getPageUrlsFollowingSiteSearch(true);
 
-        $categoryTrackingEnabled = \Piwik\PluginsManager::getInstance()->isPluginActivated('CustomVariables');
+        $categoryTrackingEnabled = \Piwik\Plugin\Manager::getInstance()->isPluginActivated('CustomVariables');
         if ($categoryTrackingEnabled) {
             $view->categories = $this->getSiteSearchCategories(true);
         }
@@ -64,21 +65,21 @@ class Controller extends \Piwik\Controller
     public function indexPageTitles($fetch = false)
     {
         return View::singleReport(
-            Piwik_Translate('Actions_SubmenuPageTitles'),
+            Piwik::translate('Actions_SubmenuPageTitles'),
             $this->getPageTitles(true), $fetch);
     }
 
     public function indexDownloads($fetch = false)
     {
         return View::singleReport(
-            Piwik_Translate('Actions_SubmenuDownloads'),
+            Piwik::translate('General_Downloads'),
             $this->getDownloads(true), $fetch);
     }
 
     public function indexOutlinks($fetch = false)
     {
         return View::singleReport(
-            Piwik_Translate('Actions_SubmenuOutlinks'),
+            Piwik::translate('General_Outlinks'),
             $this->getOutlinks(true), $fetch);
     }
 
@@ -88,66 +89,66 @@ class Controller extends \Piwik\Controller
 
     public function getPageUrls($fetch = false)
     {
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 
     public function getEntryPageUrls($fetch = false)
     {
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 
     public function getExitPageUrls($fetch = false)
     {
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 
     public function getSiteSearchKeywords($fetch = false)
     {
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 
     public function getSiteSearchNoResultKeywords($fetch = false)
     {
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 
     public function getSiteSearchCategories($fetch = false)
     {
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 
     public function getPageUrlsFollowingSiteSearch($fetch = false)
     {
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 
     public function getPageTitlesFollowingSiteSearch($fetch = false)
     {
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 
     public function getPageTitles($fetch = false)
     {
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 
     public function getEntryPageTitles($fetch = false)
     {
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 
     public function getExitPageTitles($fetch = false)
     {
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 
     public function getDownloads($fetch = false)
     {
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 
     public function getOutlinks($fetch = false)
     {
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 }

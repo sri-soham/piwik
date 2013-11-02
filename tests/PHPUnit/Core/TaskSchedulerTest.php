@@ -47,7 +47,6 @@ class TaskSchedulerTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group TaskScheduler
      * @dataProvider getTimetableFromOptionValueTestCases
      */
     public function testGetTimetableFromOptionValue($expectedTimetable, $option)
@@ -69,13 +68,13 @@ class TaskSchedulerTest extends PHPUnit_Framework_TestCase
         return array(
             array(true, 'CoreAdminHome.purgeOutdatedArchives', $timetable),
             array(true, 'PrivacyManager.deleteReportData_1', $timetable),
-            array(false, 'PDFReports.weeklySchedule"', $timetable)
+            array(false, 'ScheduledReports.weeklySchedule"', $timetable)
         );
     }
 
     /**
      * @group Core
-     * @group TaskScheduler
+     * 
      * @dataProvider taskHasBeenScheduledOnceTestCases
      */
     public function testTaskHasBeenScheduledOnce($expectedDecision, $taskName, $timetable)
@@ -98,13 +97,12 @@ class TaskSchedulerTest extends PHPUnit_Framework_TestCase
         return array(
             array(1355529607, 'CoreAdminHome', 'purgeOutdatedArchives', null, $timetable),
             array(1322229607, 'PrivacyManager', 'deleteReportData', 1, $timetable),
-            array(false, 'PDFReports', 'weeklySchedule', null, $timetable)
+            array(false, 'ScheduledReports', 'weeklySchedule', null, $timetable)
         );
     }
 
     /**
      * @group Core
-     * @group TaskScheduler
      * @dataProvider getScheduledTimeForMethodTestCases
      */
     public function testGetScheduledTimeForMethod($expectedTime, $className, $methodName, $methodParameter, $timetable)
@@ -132,13 +130,13 @@ class TaskSchedulerTest extends PHPUnit_Framework_TestCase
         return array(
             array(false, 'CoreAdminHome.purgeOutdatedArchives', $timetable),
             array(true, 'PrivacyManager.deleteReportData_1', $timetable),
-            array(false, 'PDFReports.weeklySchedule"', $timetable)
+            array(false, 'ScheduledReports.weeklySchedule"', $timetable)
         );
     }
 
     /**
      * @group Core
-     * @group TaskScheduler
+     * 
      * @dataProvider taskShouldBeExecutedTestCases
      */
     public function testTaskShouldBeExecuted($expectedDecision, $taskName, $timetable)
@@ -165,7 +163,7 @@ class TaskSchedulerTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group TaskScheduler
+     * 
      * @dataProvider executeTaskTestCases
      */
     public function testExecuteTask($methodName, $parameterValue)
@@ -184,6 +182,8 @@ class TaskSchedulerTest extends PHPUnit_Framework_TestCase
     }
 
     /**
+     * @group Core
+     *
      * Dataprovider for testRunTasks
      */
     public function testRunTasksTestCases()
@@ -276,19 +276,19 @@ class TaskSchedulerTest extends PHPUnit_Framework_TestCase
 
     /**
      * @group Core
-     * @group TaskScheduler
+     * 
      * @dataProvider testRunTasksTestCases
      */
     public function testRunTasks($expectedTimetable, $expectedExecutedTasks, $timetableBeforeTaskExecution, $configuredTasks)
     {
         // temporarily unload plugins
-        $plugins = \Piwik\PluginsManager::getInstance()->getLoadedPlugins();
+        $plugins = \Piwik\Plugin\Manager::getInstance()->getLoadedPlugins();
         $plugins = array_map(function ($p) { return $p->getPluginName(); }, $plugins);
 
-        \Piwik\PluginsManager::getInstance()->unloadPlugins();
+        \Piwik\Plugin\Manager::getInstance()->unloadPlugins();
         
         // make sure the get tasks event returns our configured tasks
-        Piwik_AddAction(TaskScheduler::GET_TASKS_EVENT, function(&$tasks) use($configuredTasks) {
+        \Piwik\Piwik::addAction(TaskScheduler::GET_TASKS_EVENT, function(&$tasks) use($configuredTasks) {
             $tasks = $configuredTasks;
         });
 
@@ -313,7 +313,7 @@ class TaskSchedulerTest extends PHPUnit_Framework_TestCase
 
         // restore loaded plugins & piwik options
         EventDispatcher::getInstance()->clearObservers(TaskScheduler::GET_TASKS_EVENT);
-        \Piwik\PluginsManager::getInstance()->loadPlugins($plugins);
+        \Piwik\Plugin\Manager::getInstance()->loadPlugins($plugins);
         self::resetPiwikOption();
     }
 

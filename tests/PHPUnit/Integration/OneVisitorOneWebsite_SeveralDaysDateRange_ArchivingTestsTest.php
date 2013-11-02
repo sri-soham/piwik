@@ -7,6 +7,7 @@
  */
 use Piwik\Piwik;
 use Piwik\Common;
+use Piwik\Db;
 
 /**
  * Tests some API using range periods & makes sure the correct amount of blob/numeric
@@ -16,7 +17,7 @@ class Test_Piwik_Integration_OneVisitorOneWebsite_SeveralDaysDateRange_Archiving
 {
     public static $fixture = null; // initialized below test definition
 
-    public function getOutputPrefix()
+    public static function getOutputPrefix()
     {
         return 'oneVisitor_oneWebsite_severalDays_DateRange';
     }
@@ -24,7 +25,7 @@ class Test_Piwik_Integration_OneVisitorOneWebsite_SeveralDaysDateRange_Archiving
     /**
      * @dataProvider getApiForTesting
      * @group        Integration
-     * @group        OneVisitorOneWebsite_SeveralDaysDateRange_ArchivingTests
+     * *
      */
     public function testApi($api, $params)
     {
@@ -63,7 +64,7 @@ class Test_Piwik_Integration_OneVisitorOneWebsite_SeveralDaysDateRange_Archiving
     /**
      * @depends      testApi
      * @group        Integration
-     * @group        OneVisitorOneWebsite_SeveralDaysDateRange_ArchivingTests
+     * *
      */
     public function testCheck()
     {
@@ -100,10 +101,10 @@ class Test_Piwik_Integration_OneVisitorOneWebsite_SeveralDaysDateRange_Archiving
         );
         foreach ($tests as $table => $expectedRows) {
             $sql = "SELECT count(*) FROM " . Common::prefixTable($table) . " WHERE period = " . Piwik::$idPeriods['range'];
-            $countBlobs = \Zend_Registry::get('db')->fetchOne($sql);
+            $countBlobs = Db::get()->fetchOne($sql);
 
             if($expectedRows != $countBlobs) {
-                var_export(Zend_Registry::get('db')->fetchAll("SELECT * FROM " . Common::prefixTable($table). " WHERE period = " . Piwik::$idPeriods['range'] . " ORDER BY idarchive ASC"));
+                var_export(Db::get()->fetchAll("SELECT * FROM " . Common::prefixTable($table). " WHERE period = " . Piwik::$idPeriods['range'] . " ORDER BY idarchive ASC"));
             }
             $this->assertEquals($expectedRows, $countBlobs, "$table expected $expectedRows, got $countBlobs");
         }

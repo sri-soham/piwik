@@ -9,13 +9,12 @@
  */
 namespace Piwik\Plugins\Dashboard;
 
-use Piwik\DataTable\Renderer\Json;
-use Piwik\Piwik;
 use Piwik\Common;
-use Piwik\Plugins\Dashboard\Dashboard;
+use Piwik\DataTable\Renderer\Json;
+use Piwik\Db;
+use Piwik\Piwik;
 use Piwik\Session\SessionNamespace;
 use Piwik\View;
-use Piwik\Db;
 use Piwik\Db\Factory;
 use Piwik\WidgetsList;
 
@@ -24,7 +23,7 @@ use Piwik\WidgetsList;
  *
  * @package Dashboard
  */
-class Controller extends \Piwik\Controller
+class Controller extends \Piwik\Plugin\Controller
 {
     /**
      * @var Dashboard

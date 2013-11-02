@@ -11,7 +11,6 @@
 
 namespace Piwik\Unzip;
 
-use Piwik\Unzip\UncompressInterface;
 
 /**
  * Unzip implementation for .gz files.

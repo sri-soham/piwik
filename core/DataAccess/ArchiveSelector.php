@@ -12,16 +12,18 @@ namespace Piwik\DataAccess;
 
 use Exception;
 use Piwik\ArchiveProcessor\Rules;
+use Piwik\ArchiveProcessor;
+use Piwik\Common;
+use Piwik\Date;
+use Piwik\Db;
+use Piwik\Log;
 use Piwik\Period;
 use Piwik\Period\Range;
 use Piwik\Piwik;
-use Piwik\Common;
-use Piwik\Date;
-use Piwik\ArchiveProcessor;
+
 use Piwik\Segment;
 use Piwik\Site;
 use Piwik\DataAccess\ArchiveTableCreator;
-use Piwik\Db;
 use Piwik\Db\Factory;
 
 /**
@@ -190,8 +192,8 @@ class ArchiveSelector
 
         // create the SQL to find archives that are DONE
         return "(name IN ($allDoneFlags)) AND " .
-            " (value = '" . ArchiveProcessor::DONE_OK . "' OR " .
-            " value = '" . ArchiveProcessor::DONE_OK_TEMPORARY . "')";
+        " (value = '" . ArchiveProcessor::DONE_OK . "' OR " .
+        " value = '" . ArchiveProcessor::DONE_OK_TEMPORARY . "')";
     }
 
     static public function purgeOutdatedArchives(Date $dateStart)
@@ -208,8 +210,8 @@ class ArchiveSelector
         }
         self::deleteArchivesWithPeriodRange($dateStart);
 
-        Piwik::log("Purging temporary archives: done [ purged archives older than $purgeArchivesOlderThan in "
-            . $dateStart->toString("Y-m") . " ] [Deleted IDs: " . implode(',', $idArchivesToDelete) . "]");
+        Log::debug("Purging temporary archives: done [ purged archives older than %s in %s ] [Deleted IDs: %s]",
+            $purgeArchivesOlderThan, $dateStart->toString("Y-m"), implode(',', $idArchivesToDelete));
     }
 
     /*

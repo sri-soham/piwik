@@ -32,8 +32,8 @@ class Test_Piwik_Integration_BlobReportLimitingTest extends IntegrationTestCase
         $apiToCall = array(
             'Actions.getPageUrls', 'Actions.getPageTitles', 'Actions.getDownloads', 'Actions.getOutlinks',
             'CustomVariables.getCustomVariables',
-            'Referers.getRefererType', 'Referers.getKeywords', 'Referers.getSearchEngines',
-            'Referers.getWebsites', 'Referers.getAll', /* TODO 'Referers.getCampaigns', */
+            'Referrers.getReferrerType', 'Referrers.getKeywords', 'Referrers.getSearchEngines',
+            'Referrers.getWebsites', 'Referrers.getAll', /* TODO 'Referrers.getCampaigns', */
             'UserSettings.getResolution', 'UserSettings.getConfiguration', 'UserSettings.getOS',
             'UserSettings.getBrowserVersion',
             'UserCountry.getRegion', 'UserCountry.getCity',
@@ -87,7 +87,6 @@ class Test_Piwik_Integration_BlobReportLimitingTest extends IntegrationTestCase
     /**
      * @dataProvider getApiForTesting
      * @group        Integration
-     * @group        BlobReportLimiting
      */
     public function testApi($api, $params)
     {
@@ -96,19 +95,11 @@ class Test_Piwik_Integration_BlobReportLimitingTest extends IntegrationTestCase
 
     /**
      * @group        Integration
-     * @group        BlobReportLimiting
      */
     public function testApiWithRankingQuery()
     {
         // custom setup
         self::deleteArchiveTables();
-        $generalConfig['datatable_archiving_maximum_rows_referers'] = 4;
-        $generalConfig['datatable_archiving_maximum_rows_subtable_referers'] = 4;
-        $generalConfig['datatable_archiving_maximum_rows_actions'] = 4;
-        $generalConfig['datatable_archiving_maximum_rows_subtable_actions'] = 4;
-        $generalConfig['datatable_archiving_maximum_rows_custom_variables'] = 4;
-        $generalConfig['datatable_archiving_maximum_rows_subtable_custom_variables'] = 4;
-        $generalConfig['datatable_archiving_maximum_rows_standard'] = 4;
         Config::getInstance()->General['archiving_ranking_query_row_limit'] = 3;
         ArchivingHelper::reloadConfig();
 
@@ -126,14 +117,13 @@ class Test_Piwik_Integration_BlobReportLimitingTest extends IntegrationTestCase
     
     /**
      * @group        Integration
-     * @group        BlobReportLimiting
      */
     public function testApiWithRankingQueryDisabled()
     {
         self::deleteArchiveTables();
         $generalConfig =& Config::getInstance()->General;
-        $generalConfig['datatable_archiving_maximum_rows_referers'] = 500;
-        $generalConfig['datatable_archiving_maximum_rows_subtable_referers'] = 500;
+        $generalConfig['datatable_archiving_maximum_rows_referrers'] = 500;
+        $generalConfig['datatable_archiving_maximum_rows_subtable_referrers'] = 500;
         $generalConfig['datatable_archiving_maximum_rows_actions'] = 500;
         $generalConfig['datatable_archiving_maximum_rows_subtable_actions'] = 500;
         $generalConfig['datatable_archiving_maximum_rows_standard'] = 500;
@@ -153,7 +143,7 @@ class Test_Piwik_Integration_BlobReportLimitingTest extends IntegrationTestCase
         }
     }
 
-    public function getOutputPrefix()
+    public static function getOutputPrefix()
     {
         return 'reportLimiting';
     }

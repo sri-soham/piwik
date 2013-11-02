@@ -12,11 +12,11 @@ namespace Piwik\Plugins\UserCountry;
 
 use Exception;
 use Piwik\Archive;
-use Piwik\Metrics;
-use Piwik\Piwik;
 use Piwik\DataTable;
+use Piwik\Metrics;
+
+use Piwik\Piwik;
 use Piwik\Plugins\UserCountry\LocationProvider;
-use Piwik\Plugins\UserCountry\Archiver;
 use Piwik\Tracker\Visit;
 
 /**
@@ -28,18 +28,8 @@ require_once PIWIK_INCLUDE_PATH . '/plugins/UserCountry/functions.php';
  * The UserCountry API lets you access reports about your visitors' Countries and Continents.
  * @package UserCountry
  */
-class API
+class API extends \Piwik\Plugin\API
 {
-    static private $instance = null;
-
-    static public function getInstance()
-    {
-        if (self::$instance == null) {
-            self::$instance = new self;
-        }
-        return self::$instance;
-    }
-
     public function getCountry($idSite, $period, $date, $segment = false)
     {
         $dataTable = $this->getDataTable(Archiver::COUNTRY_RECORD_NAME, $idSite, $period, $date, $segment);
@@ -48,8 +38,9 @@ class API
         $dataTable->filter('ColumnCallbackAddMetadata', array('label', 'code'));
         $dataTable->filter('ColumnCallbackAddMetadata', array('label', 'logo', __NAMESPACE__ . '\getFlagFromCode'));
         $dataTable->filter('ColumnCallbackReplace', array('label', __NAMESPACE__ . '\countryTranslate'));
-        $dataTable->queueFilter('AddConstantMetadata', array('logoWidth', 16));
-        $dataTable->queueFilter('AddConstantMetadata', array('logoHeight', 11));
+
+        $dataTable->queueFilter('ColumnCallbackAddMetadata', array(array(), 'logoWidth', function () { return 16; }));
+        $dataTable->queueFilter('ColumnCallbackAddMetadata', array(array(), 'logoHeight', function () { return 11; }));
 
         return $dataTable;
     }
@@ -127,12 +118,18 @@ class API
 
         // split the label and put the elements into the 'city_name', 'region', 'country',
         // 'lat' & 'long' metadata fields
-        $strUnknown = Piwik_Translate('General_Unknown');
+        $strUnknown = Piwik::translate('General_Unknown');
         $dataTable->filter('ColumnCallbackAddMetadata',
             array('label', 'city_name', __NAMESPACE__ . '\getElementFromStringArray',
                   array($separator, 0, $strUnknown)));
         $dataTable->filter('MetadataCallbackAddMetadata',
-            array('city_name', 'city', create_function('$city', ' if ($city == "' . $strUnknown . '") { return "xx"; } else { return false; } ')));
+            array('city_name', 'city', function ($city) use ($strUnknown) {
+                if ($city == $strUnknown) {
+                    return "xx";
+                } else {
+                    return false;
+                }
+            }));
         $dataTable->filter('ColumnCallbackAddMetadata',
             array('label', 'region', __NAMESPACE__ . '\getElementFromStringArray', array($separator, 1, $unk)));
         $dataTable->filter('ColumnCallbackAddMetadata',

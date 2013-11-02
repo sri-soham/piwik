@@ -10,35 +10,41 @@
  */
 namespace Piwik\Plugins\CoreVisualizations\JqplotDataGenerator;
 
-use Piwik\Piwik;
 use Piwik\Common;
+use Piwik\ProxyHttp;
 
 /**
- * Generates the data in the Open Flash Chart format, from the given data.
+ *
  */
-class Chart
+class Chart 
 {
     // the data kept here conforms to the jqplot data layout
     // @see http://www.jqplot.com/docs/files/jqPlotOptions-txt.html
     protected $series = array();
     protected $data = array();
     protected $axes = array();
-    protected $tooltip = array();
-    protected $seriesPicker = array();
 
-    // other attributes (not directly used for jqplot)
-    protected $yUnit = '';
-    protected $displayPercentageInTooltip = true;
-    protected $xSteps = 2;
+    // temporary
+    public $properties;
 
-    /**
-     * Whether to show every x-axis tick or only every other one.
-     */
-    protected $showAllTicks = false;
-
-    public function setAxisXLabels(&$xLabels)
+    public function setAxisXLabels($xLabels)
     {
-        $this->axes['xaxis']['ticks'] = & $xLabels;
+        $xSteps = $this->properties['x_axis_step_size'];
+        $showAllTicks = $this->properties['show_all_ticks'];
+
+        $this->axes['xaxis']['labels'] = array_values($xLabels);
+
+        $ticks = array_values($xLabels);
+
+        if (!$showAllTicks) {
+            // unset labels so there are $xSteps number of blank ticks between labels
+            foreach ($ticks as $i => &$label) {
+                if ($i % $xSteps != 0) {
+                    $label = ' ';
+                }
+            }
+        }
+        $this->axes['xaxis']['ticks'] = $ticks;
     }
 
     public function setAxisXOnClick(&$onClick)
@@ -57,59 +63,36 @@ class Chart
                 'internalLabel' => $label
             );
 
-            array_walk($data, create_function('&$v', '$v = (float)$v;'));
+            array_walk($data, function (&$v) {
+                $v = (float)$v;
+            });
             $this->data[] = & $data;
         }
     }
 
-    protected function addTooltipToValue($seriesIndex, $valueIndex, $tooltipTitle, $tooltipText)
-    {
-        $this->tooltip[$seriesIndex][$valueIndex] = array($tooltipTitle, $tooltipText);
-    }
-
-    public function setAxisYUnit($yUnit)
-    {
-        $yUnits = array();
-        for ($i = 0; $i < count($this->data); $i++) {
-            $yUnits[] = $yUnit;
-        }
-        $this->setAxisYUnits($yUnits);
-    }
-
     public function setAxisYUnits($yUnits)
     {
-        // generate an axis config for each unit
-        $axesIds = array();
-        // associate each series with the appropriate axis
-        $seriesAxes = array();
-        // units for tooltips
-        $seriesUnits = array();
-        foreach ($yUnits as $unit) {
-            // handle axes ids: first y[]axis, then y[2]axis, y[3]axis...
-            $nextAxisId = empty($axesIds) ? '' : count($axesIds) + 1;
+        $yUnits = array_values(array_map('strval', $yUnits));
 
-            $unit = $unit ? $unit : '';
+        // generate axis IDs for each unique y unit
+        $axesIds = array();
+        foreach ($yUnits as $idx => $unit) {
             if (!isset($axesIds[$unit])) {
-                $axesIds[$unit] = array('id' => $nextAxisId, 'unit' => $unit);
-                $seriesAxes[] = 'y' . $nextAxisId . 'axis';
-            } else {
-                // reuse existing axis
-                $seriesAxes[] = 'y' . $axesIds[$unit]['id'] . 'axis';
+                // handle axes ids: first y[]axis, then y[2]axis, y[3]axis...
+                $nextAxisId = empty($axesIds) ? '' : count($axesIds) + 1;
+
+                $axesIds[$unit] = 'y' . $nextAxisId . 'axis';
             }
-            $seriesUnits[] = $unit;
         }
 
         // generate jqplot axes config
-        foreach ($axesIds as $axis) {
-            $axisKey = 'y' . $axis['id'] . 'axis';
-            $this->axes[$axisKey]['tickOptions']['formatString'] = '%s' . $axis['unit'];
+        foreach ($axesIds as $unit => $axisId) {
+            $this->axes[$axisId]['tickOptions']['formatString'] = '%s' . $unit;
         }
 
-        $this->tooltip['yUnits'] = $seriesUnits;
-
-        // add axis config to series
-        foreach ($seriesAxes as $i => $axisName) {
-            $this->series[$i]['yaxis'] = $axisName;
+        // map each series to appropriate yaxis
+        foreach ($yUnits as $idx => $unit) {
+            $this->series[$idx]['yaxis'] = $axesIds[$unit];
         }
     }
 
@@ -123,80 +106,19 @@ class Chart
         }
     }
 
-    public function setSelectableColumns($selectableColumns, $multiSelect = true)
-    {
-        $this->seriesPicker['selectableColumns'] = $selectableColumns;
-        $this->seriesPicker['multiSelect'] = $multiSelect;
-    }
-
-    public function setDisplayPercentageInTooltip($display)
-    {
-        $this->displayPercentageInTooltip = $display;
-    }
-
-    public function setXSteps($steps)
-    {
-        $this->xSteps = $steps;
-    }
-
-    /**
-     * Show every x-axis tick instead of just every other one.
-     */
-    public function showAllTicks()
-    {
-        $this->showAllTicks = true;
-    }
-
     public function render()
     {
-        Piwik::overrideCacheControlHeaders();
+        ProxyHttp::overrideCacheControlHeaders();
 
         // See http://www.jqplot.com/docs/files/jqPlotOptions-txt.html
         $data = array(
-            'params'       => array(
+            'params' => array(
                 'axes'   => &$this->axes,
                 'series' => &$this->series
             ),
-            'data'         => &$this->data,
-            'tooltip'      => &$this->tooltip,
-            'seriesPicker' => &$this->seriesPicker
+            'data'   => &$this->data
         );
 
-        return Common::json_encode($data);
-    }
-
-    public function customizeChartProperties()
-    {
-        // x axis labels with steps
-        if (isset($this->axes['xaxis']['ticks'])) {
-            foreach ($this->axes['xaxis']['ticks'] as $i => &$xLabel) {
-                $this->axes['xaxis']['labels'][$i] = $xLabel;
-                if (!$this->showAllTicks && ($i % $this->xSteps) != 0) {
-                    $xLabel = ' ';
-                }
-            }
-        }
-
-        if ($this->displayPercentageInTooltip) {
-            foreach ($this->data as $seriesIndex => &$series) {
-                $sum = array_sum($series);
-
-                foreach ($series as $valueIndex => $value) {
-                    $value = (float)$value;
-
-                    $percentage = 0;
-                    if ($sum > 0) {
-                        $percentage = round(100 * $value / $sum);
-                    }
-
-                    $this->tooltip['percentages'][$seriesIndex][$valueIndex] = $percentage;
-                }
-            }
-        }
-    }
-
-    public function setSelectableRows($selectableRows)
-    {
-        $this->seriesPicker['selectableRows'] = $selectableRows;
+        return $data;
     }
 }

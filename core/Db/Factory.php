@@ -10,8 +10,8 @@
  */
  namespace Piwik\Db;
 
- use Piwik\Tracker;
  use Piwik\Config;
+ use Piwik\Db;
 
 /**
  * @package Piwik
@@ -41,6 +41,7 @@ class Factory
     public static function refreshInstance()
     {
         self::$instance = new self();
+        self::$daos = array();
     }
 
     public static function getDAO($table, $db=null)
@@ -90,12 +91,7 @@ class Factory
         }
 
         if (is_null($db)) {
-            if(!empty($GLOBALS['PIWIK_TRACKER_MODE'])) {
-                $db = Tracker::getDatabase();
-            }
-            if($db === null) {
-                $db = \Zend_Registry::get('db');
-            }
+            $db = Db::get();
         }
 
         $class_name = $this->getClassNameFromTableName($table);
@@ -120,12 +116,7 @@ class Factory
     public function helper($class_name, $db=null)
     {
         if (is_null($db)) {
-            if(!empty($GLOBALS['PIWIK_TRACKER_MODE'])) {
-                $db = Tracker::getDatabase();
-            }
-            if($db === null) {
-                $db = \Zend_Registry::get('db');
-            }
+            $db = Db::get();
         }
 
         $class_name = 'Piwik\\Db\\Helper\\' . $this->folder . '\\' . $class_name;
@@ -147,7 +138,7 @@ class Factory
     {
         $name = 'Piwik\\Db\\DAO\\' . $this->folder . '\\Generic';
         if ($db == null) {
-            $db = \Zend_Registry::get('db');
+            $db = Db::get();
         }
         $class = new $name($db);
 

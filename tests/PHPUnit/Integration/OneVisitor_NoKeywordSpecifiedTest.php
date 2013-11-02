@@ -19,7 +19,6 @@ class Test_Piwik_Integration_OneVisitor_NoKeywordSpecified extends IntegrationTe
     /**
      * @dataProvider getApiForTesting
      * @group        Integration
-     * @group        OneVisitor_NoKeywordSpecified
      */
     public function testApi($api, $params)
     {
@@ -28,7 +27,7 @@ class Test_Piwik_Integration_OneVisitor_NoKeywordSpecified extends IntegrationTe
 
     public function getApiForTesting()
     {
-        $apiToCall = array('Referers.getKeywords', 'Live.getLastVisitsDetails');
+        $apiToCall = array('Referrers.getKeywords', 'Live.getLastVisitsDetails');
 
         return array(
             array($apiToCall, array('idSite'   => self::$fixture->idSite,
@@ -37,7 +36,7 @@ class Test_Piwik_Integration_OneVisitor_NoKeywordSpecified extends IntegrationTe
         );
     }
 
-    public function getOutputPrefix()
+    public static function getOutputPrefix()
     {
         return 'OneVisitor_NoKeywordSpecified';
     }

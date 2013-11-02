@@ -3,16 +3,67 @@
 {% import '@CorePluginsAdmin/macros.twig' as plugins %}
 
 {% block content %}
-    <div style="max-width:980px;">
+    <div class="extendPlatform">
 
-        <h2>Extend Piwik with Plugins and Themes</h2>
+        <div class="ui-confirm" id="installPluginByUpload">
+            <h2>Extend Piwik by uploading a ZIP file</h2>
 
-        <p>This page will let you download and install new Plugins from the Plugins Marketplace.
-            The <a href='?module=Proxy&action=redirect&url=http://plugins.piwik.org/' target='_blank'>Marketplace</a> is where
-                developers publish their plugins and themes to make them available to all Piwik users.</p>
+            <p class="description"> You may upload a plugin or theme in .zip format via this page. </p>
 
-        <em>Note: all plugins are available for free at present; in the future we will enable Paid Plugins in the Marketplace
-            (<a href='mailto:hello@piwik.org?subject=Marketplace - Sell Plugin'>contact us</a> for early access).
-        </em>
+            <form enctype="multipart/form-data"
+                  method="post"
+                  id="uploadPluginForm"
+                  action="{{ linkTo({'action':'uploadPlugin', 'nonce': installNonce}) }}">
+                <input type="file" name="pluginZip">
+                <br />
+                <input class="startUpload" type="submit" value="Upload ZIP file">
+            </form>
+        </div>
+
+        <div class="introduction">
+
+            <h2>Extend Piwik with Plugins and Themes</h2>
+
+            <p>You may automatically download and install new Plugins from the <a href='?module=Proxy&action=redirect&url=http://plugins.piwik.org/' target='_blank'>Marketplace</a>. </p>
+
+            <em>Note: all plugins are available for free at present; in the future we will enable Paid Plugins in the Marketplace
+                (<a href='mailto:hello@piwik.org?subject=Marketplace - Sell Plugin'>contact us</a> for early access).
+            </em>
+        </div>
+
+        <div>
+            <div class="byPlugins">
+                <h3 class="header">Get new functionality</h3>
+                <span class="callToAction">by <a href="{{ linkTo({'action':'browsePlugins', 'sort': ''}) }}">installing a new plugin from the Marketplace</a></span>
+
+                <p>
+                    <a href="{{ linkTo({'action':'browsePlugins', 'sort': ''}) }}"><img class="teaserImage" alt="Install a new plugin" src=""/></a>
+                </p>
+
+                <span class="callToAction">
+                    by <a href="#">writing your own plugin</a>
+                    {% if isSuperUser %}
+                        <br/> or by <a href="#" class="uploadPlugin">uploading a plugin</a>
+                    {% endif %}
+                </span>
+
+            </div>
+
+            <div class="byThemes">
+                <h3 class="header">Enjoy another look & feel</h3>
+                <span class="callToAction">by <a href="{{ linkTo({'action':'browseThemes', 'sort': ''}) }}">installing a new theme from the Marketplace</a></span>
+
+                <p>
+                    <a href="{{ linkTo({'action':'browseThemes', 'sort': ''}) }}"><img class="teaserImage" alt="Install a new theme" src=""/></a>
+                </p>
+
+                <span class="callToAction">
+                    by <a href="#">design your own theme</a><br />
+                    {% if isSuperUser %}
+                        or by <a href="#" class="uploadPlugin">uploading a theme</a>
+                    {% endif %}
+                </span>
+            </div>
+        </div>
     </div>
 {% endblock %}

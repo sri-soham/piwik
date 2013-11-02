@@ -10,11 +10,13 @@
  */
 namespace Piwik\Plugins\PrivacyManager;
 
-use Piwik\Piwik;
 use Piwik\Common;
+
 use Piwik\Date;
 use Piwik\Db;
 use Piwik\Db\Factory;
+use Piwik\Log;
+use Piwik\Piwik;
 
 /**
  * Purges the log_visit, log_conversion and related tables of old visit data.
@@ -74,20 +76,20 @@ class LogDataPurger
         $Generic = Factory::getGeneric();
 
         // delete data from log tables
-        $where = array('idvisit <= ?');
+        $where = "WHERE idvisit <= ?";
         foreach ($logTables as $logTable) {
             // deleting from log_action must be handled differently, so we do it later
             if ($logTable != Common::prefixTable('log_action')) {
-                $Generic->deleteAll($logTable, $where, $this->maxRowsToDeletePerQuery, array($maxIdVisit));
+                $Generic->deleteAll($logTable, $where, 'idvisit ASC', $this->maxRowsToDeletePerQuery, array($maxIdVisit));
             }
         }
 
         // delete unused actions from the log_action table (but only if we can lock tables)
-        if (Piwik::isLockPrivilegeGranted()) {
+        if (Db::isLockPrivilegeGranted()) {
             $this->purgeUnusedLogActions();
         } else {
             $logMessage = get_class($this) . ": LOCK TABLES privilege not granted; skipping unused actions purge";
-            Piwik::log($logMessage);
+            Log::warning($logMessage);
         }
 
         // optimize table overhead after deletion
@@ -163,7 +165,7 @@ class LogDataPurger
             'log_link_visit_action',
             'log_visit',
             'log_conversion_item');
-        if (Piwik::isLockPrivilegeGranted()) {
+        if (Db::isLockPrivilegeGranted()) {
             $result[] = Common::prefixTable('log_action');
         }
         return $result;
@@ -190,4 +192,3 @@ class LogDataPurger
         );
     }
 }
-

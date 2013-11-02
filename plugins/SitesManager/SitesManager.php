@@ -10,6 +10,7 @@
  */
 namespace Piwik\Plugins\SitesManager;
 
+use Piwik\Menu\MenuAdmin;
 use Piwik\Piwik;
 
 /**
@@ -28,16 +29,17 @@ class SitesManager extends \Piwik\Plugin
     public function getListHooksRegistered()
     {
         return array(
-            'AssetManager.getJsFiles'       => 'getJsFiles',
-            'AssetManager.getCssFiles'      => 'getCssFiles',
-            'AdminMenu.add'                 => 'addMenu',
-            'Common.fetchWebsiteAttributes' => 'recordWebsiteDataInCache',
+            'AssetManager.getJavaScriptFiles'        => 'getJsFiles',
+            'AssetManager.getStylesheetFiles'        => 'getStylesheetFiles',
+            'Menu.Admin.addItems'                    => 'addMenu',
+            'Site.getSiteAttributes'                 => 'recordWebsiteDataInCache',
+            'Translate.getClientSideTranslationKeys' => 'getClientSideTranslationKeys',
         );
     }
 
     function addMenu()
     {
-        Piwik_AddAdminSubMenu('CoreAdminHome_MenuManage', 'SitesManager_MenuSites',
+        MenuAdmin::getInstance()->add('CoreAdminHome_MenuManage', 'SitesManager_Sites',
             array('module' => 'SitesManager', 'action' => 'index'),
             Piwik::isUserHasSomeAdminAccess(),
             $order = 1);
@@ -46,10 +48,10 @@ class SitesManager extends \Piwik\Plugin
     /**
      * Get CSS files
      */
-    public function getCssFiles(&$cssFiles)
+    public function getStylesheetFiles(&$stylesheets)
     {
-        $cssFiles[] = "plugins/SitesManager/stylesheets/SitesManager.less";
-        $cssFiles[] = "plugins/Zeitgeist/stylesheets/base.less";
+        $stylesheets[] = "plugins/SitesManager/stylesheets/SitesManager.less";
+        $stylesheets[] = "plugins/Zeitgeist/stylesheets/base.less";
     }
 
     /**
@@ -205,5 +207,13 @@ class SitesManager extends \Piwik\Plugin
             }
         }
         return $hosts;
+    }
+
+    public function getClientSideTranslationKeys(&$translationKeys)
+    {
+        $translationKeys[] = "General_Save";
+        $translationKeys[] = "General_OrCancel";
+        $translationKeys[] = "SitesManager_OnlyOneSiteAtTime";
+        $translationKeys[] = "SitesManager_DeleteConfirm";
     }
 }

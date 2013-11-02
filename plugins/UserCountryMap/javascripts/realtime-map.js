@@ -10,13 +10,63 @@
 
 (function () {
 
-    var RealtimeMap = window.UserCountryMap.RealtimeMap = function (config, theWidget) {
-        this.config = config;
-        this.theWidget = theWidget || false;
+    var UIControl = require('piwik/UI').UIControl;
+
+    var RealtimeMap = window.UserCountryMap.RealtimeMap = function (element) {
+        UIControl.call(this, element);
+        this._init();
         this.run();
     };
 
-    $.extend(RealtimeMap.prototype, {
+    RealtimeMap.initElements = function () {
+        UIControl.initElements(this, '.RealTimeMap');
+    };
+
+    $.extend(RealtimeMap.prototype, UIControl.prototype, {
+
+        _init: function () {
+            var $element = this.$element;
+
+            this.config = JSON.parse($element.attr('data-config'));
+
+            // If the map is loaded from the menu, do a few tweaks to clean up the display
+            if ($element.attr('data-standalone') == 1) {
+                this._initStandaloneMap();
+            }
+
+            // handle widgetry
+            if ($('#dashboardWidgetsArea').length) {
+                var $widgetContent = $element.closest('.widgetContent');
+
+                var self = this;
+                $widgetContent.on('widget:maximise', function () {
+                    self.resize();
+                }).on('widget:minimise', function () {
+                    self.resize();
+                });
+            }
+
+            // set unique ID for kartograph map div
+            this.uniqueId = 'RealTimeMap_map-' + this._controlId;
+            $('.RealTimeMap_map', $element).attr('id', this.uniqueId);
+
+            // create the map
+            this.map = Kartograph.map('#' + this.uniqueId);
+
+            $element.focus();
+        },
+
+        _initStandaloneMap: function () {
+            $('.top_controls').hide();
+            $('.nav').on('piwikSwitchPage', function (event, item) {
+                var clickedMenuIsNotMap = ($(item).text() != "{{ 'UserCountryMap_RealTimeMap'|translate|e('js') }}");
+                if (clickedMenuIsNotMap) {
+                    $('.top_controls').show();
+                }
+            });
+            $('.realTimeMap_overlay').css('top', '0px');
+            $('.realTimeMap_datetime').css('top', '20px');
+        },
 
         run: function () {
             var debug = 0;
@@ -24,10 +74,15 @@
             var self = this,
                 config = self.config,
                 _ = config._,
-                map = self.map = Kartograph.map('#RealTimeMap_map'),
-                main = $('#RealTimeMap_container'),
+                map = self.map,
+                main = $('.RealTimeMap_container', this.$element),
                 worldTotalVisits = 0,
                 maxVisits = config.maxVisits || 100,
+                changeVisitAlpha = typeof config.changeVisitAlpha === 'undefined' ? true : config.changeVisitAlpha,
+                removeOldVisits = typeof config.removeOldVisits === 'undefined' ? true : config.removeOldVisits,
+                doNotRefreshVisits = typeof config.doNotRefreshVisits === 'undefined' ? false : config.doNotRefreshVisits,
+                enableAnimation = typeof config.enableAnimation === 'undefined' ? true : config.enableAnimation,
+                forceNowValue = typeof config.forceNowValue === 'undefined' ? false : +config.forceNowValue,
                 width = main.width(),
                 lastTimestamp = -1,
                 lastVisits = [],
@@ -40,6 +95,7 @@
                 symbolFadeInTimer = [],
                 colorMode = 'default',
                 currentMap = 'world',
+                yesterday = false,
 
                 currentTheme = 'white',
                 colorTheme = {
@@ -67,7 +123,7 @@
              * self.reqParams which is set in template
              */
             function _reportParams(firstRun) {
-                var params = $.extend(config.reqParams, {
+                return $.extend(config.reqParams, {
                     module: 'API',
                     method: 'Live.getLastVisitsDetails',
                     filter_limit: maxVisits,
@@ -75,10 +131,9 @@
                         'visitLocalTime', 'city', 'country', 'referrerType', 'referrerName',
                         'referrerTypeName', 'browserIcon', 'operatingSystemIcon',
                         'countryFlag', 'idVisit', 'actionDetails', 'continentCode',
-                        'actions', 'searches', 'goalConversions'].join(','),
+                        'actions', 'searches', 'goalConversions', 'visitorId'].join(','),
                     minTimestamp: firstRun ? -1 : lastTimestamp
                 });
-                return params;
             }
 
             /*
@@ -124,8 +179,8 @@
              * from the map
              */
             function age(r) {
-                var now = new Date().getTime() / 1000;
-                var o = (r.lastActionTimestamp - oldest) / (now - oldest);
+                var nowSecs = Math.floor(now);
+                var o = (r.lastActionTimestamp - oldest) / (nowSecs - oldest);
                 return Math.min(1, Math.max(0, o));
             }
 
@@ -200,14 +255,18 @@
              * attributes of the map symbols
              */
             function visitSymbolAttrs(r) {
-                return {
+                var result = {
                     fill: visitColor(r).hex(),
-                    'fill-opacity': Math.pow(age(r), 2) * 0.8 + 0.2,
-                    'stroke-opacity': Math.pow(age(r), 1.7) * 0.8 + 0.2,
                     stroke: '#fff',
                     'stroke-width': 1 * age(r),
-                    r: visitRadius(r)
+                    r: visitRadius(r),
+                    cursor: 'pointer'
                 };
+                if (changeVisitAlpha) {
+                    result['fill-opacity'] = Math.pow(age(r), 2) * 0.8 + 0.2;
+                    result['stroke-opacity'] = Math.pow(age(r), 1.7) * 0.8 + 0.2;
+                }
+                return result;
             }
 
             /*
@@ -248,6 +307,25 @@
 
             }
 
+            // default click behavior. if a visit is clicked, the visitor profile is launched,
+            // otherwise zoom in or out.
+            // TODO: visitor profile launching logic should probably be contained in
+            //       visitorProfile.js. not sure how to do that, though...
+            this.$element.on('mapClick', function (e, visit, mapPath) {
+                var VisitorProfileControl = require('piwik/UI').VisitorProfileControl;
+                if (visit
+                    && VisitorProfileControl
+                    && !self.$element.closest('.visitor-profile').length
+                ) {
+                    VisitorProfileControl.showPopover(visit.visitorId);
+                } else {
+                    var cont = UserCountryMap.cont2cont[mapPath.data.continentCode];
+                    if (cont && cont != currentMap) {
+                        updateMap(cont);
+                    }
+                }
+            });
+
             /*
              * this function requests new data from Live.getLastVisitsDetails
              * and updates the symbols on the map. Then, it sets a timeout
@@ -256,10 +334,22 @@
              * If firstRun is true, the SymbolGroup is initialized
              */
             function refreshVisits(firstRun) {
+                if (lastTimestamp != -1
+                    && doNotRefreshVisits
+                    && !firstRun
+                ) {
+                    return;
+                }
+
                 /*
                  * this is called after new visit reports came in
                  */
                 function gotNewReport(report) {
+                    // if the map has been destroyed, do nothing
+                    if (!self.map) {
+                        return;
+                    }
+
                     // successful request, so set timeout for next API call
                     nextReqTimer = setTimeout(refreshVisits, config.liveRefreshAfterMs);
 
@@ -268,7 +358,7 @@
                     $('.realTimeMap_overlay .loading_data').hide();
 
                     // store current timestamp
-                    now = new Date().getTime() / 1000;
+                    now = forceNowValue || (new Date().getTime() / 1000);
 
                     if (firstRun) {  // if we run this the first time, we initialiize the map symbols
                         visitSymbols = map.addSymbols({
@@ -291,12 +381,9 @@
                             tooltip: visitTooltip,
                             mouseenter: highlightVisit,
                             mouseleave: unhighlightVisit,
-                            click: function (r, s, evt) {
+                            click: function (visit, mapPath, evt) {
                                 evt.stopPropagation();
-                                var cont = UserCountryMap.cont2cont[s.data.continentCode];
-                                if (cont && cont != currentMap) {
-                                    updateMap(cont);
-                                }
+                                self.$element.trigger('mapClick', [visit, mapPath]);
                             }
                         });
 
@@ -320,17 +407,22 @@
                         $('.realTimeMap_overlay .showing_visits_of').show();
                         $('.realTimeMap_overlay .no_data').hide();
 
+                        if (yesterday === false) {
+                            yesterday = report[0].lastActionTimestamp - 24 * 60 * 60;
+                        }
+
                         lastVisits = [].concat(report).concat(lastVisits).slice(0, maxVisits);
-                        oldest = lastVisits[lastVisits.length - 1].lastActionTimestamp;
+                        oldest = Math.max(lastVisits[lastVisits.length - 1].lastActionTimestamp, yesterday);
 
                         // let's try a different strategy
                         // remove symbols that are too old
-                        //console.info('before', $('circle').length, visitSymbols.symbols.length);
                         var _removed = 0;
-                        visitSymbols.remove(function (r) {
-                            if (r.lastActionTimestamp < oldest) _removed++;
-                            return r.lastActionTimestamp < oldest;
-                        });
+                        if (removeOldVisits) {
+                            visitSymbols.remove(function (r) {
+                                if (r.lastActionTimestamp < oldest) _removed++;
+                                return r.lastActionTimestamp < oldest;
+                            });
+                        }
 
                         // update symbols that remain
                         visitSymbols.update({
@@ -344,20 +436,18 @@
                             newSymbols.push(visitSymbols.add(r));
                         });
 
-                        //console.info('added', newSymbols.length, visitSymbols.symbols.length, $('circle').length);
                         visitSymbols.layout().render();
 
-                        //console.info('rendered', visitSymbols.symbols.length, $('circle').length);
+                        if (!enableAnimation) {
+                            $.each(newSymbols, function (i, s) {
+                                if (i > 10) return false;
 
-                        $.each(newSymbols, function (i, s) {
-                            if (i > 10) return false;
-                            //if (s.data.lastActionTimestamp > lastTimestamp) {
-                            s.path.hide(); // hide new symbol at first
-                            var t = setTimeout(function () { animateSymbol(s); },
-                                1000 * (s.data.lastActionTimestamp - now) + config.liveRefreshAfterMs);
-                            symbolFadeInTimer.push(t);
-                            //}
-                        });
+                                s.path.hide(); // hide new symbol at first
+                                var t = setTimeout(function () { animateSymbol(s); },
+                                    1000 * (s.data.lastActionTimestamp - now) + config.liveRefreshAfterMs);
+                                symbolFadeInTimer.push(t);
+                            });
+                        }
 
                         lastTimestamp = report[0].lastActionTimestamp;
 
@@ -388,7 +478,7 @@
              * the zoom behaviour is initialized.
              */
             function initMap() {
-                $('#widgetRealTimeMapliveMap .loadingPiwik, #RealTimeMap .loadingPiwik').hide();
+                $('#widgetRealTimeMapliveMap .loadingPiwik, .RealTimeMap .loadingPiwik').hide();
                 map.addLayer('countries', {
                     styles: {
                         fill: colorTheme[currentTheme].fill,
@@ -441,12 +531,12 @@
             updateMap(location.hash && (location.hash == '#world' || location.hash.match(/^#[A-Z][A-Z]$/)) ? location.hash.substr(1) : 'world'); // TODO: restore last state
 
             // clicking on map background zooms out
-            $('#RealTimeMap_map').off('click').click(function () {
+            $('.RealTimeMap_map', this.$element).off('click').click(function () {
                 if (currentMap != 'world') updateMap('world');
             });
 
             // secret gimmick shortcuts
-            $(window).keydown(function (evt) {
+            this.$element.on('keydown', function (evt) {
                 // shift+alt+C changes color mode
                 if (evt.shiftKey && evt.altKey && evt.keyCode == 67) {
                     colorMode = ({
@@ -457,7 +547,7 @@
                 }
 
                 function switchTheme() {
-                    $('#RealTimeMap').css({ background: colorTheme[currentTheme].bg });
+                    self.$element.css({ background: colorTheme[currentTheme].bg });
                     if (isFullscreenWidget) {
                         $('body').css({ background: colorTheme[currentTheme].bg });
                         $('.widget').css({ 'border-width': 1 });
@@ -480,17 +570,13 @@
                     currentTheme = 'white';
                     switchTheme();
                 }
+            });
 
-            }); // */
             // make sure the map adapts to the widget size
-            $(window).resize(onResizeLazy);
-
-            function getTimeInSiteTimezone() {
-
-            }
+            $(window).on('resize.' + this.uniqueId, onResizeLazy);
 
             // setup automatic tooltip updates
-            setInterval(function () {
+            this._tooltipUpdateInterval = setInterval(function () {
                 $('.qtip .rel-time').each(function (i, el) {
                     el = $(el);
                     var ds = new Date().getTime() / 1000 - el.data('actiontime');
@@ -524,9 +610,18 @@
             else $('.tableIcon span').show();
         },
 
-        destroy: function () {
+        _destroy: function () {
+            UIControl.prototype._destroy.call(this);
+
+            if (this._tooltipUpdateInterval) {
+                clearInterval(this._tooltipUpdateInterval);
+            }
+
+            $(window).off('resize.' + this.uniqueId);
+
             this.map.clear();
             $(this.map.container).html('');
+            delete this.map;
         }
 
     });

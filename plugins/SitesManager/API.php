@@ -11,17 +11,22 @@
 namespace Piwik\Plugins\SitesManager;
 
 use Exception;
-use Piwik\Piwik;
-use Piwik\Common;
 use Piwik\Access;
+use Piwik\Common;
 use Piwik\Date;
-use Piwik\IP;
 use Piwik\Db;
 use Piwik\Db\Factory;
+use Piwik\IP;
+use Piwik\MetricsFormatter;
+use Piwik\Option;
+use Piwik\Piwik;
+use Piwik\SettingsPiwik;
+use Piwik\SettingsServer;
+use Piwik\Site;
+use Piwik\TaskScheduler;
 use Piwik\Tracker\Cache;
 use Piwik\Url;
-use Piwik\TaskScheduler;
-use Piwik\Site;
+use Piwik\UrlHelper;
 
 /**
  * The SitesManager API gives you full control on Websites in Piwik (create, update and delete), and many methods to retrieve websites based on various attributes.
@@ -38,23 +43,11 @@ use Piwik\Site;
  * The existing values can be fetched via "getExcludedIpsGlobal" and "getExcludedQueryParametersGlobal".
  * See also the documentation about <a href='http://piwik.org/docs/manage-websites/' target='_blank'>Managing Websites</a> in Piwik.
  * @package SitesManager
+ * @static \Piwik\Plugins\SitesManager\API getInstance()
  */
-class API
+class API extends \Piwik\Plugin\API
 {
-    static private $instance = null;
     const DEFAULT_SEARCH_KEYWORD_PARAMETERS = 'q,query,s,search,searchword,k,keyword';
-
-    /**
-     * @return \Piwik\Plugins\SitesManager\API
-     */
-    static public function getInstance()
-    {
-        if (self::$instance == null) {
-            self::$instance = new self;
-        }
-        return self::$instance;
-    }
-
     const OPTION_EXCLUDED_IPS_GLOBAL = 'SitesManager_ExcludedIpsGlobal';
     const OPTION_DEFAULT_TIMEZONE = 'SitesManager_DefaultTimezone';
     const OPTION_DEFAULT_CURRENCY = 'SitesManager_DefaultCurrency';
@@ -73,7 +66,7 @@ class API
      * @param string $piwikUrl
      * @return string The Javascript tag ready to be included on the HTML pages
      */
-    public function getJavascriptTag($idSite, $piwikUrl = '')
+    public function getJavascriptTag($idSite, $piwikUrl = '', $mergeSubdomains = false, $groupPageTitlesByDomain = false, $mergeAliasUrls = false, $visitorCustomVariables = false, $pageCustomVariables = false, $customCampaignNameQueryParam = false, $customCampaignKeywordParam = false, $doNotTrack = false)
     {
         Piwik::checkUserHasViewAccess($idSite);
 
@@ -82,7 +75,7 @@ class API
         }
         $piwikUrl = Common::sanitizeInputValues($piwikUrl);
 
-        $htmlEncoded = Piwik::getJavascriptCode($idSite, $piwikUrl);
+        $htmlEncoded = Piwik::getJavascriptCode($idSite, $piwikUrl, $mergeSubdomains, $groupPageTitlesByDomain, $mergeAliasUrls, $visitorCustomVariables, $pageCustomVariables, $customCampaignNameQueryParam, $customCampaignKeywordParam, $doNotTrack);
         $htmlEncoded = str_replace(array('<br>', '<br />', '<br/>'), '', $htmlEncoded);
         return $htmlEncoded;
     }
@@ -90,6 +83,7 @@ class API
     /**
      * Returns all websites belonging to the specified group
      * @param string $group Group name
+     * @return array of sites
      */
     public function getSitesFromGroup($group)
     {
@@ -345,10 +339,6 @@ class API
             return array();
         }
 
-        if ($limit) {
-            $limit = "LIMIT " . (int)$limit;
-        }
-
         $dao = Factory::getDAO('site');
         $sites = $dao->getByIdsites($idSites, $limit);
         return $sites;
@@ -503,8 +493,6 @@ class API
         Access::getInstance()->reloadAccess();
         $this->postUpdateWebsite($idSite);
 
-        Piwik_PostEvent('SitesManager.addSite', array($idSite));
-
         return (int)$idSite;
     }
 
@@ -532,7 +520,7 @@ class API
         }
         $nbSites = count($idSites);
         if ($nbSites == 1) {
-            throw new Exception(Piwik_TranslateException("SitesManager_ExceptionDeleteSite"));
+            throw new Exception(Piwik::translate("SitesManager_ExceptionDeleteSite"));
         }
 
         $dao = Factory::getDAO('site');
@@ -547,7 +535,16 @@ class API
         // we do not delete logs here on purpose (you can run these queries on the log_ tables to delete all data)
         Cache::deleteCacheWebsiteAttributes($idSite);
 
-        Piwik_PostEvent('SitesManager.deleteSite', array($idSite));
+        /**
+         * Triggered after a site has been deleted.
+         * 
+         * Plugins can use this event to remove site specific values or settings, such as removing all
+         * goals that belong to a specific website. If you store any data related to a website you
+         * should clean up that information here.
+         * 
+         * @param int $idSite The ID of the site being deleted.
+         */
+        Piwik::postEvent('SitesManager.deleteSite.end', array($idSite));
     }
 
     /**
@@ -561,7 +558,7 @@ class API
         if (!is_array($urls)
             || count($urls) == 0
         ) {
-            throw new Exception(Piwik_TranslateException("SitesManager_ExceptionNoUrl"));
+            throw new Exception(Piwik::translate("SitesManager_ExceptionNoUrl"));
         }
     }
 
@@ -575,13 +572,13 @@ class API
                 }
             }
         }
-        throw new Exception(Piwik_TranslateException('SitesManager_ExceptionInvalidTimezone', array($timezone)));
+        throw new Exception(Piwik::translate('SitesManager_ExceptionInvalidTimezone', array($timezone)));
     }
 
     private function checkValidCurrency($currency)
     {
         if (!in_array($currency, array_keys($this->getCurrencyList()))) {
-            throw new Exception(Piwik_TranslateException('SitesManager_ExceptionInvalidCurrency', array($currency, "USD, EUR, etc.")));
+            throw new Exception(Piwik::translate('SitesManager_ExceptionInvalidCurrency', array($currency, "USD, EUR, etc.")));
         }
     }
 
@@ -603,7 +600,7 @@ class API
         $ips = array_filter($ips, 'strlen');
         foreach ($ips as $ip) {
             if (!$this->isValidIp($ip)) {
-                throw new Exception(Piwik_TranslateException('SitesManager_ExceptionInvalidIPFormat', array($ip, "1.2.3.4, 1.2.3.*, or 1.2.3.4/5")));
+                throw new Exception(Piwik::translate('SitesManager_ExceptionInvalidIPFormat', array($ip, "1.2.3.4, 1.2.3.*, or 1.2.3.4/5")));
             }
         }
         $ips = implode(',', $ips);
@@ -662,7 +659,7 @@ class API
     {
         Piwik::checkUserIsSuperUser();
         $excludedIps = $this->checkAndReturnExcludedIps($excludedIps);
-        Piwik_SetOption(self::OPTION_EXCLUDED_IPS_GLOBAL, $excludedIps);
+        Option::set(self::OPTION_EXCLUDED_IPS_GLOBAL, $excludedIps);
         Cache::deleteTrackerCache();
         return true;
     }
@@ -678,8 +675,8 @@ class API
     public function setGlobalSearchParameters($searchKeywordParameters, $searchCategoryParameters)
     {
         Piwik::checkUserIsSuperUser();
-        Piwik_SetOption(self::OPTION_SEARCH_KEYWORD_QUERY_PARAMETERS_GLOBAL, $searchKeywordParameters);
-        Piwik_SetOption(self::OPTION_SEARCH_CATEGORY_QUERY_PARAMETERS_GLOBAL, $searchCategoryParameters);
+        Option::set(self::OPTION_SEARCH_KEYWORD_QUERY_PARAMETERS_GLOBAL, $searchKeywordParameters);
+        Option::set(self::OPTION_SEARCH_CATEGORY_QUERY_PARAMETERS_GLOBAL, $searchCategoryParameters);
         Cache::deleteTrackerCache();
         return true;
     }
@@ -690,7 +687,7 @@ class API
     public function getSearchKeywordParametersGlobal()
     {
         Piwik::checkUserHasSomeAdminAccess();
-        $names = Piwik_GetOption(self::OPTION_SEARCH_KEYWORD_QUERY_PARAMETERS_GLOBAL);
+        $names = Option::get(self::OPTION_SEARCH_KEYWORD_QUERY_PARAMETERS_GLOBAL);
         if ($names === false) {
             $names = self::DEFAULT_SEARCH_KEYWORD_PARAMETERS;
         }
@@ -706,7 +703,7 @@ class API
     public function getSearchCategoryParametersGlobal()
     {
         Piwik::checkUserHasSomeAdminAccess();
-        return Piwik_GetOption(self::OPTION_SEARCH_CATEGORY_QUERY_PARAMETERS_GLOBAL);
+        return Option::get(self::OPTION_SEARCH_CATEGORY_QUERY_PARAMETERS_GLOBAL);
     }
 
     /**
@@ -717,7 +714,7 @@ class API
     public function getExcludedQueryParametersGlobal()
     {
         Piwik::checkUserHasSomeViewAccess();
-        return Piwik_GetOption(self::OPTION_EXCLUDED_QUERY_PARAMETERS_GLOBAL);
+        return Option::get(self::OPTION_EXCLUDED_QUERY_PARAMETERS_GLOBAL);
     }
 
     /**
@@ -730,7 +727,7 @@ class API
     public function getExcludedUserAgentsGlobal()
     {
         Piwik::checkUserHasSomeAdminAccess();
-        return Piwik_GetOption(self::OPTION_EXCLUDED_USER_AGENTS_GLOBAL);
+        return Option::get(self::OPTION_EXCLUDED_USER_AGENTS_GLOBAL);
     }
 
     /**
@@ -746,7 +743,7 @@ class API
 
         // update option
         $excludedUserAgents = $this->checkAndReturnCommaSeparatedStringList($excludedUserAgents);
-        Piwik_SetOption(self::OPTION_EXCLUDED_USER_AGENTS_GLOBAL, $excludedUserAgents);
+        Option::set(self::OPTION_EXCLUDED_USER_AGENTS_GLOBAL, $excludedUserAgents);
 
         // make sure tracker cache will reflect change
         Cache::deleteTrackerCache();
@@ -761,7 +758,7 @@ class API
     public function isSiteSpecificUserAgentExcludeEnabled()
     {
         Piwik::checkUserHasSomeAdminAccess();
-        return (bool)Piwik_GetOption(self::OPTION_SITE_SPECIFIC_USER_AGENT_EXCLUDE_ENABLE);
+        return (bool)Option::get(self::OPTION_SITE_SPECIFIC_USER_AGENT_EXCLUDE_ENABLE);
     }
 
     /**
@@ -775,7 +772,7 @@ class API
         Piwik::checkUserIsSuperUser();
 
         // update option
-        Piwik_SetOption(self::OPTION_SITE_SPECIFIC_USER_AGENT_EXCLUDE_ENABLE, $enabled);
+        Option::set(self::OPTION_SITE_SPECIFIC_USER_AGENT_EXCLUDE_ENABLE, $enabled);
 
         // make sure tracker cache will reflect change
         Cache::deleteTrackerCache();
@@ -790,7 +787,7 @@ class API
     public function getKeepURLFragmentsGlobal()
     {
         Piwik::checkUserHasSomeViewAccess();
-        return (bool)Piwik_GetOption(self::OPTION_KEEP_URL_FRAGMENTS_GLOBAL);
+        return (bool)Option::get(self::OPTION_KEEP_URL_FRAGMENTS_GLOBAL);
     }
 
     /**
@@ -806,7 +803,7 @@ class API
         Piwik::checkUserIsSuperUser();
 
         // update option
-        Piwik_SetOption(self::OPTION_KEEP_URL_FRAGMENTS_GLOBAL, $enabled);
+        Option::set(self::OPTION_KEEP_URL_FRAGMENTS_GLOBAL, $enabled);
 
         // make sure tracker cache will reflect change
         Cache::deleteTrackerCache();
@@ -823,7 +820,7 @@ class API
     {
         Piwik::checkUserIsSuperUser();
         $excludedQueryParameters = $this->checkAndReturnCommaSeparatedStringList($excludedQueryParameters);
-        Piwik_SetOption(self::OPTION_EXCLUDED_QUERY_PARAMETERS_GLOBAL, $excludedQueryParameters);
+        Option::set(self::OPTION_EXCLUDED_QUERY_PARAMETERS_GLOBAL, $excludedQueryParameters);
         Cache::deleteTrackerCache();
         return true;
     }
@@ -836,7 +833,7 @@ class API
     public function getExcludedIpsGlobal()
     {
         Piwik::checkUserHasSomeAdminAccess();
-        return Piwik_GetOption(self::OPTION_EXCLUDED_IPS_GLOBAL);
+        return Option::get(self::OPTION_EXCLUDED_IPS_GLOBAL);
     }
 
     /**
@@ -847,7 +844,7 @@ class API
     public function getDefaultCurrency()
     {
         Piwik::checkUserHasSomeAdminAccess();
-        $defaultCurrency = Piwik_GetOption(self::OPTION_DEFAULT_CURRENCY);
+        $defaultCurrency = Option::get(self::OPTION_DEFAULT_CURRENCY);
         if ($defaultCurrency) {
             return $defaultCurrency;
         }
@@ -864,7 +861,7 @@ class API
     {
         Piwik::checkUserIsSuperUser();
         $this->checkValidCurrency($defaultCurrency);
-        Piwik_SetOption(self::OPTION_DEFAULT_CURRENCY, $defaultCurrency);
+        Option::set(self::OPTION_DEFAULT_CURRENCY, $defaultCurrency);
         return true;
     }
 
@@ -876,7 +873,7 @@ class API
      */
     public function getDefaultTimezone()
     {
-        $defaultTimezone = Piwik_GetOption(self::OPTION_DEFAULT_TIMEZONE);
+        $defaultTimezone = Option::get(self::OPTION_DEFAULT_TIMEZONE);
         if ($defaultTimezone) {
             return $defaultTimezone;
         }
@@ -893,7 +890,7 @@ class API
     {
         Piwik::checkUserIsSuperUser();
         $this->checkValidTimezone($defaultTimezone);
-        Piwik_SetOption(self::OPTION_DEFAULT_TIMEZONE, $defaultTimezone);
+        Option::set(self::OPTION_DEFAULT_TIMEZONE, $defaultTimezone);
         return true;
     }
 
@@ -1006,8 +1003,6 @@ class API
             $this->addSiteAliasUrls($idSite, array_slice($urls, 1));
         }
         $this->postUpdateWebsite($idSite);
-
-        Piwik_PostEvent('SitesManager.updateSite', array($idSite));
     }
 
     private function checkAndReturnCommaSeparatedStringList($parameters)
@@ -1031,8 +1026,10 @@ class API
      */
     public function getCurrencyList()
     {
-        $currencies = Piwik::getCurrencyList();
-        return array_map(create_function('$a', 'return $a[1]." (".$a[0].")";'), $currencies);
+        $currencies = MetricsFormatter::getCurrencyList();
+        return array_map(function ($a) {
+            return $a[1] . " (" . $a[0] . ")";
+        }, $currencies);
     }
 
     /**
@@ -1042,8 +1039,10 @@ class API
      */
     public function getCurrencySymbols()
     {
-        $currencies = Piwik::getCurrencyList();
-        return array_map(create_function('$a', 'return $a[0];'), $currencies);
+        $currencies = MetricsFormatter::getCurrencyList();
+        return array_map(function ($a) {
+            return $a[0];
+        }, $currencies);
     }
 
     /**
@@ -1054,7 +1053,7 @@ class API
      */
     public function getTimezonesList()
     {
-        if (!Piwik::isTimezoneSupportEnabled()) {
+        if (!SettingsServer::isTimezoneSupportEnabled()) {
             return array('UTC' => $this->getTimezonesListUTCOffsets());
         }
 
@@ -1178,7 +1177,7 @@ class API
      */
     private function isValidUrl($url)
     {
-        return Common::isLookLikeUrl($url);
+        return UrlHelper::isLookLikeUrl($url);
     }
 
     /**
@@ -1202,7 +1201,7 @@ class API
     private function checkName($siteName)
     {
         if (empty($siteName)) {
-            throw new Exception(Piwik_TranslateException("SitesManager_ExceptionEmptyName"));
+            throw new Exception(Piwik::translate("SitesManager_ExceptionEmptyName"));
         }
     }
 
@@ -1238,7 +1237,7 @@ class API
     {
         foreach ($urls as $url) {
             if (!$this->isValidUrl($url)) {
-                throw new Exception(sprintf(Piwik_TranslateException("SitesManager_ExceptionInvalidUrl"), $url));
+                throw new Exception(sprintf(Piwik::translate("SitesManager_ExceptionInvalidUrl"), $url));
             }
         }
     }
@@ -1285,7 +1284,7 @@ class API
         $ids_str .= $id_val;
 
         $dao = Factory::getDAO('site');
-        $sites = $dao->getSitesByPattern($pattern, $ids_str, Piwik::getWebsitesCountToDisplay());
+        $sites = $dao->getSitesByPattern($pattern, $ids_str, SettingsPiwik::getWebsitesCountToDisplay());
         return $sites;
     }
 

@@ -11,10 +11,11 @@
 namespace Piwik\Plugins\PrivacyManager;
 
 use Piwik\DataAccess\ArchiveTableCreator;
-use Piwik\Piwik;
 use Piwik\Date;
 use Piwik\Db;
 use Piwik\Db\Factory;
+use Piwik\DbHelper;
+use Piwik\Piwik;
 
 /**
  * Purges archived reports and metrics that are considered old.
@@ -116,7 +117,10 @@ class ReportsPurger
             } else {
                 foreach ($oldBlobTables as $table) {
                     $where = $this->getBlobTableWhereExpr($oldNumericTables, $table);
-                    $Generic->deleteAll($table, $where, $this->maxRowsToDeletePerQuery);
+                    if (!empty($where)) {
+                        $where = "WHERE $where";
+                    }
+                    $Generic->deleteAll($table, $where, 'idarchive ASC', $this->maxRowsToDeletePerQuery);
                 }
 
                 if ($optimize) {
@@ -129,11 +133,9 @@ class ReportsPurger
         if (!empty($oldNumericTables)) {
             // if keep_basic_metrics is set, empty all numeric tables of metrics to purge
             if ($this->keepBasicMetrics == 1 && !empty($this->metricsToKeep)) {
-                $where = array();
-                $where[] = " name NOT IN ('".implode("','", $this->metricsToKeep)."') ";
-                $where[] = " AND name NOT LIKE 'done%' ";
+                $where = "WHERE name NOT IN ('" . implode("','", $this->metricsToKeep) . "') AND name NOT LIKE 'done%'";
                 foreach ($oldNumericTables as $table) {
-                    $Generic->deleteAll($table, $where, $this->maxRowsToDeletePerQuery);
+                    $Generic->deleteAll($table, $where, 'idarchive ASC', $this->maxRowsToDeletePerQuery);
                 }
 
                 if ($optimize) {
@@ -213,7 +215,7 @@ class ReportsPurger
         // find all archive tables that are older than N months
         $oldNumericTables = array();
         $oldBlobTables = array();
-        foreach (Piwik::getTablesInstalled() as $table) {
+        foreach (DbHelper::getTablesInstalled() as $table) {
             $type = ArchiveTableCreator::getTypeFromTableName($table);
             if ($type === false) {
                 continue;
@@ -247,7 +249,7 @@ class ReportsPurger
         $toRemoveMonth = (int)$toRemoveDate->toString('m');
 
         return $reportDateYear < $toRemoveYear
-            || ($reportDateYear == $toRemoveYear && $reportDateMonth <= $toRemoveMonth);
+        || ($reportDateYear == $toRemoveYear && $reportDateMonth <= $toRemoveMonth);
     }
 
     private function getNumericTableDeleteCount($table)
@@ -273,7 +275,7 @@ class ReportsPurger
 
         $sql = "SELECT COUNT(*)
                   FROM $table
-                 WHERE (" . implode(' ', $this->getBlobTableWhereExpr($oldNumericTables, $table)) . ")
+                 WHERE " . $this->getBlobTableWhereExpr($oldNumericTables, $table) . "
                    AND idarchive >= ?
                    AND idarchive < ?";
 
@@ -284,9 +286,10 @@ class ReportsPurger
     /** Returns SQL WHERE expression used to find reports that should be purged. */
     private function getBlobTableWhereExpr($oldNumericTables, $table)
     {
-        $where = array();
-        if (!empty($this->reportPeriodsToKeep)) { // if keeping reports
-            $where[] = "period NOT IN (".implode(',', $this->reportPeriodsToKeep).")";
+        $where = "";
+        if (!empty($this->reportPeriodsToKeep)) // if keeping reports
+        {
+            $where = "period NOT IN (" . implode(',', $this->reportPeriodsToKeep) . ")";
 
             // if not keeping segments make sure segments w/ kept periods are also deleted
             if (!$this->keepSegmentReports) {
@@ -294,10 +297,11 @@ class ReportsPurger
                 $archiveIds = $this->segmentArchiveIds[ArchiveTableCreator::getDateFromTableName($table)];
 
                 if (!empty($archiveIds)) {
-                    $where[] = " OR idarchive IN (".implode(',', $archiveIds).")";
+                    $where .= " OR idarchive IN (" . implode(',', $archiveIds) . ")";
                 }
             }
 
+            $where = "($where)";
         }
         return $where;
     }

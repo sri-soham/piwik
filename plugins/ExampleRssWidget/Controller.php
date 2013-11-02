@@ -12,13 +12,13 @@
 namespace Piwik\Plugins\ExampleRssWidget;
 
 use Exception;
-use Piwik\Plugins\ExampleRssWidget\RssRenderer;
+use Piwik\Piwik;
 
 /**
  *
  * @package ExampleRssWidget
  */
-class Controller extends \Piwik\Controller
+class Controller extends \Piwik\Plugin\Controller
 {
     public function rssPiwik()
     {
@@ -50,7 +50,7 @@ class Controller extends \Piwik\Controller
     protected function error($e)
     {
         echo '<div class="pk-emptyDataTable">'
-            . Piwik_Translate('General_ErrorRequest')
+            . Piwik::translate('General_ErrorRequest')
             . ' - ' . $e->getMessage() . '</div>';
     }
 }

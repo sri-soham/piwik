@@ -24,14 +24,14 @@ class ExampleRssWidget extends \Piwik\Plugin
     public function getListHooksRegistered()
     {
         return array(
-            'AssetManager.getCssFiles' => 'getCssFiles',
-            'WidgetsList.add'          => 'addWidgets'
+            'AssetManager.getStylesheetFiles' => 'getStylesheetFiles',
+            'WidgetsList.addWidgets'          => 'addWidgets'
         );
     }
 
-    public function getCssFiles(&$cssFiles)
+    public function getStylesheetFiles(&$stylesheets)
     {
-        $cssFiles[] = "plugins/ExampleRssWidget/stylesheets/rss.less";
+        $stylesheets[] = "plugins/ExampleRssWidget/stylesheets/rss.less";
     }
 
     public function addWidgets()

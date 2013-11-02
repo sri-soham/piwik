@@ -10,9 +10,8 @@
  */
 namespace Piwik\Period;
 
-use Piwik\Period;
 use Piwik\Date;
-use Piwik\Period\Month;
+use Piwik\Period;
 
 /**
  * @package Piwik
@@ -82,12 +81,10 @@ class Year extends Period
      */
     function toString($format = 'ignored')
     {
-        if (!$this->subperiodsProcessed) {
-            $this->generate();
-        }
+        $this->generate();
         $stringMonth = array();
         foreach ($this->subperiods as $month) {
-            $stringMonth[] = $month->get("Y") . "-" . $month->get("m") . "-01";
+            $stringMonth[] = $month->getDateStart()->toString("Y") . "-" . $month->getDateStart()->toString("m") . "-01";
         }
         return $stringMonth;
     }

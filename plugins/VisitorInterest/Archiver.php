@@ -12,11 +12,10 @@
 namespace Piwik\Plugins\VisitorInterest;
 
 use Piwik\DataAccess\LogAggregator;
-use Piwik\Metrics;
 use Piwik\DataTable;
-use Piwik\PluginsArchiver;
+use Piwik\Metrics;
 
-class Archiver extends PluginsArchiver
+class Archiver extends \Piwik\Plugin\Archiver
 {
     // third element is unit (s for seconds, default is munutes)
     const TIME_SPENT_RECORD_NAME = 'VisitorInterest_timeGap';

@@ -21,7 +21,7 @@ class Test_Piwik_Integration_TwoVisitors_TwoWebsites_DifferentDays_Conversions e
     /**
      * @dataProvider getApiForTesting
      * @group        Integration
-     * @group        TwoVisitors_TwoWebsites_DifferentDays_Conversions
+     *
      */
     public function testApi($api, $params)
     {
@@ -104,7 +104,7 @@ class Test_Piwik_Integration_TwoVisitors_TwoWebsites_DifferentDays_Conversions e
         return $result;
     }
 
-    public function getOutputPrefix()
+    public static function getOutputPrefix()
     {
         return 'TwoVisitors_twoWebsites_differentDays_Conversions';
     }

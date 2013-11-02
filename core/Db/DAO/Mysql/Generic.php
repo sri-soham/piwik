@@ -29,16 +29,11 @@ class Generic extends \Piwik\Db\DAO\Generic
         return "ROUND(".$field.",".GoalManager::REVENUE_PRECISION.")";
     }
 
-    public function deleteAll($table, $where, $maxRowsPerQuery, $parameters=array())
+    public function deleteAll($table, $where, $orderBy, $maxRowsPerQuery, $parameters=array())
     {
-        if (!empty($where)) {
-            $where = ' WHERE ' . implode(' ', $where) . ' ';
-        }
-        else {
-            $where = '';
-        }
+        $orderByClause = $orderBy ? "ORDER BY $orderBy" : "";
 
-        $sql = 'DELETE FROM ' . $table . $where . ' LIMIT ' . (int)$maxRowsPerQuery;
+        $sql = "DELETE FROM $table $where $orderByClause LIMIT " . (int)$maxRowsPerQuery;
         $totalRowsDeleted = 0;
         do {
             $rowsDeleted = $this->db->query($sql, $parameters)->rowCount();

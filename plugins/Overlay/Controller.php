@@ -11,16 +11,19 @@
 namespace Piwik\Plugins\Overlay;
 
 use Piwik\API\Request;
-use Piwik\Metrics;
-use Piwik\Piwik;
-use Piwik\Config;
 use Piwik\Common;
+use Piwik\Config;
+use Piwik\Metrics;
+use Piwik\MetricsFormatter;
+use Piwik\Piwik;
 use Piwik\Plugins\Actions\ArchivingHelper;
+use Piwik\Plugins\SitesManager\API as APISitesManager;
+use Piwik\ProxyHttp;
 use Piwik\Tracker\Action;
+use Piwik\Tracker\PageUrl;
 use Piwik\View;
-use Piwik\Plugins\SitesManager\API;
 
-class Controller extends \Piwik\Controller
+class Controller extends \Piwik\Plugin\Controller
 {
 
     /** The index of the plugin */
@@ -41,7 +44,7 @@ class Controller extends \Piwik\Controller
         $view->date = Common::getRequestVar('date', 'today');
         $view->period = Common::getRequestVar('period', 'day');
 
-        $view->ssl = Piwik::isHttps();
+        $view->ssl = ProxyHttp::isHttps();
 
         echo $view->render();
     }
@@ -55,21 +58,21 @@ class Controller extends \Piwik\Controller
         $currentUrl = Common::getRequestVar('currentUrl');
         $currentUrl = Common::unsanitizeInputValue($currentUrl);
 
-        $normalizedCurrentUrl = Action::excludeQueryParametersFromUrl($currentUrl, $idSite);
+        $normalizedCurrentUrl = PageUrl::excludeQueryParametersFromUrl($currentUrl, $idSite);
         $normalizedCurrentUrl = Common::unsanitizeInputValue($normalizedCurrentUrl);
 
         // load the appropriate row of the page urls report using the label filter
         ArchivingHelper::reloadConfig();
-        $path = ArchivingHelper::getActionExplodedNames($normalizedCurrentUrl, Action::TYPE_ACTION_URL);
+        $path = ArchivingHelper::getActionExplodedNames($normalizedCurrentUrl, Action::TYPE_PAGE_URL);
         $path = array_map('urlencode', $path);
         $label = implode('>', $path);
         $request = new Request(
             'method=Actions.getPageUrls'
-                . '&idSite=' . urlencode($idSite)
-                . '&date=' . urlencode($date)
-                . '&period=' . urlencode($period)
-                . '&label=' . urlencode($label)
-                . '&format=original'
+            . '&idSite=' . urlencode($idSite)
+            . '&date=' . urlencode($date)
+            . '&period=' . urlencode($period)
+            . '&label=' . urlencode($label)
+            . '&format=original'
         );
         $dataTable = $request->process();
 
@@ -88,7 +91,7 @@ class Controller extends \Piwik\Controller
                     continue;
                 }
                 if ($metric == 'avg_time_on_page') {
-                    $value = Piwik::getPrettyTimeFromSeconds($value);
+                    $value = MetricsFormatter::getPrettyTimeFromSeconds($value);
                 }
                 $data[] = array(
                     'name'  => $translations[$metric],
@@ -128,7 +131,7 @@ class Controller extends \Piwik\Controller
         $idSite = Common::getRequestVar('idsite', 0, 'int');
         Piwik::checkUserHasViewAccess($idSite);
 
-        $sitesManager = API::getInstance();
+        $sitesManager = APISitesManager::getInstance();
         $site = $sitesManager->getSiteFromId($idSite);
         $urls = $sitesManager->getSiteUrlsFromId($idSite);
 
@@ -137,7 +140,7 @@ class Controller extends \Piwik\Controller
 			<html><head><title></title></head><body>
 			<script type="text/javascript">
 				function handleProtocol(url) {
-					if (' . (Piwik::isHttps() ? 'true' : 'false') . ') {
+					if (' . (ProxyHttp::isHttps() ? 'true' : 'false') . ') {
 						return url.replace(/http:\/\//i, "https://");
 					} else {
 						return url.replace(/https:\/\//i, "http://");
@@ -199,7 +202,7 @@ class Controller extends \Piwik\Controller
         $url = Common::getRequestVar('url', '');
         $url = Common::unsanitizeInputValue($url);
 
-        $message = Piwik_Translate('Overlay_RedirectUrlError', array($url, "\n"));
+        $message = Piwik::translate('Overlay_RedirectUrlError', array($url, "\n"));
         $message = nl2br(htmlentities($message));
 
         $view = new View('@Overlay/showErrorWrongDomain');
@@ -209,11 +212,11 @@ class Controller extends \Piwik\Controller
             // TODO use $idSite to link to the correct row. This is tricky because the #rowX ids don't match
             // the site ids when sites have been deleted.
             $url = 'index.php?module=SitesManager&action=index';
-            $troubleshoot = htmlentities(Piwik_Translate('Overlay_RedirectUrlErrorAdmin'));
+            $troubleshoot = htmlentities(Piwik::translate('Overlay_RedirectUrlErrorAdmin'));
             $troubleshoot = sprintf($troubleshoot, '<a href="' . $url . '" target="_top">', '</a>');
             $view->troubleshoot = $troubleshoot;
         } else {
-            $view->troubleshoot = htmlentities(Piwik_Translate('Overlay_RedirectUrlErrorUser'));
+            $view->troubleshoot = htmlentities(Piwik::translate('Overlay_RedirectUrlErrorUser'));
         }
 
         echo $view->render();

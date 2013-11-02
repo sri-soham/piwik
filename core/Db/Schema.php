@@ -12,6 +12,7 @@
 namespace Piwik\Db;
 
 use Piwik\Config;
+use Piwik\Singleton;
 
 /**
  * Schema abstraction
@@ -20,35 +21,16 @@ use Piwik\Config;
  *
  * @package Piwik
  * @subpackage Piwik_Db
+ * @method static \Piwik\Db\Schema getInstance()
  */
-class Schema
+class Schema extends Singleton
 {
-    /**
-     * Singleton instance
-     *
-     * @var \Piwik\Db\Schema
-     */
-    private static $instance = null;
-
     /**
      * Type of database schema
      *
      * @var string
      */
     private $schema = null;
-
-    /**
-     * Returns the singleton Schema
-     *
-     * @return \Piwik\Db\Schema
-     */
-    public static function getInstance()
-    {
-        if (self::$instance === null) {
-            self::$instance = new self;
-        }
-        return self::$instance;
-    }
 
     /**
      * Get schema class name
@@ -135,21 +117,15 @@ class Schema
      */
     private function loadSchema()
     {
-        $schema = null;
-        Piwik_PostEvent('Schema.loadSchema', array(&$schema));
-        if ($schema === null) {
-            $config = Config::getInstance();
-            $dbInfos = $config->database;
-
-            if (isset($dbInfos['schema'])) {
-                $schemaName = $dbInfos['schema'];
-            } else {
-                $schemaName = 'Myisam';
-            }
-            $className = self::getSchemaClassName($schemaName);
-            $schema = new $className();
+        $config = Config::getInstance();
+        $dbInfos = $config->database;
+        if (isset($dbInfos['schema'])) {
+            $schemaName = $dbInfos['schema'];
+        } else {
+            $schemaName = 'Myisam';
         }
-        $this->schema = $schema;
+        $className = self::getSchemaClassName($schemaName);
+        $this->schema = new $className();
     }
 
     /**
@@ -169,7 +145,7 @@ class Schema
      * Get the SQL to create a specific Piwik table
      *
      * @param string $tableName name of the table to create
-     * @return string SQL
+     * @return string  SQL
      */
     public function getTableCreateSql($tableName)
     {
@@ -263,7 +239,7 @@ class Schema
      * Get list of tables installed
      *
      * @param bool $forceReload Invalidate cache
-     * @return array installed tables
+     * @return array  installed tables
      */
     public function getTablesInstalled($forceReload = true)
     {

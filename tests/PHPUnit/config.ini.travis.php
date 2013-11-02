@@ -15,3 +15,7 @@ dbname            = piwik_tests
 adapter            = PDO_MYSQL ; PDO_MYSQL, MYSQLI, or PDO_PGSQL
 tables_prefix        = piwiktests_
 ;charset        = utf8
+
+[log]
+log_writers[] = file
+log_level = debug

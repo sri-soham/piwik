@@ -42,14 +42,13 @@ class Test_Piwik_Integration_TwoVisitsWithCustomVariables extends IntegrationTes
     /**
      * @dataProvider getApiForTesting
      * @group        Integration
-     * @group        TwoVisitsWithCustomVariables
      */
     public function testApi($api, $params)
     {
         $this->runApiTests($api, $params);
     }
 
-    public function getOutputPrefix()
+    public static function getOutputPrefix()
     {
         return 'twoVisitsWithCustomVariables';
     }

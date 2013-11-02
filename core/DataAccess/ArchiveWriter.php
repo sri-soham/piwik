@@ -12,14 +12,16 @@ namespace Piwik\DataAccess;
 
 use Exception;
 use Piwik\ArchiveProcessor\Rules;
+use Piwik\ArchiveProcessor;
+use Piwik\Common;
 use Piwik\Config;
 use Piwik\Db;
-use Piwik\DataAccess\ArchiveTableCreator;
+use Piwik\Db\BatchInsert;
+
+use Piwik\Log;
 use Piwik\Period;
-use Piwik\Piwik;
-use Piwik\Common;
-use Piwik\ArchiveProcessor;
 use Piwik\Segment;
+use Piwik\SettingsPiwik;
 
 /**
  * This class is used to create a new Archive.
@@ -55,6 +57,31 @@ class ArchiveWriter
         $this->Archive = \Piwik\Db\Factory::getDAO('archive');
     }
 
+    protected function getArchiveLockName()
+    {
+        $numericTable = $this->getTableNumeric();
+        $dbLockName = "allocateNewArchiveId.$numericTable";
+        return $dbLockName;
+    }
+
+    /**
+     * @return array
+     * @throws \Exception
+     */
+    protected function acquireArchiveTableLock()
+    {
+        $dbLockName = $this->getArchiveLockName();
+        if (Db::getDbLock($dbLockName, $maxRetries = 30) === false) {
+            throw new Exception("allocateNewArchiveId: Cannot get named lock for table $numericTable.");
+        }
+    }
+
+    protected function releaseArchiveTableLock()
+    {
+        $dbLockName = $this->getArchiveLockName();
+        Db::releaseDbLock($dbLockName);
+    }
+
     public function getIdArchive()
     {
         if ($this->idArchive === false) {
@@ -74,7 +101,7 @@ class ArchiveWriter
     {
         $result = $this->Archive->getProcessingLock($this->idSite, $this->period, $this->segment);
         if (!$result) {
-            Piwik::log("SELECT GET_LOCK failed to acquire lock. Proceeding anyway.");
+            Log::debug("SELECT GET_LOCK failed to acquire lock. Proceeding anyway.");
         }
     }
 
@@ -118,7 +145,7 @@ class ArchiveWriter
             . $period->getId() . '/'
             . $period->getDateStart()->toString('Y-m-d') . ','
             . $period->getDateEnd()->toString('Y-m-d');
-        return $lockName . '/' . md5($lockName . Common::getSalt());
+        return $lockName . '/' . md5($lockName . SettingsPiwik::getSalt());
     }
 
     public function finalizeArchive()
@@ -136,6 +163,8 @@ class ArchiveWriter
             $this->doneFlag,
             self::PREFIX_SQL_LOCK
         );
+
+        $this->releaseArchiveTableLock();
     }
 
     protected function logArchiveStatusAsFinal()

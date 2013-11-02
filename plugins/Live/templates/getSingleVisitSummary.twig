@@ -4,12 +4,27 @@
     <li><span>{{ customVariable[name]|truncate(30) }}</span>{% if customVariable[value]|length > 0 %}<strong>{{ customVariable[value]|truncate(50) }}</strong>{% endif %}</li>
 {% endmacro %}
 {% import _self as macros %}
+{% if showLocation|default(false) %}
+<div class="visitor-profile-latest-visit-loc" title="{{ visitData.location }}">
+    <img src="{{ visitData.countryFlag }}"/>&nbsp;<span>{% if visitData.city is not empty %}{{ visitData.city }}{% else %}{{ visitData.country }}{% endif %}</span>
+</div>
+{% endif %}
 <div class="visitor-profile-latest-visit-column">
     <ul>
-        <li><span>{{ 'General_IP'|translate }}</span><strong>{{ visitData.visitIp }}</strong></li>
-        <li><span>{{ 'General_Id'|translate|upper }}</span><strong>{{ visitData.visitorId }}</strong></li>
         <li>
-            <div class="visitor-profile-browser">
+            <span>{{ 'General_IP'|translate }}</span><strong {% if visitData.providerName is not empty %}title="{{ 'Provider_ColumnProvider'|translate }}: {{ visitData.providerName }}"{% endif %}>{{ visitData.visitIp }}</strong>
+        </li>
+        <li class="visitor-profile-id">
+            <span>{{ 'General_Id'|translate|upper }}</span>
+            {% if widgetizedLink is defined %}<a class="visitor-profile-widget-link" href="{{ widgetizedLink }}" target="_blank" title="{{ 'Widgetize_OpenInNewWindow'|translate }} - {{ 'Live_VisitorProfile'|translate }} {{ 'General_Id'|translate|upper }} {{ visitData.visitorId }}">{% endif %}
+                <strong>{{ visitData.visitorId }}</strong>
+            {% if widgetizedLink is defined %}</a>{% endif %}
+            <a class="visitor-profile-export" href="{{ exportLink }}" target="_blank" title="{{ 'General_ExportThisReport'|translate }}" style="display:none">
+                <img src="plugins/Zeitgeist/images/export.png"/>
+            </a>
+        </li>
+        <li>
+            <div class="visitor-profile-browser" title="{% if visitData.plugins is defined %}{{ 'UserSettings_BrowserWithPluginsEnabled'|translate(visitData.browserName, visitData.plugins) }}{% else %}{{ 'UserSettings_BrowserWithNoPluginsEnabled'|translate(visitData.browserName) }}{% endif %}">
                 <img src="{{ visitData.browserIcon }}"/><span>{{ visitData.browserName|split(' ')[0] }}</span>
             </div>
             <div class="visitor-profile-os">
@@ -17,6 +32,13 @@
             </div>
         </li>
         <li><span>{{ 'UserSettings_ColumnResolution'|translate }}</span><strong>{{ visitData.resolution }}</strong></li>
+        {% if visitReferralSummary is defined %}
+        {%- set keywordNotDefined = 'General_NotDefined'|translate('General_ColumnKeyword'|translate) -%}
+        <li>
+            <span>{{ 'General_DateRangeFrom'|translate }}</span>
+            <strong {% if visitData.referrerType == 'search' and '(' not in visitReferralSummary %}title="{{ keywordNotDefined }}"{% endif %}>{{ visitReferralSummary }}</strong>
+        </li>
+        {% endif %}
     </ul>
 </div>
 <div class="visitor-profile-latest-visit-column">

@@ -10,29 +10,30 @@
  */
 namespace Piwik\Plugins\CustomVariables;
 
-use Piwik\ViewDataTable;
+use Piwik\Piwik;
 use Piwik\View;
+use Piwik\ViewDataTable\Factory;
 
 /**
  * @package CustomVariables
  */
-class Controller extends \Piwik\Controller
+class Controller extends \Piwik\Plugin\Controller
 {
     public function index($fetch = false)
     {
         return View::singleReport(
-            Piwik_Translate('CustomVariables_CustomVariables'),
+            Piwik::translate('CustomVariables_CustomVariables'),
             $this->getCustomVariables(true), $fetch);
     }
 
     public function getCustomVariables($fetch = false)
     {
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 
     public function getCustomVariablesValuesFromNameId($fetch = false)
     {
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 }
 

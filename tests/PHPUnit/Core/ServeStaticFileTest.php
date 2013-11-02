@@ -1,19 +1,20 @@
 <?php
 /**
- * This php file is used to unit test Piwik::serveStaticFile()
+ * This php file is used to unit test Piwik::serverStaticFile()
  * Unit tests for this method should normally be located in /tests/core/Piwik.test.php
- * To make a comprehensive test suit for Piwik::serveStaticFile() (ie. being able to test combinations of request
+ * To make a comprehensive test suit for Piwik::serverStaticFile() (ie. being able to test combinations of request
  * headers, being able to test response headers and so on) we need to simulate static file requests in a controlled
  * environment
- * The php code which simulates requests using Piwik::serveStaticFile() is provided in the same file (ie. this one)
- * as the unit testing code for Piwik::serveStaticFile()
+ * The php code which simulates requests using Piwik::serverStaticFile() is provided in the same file (ie. this one)
+ * as the unit testing code for Piwik::serverStaticFile()
  * This decision has a structural impact on the usual unit test file structure
- * serveStaticFile.test.php has been created to avoid making too many modifications to /tests/core/Piwik.test.php
+ * serverStaticFile.test.php has been created to avoid making too many modifications to /tests/core/Piwik.test.php
  */
 
 // This is Piwik logo, the static file used in this test suit
-use Piwik\Piwik;
-use Piwik\Common;
+
+use Piwik\ProxyHttp;
+use Piwik\SettingsServer;
 
 define("TEST_FILE_LOCATION", realpath(dirname(__FILE__) . "/../../resources/lipsum.txt"));
 define("TEST_FILE_CONTENT_TYPE", "text/plain");
@@ -25,7 +26,7 @@ define("ZLIB_OUTPUT_REQUEST_VAR", "zlibOutput");
 
 /**
  * These constants define the mode in which this php file is used :
- * - for unit testing Piwik::serveStaticFile() or
+ * - for unit testing Piwik::serverStaticFile() or
  * - as a static file server
  */
 define("STATIC_SERVER_MODE", "staticServerMode");
@@ -48,17 +49,17 @@ class Test_Piwik_ServeStaticFile extends PHPUnit_Framework_TestCase
     /**
      * Test that php compression isn't enabled ... otherwise, lots of tests will fail
      *
-     * @group ServeStaticFile
+     * @group Core
      */
     public function test_phpOutputCompression()
     {
-        $this->assertFalse(Piwik::isPhpOutputCompressed());
+        $this->assertFalse(ProxyHttp::isPhpOutputCompressed());
     }
 
     /**
-     * Checks that "HTTP/1.0 404 Not Found" is returned when Piwik::serveStaticFile is called with a null file
+     * Checks that "HTTP/1.0 404 Not Found" is returned when Piwik::serverStaticFile is called with a null file
      *
-     * @group ServeStaticFile
+     * @group Core
      */
     public function test_nullFile()
     {
@@ -73,9 +74,10 @@ class Test_Piwik_ServeStaticFile extends PHPUnit_Framework_TestCase
     }
 
     /**
-     * Checks that "HTTP/1.0 404 Not Found" is returned when Piwik::serveStaticFile is called with a non existing file
+     * Checks that "HTTP/1.0 404 Not Found" is returned when Piwik::serverStaticFile is called with a non existing file
      *
-     * @group ServeStaticFile
+     *
+     * @group Core
      */
     public function test_ghostFile()
     {
@@ -90,10 +92,10 @@ class Test_Piwik_ServeStaticFile extends PHPUnit_Framework_TestCase
     }
 
     /**
-     * Checks that "HTTP/1.0 505 Internal server error" is returned when Piwik::serveStaticFile is called with a
+     * Checks that "HTTP/1.0 505 Internal server error" is returned when Piwik::serverStaticFile is called with a
      * non-readable file
      *
-     * @group ServeStaticFile
+     * @group Core
      */
     public function test_nonReadableFile()
     {
@@ -101,7 +103,7 @@ class Test_Piwik_ServeStaticFile extends PHPUnit_Framework_TestCase
          * This test would fail on a windows environment because it is not possible to remove reading rights on a
          * windows file using PHP.
          */
-        if (Common::isWindows()) {
+        if (SettingsServer::isWindows()) {
             return;
         }
 
@@ -130,7 +132,7 @@ class Test_Piwik_ServeStaticFile extends PHPUnit_Framework_TestCase
      *  - file is send back without compression
      *  - cache control headers are correctly set
      *
-     * @group ServeStaticFile
+     * @group Core
      */
     public function test_firstAccessNoCompression()
     {
@@ -173,7 +175,7 @@ class Test_Piwik_ServeStaticFile extends PHPUnit_Framework_TestCase
      * Expected :
      *  - "HTTP/1.1 304 Not Modified" sent back to client
      *
-     * @group ServeStaticFile
+     * @group Core
      */
     public function test_secondAccessNoCompression()
     {
@@ -196,7 +198,7 @@ class Test_Piwik_ServeStaticFile extends PHPUnit_Framework_TestCase
      * Expected :
      *  - http return code 200 sent back to client
      *
-     * @group ServeStaticFile
+     * @group Core
      */
     public function test_secondAccessNoCompressionExpiredFile()
     {
@@ -220,7 +222,7 @@ class Test_Piwik_ServeStaticFile extends PHPUnit_Framework_TestCase
      *  - the response has to be readable, it tests the proxy doesn't compress the file when compression
      *      is enabled in php.
      *
-     * @group ServeStaticFile
+     * @group Core
      */
     public function test_responseReadableWithPhpCompression()
     {
@@ -245,7 +247,7 @@ class Test_Piwik_ServeStaticFile extends PHPUnit_Framework_TestCase
      *  - the response has to be readable
      *  - the compression method used must be gzdeflate and not gzcompression to be IE compatible
      *
-     * @group ServeStaticFile
+     * @group Core
      */
     public function test_deflateCompression()
     {
@@ -279,7 +281,7 @@ class Test_Piwik_ServeStaticFile extends PHPUnit_Framework_TestCase
      *  - the response has to be readable
      *  - the compression method used is gzip
      *
-     * @group ServeStaticFile
+     * @group Core
      */
     public function test_gzipCompression()
     {
@@ -310,7 +312,7 @@ class Test_Piwik_ServeStaticFile extends PHPUnit_Framework_TestCase
      * Expected :
      *  - the compressed file cache mechanism works file, ie. the .deflate file is not generated twice
      *
-     * @group ServeStaticFile
+     * @group Core
      */
     public function test_compressionCache()
     {
@@ -351,7 +353,7 @@ class Test_Piwik_ServeStaticFile extends PHPUnit_Framework_TestCase
      * Expected :
      *  - the test file has been updated, the cached compressed file should be regenerated
      *
-     * @group ServeStaticFile
+     * @group Core
      */
     public function test_compressionCacheInvalidation()
     {
@@ -475,7 +477,8 @@ class Test_Piwik_ServeStaticFile extends PHPUnit_Framework_TestCase
 
     private function getCompressedFileLocation()
     {
-        return PIWIK_PATH_TEST_TO_ROOT . Piwik::COMPRESSED_FILE_LOCATION . basename(TEST_FILE_LOCATION);
+        $path = PIWIK_PATH_TEST_TO_ROOT . \Piwik\AssetManager::COMPRESSED_FILE_LOCATION . basename(TEST_FILE_LOCATION);
+        return \Piwik\SettingsPiwik::rewriteTmpPathWithHostname($path);
     }
 
     private function removeCompressedFiles()

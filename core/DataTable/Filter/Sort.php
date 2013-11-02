@@ -11,17 +11,18 @@
 namespace Piwik\DataTable\Filter;
 
 use Piwik\DataTable\Filter;
-use Piwik\DataTable\Simple;
 use Piwik\DataTable\Row;
-use Piwik\Metrics;
+use Piwik\DataTable\Simple;
 use Piwik\DataTable;
+use Piwik\Metrics;
 
 /**
- * Sort the DataTable based on the value of column $columnToSort ordered by $order.
+ * Sorts a DataTable based on the value of a specific column.
  * Possible to specify a natural sorting (see php.net/natsort for details)
  *
  * @package Piwik
  * @subpackage DataTable
+ * @api
  */
 class Sort extends Filter
 {
@@ -29,11 +30,13 @@ class Sort extends Filter
     protected $order;
 
     /**
-     * @param DataTable $table
-     * @param string $columnToSort   name of the column to sort by
-     * @param string $order          order (asc|desc)
-     * @param bool $naturalSort    use natural sort?
-     * @param bool $recursiveSort  sort recursively?
+     * Constructor.
+     * 
+     * @param DataTable $table The table to eventually filter.
+     * @param string $columnToSort The name of the column to sort by.
+     * @param string $order order `'asc'` or `'desc'`.
+     * @param bool $naturalSort Whether to use a natural sort or not (see [http://php.net/natsort](#http://php.net/natsort)).
+     * @param bool $recursiveSort Whether to sort all subtables or not.
      */
     public function __construct($table, $columnToSort, $order = 'desc', $naturalSort = true, $recursiveSort = false)
     {
@@ -49,7 +52,7 @@ class Sort extends Filter
     /**
      * Updates the order
      *
-     * @param string $order  asc|desc
+     * @param string $order asc|desc
      */
     public function setOrder($order)
     {
@@ -72,7 +75,7 @@ class Sort extends Filter
     public function sort($a, $b)
     {
         return !isset($a->c[Row::COLUMNS][$this->columnToSort])
-            && !isset($b->c[Row::COLUMNS][$this->columnToSort])
+        && !isset($b->c[Row::COLUMNS][$this->columnToSort])
 
             ? 0
             : (
@@ -84,10 +87,10 @@ class Sort extends Filter
                 : (($a->c[Row::COLUMNS][$this->columnToSort] != $b->c[Row::COLUMNS][$this->columnToSort]
                 || !isset($a->c[Row::COLUMNS]['label']))
                 ? ($this->sign * (
-                $a->c[Row::COLUMNS][$this->columnToSort]
+                    $a->c[Row::COLUMNS][$this->columnToSort]
                     < $b->c[Row::COLUMNS][$this->columnToSort]
-                    ? -1
-                    : 1)
+                        ? -1
+                        : 1)
                 )
                 : -1 * $this->sign * strnatcasecmp(
                     $a->c[Row::COLUMNS]['label'],
@@ -107,7 +110,7 @@ class Sort extends Filter
     function naturalSort($a, $b)
     {
         return !isset($a->c[Row::COLUMNS][$this->columnToSort])
-            && !isset($b->c[Row::COLUMNS][$this->columnToSort])
+        && !isset($b->c[Row::COLUMNS][$this->columnToSort])
             ? 0
             : (!isset($a->c[Row::COLUMNS][$this->columnToSort])
                 ? 1
@@ -131,16 +134,16 @@ class Sort extends Filter
     function sortString($a, $b)
     {
         return !isset($a->c[Row::COLUMNS][$this->columnToSort])
-            && !isset($b->c[Row::COLUMNS][$this->columnToSort])
+        && !isset($b->c[Row::COLUMNS][$this->columnToSort])
             ? 0
             : (!isset($a->c[Row::COLUMNS][$this->columnToSort])
                 ? 1
                 : (!isset($b->c[Row::COLUMNS][$this->columnToSort])
                     ? -1
                     : $this->sign *
-                        strcasecmp($a->c[Row::COLUMNS][$this->columnToSort],
-                            $b->c[Row::COLUMNS][$this->columnToSort]
-                        )
+                    strcasecmp($a->c[Row::COLUMNS][$this->columnToSort],
+                        $b->c[Row::COLUMNS][$this->columnToSort]
+                    )
                 )
             );
     }

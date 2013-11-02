@@ -60,7 +60,7 @@ function sendAddUserAJAX(row) {
 }
 
 function getIdSites() {
-    return $('.custom_select_main_link').attr('siteid');
+    return $('.custom_select_main_link').attr('data-siteid');
 }
 
 function sendUpdateUserAccess(login, access, successCallback) {
@@ -171,7 +171,7 @@ $(document).ready(function () {
             $(this)
                 .toggle()
                 .parent()
-                .prepend($('<input type="submit" class="submit updateuser"  value="' + _pk_translate('General_Save_js') + '" />')
+                .prepend($('<input type="submit" class="submit updateuser"  value="' + _pk_translate('General_Save') + '" />')
                     .click(function () {
                         var onValidate = function () {
                             sendUpdateUserAJAX($('tr#' + idRow));
@@ -196,7 +196,7 @@ $(document).ready(function () {
             piwikHelper.hideAjaxError();
             var idRow = $(this).attr('id');
             var loginToDelete = $(this).parent().parent().find('#userLogin').html();
-            $('#confirmUserRemove').find('h2').text(sprintf(_pk_translate('UsersManager_DeleteConfirm_js'), '"' + loginToDelete + '"'));
+            $('#confirmUserRemove').find('h2').text(sprintf(_pk_translate('UsersManager_DeleteConfirm'), '"' + loginToDelete + '"'));
             piwikHelper.modalConfirm('#confirmUserRemove', {yes: function () { sendDeleteUserAJAX(loginToDelete); }});
         }
     );
@@ -215,8 +215,8 @@ $(document).ready(function () {
 				<td><input id="useradd_email" value="email@domain.com" size="15" /></td>\
 				<td><input id="useradd_alias" value="alias" size="15" /></td>\
 				<td>-</td>\
-				<td><input type="submit" class="submit adduser"  value="' + _pk_translate('General_Save_js') + '" /></td>\
-	  			<td><span class="cancel">' + sprintf(_pk_translate('General_OrCancel_js'), "", "") + '</span></td>\
+				<td><input type="submit" class="submit adduser"  value="' + _pk_translate('General_Save') + '" /></td>\
+	  			<td><span class="cancel">' + sprintf(_pk_translate('General_OrCancel'), "", "") + '</span></td>\
 	 		</tr>'))
             .appendTo('#users')
         ;

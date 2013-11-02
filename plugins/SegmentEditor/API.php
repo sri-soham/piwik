@@ -11,10 +11,10 @@
 namespace Piwik\Plugins\SegmentEditor;
 
 use Exception;
-use Piwik\Piwik;
 use Piwik\Common;
 use Piwik\Date;
 use Piwik\Db\Factory;
+use Piwik\Piwik;
 use Piwik\Segment;
 
 /**
@@ -22,22 +22,9 @@ use Piwik\Segment;
  *
  * @package SegmentEditor
  */
-class API
+class API extends \Piwik\Plugin\API
 {
-    const DELETE_SEGMENT_EVENT = 'SegmentEditor.delete';
-
-    static private $instance = null;
-
-    /**
-     * @return \Piwik\Plugins\SegmentEditor\API
-     */
-    static public function getInstance()
-    {
-        if (self::$instance == null) {
-            self::$instance = new self;
-        }
-        return self::$instance;
-    }
+    const DEACTIVATE_SEGMENT_EVENT = 'SegmentEditor.deactivate';
 
     protected function checkSegmentValue($definition, $idSite)
     {
@@ -94,7 +81,7 @@ class API
     {
         $autoArchive = (int)$autoArchive;
         if ($autoArchive) {
-            $exception = new Exception("To prevent abuse, autoArchive=1 requires Super User or Admin access.");
+            $exception = new Exception("To prevent abuse, autoArchive=1 requires Super User or ControllerAdmin access.");
             if (empty($idSite)) {
                 if (!Piwik::isUserIsSuperUser()) {
                     throw $exception;
@@ -135,8 +122,7 @@ class API
     {
         $this->checkUserIsNotAnonymous();
 
-        // allow plugins using the segment to throw an exception or propagate the deletion
-        Piwik_PostEvent(self::DELETE_SEGMENT_EVENT, array(&$idSegment));
+        $this->sendSegmentDeactivationEvent($idSegment);
 
         $segment = $this->getSegmentOrFail($idSegment);
         $dao = Factory::getDAO('segment');
@@ -148,9 +134,9 @@ class API
      * Modifies an existing stored segment.
      *
      * @param int $idSegment The ID of the stored segment to modify.
-     * @param string $name  The new name of the segment.
-     * @param string $definition  The new definition of the segment.
-     * @param bool $idSite  If supplied, associates the stored segment with as single site.
+     * @param string $name The new name of the segment.
+     * @param string $definition The new definition of the segment.
+     * @param bool $idSite If supplied, associates the stored segment with as single site.
      * @param bool $autoArchive Whether to automatically archive data with the segment or not.
      * @param bool $enabledAllUsers Whether the stored segment is viewable by all users or just the one that created it.
      *
@@ -167,7 +153,6 @@ class API
         $enabledAllUsers = $this->checkEnabledAllUsers($enabledAllUsers);
         $autoArchive = $this->checkAutoArchive($autoArchive, $idSite);
 
-        $segment = $this->getSegmentOrFail($idSegment);
         $dao = Factory::getDAO('segment');
         $bind = array(
             'name'               => $name,
@@ -175,7 +160,7 @@ class API
             'enable_all_users'   => $enabledAllUsers,
             'enable_only_idsite' => $idSite,
             'auto_archive'       => $autoArchive,
-            'ts_last_edit'       => Date::now()->getDateTime()
+            'ts_last_edit'       => Date::now()->getDatetime(),
         );
         $dao->updateByIdsegment($bind, $idSegment);
         return true;
@@ -184,9 +169,9 @@ class API
     /**
      * Adds a new stored segment.
      *
-     * @param string $name  The new name of the segment.
-     * @param string $definition  The new definition of the segment.
-     * @param bool $idSite  If supplied, associates the stored segment with as single site.
+     * @param string $name The new name of the segment.
+     * @param string $definition The new definition of the segment.
+     * @param bool $idSite If supplied, associates the stored segment with as single site.
      * @param bool $autoArchive Whether to automatically archive data with the segment or not.
      * @param bool $enabledAllUsers Whether the stored segment is viewable by all users or just the one that created it.
      *
@@ -236,7 +221,11 @@ class API
             return false;
         }
         try {
-            Piwik::checkUserIsSuperUserOrTheUser($segment['login']);
+
+            if (!$segment['enable_all_users']) {
+                Piwik::checkUserIsSuperUserOrTheUser($segment['login']);
+            }
+
         } catch (Exception $e) {
             throw new Exception("You can only edit the custom segments you have created yourself. This segment was created and 'shared with you' by the Super User. " .
                 "To modify this segment, you can first create a new one by clicking on 'Add new segment'. Then you can customize the segment's definition.");
@@ -251,7 +240,7 @@ class API
     /**
      * Returns all stored segments.
      *
-     * @param bool $idSite  Whether to return stored segments that are only auto-archived for a specific idSite, or all of them. If supplied, must be a valid site ID.
+     * @param bool $idSite Whether to return stored segments that are only auto-archived for a specific idSite, or all of them. If supplied, must be a valid site ID.
      * @param bool $returnOnlyAutoArchived Whether to only return stored segments that are auto-archived or not.
      * @return array
      */
@@ -267,5 +256,37 @@ class API
         $segments = $dao->getAll($idSite, Piwik::getCurrentUserLogin(), $returnOnlyAutoArchived);
 
         return $segments;
+    }
+
+    /**
+     * When deleting or making a segment invisible, allow plugins to throw an exception or propagate the action
+     *
+     * @param $idSegment
+     */
+    private function sendSegmentDeactivationEvent($idSegment)
+    {
+        /**
+         * Triggered before a segment is deleted or made invisible.
+         * 
+         * This event can be used by plugins to throw an exception
+         * or do something else.
+         * 
+         * @param int $idSegment The ID of the segment being deleted.
+         */
+        Piwik::postEvent(self::DEACTIVATE_SEGMENT_EVENT, array($idSegment));
+    }
+
+    /**
+     * @param $idSiteNewValue
+     * @param $enableAllUserNewValue
+     * @param $segment
+     * @return bool
+     */
+    private function segmentVisibilityIsReduced($idSiteNewValue, $enableAllUserNewValue, $segment)
+    {
+        $allUserVisibilityIsDropped = $segment['enable_all_users'] && !$enableAllUserNewValue;
+        $allWebsiteVisibilityIsDropped = !isset($segment['idSite']) && $idSiteNewValue;
+
+        return $allUserVisibilityIsDropped || $allWebsiteVisibilityIsDropped;
     }
 }

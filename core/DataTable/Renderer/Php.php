@@ -12,10 +12,10 @@ namespace Piwik\DataTable\Renderer;
 
 use Exception;
 use Piwik\DataTable\Manager;
-use Piwik\DataTable\Simple;
 use Piwik\DataTable\Renderer;
-use Piwik\Piwik;
+use Piwik\DataTable\Simple;
 use Piwik\DataTable;
+use Piwik\Piwik;
 
 /**
  * Returns the equivalent PHP array for a given DataTable.
@@ -70,7 +70,7 @@ class Php extends Renderer
     /**
      * Computes the dataTable output and returns the string/binary
      *
-     * @param null|DataTable\Map|Simple $dataTable
+     * @param null|DataTable|DataTable\Map|Simple $dataTable
      * @return string
      */
     public function render($dataTable = null)
@@ -139,7 +139,7 @@ class Php extends Renderer
             }
         } else if ($dataTable instanceof DataTable\Map) {
             $flatArray = array();
-            foreach ($dataTable->getArray() as $keyName => $table) {
+            foreach ($dataTable->getDataTables() as $keyName => $table) {
                 $serializeSave = $this->serialize;
                 $this->serialize = false;
                 $flatArray[$keyName] = $this->flatRender($table);

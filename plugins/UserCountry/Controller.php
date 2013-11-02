@@ -11,27 +11,24 @@
 namespace Piwik\Plugins\UserCountry;
 
 use Exception;
-use Piwik\DataTable\Renderer\Json;
-use Piwik\Controller\Admin;
-use Piwik\Piwik;
 use Piwik\Common;
+use Piwik\DataTable\Renderer\Json;
 use Piwik\Http;
 use Piwik\IP;
-use Piwik\Plugins\UserCountry\LocationProvider;
-use Piwik\Plugins\UserCountry\GeoIPAutoUpdater;
-use Piwik\ViewDataTable;
-use Piwik\View;
-use Piwik\Url;
+use Piwik\Piwik;
 use Piwik\Plugins\UserCountry\LocationProvider\DefaultProvider;
-use Piwik\Plugins\UserCountry\LocationProvider\GeoIp;
 use Piwik\Plugins\UserCountry\LocationProvider\GeoIp\Pecl;
+use Piwik\Plugins\UserCountry\LocationProvider;
+use Piwik\Plugins\UserCountry\LocationProvider\GeoIp;
 use Piwik\Plugins\UserCountry\LocationProvider\GeoIp\ServerBased;
+use Piwik\View;
+use Piwik\ViewDataTable\Factory;
 
 /**
  *
  * @package UserCountry
  */
-class Controller extends Admin
+class Controller extends \Piwik\Plugin\ControllerAdmin
 {
     public function index()
     {
@@ -330,12 +327,12 @@ class Controller extends Admin
 
     public function getCountry($fetch = false)
     {
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 
     public function getContinent($fetch = false)
     {
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 
     /**
@@ -346,7 +343,7 @@ class Controller extends Admin
      */
     public function getRegion($fetch = false)
     {
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 
     /**
@@ -357,7 +354,7 @@ class Controller extends Admin
      */
     public function getCity($fetch = false)
     {
-        return ViewDataTable::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
     }
 
     public function getNumberOfDistinctCountries($fetch = false)
@@ -368,7 +365,7 @@ class Controller extends Admin
     public function getLastDistinctCountriesGraph($fetch = false)
     {
         $view = $this->getLastUnitGraph('UserCountry', __FUNCTION__, "UserCountry.getNumberOfDistinctCountries");
-        $view->columns_to_display = array('UserCountry_distinctCountries');
+        $view->config->columns_to_display = array('UserCountry_distinctCountries');
         return $this->renderView($view, $fetch);
     }
 
@@ -389,7 +386,7 @@ class Controller extends Admin
 
             return array(
                 'to_download'       => $missingDbKey,
-                'to_download_label' => Piwik_Translate('UserCountry_DownloadingDb', $link) . '...',
+                'to_download_label' => Piwik::translate('UserCountry_DownloadingDb', $link) . '...',
             );
         }
         return false;

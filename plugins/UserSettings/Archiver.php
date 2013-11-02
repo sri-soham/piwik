@@ -13,10 +13,9 @@ namespace Piwik\Plugins\UserSettings;
 
 use Piwik\Common;
 use Piwik\DataAccess\LogAggregator;
-use Piwik\Metrics;
-use Piwik\DataTable;
 use Piwik\DataArray;
-use Piwik\PluginsArchiver;
+use Piwik\DataTable;
+use Piwik\Metrics;
 
 require_once PIWIK_INCLUDE_PATH . '/plugins/UserSettings/functions.php';
 
@@ -25,7 +24,7 @@ require_once PIWIK_INCLUDE_PATH . '/plugins/UserSettings/functions.php';
  *
  * @see PluginsArchiver
  */
-class Archiver extends PluginsArchiver
+class Archiver extends \Piwik\Plugin\Archiver
 {
     const LANGUAGE_RECORD_NAME = 'UserSettings_language';
     const PLUGIN_RECORD_NAME = 'UserSettings_plugin';
@@ -96,7 +95,9 @@ class Archiver extends PluginsArchiver
     {
         $metrics = $this->getProcessor()->getMetricsForDimension(self::RESOLUTION_DIMENSION);
         $table = $this->getProcessor()->getDataTableFromDataArray($metrics);
-        $table->filter('ColumnCallbackDeleteRow', array('label', __NAMESPACE__ . '\keepStrlenGreater'));
+        $table->filter('ColumnCallbackDeleteRow', array('label', function ($value) {
+            return strlen($value) <= 5;
+        }));
         $this->insertTable(self::RESOLUTION_RECORD_NAME, $table);
         return $table;
     }

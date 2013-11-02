@@ -11,8 +11,8 @@
 
 namespace Piwik\Plugins\CoreVisualizations\Visualizations\JqplotGraph;
 
-use Piwik\Plugins\CoreVisualizations\Visualizations\JqplotGraph;
 use Piwik\Plugins\CoreVisualizations\JqplotDataGenerator;
+use Piwik\Plugins\CoreVisualizations\Visualizations\JqplotGraph;
 
 /**
  * Visualization that renders HTML for a Bar graph using jqPlot.
@@ -20,12 +20,22 @@ use Piwik\Plugins\CoreVisualizations\JqplotDataGenerator;
 class Bar extends JqplotGraph
 {
     const ID = 'graphVerticalBar';
+    const FOOTER_ICON       = 'plugins/Zeitgeist/images/chart_bar.png';
+    const FOOTER_ICON_TITLE = 'General_VBarGraph';
 
-    public static function getDefaultPropertyValues()
+    public function beforeRender()
     {
-        $result = parent::getDefaultPropertyValues();
-        $result['visualization_properties']['graph']['max_graph_elements'] = 6;
-        return $result;
+        parent::beforeRender();
+
+        $this->config->datatable_js_type = 'JqplotBarGraphDataTable';
+    }
+
+    public static function getDefaultConfig()
+    {
+        $config = new Config();
+        $config->max_graph_elements = 6;
+
+        return $config;
     }
 
     protected function makeDataGenerator($properties)

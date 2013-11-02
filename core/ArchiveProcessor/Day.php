@@ -9,20 +9,27 @@
  * @package Piwik
  */
 namespace Piwik\ArchiveProcessor;
-use Piwik\Metrics;
+
 use Piwik\ArchiveProcessor;
 use Piwik\DataArray;
 use Piwik\DataTable;
+use Piwik\Metrics;
+use Piwik\Piwik;
 
 /**
- * This class
+ * Initiates the archiving process for **day** periods via the [ArchiveProcessor.Day.compute](#)
+ * event.
+ * 
  * @package Piwik
  * @subpackage ArchiveProcessor
+ *
+ * @api
  */
 class Day extends ArchiveProcessor
 {
     /**
-     * Converts the given array to a datatable
+     * Converts array to a datatable
+     * 
      * @param DataArray $array
      * @return \Piwik\DataTable
      */
@@ -61,7 +68,7 @@ class Day extends ArchiveProcessor
      * Windows XP    12    ...
      * Mac OS    15    36    ...
      *
-     * @param string $dimension  Table log_visit field name to be use to compute common stats
+     * @param string $dimension Table log_visit field name to be use to compute common stats
      * @return DataArray
      */
     public function getMetricsForDimension($dimension)
@@ -102,6 +109,29 @@ class Day extends ArchiveProcessor
 
     protected function compute()
     {
-        Piwik_PostEvent('ArchiveProcessing_Day.compute', array(&$this));
+        /**
+         * Triggered when the archiving process is initiated for a day period.
+         * 
+         * Plugins that compute analytics data should subscribe to this event. The
+         * actual archiving logic, however, should not be in the event handler, but
+         * in a class that descends from [Archiver](#).
+         * 
+         * To learn more about single day archiving, see the [ArchiveProcessor\Day](#)
+         * class.
+         * 
+         * **Example**
+         * 
+         *     public function archivePeriod(ArchiveProcessor\Day $archiveProcessor)
+         *     {
+         *         $archiving = new MyArchiver($archiveProcessor);
+         *         if ($archiving->shouldArchive()) {
+         *             $archiving->archiveDay();
+         *         }
+         *     }
+         * 
+         * @param Piwik\ArchiveProcessor\Day $archiveProcessor
+         *                                       The ArchiveProcessor that triggered the event.
+         */
+        Piwik::postEvent('ArchiveProcessor.Day.compute', array(&$this));
     }
 }

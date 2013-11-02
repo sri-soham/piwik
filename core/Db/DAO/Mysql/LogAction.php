@@ -15,6 +15,8 @@ use Piwik\Db\DAO\Base;
 use Piwik\Db\Factory;
 use Piwik\Plugins\PrivacyManager\LogDataPurger;
 use Piwik\Tracker\Action;
+use Piwik\Piwik;
+use Piwik\Db;
 
 /**
  * @package Piwik
@@ -77,38 +79,31 @@ class LogAction extends Base
         return $this->db->lastInsertId();
     }
 
-    public function loadActionId($actionNamesAndTypes)
-    {
-        // First, we try and select the actions that are already recorded
-        $res = $this->sqlActionIdsFromNameType($actionNamesAndTypes);
-        $sql  = $res['sql'];
-        $bind = $res['bind'];
-        $normalizedUrls = $res['normalizedUrls'];
-        // if URL and Title are empty
+    public function queryIdsAction(&$actionsNameAndType) {
+        $sql = $this->sqlActionId();
+        $bind = array();
+        $i = 0;
+        foreach ($actionsNameAndType as $index => &$actionNameType) {
+            list($name, $type, $urlPrefix) = $actionNameType;
+            if (empty($name)) {
+                continue;
+            }
+            if ($i > 0) {
+                $sql .= ' OR (hash = ? AND name = ? AND type = ? )';
+            }
+            $bind[] = Common::getCrc32($name);
+            $bind[] = $name;
+            $bind[] = $type;
+            ++$i;
+        }
+
+        // Case URL & Title are empty
         if (empty($bind)) {
-            return $actionNamesAndTypes;
+            return false;
         }
 
         $actionIds = $this->db->fetchAll($sql, $bind);
-
-        $actionsToInsert = $this->actionsToInsertFromNamesTypes($actionNamesAndTypes, $actionIds, $normalizedUrls);
-
-        // Then, we insert all new actions in the lookup table
-        foreach ($actionsToInsert as $actionToInsert) {
-            list($name,$type) = $actionNamesAndTypes[$actionToInsert];
-    
-            $urlPrefix = null;
-            if (isset($normalizedUrls[$actionToInsert])) {
-                $name = $normalizedUrls[$actionToInsert]['url'];
-                $urlPrefix = $normalizedUrls[$actionToInsert]['prefixId'];
-            }
-            $actionId = $this->add($name, $type, $urlPrefix);
-            Common::printDebug("Recorded a new action (".Action::getActionTypeName($type).") in the lookup table: ". $name . " (idaction = ".$actionId.")");
-            
-            $actionNamesAndTypes[$actionToInsert][] = $actionId;
-        }
-
-        return $actionNamesAndTypes;
+        return $actionIds;
     }
 
     /**
@@ -136,7 +131,7 @@ class LogAction extends Base
     public function getCountByIdaction($idaction)
     {
         $sql = 'SELECT COUNT(*) FROM ' . $this->table . ' WHERE idaction = ?';
-        return $this->db->fetchOne($idaction);
+        return $this->db->fetchOne($sql, array($idaction));
     }
 
     public function purgeUnused()
@@ -153,6 +148,7 @@ class LogAction extends Base
         $this->lockLogTables($generic);
         $this->insertActionsToKeep($maxIds, $deleteOlderThanMax = false);
         
+        // ... then do small insert w/ locked tables to minimize the amount of time tables are locked.
         // delete before unlocking tables so there's no chance a new log row that references an
         // unused action will be inserted.
         $this->deleteUnusedActions();
@@ -193,59 +189,6 @@ class LogAction extends Base
         return $sql;
     }
 
-    protected function sqlActionIdsFromNameType(&$actionNamesAndTypes) {
-        $sql = $this->sqlActionId();
-        $bind = array();
-        $normalizedUrls = array();
-        $i = 0;
-        foreach ($actionNamesAndTypes as $index => &$actionNameType) {
-            list($name, $type) = $actionNameType;
-            if (empty($name)) {
-                $actionNameType[] = false;
-                continue;
-            }
-            if ($i > 0) {
-                $sql .= ' OR (hash = ? AND name = ? AND type = ? )';
-            }
-            if ($type == Action::TYPE_ACTION_URL) {
-                $normalizedUrls[$index] = Action::normalizeUrl($name);
-                $name = $normalizedUrls[$index]['url'];
-            }
-            $bind[] = Common::getCrc32($name);
-            $bind[] = $name;
-            $bind[] = $type;
-            ++$i;
-        }
-
-        return array('sql' => $sql, 'bind' => $bind, 'normalizedUrls' => $normalizedUrls);
-    }
-
-    protected function actionsToInsertFromNamesTypes(&$actionNamesAndTypes, $actionIds, $normalizedUrls) {
-        // For the Actions found in the lookup table, add the idaction in the array, 
-        // If not found in lookup table, queue for INSERT
-        $actionsToInsert = array();
-        foreach ($actionNamesAndTypes as $index => &$actionNameType) {
-            list($name,$type) = $actionNameType;
-            if(empty($name)) { continue; }
-            if (isset($normalizedUrls[$index])) {
-                $name = $normalizedUrls[$index]['url'];
-            }
-            $found = false;
-            foreach ($actionIds as $row) {
-                if($name == $row['name'] && $type == $row['type']) {
-                    $found = true;
-                    $actionNameType[] = $row['idaction'];
-                    continue;
-                }
-            }
-            if (!$found) {
-                $actionsToInsert[] = $index;
-            }
-        }
-
-        return $actionsToInsert;
-    }
-
     protected function insertActionsToKeep($maxIds, $olderThan = true)
     {
         $Generic = Factory::getGeneric($this->db);
@@ -274,10 +217,16 @@ class LogAction extends Base
 
         // allow code to be executed after data is inserted. for concurrency testing purposes.
         if ($olderThan) {
-            Piwik_PostEvent("LogDataPurger.actionsToKeepInserted.olderThan");
+            /**
+             * @ignore
+             */
+            Piwik::postEvent("LogDataPurger.ActionsToKeepInserted.olderThan");
         }
         else {
-            Piwik_PostEvent("LogDataPurger.actionsToKeepInserted.newerThan");
+            /**
+             * @ignore
+             */
+            Piwik::postEvent("LogDataPurger.ActionsToKeepInserted.newerThan");
         }
     }
 

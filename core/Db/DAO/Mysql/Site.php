@@ -54,7 +54,7 @@ class Site extends Base
 
     public function getAll()
     { 
-        $sql = 'SELECT * FROM ' . $this->table;
+        $sql = 'SELECT * FROM ' . $this->table . ' ORDER BY idsite ASC';
         return $this->db->fetchAll($sql);
     }
 
