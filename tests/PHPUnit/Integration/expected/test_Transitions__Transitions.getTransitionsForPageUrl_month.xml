@@ -37,13 +37,8 @@
 			<referrals>2</referrals>
 		</row>
 		<row>
-<<<<<<< HEAD
 			<label>-1</label>
-			<referrals>3</referrals>
-=======
-			<label>Others</label>
 			<referrals>5</referrals>
->>>>>>> piwik-master
 		</row>
 	</followingPages>
 	<followingSiteSearches>

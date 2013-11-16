@@ -43,7 +43,7 @@ class Test_Piwik_Integration_AutoSuggestAPITest extends IntegrationTestCase
         // Code in piwik/piwik.git is running without exceptions which makes
         // me assume that no queries are being run. So, some dummy value is
         // being set for the "db" key in the registry to circumvent the problem
-        Zend_Registry::set('db', '');
+//        Zend_Registry::set('db', ''); // 2013-11-09 : might not be needed
 
         // we will test all segments from all plugins
         self::loadAllPlugins();

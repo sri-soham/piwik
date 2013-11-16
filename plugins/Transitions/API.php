@@ -23,6 +23,7 @@ use Piwik\Metrics;
 use Piwik\Period;
 use Piwik\Period\Day;
 use Piwik\Piwik;
+use Piwik\Db;
 use Piwik\Db\Factory;
 use Piwik\Plugins\Actions\Actions;
 use Piwik\Plugins\Actions\ArchivingHelper;
@@ -226,11 +227,12 @@ class API extends \Piwik\Plugin\API
     protected function queryFollowingActions($idaction, $actionType, LogAggregator $logAggregator,
                                           $limitBeforeGrouping = false, $includeLoops = false)
     {
+        $db = Db::get();
         $types = array();
 
         if ($actionType != 'title') {
             // specific setup for page urls
-            $types[Action::TYPE_ACTION_URL] = 'followingPages';
+            $types[Action::TYPE_PAGE_URL] = 'followingPages';
             //$dimension = 'IF( idaction_url IS NULL, idaction_name, idaction_url )';
             $dimension = 'COALESCE(idaction_url, idaction_name)';
             // site search referrers are logged with url=NULL
@@ -262,7 +264,7 @@ class API extends \Piwik\Plugin\API
 					WHEN log_action1.type = ' . Action::TYPE_PAGE_URL . ' THEN log_action2.name
 					' /* following download or outlink: use url */ . '
 					ELSE log_action1.name
-				END AS ' . $this->db->quoteIdentifier('name'),
+				END AS ' . $db->quoteIdentifier('name'),
                 'CASE
                     ' /* following site search */ . '
 					WHEN log_link_visit_action.idaction_url IS NULL THEN log_action2.type
@@ -270,12 +272,12 @@ class API extends \Piwik\Plugin\API
 					WHEN log_action1.type = ' . Action::TYPE_PAGE_URL . ' THEN log_action2.type
 					' /* following download or outlink: use url */ . '
 					ELSE log_action1.type
-				END AS ' . $this->db->quoteIdentifier('type'),
-                'NULL AS ' . $this->db->quoteIdentifier('url_prefix')
+				END AS ' . $db->quoteIdentifier('type'),
+                'NULL AS ' . $db->quoteIdentifier('url_prefix')
             );
-            $groupBy = $this->db->quoteIdentifier('name') . ', ' .
-                       $this->db->quoteIdentifier('type') . ', ' .
-                       $this->db->quoteIdentifier('url_prefix');
+            $groupBy = $db->quoteIdentifier('name') . ', ' .
+                       $db->quoteIdentifier('type') . ', ' .
+                       $db->quoteIdentifier('url_prefix');
         }
 
         // these types are available for both titles and urls
@@ -315,6 +317,7 @@ class API extends \Piwik\Plugin\API
      */
     protected function queryExternalReferrers($idaction, $actionType, $logAggregator, $limitBeforeGrouping = false)
     {
+        $db = Db::get();
         $rankingQuery = Factory::getHelper('RankingQuery');
         $rankingQuery->setLimit($limitBeforeGrouping ? $limitBeforeGrouping : $this->limitBeforeGrouping);
 
@@ -328,11 +331,11 @@ class API extends \Piwik\Plugin\API
         $rankingQuery->addLabelColumn('referrer_data');
         $selects = array(
             'CASE log_visit.referer_type
-				WHEN ' . Common::REFERER_TYPE_DIRECT_ENTRY . ' THEN \'\'
-				WHEN ' . Common::REFERER_TYPE_SEARCH_ENGINE . ' THEN log_visit.referer_keyword
-				WHEN ' . Common::REFERER_TYPE_WEBSITE . ' THEN log_visit.referer_url
-				WHEN ' . Common::REFERER_TYPE_CAMPAIGN . ' THEN CONCAT(log_visit.referer_name, \' \', log_visit.referer_keyword)
-			END AS ' . $this->db->quoteIdentifier('referrer_data'));
+				WHEN ' . Common::REFERRER_TYPE_DIRECT_ENTRY . ' THEN \'\'
+				WHEN ' . Common::REFERRER_TYPE_SEARCH_ENGINE . ' THEN log_visit.referer_keyword
+				WHEN ' . Common::REFERRER_TYPE_WEBSITE . ' THEN log_visit.referer_url
+				WHEN ' . Common::REFERRER_TYPE_CAMPAIGN . ' THEN CONCAT(log_visit.referer_name, \' \', log_visit.referer_keyword)
+			END AS ' . $db->quoteIdentifier('referrer_data'));
 
         // get one limited group per referrer type
         $rankingQuery->partitionResultIntoMultipleGroups('referer_type', array(
@@ -388,6 +391,8 @@ class API extends \Piwik\Plugin\API
      */
     protected function queryInternalReferrers($idaction, $actionType, $logAggregator, $limitBeforeGrouping = false)
     {
+        $db = Db::get();
+
         $keyIsOther = 0;
         $keyIsPageUrlAction = 1;
         $keyIsSiteSearchAction = 2;
@@ -412,19 +417,19 @@ class API extends \Piwik\Plugin\API
         $selects = array(
             'log_action.name',
             'log_action.url_prefix',
-            'CASE WHEN log_link_visit_action.idaction_' . $type . '_ref = ' . intval($idaction) . ' THEN 1 ELSE 0 END AS ' . $this->db->quoteIdentifier('is_self'),
+            'CASE WHEN log_link_visit_action.idaction_' . $type . '_ref = ' . intval($idaction) . ' THEN 1 ELSE 0 END AS ' . $db->quoteIdentifier('is_self'),
             'CASE
                 WHEN log_action.type = ' . $mainActionType . ' THEN ' . $keyIsPageUrlAction . '
                         WHEN log_action.type = ' . Action::TYPE_SITE_SEARCH . ' THEN ' . $keyIsSiteSearchAction .'
                         ELSE ' . $keyIsOther . '
-                    END AS ' . $this->db->quoteIdentifier('action_partition')
+                    END AS ' . $db->quoteIdentifier('action_partition')
         );
 
         $where = '
 			log_link_visit_action.idaction_' . $type . ' = ' . intval($idaction);
         $groupBy = 'log_action.name, log_action.url_prefix, ' . 
-                   $this->db->quoteIdentifier('is_self') . ', ' .
-                   $this->db->quoteIdentifier('action_partition');
+                   $db->quoteIdentifier('is_self') . ', ' .
+                   $db->quoteIdentifier('action_partition');
         if ($dimension == 'idaction_url_ref') {
             // site search referrers are logged with url_ref=NULL
             // when we find one, we have to join on name_ref

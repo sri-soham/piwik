@@ -71,7 +71,7 @@ class Site extends Base
              . '    LIMIT 1 '
              . ')';
         
-        return $this->db->fetchAll($sql, $time, $now);
+        return $this->db->fetchAll($sql, array($time, $now));
     }
 
     public function getByIdsites($idsites, $limit = '')
