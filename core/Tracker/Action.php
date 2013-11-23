@@ -275,12 +275,13 @@ abstract class Action
     {
         $this->loadIdsFromLogActionTable();
 
-        $idActionName = in_array($this->getActionType(), array(Tracker\Action::TYPE_PAGE_TITLE,
-                                                               Tracker\Action::TYPE_PAGE_URL,
-                                                               Tracker\Action::TYPE_SITE_SEARCH
-                                                         ))
-            ? (int)$this->getIdActionName()
-            : null;
+        $actionNames = array(Tracker\Action::TYPE_PAGE_TITLE,
+                             Tracker\Action::TYPE_PAGE_URL,
+                             Tracker\Action::TYPE_SITE_SEARCH
+                       );
+        $idActionName = in_array($this->getActionType(), $actionNames)
+                        ? (int)$this->getIdActionName()
+                        : null;
 
         $customVariables = $this->getCustomVariables();
         if (!empty($customVariables)) {

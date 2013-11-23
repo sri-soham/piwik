@@ -686,36 +686,6 @@ class Common
     }
 
     /**
-     *  unhex
-     *
-     *  Mimics the functionality of UNHEX function in mysql.
-     *
-     *  @param  string $str
-     *  @return string|null
-     */
-    public static function unhex($str)
-    {
-        $find = array('0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f');
-        $replace = '';
-        $new_str = str_replace($find, $replace, $str);
-        $len = strlen($new_str);
-        // valid input will contain only hexadecimal characters and will be of
-        // even length
-        if ($len > 0 || ($len % 2 != 0)) {
-            $res = null;
-        }
-        else {
-            $res = '';
-            $parts = str_split($str, 2);
-            foreach ($parts as $part) {
-                $res .= chr(hexdec($part));
-            }
-        }
-
-        return $res;
-    }
-
-    /**
      * JSON encode wrapper
      * - missing or broken in some php 5.x versions
      *

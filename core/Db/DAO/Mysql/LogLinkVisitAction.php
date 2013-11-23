@@ -142,8 +142,17 @@ class LogLinkVisitAction extends Base
             'idaction_name_ref' => $ref_name,
             'time_spent_ref_action' => $time_spent
         );
+        $integerCols = array('idsite', 'idvisit', 'idaction_url', 'idaction_url_ref',
+                        'idaction_name', 'idaction_name_ref', 'idaction_event_category',
+                        'idaction_event_action', 'time_spent_ref_action'
+                       );
         foreach($actionIdsCached as $field => $idAction) {
-            $insert[$field] = $idAction;
+            if (in_array($field, $integerCols) && is_bool($idAction)) {
+                $insert[$field] = (int)$idAction;
+            }
+            else {
+                $insert[$field] = $idAction;
+            }
         }
 
         if (!empty($custom_value)) {

@@ -145,6 +145,10 @@ class Pgsql extends Zend_Db_Adapter_Pdo_Pgsql implements AdapterInterface
             // MySQL: Table '%s.%s' doesn't exist
             // PostgreSQL: relation "%s" does not exist
             '1146' => '42P01',
+
+            // MySQL:  Deadlock found when trying to get lock; try restarting transaction 
+            // PostgreSQL: deadlock detected
+            '1213' => '40P01',
         );
 
         if (preg_match('/([0-9]{2}[0-9P][0-9]{2})/', $e->getMessage(), $match)) {

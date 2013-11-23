@@ -157,14 +157,12 @@ class ArchiveWriter
 
     protected function deletePreviousArchiveStatus()
     {
-        $this->Archive->deleteByIdarchiveName(
+        $this->Archive->deletePreviousArchiveStatus(
             $this->getTableNumeric(),
             $this->getIdArchive(),
             $this->doneFlag,
             self::PREFIX_SQL_LOCK
         );
-
-        $this->releaseArchiveTableLock();
     }
 
     protected function logArchiveStatusAsFinal()

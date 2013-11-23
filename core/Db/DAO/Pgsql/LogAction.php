@@ -137,13 +137,13 @@ class LogAction extends \Piwik\Db\DAO\Mysql\LogAction
             /**
              * @ignore
              */
-            Piwik::postEvent("LogDataPurger.actionsToKeepInserted.olderThan");
+            Piwik::postEvent("LogDataPurger.ActionsToKeepInserted.olderThan");
         }
         else {
             /**
              * @ignore
              */
-            Piwik::postEvent("LogDataPurger.actionsToKeepInserted.newerThan");
+            Piwik::postEvent("LogDataPurger.ActionsToKeepInserted.newerThan");
         }
     }
 

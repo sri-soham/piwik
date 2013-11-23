@@ -33,6 +33,20 @@ class Archive extends \Piwik\Db\DAO\Mysql\Archive
         parent::__construct($db, $table);
     }
 
+    public function deletePreviousArchiveStatus($table, $idArchive, $name1, $name2)
+    {
+        $dbLockName = $this->lockNameForNextIdarchive($table);
+        $Generic = Factory::getGeneric($this->db);
+
+        if ($Generic->getDbLock($dbLockName) === false) {
+            throw new \Exception('loadNextIdarchive: Cannot get lock on table '. $table);
+        }
+
+        $this->deleteByIdarchiveName($table, $idArchive, $name1, $name2);
+
+        $Generic->releaseDbLock($dbLockName);
+    }
+
     /**
      *  In postgresql indexes cannot be part of the create table statement. 
      *  They have to be created separately

@@ -44,12 +44,17 @@ class Archive extends Base
         parent::__construct($db, $table);
     }
 
-    public function deleteByIdarchiveName($table, $idArchive, $name1, $name2)
+    public function deletePreviousArchiveStatus($table, $idArchive, $name1, $name2)
     {
-        $sql = 'DELETE FROM ' . $table . ' '
-             . 'WHERE idarchive = ? '
-             . "  AND (name = '$name1' OR name LIKE '$name2%')";
-        $this->db->query($sql, array($idArchive));
+        $dbLockName = "allocateNewArchiveId.$table";
+        $generic = Factory::getGeneric($this->db);
+
+        if ($generic->getDbLock($dbLockName, $maxRetries = 30) === false) {
+            throw new Exception("loadNextIdArchive: Cannot get named lock for table $table");
+        }
+        $this->deleteByIdarchiveName($table, $idArchive, $name1, $name2);
+
+        $generic->releaseDbLock($dbLockName);
     }
 
     public function deleteByDates($table, $idSites, $dates)
@@ -170,7 +175,7 @@ class Archive extends Base
 
     public function loadNextIdarchive($table, $alias, $locked, $idsite, $date)
     {
-        $dbLockName = "loadNextIdArchive.$table";
+        $dbLockName = "allocateNewArchiveId.$table";
         $generic = Factory::getGeneric($this->db);
 
         if ($generic->getDbLock($dbLockName, $maxRetries = 30) === false) {
@@ -415,6 +420,14 @@ class Archive extends Base
         $sql = 'SELECT * FROM ' . $table;
 
         return $this->db->fetchAll($sql);
+    }
+
+    protected function deleteByIdarchiveName($table, $idArchive, $name1, $name2)
+    {
+        $sql = 'DELETE FROM ' . $table . ' '
+             . 'WHERE idarchive = ? '
+             . "  AND (name = '$name1' OR name LIKE '$name2%')";
+        $this->db->query($sql, array($idArchive));
     }
 
     protected function getPartitionTableSql($tableName, $generatedTableName)
