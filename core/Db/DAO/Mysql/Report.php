@@ -69,6 +69,7 @@ class Report extends Base
             $where = ' AND ' . implode(' AND ', $where) . ' ';
         }
 
+        // Joining with the site table to work around pre-1.3 where reports could still be linked to a deleted site
         $sql = 'SELECT * FROM ' . $this->table . ' '
              . 'INNER JOIN ' . Common::prefixTable('site') . ' '
              . '    USING (idsite) '

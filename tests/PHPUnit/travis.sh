@@ -9,7 +9,13 @@ then
 else
     if [ -n "$TEST_SUITE" ]
     then
-        phpunit --configuration phpunit.xml --testsuite $TEST_SUITE --colors
+        if [ "$TEST_SUITE" = "JavascriptTests" ]
+        then
+            touch ../javascript/enable_sqlite
+            phantomjs ../javascript/testrunner.js
+        else
+            phpunit --configuration phpunit.xml --testsuite $TEST_SUITE --colors
+        fi
     else
       if [ -n "$TEST_DIR" ]
       then

@@ -10,19 +10,17 @@
  */
 namespace Piwik\Plugins\DBStats;
 
-use Piwik\Common;
-
 use Piwik\Date;
 use Piwik\Menu\MenuAdmin;
 use Piwik\Option;
 use Piwik\Piwik;
-use Piwik\DataTable\Row\DataTableSummaryRow;
+use Piwik\Plugin\ViewDataTable;
 use Piwik\Plugins\CoreVisualizations\Visualizations\Graph;
 use Piwik\Plugins\CoreVisualizations\Visualizations\HtmlTable;
 use Piwik\Plugins\CoreVisualizations\Visualizations\JqplotGraph\Pie;
 use Piwik\ScheduledTask;
 use Piwik\ScheduledTime\Weekly;
-use \Piwik\Plugin\ViewDataTable;
+use Piwik\ScheduledTime;
 
 /**
  *
@@ -63,7 +61,7 @@ class DBStats extends \Piwik\Plugin
             $this,
             'cacheDataByArchiveNameReports',
             null,
-            new Weekly(),
+            ScheduledTime::factory('weekly'),
             ScheduledTask::LOWEST_PRIORITY
         );
         $tasks[] = $cacheDataByArchiveNameReportsTask;

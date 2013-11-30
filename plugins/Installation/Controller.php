@@ -117,7 +117,7 @@ class Controller extends \Piwik\Plugin\ControllerAdmin
         $this->skipThisStep(__FUNCTION__);
         $view->showNextStep = $view->newInstall;
         $this->session->currentStepDone = __FUNCTION__;
-        echo $view->render();
+        return $view->render();
     }
 
     /**
@@ -154,7 +154,7 @@ class Controller extends \Piwik\Plugin\ControllerAdmin
 
         $this->session->currentStepDone = __FUNCTION__;
 
-        echo $view->render();
+        return $view->render();
     }
 
     /**
@@ -198,7 +198,7 @@ class Controller extends \Piwik\Plugin\ControllerAdmin
         }
         $view->addForm($form);
 
-        echo $view->render();
+        return $view->render();
     }
 
     /**
@@ -256,7 +256,7 @@ class Controller extends \Piwik\Plugin\ControllerAdmin
         if ($error === false) {
             $this->redirectToNextStep(__FUNCTION__);
         }
-        echo $view->render();
+        return $view->render();
     }
 
     /**
@@ -322,7 +322,7 @@ class Controller extends \Piwik\Plugin\ControllerAdmin
         }
 
         $this->session->currentStepDone = __FUNCTION__;
-        echo $view->render();
+        return $view->render();
     }
 
     /**
@@ -379,7 +379,7 @@ class Controller extends \Piwik\Plugin\ControllerAdmin
         }
         $view->addForm($form);
 
-        echo $view->render();
+        return $view->render();
     }
 
     /**
@@ -428,7 +428,7 @@ class Controller extends \Piwik\Plugin\ControllerAdmin
             }
         }
         $view->addForm($form);
-        echo $view->render();
+        return $view->render();
     }
 
     /**
@@ -465,7 +465,7 @@ class Controller extends \Piwik\Plugin\ControllerAdmin
         $view->showNextStep = true;
 
         $this->session->currentStepDone = __FUNCTION__;
-        echo $view->render();
+        return $view->render();
     }
 
     /**
@@ -491,9 +491,11 @@ class Controller extends \Piwik\Plugin\ControllerAdmin
         $view->showNextStep = false;
 
         $this->session->currentStepDone = __FUNCTION__;
-        echo $view->render();
+        $output = $view->render();
 
         $this->session->unsetAll();
+
+        return $output;
     }
 
     /**
@@ -522,7 +524,7 @@ class Controller extends \Piwik\Plugin\ControllerAdmin
         $infos['extra'] = self::performAdminPageOnlySystemCheck();
         $view->infos = $infos;
 
-        echo $view->render();
+        return $view->render();
     }
 
     /**
@@ -598,7 +600,7 @@ class Controller extends \Piwik\Plugin\ControllerAdmin
     public function getBaseCss()
     {
         @header('Content-Type: text/css');
-        echo AssetManager::getCompiledBaseCss();
+        return AssetManager::getCompiledBaseCss();
     }
 
     /**

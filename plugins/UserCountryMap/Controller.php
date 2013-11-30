@@ -18,7 +18,6 @@ use Piwik\Piwik;
 use Piwik\Plugins\Goals\API as APIGoals;
 use Piwik\Site;
 use Piwik\View;
-use Piwik\ViewDataTable\Factory;
 
 /**
  *
@@ -96,11 +95,7 @@ class Controller extends \Piwik\Plugin\Controller
         $view->config = Common::json_encode($config);
         $view->noData = empty($config['visitsSummary']['nb_visits']);
 
-        if ($fetch) {
-            return $view->render();
-        } else {
-            echo $view->render();
-        }
+        return $view->render();
     }
 
     /**
@@ -190,11 +185,7 @@ class Controller extends \Piwik\Plugin\Controller
             'forceNowValue'      => Common::getRequestVar('forceNowValue', false, 'int')
         );
 
-        if ($fetch) {
-            return $view->render();
-        } else {
-            echo $view->render();
-        }
+        return $view->render();
     }
 
     private function getEnrichedRequest($params, $encode = true)

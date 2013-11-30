@@ -6,8 +6,8 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
 
-use Piwik\API\Request;
 use Piwik\Access;
+use Piwik\API\Request;
 use Piwik\Plugins\Annotations\API;
 
 class AnnotationsTest extends IntegrationTestCase
@@ -308,7 +308,8 @@ class AnnotationsTest extends IntegrationTestCase
             }
         } else {
             $request = new Request($request);
-            $request->process();
+            $response = $request->process();
+
         }
     }
 }

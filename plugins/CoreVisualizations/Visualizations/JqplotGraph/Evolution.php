@@ -14,7 +14,6 @@ namespace Piwik\Plugins\CoreVisualizations\Visualizations\JqplotGraph;
 use Piwik\Common;
 use Piwik\DataTable;
 use Piwik\Period\Range;
-use Piwik\Plugin\Controller;
 use Piwik\Plugins\CoreVisualizations\JqplotDataGenerator;
 use Piwik\Plugins\CoreVisualizations\Visualizations\JqplotGraph;
 use Piwik\Site;
@@ -57,9 +56,9 @@ class Evolution extends JqplotGraph
         $this->config->custom_parameters['columns'] = $this->config->columns_to_display;
     }
 
-    public function afterAllFilteresAreApplied()
+    public function afterAllFiltersAreApplied()
     {
-        parent::afterAllFilteresAreApplied();
+        parent::afterAllFiltersAreApplied();
 
         if (false === $this->config->x_axis_step_size) {
             $rowCount = $this->dataTable->getRowsCount();

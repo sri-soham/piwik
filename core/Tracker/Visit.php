@@ -384,6 +384,7 @@ class Visit implements VisitInterface
             Common::printDebug("Visitor doesn't have the piwik cookie...");
         }
 
+        $persistedVisitAttributes = $this->getVisitFieldsPersist();
         list($timeLookBack, $timeLookAhead) = $this->getWindowLookupThisVisit();
 
         $shouldMatchOneFieldOnly = $this->shouldLookupOneVisitorFieldOnly($isVisitorIdToLookup);
@@ -392,6 +393,7 @@ class Visit implements VisitInterface
 		list($visitRow, $selectCustomVariables)
 			= $LogVisit->recognizeVisitor(
 				$this->visitorCustomVariables,
+                $persistedVisitAttributes,
 				$timeLookBack,
                 $timeLookAhead,
 				$shouldMatchOneFieldOnly,
@@ -416,26 +418,9 @@ class Visit implements VisitInterface
             $this->visitorInfo['visit_last_action_time'] = strtotime($visitRow['visit_last_action_time']);
             $this->visitorInfo['visit_first_action_time'] = strtotime($visitRow['visit_first_action_time']);
 
-            // We always keep the first idvisitor seen for this visit (so that all page views for this visit have the same idvisitor)
-            $this->visitorInfo['idvisitor'] = $visitRow['idvisitor'];
-            $this->visitorInfo['idvisit'] = $visitRow['idvisit'];
-            $this->visitorInfo['visit_exit_idaction_url'] = $visitRow['visit_exit_idaction_url'];
-            $this->visitorInfo['visit_exit_idaction_name'] = $visitRow['visit_exit_idaction_name'];
-            $this->visitorInfo['visitor_returning'] = $visitRow['visitor_returning'];
-            $this->visitorInfo['visitor_days_since_first'] = $visitRow['visitor_days_since_first'];
-            $this->visitorInfo['visitor_days_since_order'] = $visitRow['visitor_days_since_order'];
-            $this->visitorInfo['visitor_count_visits'] = $visitRow['visitor_count_visits'];
-            $this->visitorInfo['visit_goal_buyer'] = $visitRow['visit_goal_buyer'];
-            $this->visitorInfo['location_country'] = $visitRow['location_country'];
-            $this->visitorInfo['location_region'] = $visitRow['location_region'];
-            $this->visitorInfo['location_city'] = $visitRow['location_city'];
-            $this->visitorInfo['location_latitude'] = $visitRow['location_latitude'];
-            $this->visitorInfo['location_longitude'] = $visitRow['location_longitude'];
-
-            // Referrer information will be potentially used for Goal Conversion attribution
-            $this->visitorInfo['referer_name'] = $visitRow['referer_name'];
-            $this->visitorInfo['referer_keyword'] = $visitRow['referer_keyword'];
-            $this->visitorInfo['referer_type'] = $visitRow['referer_type'];
+            foreach($persistedVisitAttributes as $field) {
+                $this->visitorInfo[$field] = $visitRow[$field];
+            }
 
             // Custom Variables copied from Visit in potential later conversion
             if (!empty($selectCustomVariables)) {
@@ -460,6 +445,7 @@ class Visit implements VisitInterface
                     last action = " . date("r", $this->visitorInfo['visit_last_action_time']) . ",
                     first action = " . date("r", $this->visitorInfo['visit_first_action_time']) . ",
                     visit_goal_buyer' = " . $this->visitorInfo['visit_goal_buyer'] . ")");
+            //Common::printDebug($this->visitorInfo);
         } else {
             Common::printDebug("The visitor was not matched with an existing visitor...");
         }
@@ -851,6 +837,44 @@ class Visit implements VisitInterface
         // Custom Variables overwrite previous values on each page view
         $valuesToUpdate = array_merge($valuesToUpdate, $this->visitorCustomVariables);
         return $valuesToUpdate;
+    }
+
+    /**
+     * @return array
+     */
+    public static function getVisitFieldsPersist()
+    {
+        $fields = array(
+            'idvisitor',
+            'idvisit',
+            'visit_exit_idaction_url',
+            'visit_exit_idaction_name',
+            'visitor_returning',
+            'visitor_days_since_first',
+            'visitor_days_since_order',
+            'visitor_count_visits',
+            'visit_goal_buyer',
+
+            'location_country',
+            'location_region',
+            'location_city',
+            'location_latitude',
+            'location_longitude',
+
+            'referer_name',
+            'referer_keyword',
+            'referer_type',
+        );
+
+        /**
+         * Use this event to load additional fields from the log_visit table into the visitor array for later use.
+         * When you add fields to this $fields array, they will be later available in Tracker.newConversionInformation
+         * or Tracker.newVisitorInformation.
+         */
+        Piwik::postEvent('Tracker.getVisitFieldsToPersist', array( &$fields ));
+
+        return $fields;
+
     }
 
 }

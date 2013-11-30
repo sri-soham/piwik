@@ -11,7 +11,6 @@
 namespace Piwik\Plugins\VisitorInterest;
 
 use Piwik\ArchiveProcessor;
-
 use Piwik\FrontController;
 use Piwik\Menu\MenuMain;
 use Piwik\Metrics;
@@ -33,8 +32,6 @@ class VisitorInterest extends \Piwik\Plugin
     public function getListHooksRegistered()
     {
         $hooks = array(
-            'ArchiveProcessor.Day.compute'     => 'archiveDay',
-            'ArchiveProcessor.Period.compute'  => 'archivePeriod',
             'WidgetsList.addWidgets'           => 'addWidgets',
             'Menu.Reporting.addItems'          => 'addMenu',
             'API.getReportMetadata'            => 'getReportMetadata',
@@ -123,22 +120,6 @@ class VisitorInterest extends \Piwik\Plugin
     {
         Piwik::addAction('Template.headerVisitsFrequency', array('Piwik\Plugins\VisitorInterest\VisitorInterest', 'headerVisitsFrequency'));
         Piwik::addAction('Template.footerVisitsFrequency', array('Piwik\Plugins\VisitorInterest\VisitorInterest', 'footerVisitsFrequency'));
-    }
-
-    public function archivePeriod(ArchiveProcessor\Period $archiveProcessor)
-    {
-        $archiving = new Archiver($archiveProcessor);
-        if ($archiving->shouldArchive()) {
-            $archiving->archivePeriod();
-        }
-    }
-
-    public function archiveDay(ArchiveProcessor\Day $archiveProcessor)
-    {
-        $archiving = new Archiver($archiveProcessor);
-        if ($archiving->shouldArchive()) {
-            $archiving->archiveDay();
-        }
     }
 
     static public function headerVisitsFrequency(&$out)

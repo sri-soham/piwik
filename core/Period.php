@@ -11,7 +11,6 @@
 namespace Piwik;
 
 use Exception;
-use Piwik\Date;
 use Piwik\Period\Day;
 use Piwik\Period\Month;
 use Piwik\Period\Range;
@@ -67,6 +66,7 @@ abstract class Period
      * Constructor.
      * 
      * @param Date $date
+     * @ignore
      */
     public function __construct(Date $date)
     {
@@ -78,7 +78,7 @@ abstract class Period
      * 
      * Note: This method cannot create Range periods.
      * 
-     * @param string $strPeriod `"day"`, `"week"`, `"month"`, `"year"`, `"range"`
+     * @param string $strPeriod `"day"`, `"week"`, `"month"`, `"year"`, `"range"`.
      * @param Date|string $date A date within the period or the range of dates.
      * @throws Exception If `$strPeriod` is invalid.
      * @return \Piwik\Period

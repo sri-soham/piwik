@@ -169,12 +169,10 @@ class UserSettings extends \Piwik\Plugin
     public function getListHooksRegistered()
     {
         $hooks = array(
-            'ArchiveProcessor.Day.compute'    => 'archiveDay',
-            'ArchiveProcessor.Period.compute' => 'archivePeriod',
             'WidgetsList.addWidgets'          => 'addWidgets',
             'Menu.Reporting.addItems'         => 'addMenu',
             'API.getReportMetadata'           => 'getReportMetadata',
-            'API.getSegmentsMetadata'         => 'getSegmentsMetadata',
+            'API.getSegmentDimensionMetadata' => 'getSegmentsMetadata',
             'ViewDataTable.configure'         => 'configureViewDataTable',
             'ViewDataTable.getDefaultType'    => 'getDefaultTypeViewDataTable'
         );
@@ -434,7 +432,7 @@ class UserSettings extends \Piwik\Plugin
     public function getSegmentsMetadata(&$segments)
     {
         foreach ($this->reportMetadata as $report) {
-            @list($category, $name, $apiModule, $apiAction, $columnName, $segment, $sqlSegment, $acceptedValues, $sqlFilter) = $report;
+            @list($category, $name, $apiModule, $apiAction, $columnName, $segment, $sqlSegment, $acceptedValues) = $report;
             if (empty($segment)) continue;
             $segments[] = array(
                 'type'           => 'dimension',
@@ -442,8 +440,7 @@ class UserSettings extends \Piwik\Plugin
                 'name'           => $columnName,
                 'segment'        => $segment,
                 'acceptedValues' => $acceptedValues,
-                'sqlSegment'     => $sqlSegment,
-                'sqlFilter'      => isset($sqlFilter) ? $sqlFilter : false,
+                'sqlSegment'     => $sqlSegment
             );
         }
     }
@@ -469,27 +466,4 @@ class UserSettings extends \Piwik\Plugin
         MenuMain::getInstance()->add('General_Visitors', 'General_Settings', array('module' => 'UserSettings', 'action' => 'index'));
     }
 
-    /**
-     * Daily archive of User Settings report. Processes reports for Visits by Resolution,
-     * by Browser, Browser family, etc. Some reports are built from the logs, some reports
-     * are superset of an existing report (eg. Browser family is built from the Browser report)
-     */
-    public function archiveDay(ArchiveProcessor\Day $archiveProcessor)
-    {
-        $archiving = new Archiver($archiveProcessor);
-        if ($archiving->shouldArchive()) {
-            $archiving->archiveDay();
-        }
-    }
-
-    /**
-     * Period archiving: simply sums up daily archives
-     */
-    public function archivePeriod(ArchiveProcessor\Period $archiveProcessor)
-    {
-        $archiving = new Archiver($archiveProcessor);
-        if ($archiving->shouldArchive()) {
-            $archiving->archivePeriod();
-        }
-    }
 }

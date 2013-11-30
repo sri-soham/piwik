@@ -13,17 +13,16 @@ namespace Piwik\ViewDataTable;
 use Piwik\Common;
 
 /**
- * Renders a sparkline image given a PHP data array.
- * Using the Sparkline PHP Graphing Library sparkline.org
+ * TODO
  *
  * @package Piwik
  * @subpackage Piwik_Visualization
+ * @api
  */
 class RequestConfig
 {
-
     /**
-     * The list of ViewDataTable properties that are 'Client Side Parameters'.
+     * The list of request parameters that are 'Client Side Parameters'.
      */
     public $clientSideParameters = array(
         'filter_excludelowpop',
@@ -222,5 +221,4 @@ class RequestConfig
 
         return $method;
     }
-
 }

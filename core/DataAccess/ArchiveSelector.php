@@ -17,10 +17,10 @@ use Piwik\Common;
 use Piwik\Date;
 use Piwik\Db;
 use Piwik\Log;
+
 use Piwik\Period;
 use Piwik\Period\Range;
 use Piwik\Piwik;
-
 use Piwik\Segment;
 use Piwik\Site;
 use Piwik\DataAccess\ArchiveTableCreator;
@@ -192,13 +192,12 @@ class ArchiveSelector
 
         // create the SQL to find archives that are DONE
         return "(name IN ($allDoneFlags)) AND " .
-        " (value = '" . ArchiveProcessor::DONE_OK . "' OR " .
-        " value = '" . ArchiveProcessor::DONE_OK_TEMPORARY . "')";
+        " (value = '" . ArchiveWriter::DONE_OK . "' OR " .
+        " value = '" . ArchiveWriter::DONE_OK_TEMPORARY . "')";
     }
 
     static public function purgeOutdatedArchives(Date $dateStart)
     {
-
         $purgeArchivesOlderThan = Rules::shouldPurgeOutdatedArchives($dateStart);
         if (!$purgeArchivesOlderThan) {
             return;

@@ -12,15 +12,15 @@ namespace Piwik\Plugins\Live;
 
 use Piwik\Common;
 use Piwik\Piwik;
-use Piwik\View;
 use Piwik\Plugin\Visualization;
+use Piwik\View;
 
 /**
  * A special DataTable visualization for the Live.getLastVisitsDetails API method.
  */
 class VisitorLog extends Visualization
 {
-    const ID = '\Piwik\Plugins\Live\VisitorLog';
+    const ID = 'Piwik\Plugins\Live\VisitorLog';
     const TEMPLATE_FILE = "@Live/_dataTableViz_visitorLog.twig";
 
     public function beforeLoadDataTable()
@@ -36,6 +36,11 @@ class VisitorLog extends Visualization
         $this->requestConfig->filter_sort_order  = 'asc';
         $this->requestConfig->filter_limit       = 20;
         $this->requestConfig->disable_generic_filters = true;
+
+        $offset = Common::getRequestVar('filter_offset', 0);
+        $limit  = Common::getRequestVar('filter_limit', $this->requestConfig->filter_limit);
+
+        $this->config->filters[] = array('Limit', array($offset, $limit));
     }
 
     /**
@@ -58,7 +63,9 @@ class VisitorLog extends Visualization
             'totalRows'         => 10000000,
 
             'filterEcommerce'   => Common::getRequestVar('filterEcommerce', 0, 'int'),
-            'pageUrlNotDefined' => Piwik::translate('General_NotDefined', Piwik::translate('Actions_ColumnPageURL'))
+            'pageUrlNotDefined' => Piwik::translate('General_NotDefined', Piwik::translate('Actions_ColumnPageURL')),
+
+            'smallWidth'        => 1 == Common::getRequestVar('small', 0, 'int'),
         );
 
         $this->config->footer_icons = array(
@@ -66,7 +73,7 @@ class VisitorLog extends Visualization
                 'class'   => 'tableAllColumnsSwitch',
                 'buttons' => array(
                     array(
-                        'id'    => '\Piwik\Plugins\Live\VisitorLog',
+                        'id'    => static::ID,
                         'title' => Piwik::translate('Live_LinkVisitorLog'),
                         'icon'  => 'plugins/Zeitgeist/images/table.png'
                     )

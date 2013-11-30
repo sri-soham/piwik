@@ -21,7 +21,6 @@ use Piwik\DataTable\Row;
 use Piwik\DataTable;
 use Piwik\Metrics;
 use Piwik\Period;
-use Piwik\Period\Day;
 use Piwik\Piwik;
 use Piwik\Db;
 use Piwik\Db\Factory;
@@ -33,9 +32,11 @@ use Piwik\SegmentExpression;
 use Piwik\Site;
 use Piwik\Tracker\Action;
 use Piwik\Tracker\PageUrl;
+use Piwik\Tracker\TableLogAction;
 
 /**
  * @package Transitions
+ * @method static \Piwik\Plugins\Transitions\API getInstance()
  */
 class API extends \Piwik\Plugin\API
 {
@@ -74,19 +75,19 @@ class API extends \Piwik\Plugin\API
             throw new Exception('NoDataForAction');
         }
 
-        // prepare archive processing that can be used by the archiving code
+        // prepare log aggregator
         $segment = new Segment($segment, $idSite);
         $site = new Site($idSite);
         $period = Period::factory($period, $date);
-        $archiveProcessor = new ArchiveProcessor\Day($period, $site, $segment);
-        $logAggregator = $archiveProcessor->getLogAggregator();
+        $params = new ArchiveProcessor\Parameters($site, $period, $segment);
+        $logAggregator = new LogAggregator($params);
+
         // prepare the report
         $report = array(
             'date' => Period::factory($period->getLabel(), $date)->getLocalizedShortString()
         );
 
         $partsArray = explode(',', $parts);
-
         if ($parts == 'all' || in_array('internalReferrers', $partsArray)) {
             $this->addInternalReferrers($logAggregator, $report, $idaction, $actionType, $limitBeforeGrouping);
         }
@@ -137,25 +138,23 @@ class API extends \Piwik\Plugin\API
             case 'url':
                 $originalActionName = $actionName;
                 $actionName = Common::unsanitizeInputValue($actionName);
-                $id = $actionsPlugin->getIdActionFromSegment($actionName, 'idaction_url', SegmentExpression::MATCH_EQUAL, 'pageUrl');
+                $id = TableLogAction::getIdActionFromSegment($actionName, 'idaction_url', SegmentExpression::MATCH_EQUAL, 'pageUrl');
 
                 if ($id < 0) {
                     // an example where this is needed is urls containing < or >
                     $actionName = $originalActionName;
-                    $id = $actionsPlugin->getIdActionFromSegment($actionName, 'idaction_url', SegmentExpression::MATCH_EQUAL, 'pageUrl');
+                    $id = TableLogAction::getIdActionFromSegment($actionName, 'idaction_url', SegmentExpression::MATCH_EQUAL, 'pageUrl');
                 }
 
                 return $id;
 
             case 'title':
-                $id = $actionsPlugin->getIdActionFromSegment($actionName, 'idaction_name', SegmentExpression::MATCH_EQUAL, 'pageTitle');
+                $id = TableLogAction::getIdActionFromSegment($actionName, 'idaction_name', SegmentExpression::MATCH_EQUAL, 'pageTitle');
 
                 if ($id < 0) {
-                    $unknown = ArchivingHelper::getUnknownActionName(
-                        Action::TYPE_PAGE_TITLE);
-
+                    $unknown = ArchivingHelper::getUnknownActionName(Action::TYPE_PAGE_TITLE);
                     if (trim($actionName) == trim($unknown)) {
-                        $id = $actionsPlugin->getIdActionFromSegment('', 'idaction_name', SegmentExpression::MATCH_EQUAL, 'pageTitle');
+                        $id = TableLogAction::getIdActionFromSegment('', 'idaction_name', SegmentExpression::MATCH_EQUAL, 'pageTitle');
                     }
                 }
 
@@ -377,7 +376,7 @@ class API extends \Piwik\Plugin\API
         }
 
         $array = new DataArray($referrerData, $referrerSubData);
-        return ArchiveProcessor\Day::getDataTableFromDataArray($array);
+        return $array->asDataTable();
     }
 
     /**

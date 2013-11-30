@@ -15,18 +15,14 @@ use Piwik\Common;
 use Piwik\DataTable;
 use Piwik\Date;
 use Piwik\Log;
-use Piwik\Metrics;
 use Piwik\MetricsFormatter;
 use Piwik\NoAccessException;
 use Piwik\Option;
 use Piwik\Period;
-use Piwik\Period\Range;
 use Piwik\Piwik;
-use Piwik\Plugin\ViewDataTable;
-use Piwik\ViewDataTable\Manager as ViewDataTableManager;
 use Piwik\Plugins\PrivacyManager\PrivacyManager;
-use Piwik\Site;
 use Piwik\View;
+use Piwik\ViewDataTable\Manager as ViewDataTableManager;
 
 /**
  * Base class for all DataTable visualizations. A Visualization is a special kind of ViewDataTable that comes with some
@@ -41,6 +37,8 @@ class Visualization extends ViewDataTable
     const TEMPLATE_FILE = '';
 
     private $templateVars = array();
+    private $reportLastUpdatedMessage = null;
+    private $metadata = null;
 
     final public function __construct($controllerAction, $apiMethodToRequestDataTable)
     {
@@ -67,7 +65,7 @@ class Visualization extends ViewDataTable
             $requestPropertiesAfterLoadDataTable = $this->requestConfig->getProperties();
 
             $this->applyFilters();
-            $this->afterAllFilteresAreApplied();
+            $this->afterAllFiltersAreApplied();
             $this->beforeRender();
 
             $this->logMessageIfRequestPropertiesHaveChanged($requestPropertiesAfterLoadDataTable);
@@ -107,6 +105,7 @@ class Visualization extends ViewDataTable
         $view->clientSideParameters = $this->getClientSideParametersToSet();
         $view->clientSideProperties = $this->getClientSidePropertiesToSet();
         $view->properties  = array_merge($this->requestConfig->getProperties(), $this->config->getProperties());
+        $view->reportLastUpdatedMessage = $this->reportLastUpdatedMessage;
         $view->footerIcons = $this->config->footer_icons;
         $view->isWidget    = Common::getRequestVar('widget', 0, 'int');
 
@@ -175,9 +174,9 @@ class Visualization extends ViewDataTable
 
         // deal w/ table metadata
         if ($this->dataTable instanceof DataTable) {
-            $this->config->metadata = $this->dataTable->getAllTableMetadata();
+            $this->metadata = $this->dataTable->getAllTableMetadata();
 
-            if (isset($this->config->metadata[DataTable::ARCHIVED_DATE_METADATA_NAME])) {
+            if (isset($this->metadata[DataTable::ARCHIVED_DATE_METADATA_NAME])) {
                 $this->config->report_last_updated_message = $this->makePrettyArchivedOnText();
             }
         }
@@ -239,7 +238,7 @@ class Visualization extends ViewDataTable
      */
     private function makePrettyArchivedOnText()
     {
-        $dateText = $this->config->metadata[DataTable::ARCHIVED_DATE_METADATA_NAME];
+        $dateText = $this->metadata[DataTable::ARCHIVED_DATE_METADATA_NAME];
         $date     = Date::factory($dateText);
         $today    = mktime(0, 0, 0);
 
@@ -411,7 +410,7 @@ class Visualization extends ViewDataTable
      * This hook is executed after the data table is loaded and after all filteres are applied.
      * Format the data that you want to pass to the view here.
      */
-    public function afterAllFilteresAreApplied()
+    public function afterAllFiltersAreApplied()
     {
     }
 

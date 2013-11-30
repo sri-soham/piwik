@@ -48,7 +48,7 @@
 				<avg_time_on_page>00:00:00</avg_time_on_page>
 				<bounce_rate>0%</bounce_rate>
 				<exit_rate>100%</exit_rate>
-				<avg_time_generation>0s</avg_time_generation>
+				<avg_time_generation>0.67s</avg_time_generation>
 			</row>
 			<row>
 				<label>/webradio</label>
@@ -57,7 +57,7 @@
 				<avg_time_on_page>00:24:59</avg_time_on_page>
 				<bounce_rate>0%</bounce_rate>
 				<exit_rate>0%</exit_rate>
-				<avg_time_generation>0s</avg_time_generation>
+				<avg_time_generation>0.33s</avg_time_generation>
 			</row>
 		</result>
 		<result prettyDate="Monday 4 January 2010" />
@@ -83,4 +83,11 @@
 		<result prettyDate="Friday 8 January 2010" />
 		<result prettyDate="Saturday 9 January 2010" />
 	</reportMetadata>
+	<reportTotal>
+		<nb_visits>4</nb_visits>
+		<nb_uniq_visitors>4</nb_uniq_visitors>
+		<nb_hits>4</nb_hits>
+		<exit_nb_visits>2</exit_nb_visits>
+		<exit_nb_uniq_visitors>2</exit_nb_uniq_visitors>
+	</reportTotal>
 </result>

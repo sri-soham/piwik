@@ -12,7 +12,6 @@
 namespace Piwik\Tracker;
 
 use Piwik\Common;
-use Piwik\Config;
 use Piwik\Tracker;
 use Piwik\UrlHelper;
 
@@ -226,6 +225,9 @@ class ActionSiteSearch extends Action
                 }
             }
         }
+
+        $actionName = trim($actionName);
+        $categoryName = trim($categoryName);
 
         if (empty($actionName)) {
             Common::printDebug("(this is not a Site Search request)");

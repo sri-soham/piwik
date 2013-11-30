@@ -82,10 +82,10 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
 
     public static function setUpBeforeClass()
     {
-        self::_setUpBeforeClass();
+        static::_setUpBeforeClass();
 
         if (isset(static::$fixture)) {
-            self::setupFixture(static::$fixture);
+            static::setupFixture(static::$fixture);
         }
     }
 
@@ -100,7 +100,10 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         $pluginsManager->loadPlugins($plugins);
         if ($installPlugins)
         {
-            $pluginsManager->installLoadedPlugins();
+            $messages = $pluginsManager->installLoadedPlugins();
+            if(!empty($messages)) {
+                echo implode("  ----  ", $messages);
+            }
         }
     }
 
@@ -128,14 +131,14 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         try {
             $fixture->setUp();
         } catch (Exception $e) {
-            self::fail("Failed to setup fixture: " . $e->getMessage() . "\n" . $e->getTraceAsString());
+            static::fail("Failed to setup fixture: " . $e->getMessage() . "\n" . $e->getTraceAsString());
         }
     }
 
     protected static function teardownFixture($fixture)
     {
         if (isset(static::$fixture)) {
-            self::tearDownFixture(static::$fixture);
+            static::tearDownFixture(static::$fixture);
         }
 
         $fixture->tearDown();
@@ -159,7 +162,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
                 $dbName = Config::getInstance()->database['dbname'];
             }
 
-            self::connectWithoutDatabase();
+            static::connectWithoutDatabase();
             if ($createEmptyDatabase) {
                 DbHelper::dropDatabase();
             }
@@ -174,7 +177,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
 
             \Piwik\Plugin\Manager::getInstance()->loadPlugins(array());
         } catch (Exception $e) {
-            self::fail("TEST INITIALIZATION FAILED: " . $e->getMessage() . "\n" . $e->getTraceAsString());
+            static::fail("TEST INITIALIZATION FAILED: " . $e->getMessage() . "\n" . $e->getTraceAsString());
         }
 
         include "DataFiles/SearchEngines.php";
@@ -190,8 +193,10 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         Piwik::setUserIsSuperUser();
 
         Cache::deleteTrackerCache();
-        if ($installPlugins === null) $installPlugins = $createEmptyDatabase;
-        self::installAndLoadPlugins( $installPlugins);
+        if ($installPlugins === null) {
+            $installPlugins = $createEmptyDatabase;
+        }
+        static::installAndLoadPlugins( $installPlugins);
 
 
         $_GET = $_REQUEST = array();
@@ -203,8 +208,8 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
 
         // List of Modules, or Module.Method that should not be called as part of the XML output compare
         // Usually these modules either return random changing data, or are already tested in specific unit tests.
-        self::setApiNotToCall(self::$defaultApiNotToCall);
-        self::setApiToCall(array());
+        static::setApiNotToCall(static::$defaultApiNotToCall);
+        static::setApiToCall(array());
         
         FakeAccess::$superUserLogin = 'superUserLogin';
         
@@ -214,7 +219,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
 
     public static function tearDownAfterClass()
     {
-        self::_tearDownAfterClass();
+        static::_tearDownAfterClass();
     }
 
     public static function _tearDownAfterClass($dropDatabase = true)
@@ -295,7 +300,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         if (!is_array($apiToCall)) {
             $apiToCall = array($apiToCall);
         }
-        self::$apiToCall = $apiToCall;
+        static::$apiToCall = $apiToCall;
     }
 
     /**
@@ -310,7 +315,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         if (!is_array($apiNotToCall)) {
             $apiNotToCall = array($apiNotToCall);
         }
-        self::$apiNotToCall = $apiNotToCall;
+        static::$apiNotToCall = $apiNotToCall;
     }
 
     protected function alertWhenImagesExcludedFromTests()
@@ -492,9 +497,9 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
                 $apiId = $moduleName . '.' . $methodName;
 
                 // If Api to test were set, we only test these
-                if (!empty(self::$apiToCall)
-                    && in_array($moduleName, self::$apiToCall) === false
-                    && in_array($apiId, self::$apiToCall) === false
+                if (!empty(static::$apiToCall)
+                    && in_array($moduleName, static::$apiToCall) === false
+                    && in_array($apiId, static::$apiToCall) === false
                 ) {
 //                  echo "Skipped $apiId... \n";
                     $skipped[] = $apiId;
@@ -502,8 +507,8 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
                 } // Excluded modules from test
                 elseif (
                     ((strpos($methodName, 'get') !== 0 && $methodName != 'generateReport')
-                        || in_array($moduleName, self::$apiNotToCall) === true
-                        || in_array($apiId, self::$apiNotToCall) === true
+                        || in_array($moduleName, static::$apiNotToCall) === true
+                        || in_array($apiId, static::$apiNotToCall) === true
                         || $methodName == 'getLogoUrl'
                         || $methodName == 'getSVGLogoUrl'
                         || $methodName == 'hasSVGLogo'
@@ -551,7 +556,10 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
                                                          ));
 
                         // find first row w/ subtable
-                        foreach ($request->process() as $row) {
+                        $content = $request->process();
+
+                        $this->checkRequestResponse($content);
+                        foreach ($content as $row) {
                             if (isset($row['idsubdatatable'])) {
                                 $parametersToSet['idSubtable'] = $row['idsubdatatable'];
                                 break;
@@ -625,7 +633,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
                                         $abandonedCarts = false, $idGoal = false, $apiModule = false, $apiAction = false,
                                         $otherRequestParameters = array(), $supertableApi = false, $fileExtension = false)
     {
-        list($pathProcessed, $pathExpected) = self::getProcessedAndExpectedDirs();
+        list($pathProcessed, $pathExpected) = static::getProcessedAndExpectedDirs();
 
         if ($periods === false) {
             $periods = 'day';
@@ -690,12 +698,12 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
     protected function checkEnoughUrlsAreTested($requestUrls)
     {
         $countUrls = count($requestUrls);
-        $approximateCountApiToCall = count(self::$apiToCall);
+        $approximateCountApiToCall = count(static::$apiToCall);
         if (empty($requestUrls)
             || $approximateCountApiToCall > $countUrls
         ) {
             throw new Exception("Only generated $countUrls API calls to test but was expecting more for this test.\n" .
-                    "Want to test APIs: " . implode(", ", self::$apiToCall) . ")\n" .
+                    "Want to test APIs: " . implode(", ", static::$apiToCall) . ")\n" .
                     "But only generated these URLs: \n" . implode("\n", $requestUrls) . ")\n"
             );
         }
@@ -723,22 +731,18 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         if ($isLiveMustDeleteDates) {
             $response = $this->removeAllLiveDatesFromXml($response);
         }
-
-        // normalize date markups and document ID in pdf files :
-        // - /LastModified (D:20120820204023+00'00')
-        // - /CreationDate (D:20120820202226+00'00')
-        // - /ModDate (D:20120820202226+00'00')
-        // - /M (D:20120820202226+00'00')
-        // - /ID [ <0f5cc387dc28c0e13e682197f485fe65> <0f5cc387dc28c0e13e682197f485fe65> ]
-        $response = preg_replace('/\(D:[0-9]{14}/', '(D:19700101000000', $response);
-        $response = preg_replace('/\/ID \[ <.*> ]/', '', $response);
-
-        if (empty($compareAgainst)) {
-            file_put_contents($processedFilePath, $response);
-        }
+        $response = $this->normalizePdfContent($response);
 
         $expected = $this->loadExpectedFile($expectedFilePath);
+        $expectedContent = $expected;
+        $expected = $this->normalizePdfContent($expected);
+
         if (empty($expected)) {
+
+            if (empty($compareAgainst)) {
+                file_put_contents($processedFilePath, $response);
+            }
+
             print("The expected file is not found at '$expectedFilePath'. The Processed response was:");
             print("\n----------------------------\n\n");
             var_dump($response);
@@ -766,10 +770,11 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
             // Note: disabled when 'segment' is a hack:
             //       instead we should only remove these fields for the specific test that was failing.
             if(strpos($requestUrl, 'segment') === false) {
-                $expected = $this->removeXmlElement($expected, 'sum_daily_nb_uniq_visitors');
-                $response = $this->removeXmlElement($response, 'sum_daily_nb_uniq_visitors');
-                $expected = $this->removeXmlElement($expected, 'nb_visits_converted');
-                $response = $this->removeXmlElement($response, 'nb_visits_converted');
+                // Removed the hack on Nov 13
+//                $expected = $this->removeXmlElement($expected, 'sum_daily_nb_uniq_visitors');
+//                $response = $this->removeXmlElement($response, 'sum_daily_nb_uniq_visitors');
+//                $expected = $this->removeXmlElement($expected, 'nb_visits_converted');
+//                $response = $this->removeXmlElement($response, 'nb_visits_converted');
             }
 
             $expected = $this->removeXmlElement($expected, 'visitServerHour');
@@ -800,6 +805,8 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         $expected = str_replace('.11</revenue>', '</revenue>', $expected);
         $response = str_replace('.11</revenue>', '</revenue>', $response);
 
+        file_put_contents($processedFilePath, $response);
+
         try {
             if (strpos($requestUrl, 'format=xml') !== false) {
                 $this->assertXmlStringEqualsXmlString($expected, $response, "Differences with expected in: $processedFilePath");
@@ -811,15 +818,22 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
             if (trim($response) == trim($expected)
                 && empty($compareAgainst)
             ) {
-                file_put_contents($processedFilePath, $response);
+                if(trim($expectedContent) != trim($expected)) {
+                    file_put_contents($expectedFilePath, $expected);
+                }
             }
         } catch (Exception $ex) {
             $this->comparisonFailures[] = $ex;
-
-            if (!empty($compareAgainst)) {
-                file_put_contents($processedFilePath, $response);
-            }
         }
+    }
+
+    protected function checkRequestResponse($response)
+    {
+        if(!is_string($response)) {
+            $response = json_encode($response);
+        }
+        $this->assertTrue(stripos($response, 'error') === false, "error in $response");
+        $this->assertTrue(stripos($response, 'exception') === false, "exception in $response");
     }
 
     protected function removeAllLiveDatesFromXml($input)
@@ -860,9 +874,11 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         // Only raise error if there was some data before
         $testNotSmallAfter = strlen($input > 100) && $testNotSmallAfter;
 
+        $oldInput = $input;
         $input = preg_replace('/(<' . $xmlElement . '>.+?<\/' . $xmlElement . '>)/', '', $input);
+
         //check we didn't delete the whole string
-        if ($testNotSmallAfter) {
+        if ($testNotSmallAfter && $input != $oldInput) {
             $this->assertTrue(strlen($input) > 100);
         }
         return $input;
@@ -870,7 +886,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
 
     protected static function getProcessedAndExpectedDirs()
     {
-        $path = self::getPathToTestDirectory();
+        $path = static::getPathToTestDirectory();
         return array($path . '/processed/', $path . '/expected/');
     }
 
@@ -884,7 +900,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         $processedFilename = $testName . $filenameSuffix;
         $expectedFilename = ($compareAgainst ?: $testName) . $filenameSuffix;
 
-        list($processedDir, $expectedDir) = self::getProcessedAndExpectedDirs();
+        list($processedDir, $expectedDir) = static::getProcessedAndExpectedDirs();
 
         return array($processedDir . $processedFilename, $expectedDir . $expectedFilename);
     }
@@ -954,22 +970,22 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
     protected function _setCallableApi($api)
     {
         if ($api == 'all') {
-            self::setApiToCall(array());
-            self::setApiNotToCall(static::$defaultApiNotToCall);
+            static::setApiToCall(array());
+            static::setApiNotToCall(static::$defaultApiNotToCall);
         } else {
             if (!is_array($api)) {
                 $api = array($api);
             }
 
-            self::setApiToCall($api);
+            static::setApiToCall($api);
 
             if (!in_array('UserCountry.getLocationFromIP', $api)) {
-                self::setApiNotToCall(array(
+                static::setApiNotToCall(array(
                                            'API.getPiwikVersion',
                                            'UserCountry.getLocationFromIP'
                                       ));
             } else {
-                self::setApiNotToCall(array());
+                static::setApiNotToCall(array());
             }
         }
     }
@@ -979,6 +995,10 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
      */
     protected function runApiTests($api, $params)
     {
+        // make sure that the reports we process here are not directly deleted in ArchiveProcessor/PluginsArchiver
+        // (because we process reports in the past, they would sometimes be invalid, and would have been deleted)
+        Rules::$purgeDisabledByTests = true;
+
         $testName = 'test_' . static::getOutputPrefix();
         $this->missingExpectedFiles = array();
         $this->comparisonFailures = array();
@@ -1017,9 +1037,14 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
             isset($params['fileExtension']) ? $params['fileExtension'] : false);
 
         $compareAgainst = isset($params['compareAgainst']) ? ('test_' . $params['compareAgainst']) : false;
+
+
         foreach ($requestUrls as $apiId => $requestUrl) {
             $this->_testApiUrl($testName . $testSuffix, $apiId, $requestUrl, $compareAgainst);
         }
+
+        // Restore normal purge behavior
+        Rules::$purgeDisabledByTests = false;
 
         // change the language back to en
         if ($this->lastLanguage != 'en') {
@@ -1048,6 +1073,8 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
             $first = reset($this->comparisonFailures);
             throw $first;
         }
+
+        return count($this->comparisonFailures) == 0;
     }
 
     /**
@@ -1161,6 +1188,28 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         }
 
         ArchiveTableCreator::refreshTableList($forceReload = true);
+    }
+
+    /**
+     * Removes content from PDF binary the content that changes with the datetime or other random Ids
+     */
+    protected function normalizePdfContent($response)
+    {
+        // normalize date markups and document ID in pdf files :
+        // - /LastModified (D:20120820204023+00'00')
+        // - /CreationDate (D:20120820202226+00'00')
+        // - /ModDate (D:20120820202226+00'00')
+        // - /M (D:20120820202226+00'00')
+        // - /ID [ <0f5cc387dc28c0e13e682197f485fe65> <0f5cc387dc28c0e13e682197f485fe65> ]
+        $response = preg_replace('/\(D:[0-9]{14}/', '(D:19700101000000', $response);
+        $response = preg_replace('/\/ID \[ <.*> ]/', '', $response);
+        $response = preg_replace('/\/id:\[ <.*> ]/', '', $response);
+        $response = $this->removeXmlElement($response, "xmp:CreateDate");
+        $response = $this->removeXmlElement($response, "xmp:ModifyDate");
+        $response = $this->removeXmlElement($response, "xmp:MetadataDate");
+        $response = $this->removeXmlElement($response, "xmpMM:DocumentID");
+        $response = $this->removeXmlElement($response, "xmpMM:InstanceID");
+        return $response;
     }
 
 }

@@ -14,6 +14,7 @@ use Exception;
 use Piwik\Common;
 use Piwik\Db\Factory;
 use Piwik\Config;
+use Piwik\Log;
 use Piwik\Piwik;
 use Piwik\Tracker;
 
@@ -400,11 +401,11 @@ class GoalManager
             );
             $recorded = $this->updateExistingConversion($goal, $updateWhere);
         } else {
-            $recorded = $this->insertNewConversion($goal);
+            $recorded = $this->insertNewConversion($goal, $visitorInformation);
         }
 
         if ($recorded) {
-            $this->recordEcommerceItems($goal, $items);
+            $this->recordEcommerceItems($goal, $items, $visitorInformation);
         }
 
         /**
@@ -715,7 +716,7 @@ class GoalManager
                 ? '0'
                 : $visitorInformation['visit_last_action_time'];
 
-            $this->insertNewConversion($newGoal);
+            $this->insertNewConversion($newGoal, $visitorInformation);
 
             /**
              * This hook is called after recording a standard goal. You can use it for instance to sync the recorded
@@ -729,10 +730,21 @@ class GoalManager
      * Helper function used by other record* methods which will INSERT or UPDATE the conversion in the DB
      *
      * @param array $newGoal
+     * @param array $visitorInformation
      * @return bool
      */
-    protected function insertNewConversion($newGoal)
+    protected function insertNewConversion($newGoal, $visitorInformation)
     {
+        /**
+         * This hook is called before inserting a new Goal Conversion.. You can use it to update the Goal
+         * attributes before they are saved in the log_conversion table.
+         * `$visitor` contains the current known visit information.
+         * @param array $goal Array of SQL fields value for this conversion, will be inserted in the log_conversion table
+         * @param array $visitorInformation Array of log_visit field values for this visitor
+         * @param \Piwik\Tracker\Request $request
+         */
+        Piwik::postEvent('Tracker.newConversionInformation', array( &$newGoal, $visitorInformation, $this->request));
+
         $newGoalDebug = $newGoal;
         $newGoalDebug['idvisitor'] = bin2hex($newGoalDebug['idvisitor']);
         Common::printDebug($newGoalDebug);
@@ -764,7 +776,12 @@ class GoalManager
     protected function updateExistingConversion($newGoal, $updateWhere)
     {
         $LogConversion = Factory::getDAO('log_conversion', Tracker::getDatabase());
-        $LogConversion->update($newGoal, $updateWhere);
+        try {
+            $LogConversion->update($newGoal, $updateWhere);
+        } catch (Exception $e) {
+            Common::printDebug("There was an error while updating the Conversion: " . $e->getMessage());
+            return false;
+        }
         return true;
     }
 }

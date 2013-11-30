@@ -62,7 +62,7 @@ class Controller extends \Piwik\Plugin\Controller
      */
     function index()
     {
-        $this->login();
+        return $this->login();
     }
 
     /**
@@ -71,7 +71,7 @@ class Controller extends \Piwik\Plugin\Controller
      * @param string $messageNoAccess Access error message
      * @param bool $infoMessage
      * @internal param string $currentUrl Current URL
-     * @return void
+     * @return string
      */
     function login($messageNoAccess = null, $infoMessage = false)
     {
@@ -101,7 +101,8 @@ class Controller extends \Piwik\Plugin\Controller
         $view->addForm($form);
         $this->configureView($view);
         self::setHostValidationVariablesView($view);
-        echo $view->render();
+
+        return $view->render();
     }
 
     /**
@@ -212,7 +213,8 @@ class Controller extends \Piwik\Plugin\Controller
         $view = new View('@Login/resetPassword');
         $view->infoMessage = $infoMessage;
         $view->formErrors = $formErrors;
-        echo $view->render();
+
+        return $view->render();
     }
 
     /**
@@ -256,7 +258,7 @@ class Controller extends \Piwik\Plugin\Controller
             // remove password reset info
             Login::removePasswordResetInfo($login);
 
-            return array($ex->getMessage() . '<br/>' . Piwik::translate('Login_ContactAdmin'));
+            return array($ex->getMessage() . Piwik::translate('Login_ContactAdmin'));
         }
 
         return null;
@@ -333,8 +335,7 @@ class Controller extends \Piwik\Plugin\Controller
             return;
         } else {
             // show login page w/ error. this will keep the token in the URL
-            $this->login($errorMessage);
-            return;
+            return $this->login($errorMessage);
         }
     }
 
@@ -370,7 +371,7 @@ class Controller extends \Piwik\Plugin\Controller
      */
     public function resetPasswordSuccess()
     {
-        $this->login($errorMessage = null, $infoMessage = Piwik::translate('Login_PasswordChanged'));
+        return $this->login($errorMessage = null, $infoMessage = Piwik::translate('Login_PasswordChanged'));
     }
 
     /**

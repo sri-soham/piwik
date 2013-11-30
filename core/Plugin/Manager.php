@@ -16,7 +16,6 @@ use Piwik\Config as PiwikConfig;
 use Piwik\EventDispatcher;
 use Piwik\Filesystem;
 use Piwik\Option;
-use Piwik\Piwik;
 use Piwik\Plugin;
 use Piwik\Singleton;
 use Piwik\Translate;
@@ -27,7 +26,7 @@ require_once PIWIK_INCLUDE_PATH . '/core/EventDispatcher.php';
 /**
  * The singleton that manages plugin loading/unloading and installation/uninstallation.
  *
- * @static \Piwik\Plugin\Manager getInstance()
+ * @method static \Piwik\Plugin\Manager getInstance()
  * @package Piwik
  * @subpackage Manager
  */
@@ -50,6 +49,7 @@ class Manager extends Singleton
         'CoreHome',
         'CoreUpdater',
         'CoreAdminHome',
+        'CoreConsole',
         'CorePluginsAdmin',
         'CoreVisualizations',
         'Installation',
@@ -67,7 +67,14 @@ class Manager extends Singleton
         'AnonymizeIP',
         'DBStats',
         'DevicesDetection',
-        'TreemapVisualization', // should be moved to marketplace
+        'ExampleCommand',
+        'ExampleSettingsPlugin',
+        'ExampleUI',
+        'ExampleVisualization',
+        'ExamplePluginTemplate',
+        'ExampleTheme',
+        'LeftMenu',
+        'Morpheus'
     );
 
     public function getCorePluginsDisabledByDefault()
@@ -255,16 +262,20 @@ class Manager extends Singleton
 
     /**
      * Install loaded plugins
+     *
+     * @return array Error messages of plugin install fails
      */
     public function installLoadedPlugins()
     {
+        $messages = array();
         foreach ($this->getLoadedPlugins() as $plugin) {
             try {
                 $this->installPluginIfNecessary($plugin);
             } catch (\Exception $e) {
-                echo $e->getMessage();
+                $messages[] = $e->getMessage();
             }
         }
+        return $messages;
     }
 
     /**
@@ -304,6 +315,9 @@ class Manager extends Singleton
         $this->installPluginIfNecessary($plugin);
         $plugin->activate();
 
+        EventDispatcher::getInstance()->postPendingEventsTo($plugin);
+
+
         // we add the plugin to the list of activated plugins
         if (!in_array($pluginName, $plugins)) {
             $plugins[] = $pluginName;
@@ -329,9 +343,8 @@ class Manager extends Singleton
     }
 
     /**
-     * Returns the non default theme currently enabled.
-     *
-     * If Zeitgeist is enabled, returns false (Zeitgeist cannot be disabled).
+     * Returns the theme currently enabled.
+     * If no theme is enabled, Zeitgeist is returned (default theme)
      *
      * @return Plugin
      * @api
@@ -443,7 +456,8 @@ class Manager extends Singleton
 
         return (!empty($pluginsBundledWithPiwik)
                     && in_array($name, $pluginsBundledWithPiwik))
-                || in_array($name, $this->getCorePluginsDisabledByDefault());
+                || in_array($name, $this->getCorePluginsDisabledByDefault())
+                || $name == self::DEFAULT_THEME;
     }
 
     protected function isPluginThirdPartyAndBogus($pluginName)
@@ -552,6 +566,21 @@ class Manager extends Singleton
     }
 
     /**
+     * Returns a list of all names of currently activated plugin eg,
+     *
+     *     array(
+     *         'UserCountry'
+     *         'UserSettings'
+     *     );
+     *
+     * @return string[]
+     */
+    public function getActivatedPlugins()
+    {
+        return $this->pluginsToLoad;
+    }
+
+    /**
      * Returns a Plugin object by name.
      *
      * @param string $name The name of the plugin, eg, `'Actions'`.
@@ -586,6 +615,8 @@ class Manager extends Singleton
                 if ($newPlugin === null) {
                     continue;
                 }
+
+                EventDispatcher::getInstance()->postPendingEventsTo($newPlugin);
             }
         }
     }
@@ -604,7 +635,7 @@ class Manager extends Singleton
 
     /**
      * Returns the name of all plugins found in this Piwik instance
-     * (including those not enabled)
+     * (including those not enabled and themes)
      *
      * Used in tests
      *
@@ -624,7 +655,6 @@ class Manager extends Singleton
 
     /**
      * Loads the plugin filename and instantiates the plugin with the given name, eg. UserCountry
-     * Do NOT give the class name ie. UserCountry, but give the plugin name ie. UserCountry
      *
      * @param string $pluginName
      * @throws \Exception
@@ -638,9 +668,6 @@ class Manager extends Singleton
         $newPlugin = $this->makePluginClass($pluginName);
 
         $this->addLoadedPlugin($pluginName, $newPlugin);
-
-        EventDispatcher::getInstance()->postPendingEventsTo($newPlugin);
-
         return $newPlugin;
     }
 

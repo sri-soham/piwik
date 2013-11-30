@@ -37,13 +37,11 @@ class Referrers extends \Piwik\Plugin
     public function getListHooksRegistered()
     {
         $hooks = array(
-            'ArchiveProcessor.Day.compute'    => 'archiveDay',
-            'ArchiveProcessor.Period.compute' => 'archivePeriod',
             'WidgetsList.addWidgets'          => 'addWidgets',
             'Menu.Reporting.addItems'         => 'addMenus',
             'Goals.getReportsWithGoalMetrics' => 'getReportsWithGoalMetrics',
             'API.getReportMetadata'           => 'getReportMetadata',
-            'API.getSegmentsMetadata'         => 'getSegmentsMetadata',
+            'API.getSegmentDimensionMetadata' => 'getSegmentsMetadata',
             'ViewDataTable.configure'         => 'configureViewDataTable',
             'ViewDataTable.getDefaultType'    => 'getDefaultTypeViewDataTable'
         );
@@ -174,6 +172,16 @@ class Referrers extends \Piwik\Plugin
                                                   'documentation'         => Piwik::translate('Referrers_WebsitesReportDocumentation', '<br />'),
                                                   'order'                 => 11,
                                               ),
+                                              array(
+                                                  'category'              => Piwik::translate('Referrers_Referrers'),
+                                                  'name'                  => Piwik::translate('Referrers_Socials'),
+                                                  'module'                => 'Referrers',
+                                                  'action'                => 'getUrlsForSocial',
+                                                  'isSubtableReport'      => true,
+                                                  'dimension'             => Piwik::translate('Referrers_ColumnWebsitePage'),
+                                                  'documentation'         => Piwik::translate('Referrers_WebsitesReportDocumentation', '<br />'),
+                                                  'order'                 => 12,
+                                              ),
                                          ));
     }
 
@@ -186,7 +194,7 @@ class Referrers extends \Piwik\Plugin
             'segment'        => 'referrerType',
             'acceptedValues' => 'direct, search, website, campaign',
             'sqlSegment'     => 'log_visit.referer_type',
-            'sqlFilter'      => __NAMESPACE__ . '\getReferrerTypeFromShortName',
+            'sqlFilterValue' => __NAMESPACE__ . '\getReferrerTypeFromShortName',
         );
         $segments[] = array(
             'type'           => 'dimension',
@@ -275,29 +283,6 @@ class Referrers extends \Piwik\Plugin
                                                           'action'   => 'getReferrerType',
                                                     ),
                                                ));
-    }
-
-    /**
-     * Hooks on daily archive to trigger various log processing
-     */
-    public function archiveDay(ArchiveProcessor\Day $archiveProcessor)
-    {
-        $archiving = new Archiver($archiveProcessor);
-        if ($archiving->shouldArchive()) {
-            $archiving->archiveDay();
-        }
-    }
-
-    /**
-     * Period archiving: sums up daily stats and sums report tables,
-     * making sure that tables are still truncated.
-     */
-    public function archivePeriod(ArchiveProcessor\Period $archiveProcessor)
-    {
-        $archiving = new Archiver($archiveProcessor);
-        if ($archiving->shouldArchive()) {
-            $archiving->archivePeriod();
-        }
     }
 
     public function getDefaultTypeViewDataTable(&$defaultViewTypes)

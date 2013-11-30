@@ -11,6 +11,7 @@
 namespace Piwik\Plugins\ImageGraph;
 
 use Exception;
+use Piwik\Archive\DataTableFactory;
 use Piwik\Common;
 use Piwik\Filesystem;
 use Piwik\Period;
@@ -32,6 +33,7 @@ use Piwik\Translate;
  * See also <a href='http://piwik.org/docs/analytics-api/metadata/#toc-static-image-graphs'>How to embed static Image Graphs?</a> for more information.
  *
  * @package ImageGraph
+ * @method static \Piwik\Plugins\ImageGraph\API getInstance()
  */
 class API extends \Piwik\Plugin\API
 {
@@ -438,7 +440,7 @@ class API extends \Piwik\Plugin\API
                         }
                     }
 
-                    $rowId = $periodsData[$i]->getMetadata('period')->getLocalizedShortString();
+                    $rowId = $periodsData[$i]->getMetadata(DataTableFactory::TABLE_METADATA_PERIOD_INDEX)->getLocalizedShortString();
                     $abscissaSeries[] = Common::unsanitizeInputValue($rowId);
                 }
             }

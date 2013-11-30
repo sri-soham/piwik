@@ -19,6 +19,7 @@ use Piwik\Menu\MenuAdmin;
 use Piwik\Piwik;
 use Piwik\ScheduledTask;
 use Piwik\ScheduledTime\Daily;
+use Piwik\ScheduledTime;
 use Piwik\Settings\Manager as SettingsManager;
 use Piwik\Settings\UserSetting;
 
@@ -53,7 +54,7 @@ class CoreAdminHome extends \Piwik\Plugin
         $purgeArchiveTablesTask = new ScheduledTask ($this,
             'purgeOutdatedArchives',
             null,
-            new Daily(),
+            ScheduledTime::factory('daily'),
             ScheduledTask::HIGH_PRIORITY);
         $tasks[] = $purgeArchiveTablesTask;
 
@@ -61,7 +62,7 @@ class CoreAdminHome extends \Piwik\Plugin
         $optimizeArchiveTableTask = new ScheduledTask ($this,
             'optimizeArchiveTable',
             null,
-            new Daily(),
+            ScheduledTime::factory('daily'),
             ScheduledTask::LOWEST_PRIORITY);
         $tasks[] = $optimizeArchiveTableTask;
     }

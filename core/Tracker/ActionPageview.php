@@ -11,9 +11,9 @@
 
 namespace Piwik\Tracker;
 
-use Piwik\Tracker;
-
 use Piwik\Config;
+
+use Piwik\Tracker;
 
 /**
  * This class represents a page view, tracking URL, page title and generation time.
@@ -35,6 +35,14 @@ class ActionPageview extends Action
         $this->setActionName($actionName);
 
         $this->timeGeneration = $this->request->getPageGenerationTime();
+    }
+
+    protected function getActionsToLookup()
+    {
+        return array(
+            'idaction_name' => array($this->getActionName(), Action::TYPE_PAGE_TITLE),
+            'idaction_url' => $this->getUrlAndType()
+        );
     }
 
     function getCustomFloatValue()

@@ -20,12 +20,11 @@ class Controller extends \Piwik\Plugin\Controller
 {
     /**
      * Provider
-     * @param bool $fetch
      * @return string|void
      */
-    public function getProvider($fetch = false)
+    public function getProvider()
     {
-        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return $this->renderReport(__FUNCTION__);
     }
 }
 

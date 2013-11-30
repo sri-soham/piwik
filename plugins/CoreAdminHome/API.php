@@ -11,7 +11,6 @@
 namespace Piwik\Plugins\CoreAdminHome;
 
 use Exception;
-use Piwik\Common;
 use Piwik\Config;
 use Piwik\DataAccess\ArchiveTableCreator;
 use Piwik\Date;
@@ -20,6 +19,7 @@ use Piwik\Option;
 use Piwik\Period;
 use Piwik\Period\Week;
 use Piwik\Piwik;
+use Piwik\Plugins\SitesManager\SitesManager;
 use Piwik\SettingsPiwik;
 use Piwik\Site;
 use Piwik\Db\Factory;
@@ -27,6 +27,7 @@ use Piwik\TaskScheduler;
 
 /**
  * @package CoreAdminHome
+ * @method static \Piwik\Plugins\CoreAdminHome\API getInstance()
  */
 class API extends \Piwik\Plugin\API
 {
@@ -145,7 +146,6 @@ class API extends \Piwik\Plugin\API
         }
 
         // In each table, invalidate day/week/month/year containing this date
-        $sqlIdSites = implode(",", $idSites);
         $archiveTables = ArchiveTableCreator::getTablesArchivesInstalled();
         foreach ($archiveTables as $table) {
             // Extract Y_m from table name
@@ -159,12 +159,10 @@ class API extends \Piwik\Plugin\API
             // Build one statement to delete all dates from the given table
             $sql = $bind = array();
             $datesToDeleteInTable = array_unique($datesToDeleteInTable);
-            $Archive->deleteByDates($table, $sqlIdSites, $datesToDeleteInTable);
+            $Archive->deleteByDates($table, $idSites, $datesToDeleteInTable);
         }
 
-        // Update piwik_site.ts_created
-        $Site = Factory::getDAO('site');
-        $Site->updateTSCreated($sqlIdSites, $minDate->subDay(1)->getDatetime());
+        \Piwik\Plugins\SitesManager\API::getInstance()->updateSiteCreatedTime($idSites, $minDate);
 
         // Force to re-process data for these websites in the next archive.php cron run
         $invalidatedIdSites = self::getWebsiteIdsToInvalidate();
@@ -206,4 +204,5 @@ class API extends \Piwik\Plugin\API
         }
         return array();
     }
+
 }

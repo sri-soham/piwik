@@ -11,8 +11,8 @@
 namespace Piwik\Plugins\Goals;
 
 use Piwik\ArchiveProcessor;
-use Piwik\Common;
 
+use Piwik\Common;
 use Piwik\Db;
 use Piwik\Menu\MenuMain;
 use Piwik\Piwik;
@@ -92,11 +92,9 @@ class Goals extends \Piwik\Plugin
         $hooks = array(
             'AssetManager.getJavaScriptFiles'        => 'getJsFiles',
             'AssetManager.getStylesheetFiles'        => 'getStylesheetFiles',
-            'Site.getSiteAttributes'                 => 'fetchGoalsFromDb',
-            'ArchiveProcessor.Day.compute'           => 'archiveDay',
-            'ArchiveProcessor.Period.compute'        => 'archivePeriod',
+            'Tracker.Cache.getSiteAttributes'        => 'fetchGoalsFromDb',
             'API.getReportMetadata.end'              => 'getReportMetadata',
-            'API.getSegmentsMetadata'                => 'getSegmentsMetadata',
+            'API.getSegmentDimensionMetadata'        => 'getSegmentsMetadata',
             'WidgetsList.addWidgets'                 => 'addWidgets',
             'Menu.Reporting.addItems'                => 'addMenus',
             'SitesManager.deleteSite.end'            => 'deleteSiteGoals',
@@ -197,6 +195,7 @@ class Goals extends \Piwik\Plugin
                 // Add the general Goal metrics: ie. total Goal conversions,
                 // Goal conv rate or Goal total revenue.
                 // This API call requires a custom parameter
+                $goal['name'] = Common::sanitizeInputValue($goal['name']);
                 $reports[] = array(
                     'category'         => $goalsCategory,
                     'name'             => Piwik::translate('Goals_GoalX', $goal['name']),
@@ -506,31 +505,6 @@ class Goals extends \Piwik\Plugin
     {
         $site = new Site($idSite);
         return $site->isEcommerceEnabled() ? 'Goals_EcommerceAndGoalsMenu' : 'Goals_Goals';
-    }
-
-    /**
-     * Hooks on the Daily archiving.
-     * Will process Goal stats overall and for each Goal.
-     * Also processes the New VS Returning visitors conversion stats.
-     */
-    public function archiveDay(ArchiveProcessor\Day $archiveProcessor)
-    {
-        $archiving = new Archiver($archiveProcessor);
-        if ($archiving->shouldArchive()) {
-            $archiving->archiveDay();
-        }
-    }
-
-    /**
-     * Hooks on Period archiving.
-     * Sums up Goal conversions stats, and processes overall conversion rate
-     */
-    public function archivePeriod(ArchiveProcessor\Period $archiveProcessor)
-    {
-        $archiving = new Archiver($archiveProcessor);
-        if ($archiving->shouldArchive()) {
-            $archiving->archivePeriod();
-        }
     }
 
     public function configureViewDataTable(ViewDataTable $view)

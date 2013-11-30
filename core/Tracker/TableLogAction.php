@@ -13,6 +13,7 @@ namespace Piwik\Tracker;
 
 use Piwik\Common;
 use Piwik\Db\Factory;
+use Piwik\SegmentExpression;
 use Piwik\Tracker;
 
 
@@ -57,7 +58,7 @@ class TableLogAction
         return $queriedIds;
     }
 
-    protected static function insertNewIdsAction($actionsNameAndType, $fieldNamesToInsert)
+    private static function insertNewIdsAction($actionsNameAndType, $fieldNamesToInsert)
     {
         $LogAction = Factory::getDAO('log_action', Tracker::getDatabase());
 
@@ -102,5 +103,84 @@ class TableLogAction
         }
         return array($fieldNameToActionId, $fieldNamesToInsert);
     }
+
+
+    /**
+     * Convert segment expression to an action ID or an SQL expression.
+     *
+     * This method is used as a sqlFilter-callback for the segments of this plugin.
+     * Usually, these callbacks only return a value that should be compared to the
+     * column in the database. In this case, that doesn't work since multiple IDs
+     * can match an expression (e.g. "pageUrl=@foo").
+     * @param string $valueToMatch
+     * @param string $sqlField
+     * @param string $matchType
+     * @param string $segmentName
+     * @throws \Exception
+     * @return array|int|string
+     */
+    public static function getIdActionFromSegment($valueToMatch, $sqlField, $matchType, $segmentName)
+    {
+        $actionType = self::guessActionTypeFromSegment($segmentName);
+
+        if ($actionType == Action::TYPE_PAGE_URL) {
+            // for urls trim protocol and www because it is not recorded in the db
+            $valueToMatch = preg_replace('@^http[s]?://(www\.)?@i', '', $valueToMatch);
+        }
+        $valueToMatch = Common::sanitizeInputValue(Common::unsanitizeInputValue($valueToMatch));
+
+        $LogAction = Factory::getDAO('log_action');
+        if ($matchType == SegmentExpression::MATCH_EQUAL
+            || $matchType == SegmentExpression::MATCH_NOT_EQUAL
+        ) {
+            $idAction = $LogAction->getIdaction($valueToMatch, $actionType);
+            // if the action is not found, we hack -100 to ensure it tries to match against an integer
+            // otherwise binding idaction_name to "false" returns some rows for some reasons (in case &segment=pageTitle==Větrnásssssss)
+            if (empty($idAction)) {
+                $idAction = -100;
+            }
+            return $idAction;
+        }
+
+        // "name contains $string" match can match several idaction so we cannot return yet an idaction
+        // special case
+        $sql = $LogAction->sqlIdactionFromSegment($matchType, $actionType);
+        return array(
+            // mark that the returned value is an sql-expression instead of a literal value
+            'SQL'  => $sql,
+            'bind' => $valueToMatch,
+        );
+    }
+
+    /**
+     * @param $segmentName
+     * @return int
+     * @throws \Exception
+     */
+    private static function guessActionTypeFromSegment($segmentName)
+    {
+        $exactMatch = array(
+            'eventAction' => Action::TYPE_EVENT_ACTION,
+            'eventCategory' => Action::TYPE_EVENT_CATEGORY,
+            'eventName' => Action::TYPE_EVENT_NAME,
+        );
+        if(!empty($exactMatch[$segmentName])) {
+            return $exactMatch[$segmentName];
+        }
+
+        if (stripos($segmentName, 'pageurl') !== false) {
+            $actionType = Action::TYPE_PAGE_URL;
+            return $actionType;
+        } elseif (stripos($segmentName, 'pagetitle') !== false) {
+            $actionType = Action::TYPE_PAGE_TITLE;
+            return $actionType;
+        } elseif (stripos($segmentName, 'sitesearch') !== false) {
+            $actionType = Action::TYPE_SITE_SEARCH;
+            return $actionType;
+        } else {
+            throw new \Exception("We cannot guess the action type from the segment $segmentName.");
+        }
+    }
+
 }
 

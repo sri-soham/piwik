@@ -12,6 +12,7 @@ namespace Piwik\Plugins\API;
 
 use Exception;
 use Piwik\API\Request;
+use Piwik\Archive\DataTableFactory;
 use Piwik\Common;
 use Piwik\DataTable\Row;
 use Piwik\DataTable\Simple;
@@ -38,7 +39,7 @@ class ProcessedReport
         $reportsMetadata = $this->getReportMetadata($idSite, $period, $date, $hideMetricsDoc, $showSubtableReports);
 
         foreach ($reportsMetadata as $report) {
-            // See ArchiveProcessor/Period.php - unique visitors are not processed for period != day
+            // See ArchiveProcessor/Aggregator.php - unique visitors are not processed for period != day
             if (($period && $period != 'day') && !($apiModule == 'VisitsSummary' && $apiAction == 'get')) {
                 unset($report['metrics']['nb_uniq_visitors']);
             }
@@ -326,7 +327,7 @@ class ProcessedReport
             throw new Exception("API returned an error: " . $e->getMessage() . " at " . basename($e->getFile()) . ":" . $e->getLine() . "\n");
         }
 
-        list($newReport, $columns, $rowsMetadata) = $this->handleTableReport($idSite, $dataTable, $reportMetadata, $showRawMetrics);
+        list($newReport, $columns, $rowsMetadata, $totals) = $this->handleTableReport($idSite, $dataTable, $reportMetadata, $showRawMetrics);
         foreach ($columns as $columnId => &$name) {
             $name = ucfirst($name);
         }
@@ -342,6 +343,7 @@ class ProcessedReport
             'columns'        => $columns,
             'reportData'     => $newReport,
             'reportMetadata' => $rowsMetadata,
+            'reportTotal'    => $totals
         );
         if ($showTimer) {
             $return['timerMillis'] = $timer->getTimeMs(0);
@@ -403,6 +405,7 @@ class ProcessedReport
         }
 
         $columns = $this->hideShowMetrics($columns);
+        $totals  = array();
 
         // $dataTable is an instance of Set when multiple periods requested
         if ($dataTable instanceof DataTable\Map) {
@@ -421,19 +424,24 @@ class ProcessedReport
                 list($enhancedSimpleDataTable, $rowMetadata) = $this->handleSimpleDataTable($idSite, $simpleDataTable, $columns, $hasDimension, $showRawMetrics);
                 $enhancedSimpleDataTable->setAllTableMetadata($simpleDataTable->getAllTableMetadata());
 
-                $period = $simpleDataTable->getMetadata('period')->getLocalizedLongString();
+                $period = $simpleDataTable->getMetadata(DataTableFactory::TABLE_METADATA_PERIOD_INDEX)->getLocalizedLongString();
                 $newReport->addTable($enhancedSimpleDataTable, $period);
                 $rowsMetadata->addTable($rowMetadata, $period);
+
+                $totals = $this->aggregateReportTotalValues($simpleDataTable, $totals);
             }
         } else {
             $this->removeEmptyColumns($columns, $reportMetadata, $dataTable);
             list($newReport, $rowsMetadata) = $this->handleSimpleDataTable($idSite, $dataTable, $columns, $hasDimension, $showRawMetrics);
+
+            $totals = $this->aggregateReportTotalValues($dataTable, $totals);
         }
 
         return array(
             $newReport,
             $columns,
-            $rowsMetadata
+            $rowsMetadata,
+            $totals
         );
     }
 
@@ -594,5 +602,27 @@ class ProcessedReport
             $enhancedDataTable,
             $rowsMetadata
         );
+    }
+
+    private function aggregateReportTotalValues($simpleDataTable, $totals)
+    {
+        $metadataTotals = $simpleDataTable->getMetadata('totals');
+
+        if (empty($metadataTotals)) {
+
+            return $totals;
+        }
+
+        $simpleTotals = $this->hideShowMetrics($metadataTotals);
+
+        foreach ($simpleTotals as $metric => $value) {
+            if (!array_key_exists($metric, $totals)) {
+                $totals[$metric] = $value;
+            } else {
+                $totals[$metric] += $value;
+            }
+        }
+
+        return $totals;
     }
 }

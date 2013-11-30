@@ -74,7 +74,7 @@ class LogConversionItem extends Base
              . '  , ' . $Generic->getSqlRevenue('SUM(quantity)') . ' AS ' . $quantity . ' '
              . '  , ' . $Generic->getSqlRevenue('SUM(price)') . ' AS ' . $price . ' '
              . '  , COUNT(DISTINCT idorder) AS ' . $orders . ' '
-             . '  , COUNT(idvisit) AS ' . $nb_visits . ' '
+             . '  , COUNT(DISTINCT idvisit) AS ' . $nb_visits . ' '
              . '  , CASE idorder '
              . "        WHEN '0' THEN " . GoalManager::IDGOAL_CART . ' '
              . '        ELSE ' . GoalManager::IDGOAL_ORDER . ' '

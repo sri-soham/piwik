@@ -12,15 +12,16 @@ namespace Piwik\Plugins\UserCountry;
 
 use Piwik\ArchiveProcessor;
 use Piwik\Common;
+use Piwik\Config;
 use Piwik\IP;
 use Piwik\Menu\MenuAdmin;
 use Piwik\Menu\MenuMain;
 use Piwik\Piwik;
 use Piwik\Plugin\ViewDataTable;
 use Piwik\Plugins\UserCountry\LocationProvider\DefaultProvider;
+
 use Piwik\Plugins\UserCountry\LocationProvider;
 use Piwik\Plugins\UserCountry\LocationProvider\GeoIp;
-
 use Piwik\Url;
 use Piwik\WidgetsList;
 
@@ -41,17 +42,15 @@ class UserCountry extends \Piwik\Plugin
     public function getListHooksRegistered()
     {
         $hooks = array(
-            'ArchiveProcessor.Day.compute'           => 'archiveDay',
-            'ArchiveProcessor.Period.compute'        => 'archivePeriod',
             'WidgetsList.addWidgets'                 => 'addWidgets',
             'Menu.Reporting.addItems'                => 'addMenu',
             'Menu.Admin.addItems'                    => 'addAdminMenu',
             'Goals.getReportsWithGoalMetrics'        => 'getReportsWithGoalMetrics',
             'API.getReportMetadata'                  => 'getReportMetadata',
-            'API.getSegmentsMetadata'                => 'getSegmentsMetadata',
+            'API.getSegmentDimensionMetadata'        => 'getSegmentsMetadata',
             'AssetManager.getStylesheetFiles'        => 'getStylesheetFiles',
             'AssetManager.getJavaScriptFiles'        => 'getJsFiles',
-            'Tracker.newVisitorInformation'          => 'getVisitorLocation',
+            'Tracker.newVisitorInformation'          => 'enrichVisitWithLocation',
             'TaskScheduler.getScheduledTasks'        => 'getScheduledTasks',
             'ViewDataTable.configure'                => 'configureViewDataTable',
             'Translate.getClientSideTranslationKeys' => 'getClientSideTranslationKeys',
@@ -81,16 +80,15 @@ class UserCountry extends \Piwik\Plugin
         $jsFiles[] = "plugins/UserCountry/javascripts/userCountry.js";
     }
 
-    public function getVisitorLocation(&$visitorInfo, \Piwik\Tracker\Request $request)
+    public function enrichVisitWithLocation(&$visitorInfo, \Piwik\Tracker\Request $request)
     {
         require_once PIWIK_INCLUDE_PATH . "/plugins/UserCountry/LocationProvider.php";
 
+        $ipAddress = IP::N2P(Config::getInstance()->Tracker['use_anonymized_ip_for_visit_enrichment'] == 1 ? $visitorInfo['location_ip'] : $request->getIp());
         $userInfo = array(
             'lang' => $visitorInfo['location_browser_lang'],
-            'ip'   => IP::N2P($visitorInfo['location_ip'])
+            'ip' => $ipAddress
         );
-
-        $location = array();
 
         $id = Common::getCurrentLocationProviderId();
         $provider = LocationProvider::getProviderById($id);
@@ -110,7 +108,7 @@ class UserCountry extends \Piwik\Plugin
             Common::printDebug("GEO: couldn't find a location with Geo Module '$id', using Default '$defaultId' provider as fallback...");
             $id = $defaultId;
         }
-        Common::printDebug("GEO: Found IP location (provider '" . $id . "'): " . var_export($location, true));
+        Common::printDebug("GEO: Found IP $ipAddress location (provider '" . $id . "'): " . var_export($location, true));
 
         if (empty($location['country_code'])) { // sanity check
             $location['country_code'] = \Piwik\Tracker\Visit::UNKNOWN_CODE;
@@ -331,22 +329,6 @@ class UserCountry extends \Piwik\Plugin
                                                ));
     }
 
-    public function archivePeriod(ArchiveProcessor\Period $archiveProcessor)
-    {
-        $archiving = new Archiver($archiveProcessor);
-        if ($archiving->shouldArchive()) {
-            $archiving->archivePeriod();
-        }
-    }
-
-    public function archiveDay(ArchiveProcessor\Day $archiveProcessor)
-    {
-        $archiving = new Archiver($archiveProcessor);
-        if ($archiving->shouldArchive()) {
-            $archiving->archiveDay();
-        }
-    }
-
     /**
      * Returns a list of country codes for a given continent code.
      *
@@ -498,5 +480,6 @@ class UserCountry extends \Piwik\Plugin
     {
         $translationKeys[] = "UserCountry_FatalErrorDuringDownload";
         $translationKeys[] = "UserCountry_SetupAutomaticUpdatesOfGeoIP";
+        $translationKeys[] = "General_Done";
     }
 }

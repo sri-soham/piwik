@@ -90,7 +90,7 @@ class Controller extends \Piwik\Plugin\Controller
         $view->totalVisits = $totalVisits;
         $view->referrersReportsByDimension = $this->getReferrersReportsByDimensionView($totalVisits);
 
-        echo $view->render();
+        return $view->render();
     }
 
     /**
@@ -98,7 +98,7 @@ class Controller extends \Piwik\Plugin\Controller
      * & allows the user to switch between them.
      *
      * @param int $visits The number of visits for this period & site. If <= 0, the
-     *                    reports are not shown, since they will have no data.
+     *                    reports are not shown, since they will have no data.getReferrersReportsByDimensionView
      * @return string The report viewer HTML.
      */
     private function getReferrersReportsByDimensionView($visits)
@@ -107,7 +107,7 @@ class Controller extends \Piwik\Plugin\Controller
 
         // only display the reports by dimension view if there are visits
         if ($visits > 0) {
-            $referrersReportsByDimension = new View\ReportsByDimension();
+            $referrersReportsByDimension = new View\ReportsByDimension('Referrers');
 
             $referrersReportsByDimension->addReport(
                 'Referrers_ViewAllReferrers', 'Referrers_WidgetGetAll', 'Referrers.getAll');
@@ -134,94 +134,89 @@ class Controller extends \Piwik\Plugin\Controller
         $view = new View('@Referrers/getSearchEnginesAndKeywords');
         $view->searchEngines = $this->getSearchEngines(true);
         $view->keywords = $this->getKeywords(true);
-        echo $view->render();
+        return $view->render();
     }
 
-    public function getReferrerType($fetch = false)
+    public function getReferrerType()
     {
-        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return $this->renderReport(__FUNCTION__);
     }
 
     /**
      * Returns or echo's a report that shows all search keyword, website and campaign
      * referrer information in one report.
      *
-     * @param bool $fetch True if the report HTML should be returned. If false, the
-     *                    report is echo'd and nothing is returned.
      * @return string The report HTML or nothing if $fetch is set to false.
      */
-    public function getAll($fetch = false)
+    public function getAll()
     {
-        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return $this->renderReport(__FUNCTION__);
     }
 
-    public function getKeywords($fetch = false)
+    public function getKeywords()
     {
-        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return $this->renderReport(__FUNCTION__);
     }
 
-    public function getSearchEnginesFromKeywordId($fetch = false)
+    public function getSearchEnginesFromKeywordId()
     {
-        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return $this->renderReport(__FUNCTION__);
     }
 
-    public function getSearchEngines($fetch = false)
+    public function getSearchEngines()
     {
-        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return $this->renderReport(__FUNCTION__);
     }
 
-    public function getKeywordsFromSearchEngineId($fetch = false)
+    public function getKeywordsFromSearchEngineId()
     {
-        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return $this->renderReport(__FUNCTION__);
     }
 
-    public function indexWebsites($fetch = false)
+    public function indexWebsites()
     {
         $view = new View('@Referrers/indexWebsites');
         $view->websites = $this->getWebsites(true);
         $view->socials = $this->getSocials(true);
-        if ($fetch) {
-            return $view->render();
-        } else {
-            echo $view->render();
-        }
+
+        return $view->render();
     }
 
-    public function getWebsites($fetch = false)
+    public function getWebsites()
     {
-        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return $this->renderReport(__FUNCTION__);
     }
 
-    public function getSocials($fetch = false)
+    public function getSocials()
     {
-        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return $this->renderReport(__FUNCTION__);
     }
 
-    public function getUrlsForSocial($fetch = false)
+    public function getUrlsForSocial()
     {
-        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return $this->renderReport(__FUNCTION__);
     }
 
-    public function indexCampaigns($fetch = false)
+    public function indexCampaigns()
     {
         return View::singleReport(
             Piwik::translate('Referrers_Campaigns'),
-            $this->getCampaigns(true), $fetch);
+            $this->getCampaigns(true));
     }
 
-    public function getCampaigns($fetch = false)
+    public function getCampaigns()
     {
-        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return $this->renderReport(__FUNCTION__);
     }
 
-    public function getKeywordsFromCampaignId($fetch = false)
+    public function getKeywordsFromCampaignId()
     {
-        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return $this->renderReport(__FUNCTION__);
     }
 
-    public function getUrlsFromWebsiteId($fetch = false)
+    public function getUrlsFromWebsiteId()
     {
-        return Factory::renderReport($this->pluginName, __FUNCTION__, $fetch);
+        return $this->renderReport(__FUNCTION__);
     }
 
     protected function getReferrersVisitorsByType($date = false)
@@ -309,39 +304,39 @@ class Controller extends \Piwik\Plugin\Controller
             . Piwik::translate('Referrers_EvolutionDocumentationMoreInfo', '&quot;'
                 . Piwik::translate('Referrers_DetailsByReferrerType') . '&quot;');
 
-        return $this->renderView($view, $fetch);
+        return $this->renderView($view);
     }
 
-    public function getLastDistinctSearchEnginesGraph($fetch = false)
+    public function getLastDistinctSearchEnginesGraph()
     {
         $view = $this->getLastUnitGraph($this->pluginName, __FUNCTION__, "Referrers.getNumberOfDistinctSearchEngines");
         $view->config->translations['Referrers_distinctSearchEngines'] = ucfirst(Piwik::translate('Referrers_DistinctSearchEngines'));
         $view->config->columns_to_display = array('Referrers_distinctSearchEngines');
-        return $this->renderView($view, $fetch);
+        return $this->renderView($view);
     }
 
-    public function getLastDistinctKeywordsGraph($fetch = false)
+    public function getLastDistinctKeywordsGraph()
     {
         $view = $this->getLastUnitGraph($this->pluginName, __FUNCTION__, "Referrers.getNumberOfDistinctKeywords");
         $view->config->translations['Referrers_distinctKeywords'] = ucfirst(Piwik::translate('Referrers_DistinctKeywords'));
         $view->config->columns_to_display = array('Referrers_distinctKeywords');
-        return $this->renderView($view, $fetch);
+        return $this->renderView($view);
     }
 
-    public function getLastDistinctWebsitesGraph($fetch = false)
+    public function getLastDistinctWebsitesGraph()
     {
         $view = $this->getLastUnitGraph($this->pluginName, __FUNCTION__, "Referrers.getNumberOfDistinctWebsites");
         $view->config->translations['Referrers_distinctWebsites'] = ucfirst(Piwik::translate('Referrers_DistinctWebsites'));
         $view->config->columns_to_display = array('Referrers_distinctWebsites');
-        return $this->renderView($view, $fetch);
+        return $this->renderView($view);
     }
 
-    public function getLastDistinctCampaignsGraph($fetch = false)
+    public function getLastDistinctCampaignsGraph()
     {
         $view = $this->getLastUnitGraph($this->pluginName, __FUNCTION__, "Referrers.getNumberOfDistinctCampaigns");
         $view->config->translations['Referrers_distinctCampaigns'] = ucfirst(Piwik::translate('Referrers_DistinctCampaigns'));
         $view->config->columns_to_display = array('Referrers_distinctCampaigns');
-        return $this->renderView($view, $fetch);
+        return $this->renderView($view);
     }
 
     function getKeywordsForPage()

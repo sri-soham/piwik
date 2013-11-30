@@ -8,9 +8,9 @@
  * @package Piwik
  */
 
+use Piwik\Common;
 use Piwik\Timer;
 use Piwik\Tracker;
-use Piwik\Common;
 
 $GLOBALS['PIWIK_TRACKER_DEBUG'] = false;
 $GLOBALS['PIWIK_TRACKER_DEBUG_FORCE_SCHEDULED_TASKS'] = false;
@@ -36,6 +36,7 @@ if (!defined('PIWIK_INCLUDE_PATH')) {
 @ignore_user_abort(true);
 
 require_once PIWIK_INCLUDE_PATH . '/libs/upgradephp/upgrade.php';
+require_once PIWIK_INCLUDE_PATH . '/core/testMinimumPhpVersion.php';
 require_once PIWIK_INCLUDE_PATH . '/core/Singleton.php';
 require_once PIWIK_INCLUDE_PATH . '/core/Plugin/Manager.php';
 require_once PIWIK_INCLUDE_PATH . '/core/Plugin.php';

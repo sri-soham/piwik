@@ -118,6 +118,10 @@ class Config extends Singleton
             $this->configCache['Plugins'] = $this->configGlobal['Plugins'];
             $this->configCache['Plugins']['Plugins'][] = 'DevicesDetection';
         }
+
+        // to avoid weird session error in travis
+        $this->configCache['General']['session_save_handler'] = 'dbtables';
+
     }
 
     /**
@@ -170,6 +174,14 @@ class Config extends Singleton
         return PIWIK_USER_PATH . '/config/config.ini.php';
     }
 
+    private static function getLocalConfigInfoForHostname($hostname)
+    {
+        $perHostFilename  = $hostname . '.config.ini.php';
+        $pathDomainConfig = PIWIK_USER_PATH . '/config/' . $perHostFilename;
+
+        return array('file' => $perHostFilename, 'path' => $pathDomainConfig);
+    }
+
     public function getConfigHostnameIfSet()
     {
         if ($this->getByDomainConfigPath() === false) {
@@ -180,13 +192,13 @@ class Config extends Singleton
 
     protected static function getByDomainConfigPath()
     {
-        $host = self::getHostname();
-        $perHostFilename = $host . '.config.ini.php';
-        $pathDomainConfig = PIWIK_USER_PATH . '/config/' . $perHostFilename;
-        if (Filesystem::isValidFilename($perHostFilename)
-            && file_exists($pathDomainConfig)
+        $host       = self::getHostname();
+        $hostConfig = self::getLocalConfigInfoForHostname($host);
+
+        if (Filesystem::isValidFilename($hostConfig['file'])
+            && file_exists($hostConfig['path'])
         ) {
-            return $pathDomainConfig;
+            return $hostConfig['path'];
         }
         return false;
     }
@@ -195,6 +207,32 @@ class Config extends Singleton
     {
         $host = Url::getHost($checkIfTrusted = false); // Check trusted requires config file which is not ready yet
         return $host;
+    }
+
+    /**
+     * If set, Piwik will use the hostname config no matter if it exists or not. Useful for instance if you want to
+     * create a new hostname config:
+     *
+     * $config = Config::getInstance();
+     * $config->forceUsageOfHostnameConfig('piwik.example.com');
+     * $config->save();
+     *
+     * @param string $hostname eg piwik.example.com
+     *
+     * @throws \Exception In case the domain contains not allowed characters
+     */
+    public function forceUsageOfLocalHostnameConfig($hostname)
+    {
+        $hostConfig = static::getLocalConfigInfoForHostname($hostname);
+
+        if (!Filesystem::isValidFilename($hostConfig['file'])) {
+            throw new Exception('Hostname is not valid');
+        }
+
+        $this->pathLocal   = $hostConfig['path'];
+        $this->configLocal = array();
+        $this->initialized = false;
+        return $this->pathLocal;
     }
 
     /**
@@ -308,7 +346,7 @@ class Config extends Singleton
 
             // must be called here, not in init(), since setTestEnvironment() calls init(). (this avoids
             // infinite recursion)
-            Piwik::postTestEvent('Config.createConfigSingleton', array( $this->getInstance() ));
+            Piwik::postTestEvent('Config.createConfigSingleton', array( $this ));
         }
 
         // check cache for merged section
@@ -515,7 +553,7 @@ class Config extends Singleton
         if ($output !== false) {
             $success = @file_put_contents($pathLocal, $output);
             if (!$success) {
-                throw new Exception(Piwik::translate('General_ConfigFileIsNotWritable', array("(config/config.ini.php)", "")));
+                throw $this->getConfigNotWritableException();
             }
         }
 
@@ -530,5 +568,14 @@ class Config extends Singleton
     public function forceSave()
     {
         $this->writeConfig($this->configLocal, $this->configGlobal, $this->configCache, $this->pathLocal);
+    }
+
+    /**
+     * @throws \Exception
+     */
+    public function getConfigNotWritableException()
+    {
+        $path = "config/" . basename($this->pathLocal);
+        return new Exception(Piwik::translate('General_ConfigFileIsNotWritable', array("(" . $path . ")", "")));
     }
 }

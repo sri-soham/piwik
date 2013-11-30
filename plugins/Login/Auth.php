@@ -10,17 +10,17 @@
  */
 namespace Piwik\Plugins\Login;
 
-use Piwik\Piwik;
+use Exception;
 use Piwik\AuthResult;
 use Piwik\Common;
 use Piwik\Config;
 use Piwik\Cookie;
-use Piwik\ProxyHttp;
 use Piwik\Db;
 use Piwik\Db\Factory;
-use Piwik\Session;
+use Piwik\Piwik;
 use Piwik\Plugins\UsersManager\API;
-use \Exception;
+use Piwik\ProxyHttp;
+use Piwik\Session;
 
 /**
  *

@@ -24,7 +24,7 @@ use Piwik\Config as PiwikConfig;
  * 
  *     class MyArchiver extends Archiver
  *     {
- *         public function archiveDay()
+ *         public function aggregateDayReport()
  *         {
  *             $logAggregator = $this->getLogAggregator();
  *             
@@ -37,30 +37,10 @@ use Piwik\Config as PiwikConfig;
  *             $archiveProcessor->insertBlobRecords('MyPlugin_myReport', $dataTable->getSerialized(500));
  *         }
  *         
- *         public function archivePeriod()
+ *         public function aggregateMultipleReports()
  *         {
  *             $archiveProcessor = $this->getProcessor();
- *             $archiveProcessor->aggregateDataTableReports('MyPlugin_myReport', 500);
- *         }
- *     }
- * 
- * **Using Archiver in archiving events**
- * 
- *     // event observer for ArchiveProcessor.Day.compute
- *     public function archiveDay(ArchiveProcessor\Day $archiveProcessor)
- *     {
- *         $archiving = new Archiver($archiveProcessor);
- *         if ($archiving->shouldArchive()) {
- *             $archiving->archiveDay();
- *         }
- *     }
- * 
- *     // event observer for ArchiveProcessor.Period.compute
- *     public function archivePeriod(ArchiveProcessor\Period $archiveProcessor)
- *     {
- *         $archiving = new Archiver($archiveProcessor);
- *         if ($archiving->shouldArchive()) {
- *             $archiving->archivePeriod();
+ *             $archiveProcessor->aggregateDataTableRecords('MyPlugin_myReport', 500);
  *         }
  *     }
  * 
@@ -68,48 +48,53 @@ use Piwik\Config as PiwikConfig;
  */
 abstract class Archiver
 {
-    protected $processor;
+    /**
+     * @var \Piwik\ArchiveProcessor
+     */
+    private $processor;
 
     /**
      * Constructor.
      * 
-     * @param ArchiveProcessor $processing The ArchiveProcessor instance sent to the archiving
+     * @param ArchiveProcessor $aggregator The ArchiveProcessor instance sent to the archiving
      *                                     event observer.
      */
-    public function __construct(ArchiveProcessor $processing)
+    public function __construct(ArchiveProcessor $aggregator)
     {
         $this->maximumRows = PiwikConfig::getInstance()->General['datatable_archiving_maximum_rows_standard'];
-        $this->processor = $processing;
+        $this->processor = $aggregator;
     }
 
     /**
-     * Archive data for a day period.
-     */
-    abstract public function archiveDay();
-
-    /**
-     * Archive data for a non-day period.
-     */
-    abstract public function archivePeriod();
-
-    // todo: review this concept, each plugin should somehow maintain the list of report names they generate
-    /**
-     * Returns true if the current plugin should be archived or not.
+     * Archives data for a day period.
      * 
-     * @return bool
+     * Implementations of this method should do more computation intensive activities such
+     * as aggregating data across log tables. Since this method only deals w/ data logged for a day,
+     * aggregating individual log table rows isn't a problem. Doing this for any larger period,
+     * however, would cause performance issues.
+     * 
+     * Aggregate log table rows using a [LogAggregator](#) instance. Get a [LogAggregator](#) instance
+     * using the [getLogAggregator](#getLogAggregator) method.
      */
-    public function shouldArchive()
-    {
-        $className = get_class($this);
-        $pluginName = str_replace(array("Piwik\\Plugins\\", "\\Archiver"), "", $className);
-        if (strpos($pluginName, "\\") !== false) {
-            throw new \Exception("unexpected plugin name $pluginName in shouldArchive()");
-        }
-        return $this->getProcessor()->shouldProcessReportsForPlugin($pluginName);
-    }
+    abstract public function aggregateDayReport();
 
     /**
-     * @return \Piwik\ArchiveProcessor\Day|\Piwik\ArchiveProcessor\Period
+     * Archives data for a non-day period.
+     * 
+     * Implementations of this method should only aggregate existing reports of subperiods of the
+     * current period. For example, it is more efficient to aggregate reports for each day of a
+     * week than to aggregate each log entry of the week.
+     * 
+     * Use [ArchiveProcessor::aggregateNumericMetrics](#) and [ArchiveProcessor::aggregateDataTableRecords](#)
+     * to aggregate archived reports. Get the [ArchiveProcessor](#) instance using the [getProcessor](#getProcessor).
+     */
+    abstract public function aggregateMultipleReports();
+
+    /**
+     * Returns an [ArchiveProcessor](#) instance that can be used to insert archive data for
+     * this period, segment and site.
+     * 
+     * @return \Piwik\ArchiveProcessor
      */
     protected function getProcessor()
     {
@@ -117,6 +102,9 @@ abstract class Archiver
     }
 
     /**
+     * Returns a [LogAggregator](#) instance that can be used to aggregate log table rows
+     * for this period, segment and site.
+     * 
      * @return \Piwik\DataAccess\LogAggregator
      */
     protected function getLogAggregator()

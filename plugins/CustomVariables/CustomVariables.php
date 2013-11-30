@@ -35,13 +35,11 @@ class CustomVariables extends \Piwik\Plugin
     public function getListHooksRegistered()
     {
         $hooks = array(
-            'ArchiveProcessor.Day.compute'    => 'archiveDay',
-            'ArchiveProcessor.Period.compute' => 'archivePeriod',
             'WidgetsList.addWidgets'          => 'addWidgets',
             'Menu.Reporting.addItems'         => 'addMenus',
             'Goals.getReportsWithGoalMetrics' => 'getReportsWithGoalMetrics',
             'API.getReportMetadata'           => 'getReportMetadata',
-            'API.getSegmentsMetadata'         => 'getSegmentsMetadata',
+            'API.getSegmentDimensionMetadata' => 'getSegmentsMetadata',
             'ViewDataTable.configure'         => 'configureViewDataTable',
         );
         return $hooks;
@@ -132,25 +130,6 @@ class CustomVariables extends \Piwik\Plugin
                               'module'   => 'CustomVariables',
                               'action'   => 'getCustomVariables',
         );
-    }
-
-    /**
-     * Hooks on daily archive to trigger various log processing
-     */
-    public function archiveDay(ArchiveProcessor\Day $archiveProcessor)
-    {
-        $archiving = new Archiver($archiveProcessor);
-        if ($archiving->shouldArchive()) {
-            $archiving->archiveDay();
-        }
-    }
-
-    public function archivePeriod(ArchiveProcessor\Period $archiveProcessor)
-    {
-        $archiving = new Archiver($archiveProcessor);
-        if ($archiving->shouldArchive()) {
-            $archiving->archivePeriod();
-        }
     }
 
     public function configureViewDataTable(ViewDataTable $view)

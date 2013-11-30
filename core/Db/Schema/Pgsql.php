@@ -80,11 +80,12 @@ class Pgsql implements SchemaInterface
                           sitesearch_keyword_parameters TEXT NOT NULL,
                           sitesearch_category_parameters TEXT NOT NULL,
                           timezone VARCHAR( 50 ) NOT NULL,
-                          currency CHAR( 3 ) NOT NULL,
+                          currency VARCHAR( 3 ) NOT NULL,
                           excluded_ips TEXT NOT NULL,
                           excluded_parameters  TEXT NOT NULL,
                           excluded_user_agents TEXT NOT NULL,
                           "group" VARCHAR(250) NOT NULL, 
+                          "type" VARCHAR(255) NOT NULL,
                           keep_url_fragment SMALLINT DEFAULT 0,
                           PRIMARY KEY(idsite)
                         )

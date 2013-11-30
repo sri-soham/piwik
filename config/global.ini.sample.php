@@ -37,6 +37,27 @@ adapter = PDO_MYSQL
 login = 
 password =
 
+[log]
+; possible values for log: screen, database, file
+log_writers[] = screen
+
+; log level, everything logged w/ this level or one of greater severity
+; will be logged. everything else will be ignored. possible values are:
+; NONE, ERROR, WARN, INFO, DEBUG, VERBOSE
+log_level = WARN
+
+; if set to 1, only requests done in CLI mode (eg. the archive.php cron run) will be logged
+; NOTE: log_only_when_debug_parameter will also be checked for
+log_only_when_cli = 0
+
+; if set to 1, only requests with "&debug" parameter will be logged
+; NOTE: log_only_when_cli will also be checked for
+log_only_when_debug_parameter = 0
+
+; if configured to log in a file, log entries will be made to this file
+logger_file_path = tmp/logs/piwik.log
+
+
 [Debug]
 ; if set to 1, the archiving process will always be triggered, even if the archive has already been computed
 ; this is useful when making changes to the archiving code so we can force the archiving process
@@ -401,7 +422,7 @@ campaign_var_name = "pk_campaign,piwik_campaign,utm_campaign,utm_source,utm_medi
 ; Example: If a visitor first visits 'index.php?piwik_campaign=Adwords-CPC&piwik_kwd=My killer keyword' ;
 ; then it will be counted as a campaign referrer named 'Adwords-CPC' with the keyword 'My killer keyword'
 ; Includes by default the GA style campaign keyword parameter utm_term
-campaign_keyword_var_name = "pk_kwd,piwik_kwd,utm_term"
+campaign_keyword_var_name = "pk_kwd,piwik_kwd,pk_keyword,utm_term"
 
 ; maximum length of a Page Title or a Page URL recorded in the log_action.name table
 page_maximum_length = 1024;
@@ -411,6 +432,12 @@ page_maximum_length = 1024;
 ; For IPv4/IPv6 addresses, valid values are the number of octets in IP address to mask (from 0 to 4).
 ; For IPv6 addresses 0..4 means that 0, 64, 80, 104 or all bits are masked.
 ip_address_mask_length = 1
+
+
+; Set this setting to 0 to let plugins use the full non-anonymized IP address when enriching visitor information.
+; When set to 1, by default, Geo Location via geoip and Provider reverse name lookups
+; will use the anonymized IP address when anonymization is enabled.
+use_anonymized_ip_for_visit_enrichment = 1
 
 ; Tracker cache files are the simple caching layer for Tracking.
 ; TTL: Time to live for cache files, in seconds. Default to 5 minutes.
@@ -468,26 +495,6 @@ port = ; Proxy port: the port that the proxy server listens to. There is no stan
 username = ; Proxy username: optional; if specified, password is mandatory
 password = ; Proxy password: optional; if specified, username is mandatory
 
-[log]
-; possible values for log: screen, database, file
-log_writers[] = screen
-
-; log level, everything logged w/ this level or one of greater severity
-; will be logged. everything else will be ignored. possible values are:
-; NONE, ERROR, WARN, INFO, DEBUG, VERBOSE
-log_level = WARN
-
-; if set to 1, only requests done in CLI mode (eg. the archive.php cron run) will be logged
-; NOTE: log_only_when_debug_parameter will also be checked for
-log_only_when_cli = 0
-
-; if set to 1, only requests with "&debug" parameter will be logged
-; NOTE: log_only_when_cli will also be checked for
-log_only_when_debug_parameter = 0
-
-; if configured to log in a file, log entries will be made to this file
-logger_file_path = tmp/logs/piwik.log
-
 [Plugins]
 Plugins[] = CorePluginsAdmin
 Plugins[] = CoreAdminHome
@@ -495,6 +502,7 @@ Plugins[] = CoreHome
 Plugins[] = CoreVisualizations
 Plugins[] = Proxy
 Plugins[] = API
+Plugins[] = ExamplePlugin
 Plugins[] = Widgetize
 Plugins[] = Transitions
 Plugins[] = LanguagesManager
@@ -505,14 +513,13 @@ Plugins[] = Referrers
 Plugins[] = UserSettings
 Plugins[] = Goals
 Plugins[] = SEO
-
+Plugins[] = Events
 Plugins[] = UserCountry
 Plugins[] = VisitsSummary
 Plugins[] = VisitFrequency
 Plugins[] = VisitTime
 Plugins[] = VisitorInterest
 Plugins[] = ExampleAPI
-Plugins[] = ExamplePlugin
 Plugins[] = ExampleRssWidget
 Plugins[] = Provider
 Plugins[] = Feedback
@@ -522,6 +529,7 @@ Plugins[] = UsersManager
 Plugins[] = SitesManager
 Plugins[] = Installation
 Plugins[] = CoreUpdater
+Plugins[] = CoreConsole
 Plugins[] = ScheduledReports
 Plugins[] = UserCountryMap
 Plugins[] = Live

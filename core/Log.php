@@ -455,7 +455,11 @@ class Log extends Singleton
                 $message = vsprintf($message, $sprintfParams);
             }
 
-            $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+            if (version_compare(phpversion(), '5.3.6', '>=')) {
+                $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS | DEBUG_BACKTRACE_PROVIDE_OBJECT);
+            } else {
+                $backtrace = debug_backtrace();
+            }
             $tag = Plugin::getPluginNameFromBacktrace($backtrace);
 
             // if we can't determine the plugin, use the name of the calling class
@@ -552,7 +556,7 @@ class Log extends Singleton
             if (isset($tracepoint['class'])
                 && $tracepoint['class'] != "Piwik\\Log"
                 && $tracepoint['class'] != "Piwik\\Piwik"
-                && $tracepoint['class'] != "CronArchive"
+                && $tracepoint['class'] != "Piwik\\CronArchive"
             ) {
                 return $tracepoint['class'];
             }

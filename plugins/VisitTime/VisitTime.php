@@ -11,8 +11,8 @@
 namespace Piwik\Plugins\VisitTime;
 
 use Exception;
-use Piwik\ArchiveProcessor;
 
+use Piwik\ArchiveProcessor;
 use Piwik\Common;
 use Piwik\Db\Factory;
 use Piwik\Menu\MenuMain;
@@ -36,13 +36,11 @@ class VisitTime extends \Piwik\Plugin
     public function getListHooksRegistered()
     {
         $hooks = array(
-            'ArchiveProcessor.Day.compute'    => 'archiveDay',
-            'ArchiveProcessor.Period.compute' => 'archivePeriod',
             'WidgetsList.addWidgets'          => 'addWidgets',
             'Menu.Reporting.addItems'         => 'addMenu',
             'Goals.getReportsWithGoalMetrics' => 'getReportsWithGoalMetrics',
             'API.getReportMetadata'           => 'getReportMetadata',
-            'API.getSegmentsMetadata'         => 'getSegmentsMetadata',
+            'API.getSegmentDimensionMetadata' => 'getSegmentsMetadata',
             'ViewDataTable.configure'         => 'configureViewDataTable',
             'ViewDataTable.getDefaultType'    => 'getDefaultTypeViewDataTable'
         );
@@ -198,22 +196,6 @@ class VisitTime extends \Piwik\Plugin
         if ($view->isViewDataTableId(Graph::ID)) {
             $view->config->max_graph_elements = false;
             $view->config->show_all_ticks     = true;
-        }
-    }
-
-    public function archivePeriod(ArchiveProcessor\Period $archiveProcessor)
-    {
-        $archiving = new Archiver($archiveProcessor);
-        if ($archiving->shouldArchive()) {
-            $archiving->archivePeriod();
-        }
-    }
-
-    public function archiveDay(ArchiveProcessor\Day $archiveProcessor)
-    {
-        $archiving = new Archiver($archiveProcessor);
-        if ($archiving->shouldArchive()) {
-            $archiving->archiveDay();
         }
     }
 

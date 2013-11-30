@@ -36,7 +36,7 @@ class UsersManager extends \Piwik\Plugin
             'AssetManager.getJavaScriptFiles'        => 'getJsFiles',
             'AssetManager.getStylesheetFiles'        => 'getStylesheetFiles',
             'SitesManager.deleteSite.end'            => 'deleteSite',
-            'Site.getSiteAttributes'                 => 'recordAdminUsersInCache',
+            'Tracker.Cache.getSiteAttributes'        => 'recordAdminUsersInCache',
             'Translate.getClientSideTranslationKeys' => 'getClientSideTranslationKeys',
         );
     }
@@ -140,6 +140,7 @@ class UsersManager extends \Piwik\Plugin
     {
         $translationKeys[] = "General_OrCancel";
         $translationKeys[] = "General_Save";
+        $translationKeys[] = "General_Done";
         $translationKeys[] = "UsersManager_DeleteConfirm";
     }
 }

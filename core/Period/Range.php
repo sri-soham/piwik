@@ -18,12 +18,12 @@ use Piwik\Piwik;
 
 /**
  * Arbitrary date range representation.
- * 
+ *
  * This class represents a period that contains a list of consecutive days as subperiods
  * It is created when the **period** query parameter is set to **range** and is used
  * to calculate the subperiods of multiple period requests (eg, when period=day and
  * date=2007-07-24,2013-11-15).
- * 
+ *
  * The range period differs from other periods mainly in that since it is arbitrary,
  * range periods are not archived by the archive.php cron script.
  *
@@ -34,10 +34,11 @@ use Piwik\Piwik;
 class Range extends Period
 {
     protected $label = 'range';
+    protected $today;
 
     /**
      * Constructor.
-     * 
+     *
      * @param string $strPeriod The type of period each subperiod is. Either `'day'`, `'week'`,
      *                          `'month'` or `'year'`.
      * @param string $strDate The date range, eg, `'2007-07-24,2013-11-15'`.
@@ -52,7 +53,7 @@ class Range extends Period
         $this->defaultEndDate = null;
         $this->timezone = $timezone;
         if ($today === false) {
-            $today = Date::factory('today', $this->timezone);
+            $today = Date::factory('now', $this->timezone);
         }
         $this->today = $today;
     }
@@ -152,6 +153,7 @@ class Range extends Period
         if ($this->subperiodsProcessed) {
             return;
         }
+
         parent::generate();
 
         if (preg_match('/(last|previous)([0-9]*)/', $this->strDate, $regs)) {
@@ -160,7 +162,7 @@ class Range extends Period
             if (!is_null($this->defaultEndDate)) {
                 $defaultEndDate = $this->defaultEndDate;
             } else {
-                $defaultEndDate = Date::factory('now', $this->timezone);
+                $defaultEndDate = $this->today;
             }
 
             $period = $this->strPeriod;
@@ -171,7 +173,11 @@ class Range extends Period
             if ($lastOrPrevious == 'last') {
                 $endDate = $defaultEndDate;
             } elseif ($lastOrPrevious == 'previous') {
-                $endDate = $defaultEndDate->addPeriod(-1, $period);
+                if ('month' == $period) {
+                    $endDate = $defaultEndDate->subMonth(1);
+                } else {
+                    $endDate = $defaultEndDate->subPeriod(1, $period);
+                }
             }
 
             $lastN = $this->getMaxN($lastN);
@@ -180,7 +186,8 @@ class Range extends Period
             $lastN--;
             $lastN = abs($lastN);
 
-            $startDate = $endDate->addPeriod(-$lastN, $period);
+            $startDate = $endDate->addPeriod(-1 * $lastN, $period);
+
         } elseif ($dateRange = Range::parseDateRange($this->strDate)) {
             $strDateStart = $dateRange[1];
             $strDateEnd = $dateRange[2];
@@ -254,10 +261,28 @@ class Range extends Period
             || $startDate == $endDate) {
             $endOfPeriod = null;
 
-            $month = new Month($startDate);
-            $endOfMonth = $month->getDateEnd();
+            $month        = new Month($startDate);
+            $endOfMonth   = $month->getDateEnd();
             $startOfMonth = $month->getDateStart();
-            if ($startDate == $startOfMonth
+
+            $year        = new Year($startDate);
+            $endOfYear   = $year->getDateEnd();
+            $startOfYear = $year->getDateStart();
+
+            if ($startDate == $startOfYear
+                && ($endOfYear->isEarlier($endDate)
+                    || $endOfYear == $endDate
+                    || $endOfYear->isLater($this->today)
+                )
+                // We don't use the year if
+                // the end day is in this year, is before today, and year not finished
+                && !($endDate->isEarlier($this->today)
+                    && $this->today->toString('Y') == $endOfYear->toString('Y')
+                    && $this->today->compareYear($endOfYear) == 0)
+            ) {
+                $this->addSubperiod($year);
+                $endOfPeriod = $endOfYear;
+            } else if ($startDate == $startOfMonth
                 && ($endOfMonth->isEarlier($endDate)
                     || $endOfMonth == $endDate
                     || $endOfMonth->isLater($this->today)
@@ -273,19 +298,22 @@ class Range extends Period
             } else {
                 // From start date,
                 //  Process end of week
-                $week = new Week($startDate);
+                $week        = new Week($startDate);
                 $startOfWeek = $week->getDateStart();
-                $endOfWeek = $week->getDateEnd();
+                $endOfWeek   = $week->getDateEnd();
 
-                $useMonthsNextIteration = $startDate->addPeriod(2, 'month')->setDay(1)->isEarlier($endDate);
+                $firstDayNextMonth      = $startDate->addPeriod(2, 'month')->setDay(1);
+                $useMonthsNextIteration = $firstDayNextMonth->isEarlier($endDate);
+
                 if ($useMonthsNextIteration
                     && $endOfWeek->isLater($endOfMonth)
                 ) {
                     $this->fillArraySubPeriods($startDate, $endOfMonth, 'day');
                     $endOfPeriod = $endOfMonth;
                 } //   If end of this week is later than end date, we use days
-                elseif ($endOfWeek->isLater($endDate)
-                    && ($endOfWeek->isEarlier($this->today)
+                elseif ($this->isEndOfWeekLaterThanEndDate($endDate, $endOfWeek) &&
+                    ($endOfWeek->isEarlier($this->today)
+                        || $startOfWeek->toString() != $startDate->toString()
                         || $endDate->isEarlier($this->today))
                 ) {
                     $this->fillArraySubPeriods($startDate, $endDate, 'day');
@@ -374,7 +402,7 @@ class Range extends Period
     /**
      * Returns a date ragne string given a period type, end date and number of periods
      * the range spans over.
-     * 
+     *
      * @param string $period The sub period type, `'day'`, `'week'`, `'month'` and `'year'`.
      * @param int $lastN The number of periods of type `$period` that the result range should
      *                   span.
@@ -389,5 +417,17 @@ class Range extends Period
         $last30Relative->setDefaultEndDate(Date::factory($endDate));
         $date = $last30Relative->getDateStart()->toString() . "," . $last30Relative->getDateEnd()->toString();
         return $date;
+    }
+
+    private function isEndOfWeekLaterThanEndDate($endDate, $endOfWeek)
+    {
+        $isEndOfWeekLaterThanEndDate = $endOfWeek->isLater($endDate);
+
+        $isEndDateAlsoEndOfWeek      = ($endOfWeek->toString() == $endDate->toString());
+        $isEndOfWeekLaterThanEndDate = ($isEndOfWeekLaterThanEndDate
+            || ($isEndDateAlsoEndOfWeek
+                && $endDate->isLater($this->today)));
+
+        return $isEndOfWeekLaterThanEndDate;
     }
 }

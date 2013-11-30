@@ -12,8 +12,8 @@
 namespace Piwik\Plugins\DevicesDetection;
 
 use Exception;
-use Piwik\ArchiveProcessor;
 
+use Piwik\ArchiveProcessor;
 use Piwik\Common;
 use Piwik\Config;
 use Piwik\Db;
@@ -92,13 +92,11 @@ class DevicesDetection extends \Piwik\Plugin
     public function getListHooksRegistered()
     {
         return array(
-            'ArchiveProcessor.Day.compute'    => 'archiveDay',
-            'ArchiveProcessor.Period.compute' => 'archivePeriod',
             'Menu.Reporting.addItems'         => 'addMenu',
             'Tracker.newVisitorInformation'   => 'parseMobileVisitData',
             'WidgetsList.addWidgets'          => 'addWidgets',
             'API.getReportMetadata'           => 'getReportMetadata',
-            'API.getSegmentsMetadata'         => 'getSegmentsMetadata',
+            'API.getSegmentDimensionMetadata' => 'getSegmentsMetadata',
             'ViewDataTable.configure'         => 'configureViewDataTable',
         );
     }
@@ -185,7 +183,7 @@ class DevicesDetection extends \Piwik\Plugin
     {
         // Note: only one field segmented so far: deviceType
         foreach ($this->getRawMetadataReports() as $report) {
-            @list($category, $name, $apiModule, $apiAction, $columnName, $segment, $sqlSegment, $acceptedValues, $sqlFilter) = $report;
+            @list($category, $name, $apiModule, $apiAction, $columnName, $segment, $sqlSegment, $acceptedValues) = $report;
 
             if (empty($segment)) continue;
 
@@ -195,8 +193,7 @@ class DevicesDetection extends \Piwik\Plugin
                 'name'           => $columnName,
                 'segment'        => $segment,
                 'acceptedValues' => $acceptedValues,
-                'sqlSegment'     => $sqlSegment,
-                'sqlFilter'      => isset($sqlFilter) ? $sqlFilter : false,
+                'sqlSegment'     => $sqlSegment
             );
         }
     }
@@ -255,22 +252,6 @@ class DevicesDetection extends \Piwik\Plugin
         $visitorInfo = array_merge($visitorInfo, $deviceInfo);
         Common::printDebug("Device Detection:");
         Common::printDebug($deviceInfo);
-    }
-
-    public function archiveDay(ArchiveProcessor\Day $archiveProcessor)
-    {
-        $archiving = new Archiver($archiveProcessor);
-        if ($archiving->shouldArchive()) {
-            $archiving->archiveDay();
-        }
-    }
-
-    public function archivePeriod(ArchiveProcessor\Period $archiveProcessor)
-    {
-        $archiving = new Archiver($archiveProcessor);
-        if ($archiving->shouldArchive()) {
-            $archiving->archivePeriod();
-        }
     }
 
     public function addMenu()

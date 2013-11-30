@@ -20,6 +20,7 @@ use Piwik\Date;
 use Piwik\FrontController;
 use Piwik\Menu\MenuTop;
 use Piwik\NoAccessException;
+use Piwik\Notification\Manager as NotificationManager;
 use Piwik\Period\Month;
 use Piwik\Period;
 use Piwik\Period\Range;
@@ -34,7 +35,7 @@ use Piwik\Url;
 use Piwik\View;
 use Piwik\View\ViewInterface;
 use Piwik\ViewDataTable\Factory as ViewDataTableFactory;
-use Piwik\Notification\Manager as NotificationManager;
+use Piwik\API\Proxy;
 
 /**
  * Base class of all plugin Controllers.
@@ -55,7 +56,7 @@ use Piwik\Notification\Manager as NotificationManager;
  *         {
  *             $view = new View("@MyPlugin/index.twig");
  *             // ... setup view ...
- *             echo $view->render();
+ *             return $view->render();
  *         }
  *     }
  * 
@@ -192,18 +193,41 @@ abstract class Controller
      * A helper method that renders a view either to the screen or to a string.
      *
      * @param ViewInterface $view The view to render.
-     * @param bool $fetch If true, the result is returned as a string. If false,
-     *                    the rendered string is echo'd to the screen.
      * @return string|void
      * @api
      */
-    protected function renderView(ViewInterface $view, $fetch = false)
+    protected function renderView(ViewInterface $view)
     {
-        $rendered = $view->render();
-        if ($fetch) {
-            return $rendered;
+        return $view->render();
+    }
+
+    /**
+     * Convenience method that creates and renders a ViewDataTable for a API method.
+     *
+     * @param string $pluginName The name of the plugin (eg, `'UserSettings'`).
+     * @param string $apiAction The name of the API action (eg, `'getResolution'`).
+     * @param bool $fetch If `true`, the rendered string is returned, if `false` it is `echo`'d.
+     * @throws \Exception if `$pluginName` is not an existing plugin or if `$apiAction` is not an
+     *                    existing method of the plugin's API.
+     * @return string|void See `$fetch`.
+     */
+    protected function renderReport($apiAction)
+    {
+        $pluginName = $this->pluginName;
+
+        /** @var Proxy $apiProxy */
+        $apiProxy = Proxy::getInstance();
+
+        if (!$apiProxy->isExistingApiAction($pluginName, $apiAction)) {
+            throw new \Exception("Invalid action name '$apiAction' for '$pluginName' plugin.");
         }
-        echo $rendered;
+
+        $apiAction = $apiProxy->buildApiActionName($pluginName, $apiAction);
+
+        $view      = ViewDataTableFactory::build(null, $apiAction);
+        $rendered  = $view->render();
+
+        return $rendered;
     }
 
     /**
@@ -715,7 +739,7 @@ abstract class Controller
             Piwik_ExitWithMessage($errorMessage, false, true);
         }
 
-        FrontController::getInstance()->dispatch(Piwik::getLoginPluginName(), false);
+        echo FrontController::getInstance()->dispatch(Piwik::getLoginPluginName(), false);
         exit;
     }
 
@@ -735,7 +759,9 @@ abstract class Controller
             $defaultWebsiteId = $defaultReport;
         }
 
-        if ($defaultWebsiteId) {
+        ;
+
+        if ($defaultWebsiteId && Piwik::isUserHasViewAccess($defaultWebsiteId)) {
             return $defaultWebsiteId;
         }
 

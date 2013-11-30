@@ -20,11 +20,7 @@ use Piwik\MetricsFormatter;
 use Piwik\Piwik;
 use Piwik\Plugin\ViewDataTable;
 use Piwik\Plugins\CoreVisualizations\Visualizations\HtmlTable;
-use Piwik\SegmentExpression;
 use Piwik\Site;
-use Piwik\Tracker\Action;
-use Piwik\Tracker\TableLogAction;
-use Piwik\ViewDataTable\Request as ViewDataTableRequest;
 use Piwik\WidgetsList;
 
 /**
@@ -38,34 +34,16 @@ class Actions extends \Piwik\Plugin
 {
     const ACTIONS_REPORT_ROWS_DISPLAY = 100;
 
-    private $columnTranslations;
-
-    public function __construct()
-    {
-        parent::__construct();
-
-        $this->columnTranslations = array(
-            'nb_hits'             => Piwik::translate('General_ColumnPageviews'),
-            'nb_visits'           => Piwik::translate('General_ColumnUniquePageviews'),
-            'avg_time_on_page'    => Piwik::translate('General_ColumnAverageTimeOnPage'),
-            'bounce_rate'         => Piwik::translate('General_ColumnBounceRate'),
-            'exit_rate'           => Piwik::translate('General_ColumnExitRate'),
-            'avg_time_generation' => Piwik::translate('General_ColumnAverageGenerationTime'),
-        );
-    }
-
     /**
      * @see Piwik_Plugin::getListHooksRegistered
      */
     public function getListHooksRegistered()
     {
         $hooks = array(
-            'ArchiveProcessor.Day.compute'    => 'archiveDay',
-            'ArchiveProcessor.Period.compute' => 'archivePeriod',
             'WidgetsList.addWidgets'          => 'addWidgets',
             'Menu.Reporting.addItems'         => 'addMenus',
             'API.getReportMetadata'           => 'getReportMetadata',
-            'API.getSegmentsMetadata'         => 'getSegmentsMetadata',
+            'API.getSegmentDimensionMetadata' => 'getSegmentsMetadata',
             'ViewDataTable.configure'         => 'configureViewDataTable',
             'AssetManager.getStylesheetFiles' => 'getStylesheetFiles',
             'AssetManager.getJavaScriptFiles' => 'getJsFiles'
@@ -85,7 +63,7 @@ class Actions extends \Piwik\Plugin
 
     public function getSegmentsMetadata(&$segments)
     {
-        $sqlFilter = array($this, 'getIdActionFromSegment');
+        $sqlFilter = '\\Piwik\\Tracker\\TableLogAction::getIdActionFromSegment';
 
         // entry and exit pages of visit
         $segments[] = array(
@@ -146,57 +124,6 @@ class Actions extends \Piwik\Plugin
             'segment'    => 'siteSearchKeyword',
             'sqlSegment' => 'log_link_visit_action.idaction_name',
             'sqlFilter'  => $sqlFilter,
-        );
-    }
-
-    /**
-     * Convert segment expression to an action ID or an SQL expression.
-     *
-     * This method is used as a sqlFilter-callback for the segments of this plugin.
-     * Usually, these callbacks only return a value that should be compared to the
-     * column in the database. In this case, that doesn't work since multiple IDs
-     * can match an expression (e.g. "pageUrl=@foo").
-     * @param string $valueToMatch
-     * @param string $sqlField
-     * @param string $matchType
-     * @param string $segmentName
-     * @throws \Exception
-     * @return array|int|string
-     */
-    public function getIdActionFromSegment($valueToMatch, $sqlField, $matchType, $segmentName)
-    {
-        $actionType = $this->guessActionTypeFromSegment($segmentName);
-
-        if ($actionType == Action::TYPE_PAGE_URL) {
-            // for urls trim protocol and www because it is not recorded in the db
-            $valueToMatch = preg_replace('@^http[s]?://(www\.)?@i', '', $valueToMatch);
-        }
-
-        $valueToMatch = Common::sanitizeInputValue(Common::unsanitizeInputValue($valueToMatch));
-
-        $LogAction = Factory::getDAO('log_action');
-        // exact matches work by returning the id directly
-        if ($matchType == SegmentExpression::MATCH_EQUAL
-            || $matchType == SegmentExpression::MATCH_NOT_EQUAL
-        ) {
-            $idAction = $LogAction->getIdaction($valueToMatch, $actionType);
-            // if the action is not found, we hack -100 to ensure it tries to match against an integer
-            // otherwise binding idaction_name to "false" returns some rows for some reasons (in case &segment=pageTitle==Větrnásssssss)
-            if (empty($idAction)) {
-                $idAction = -100;
-            }
-            return $idAction;
-        }
-
-        // now, we handle the cases =@ (contains) and !@ (does not contain)
-
-        // build the expression based on the match type
-        $sql = $LogAction->sqlIdactionFromSegment($matchType, $actionType);
-
-        return array(
-            // mark that the returned value is an sql-expression instead of a literal value
-            'SQL'  => $sql,
-            'bind' => $valueToMatch,
         );
     }
 
@@ -578,28 +505,6 @@ class Actions extends \Piwik\Plugin
         return Site::isSiteSearchEnabledFor($idSite);
     }
 
-    /**
-     * Compute all the actions along with their hierarchies.
-     *
-     * For each action we process the "interest statistics" :
-     * visits, unique visitors, bounce count, sum visit length.
-     */
-    public function archiveDay(ArchiveProcessor\Day $archiveProcessor)
-    {
-        $archiving = new Archiver($archiveProcessor);
-        if ($archiving->shouldArchive()) {
-            $archiving->archiveDay();
-        }
-    }
-
-    function archivePeriod(ArchiveProcessor\Period $archiveProcessor)
-    {
-        $archiving = new Archiver($archiveProcessor);
-        if ($archiving->shouldArchive()) {
-            $archiving->archivePeriod();
-        }
-    }
-
     static public function checkCustomVariablesPluginEnabled()
     {
         if (!self::isCustomVariablesPluginsEnabled()) {
@@ -612,26 +517,6 @@ class Actions extends \Piwik\Plugin
         return \Piwik\Plugin\Manager::getInstance()->isPluginActivated('CustomVariables');
     }
 
-    /**
-     * @param $segmentName
-     * @return int
-     * @throws \Exception
-     */
-    protected function guessActionTypeFromSegment($segmentName)
-    {
-        if (stripos($segmentName, 'pageurl') !== false) {
-            $actionType = Action::TYPE_PAGE_URL;
-            return $actionType;
-        } elseif (stripos($segmentName, 'pagetitle') !== false) {
-            $actionType = Action::TYPE_PAGE_TITLE;
-            return $actionType;
-        } elseif (stripos($segmentName, 'sitesearch') !== false) {
-            $actionType = Action::TYPE_SITE_SEARCH;
-            return $actionType;
-        } else {
-            throw new \Exception(" The segment $segmentName has an unexpected value.");
-        }
-    }
 
     public function configureViewDataTable(ViewDataTable $view)
     {

@@ -13,7 +13,6 @@ namespace Piwik\Tracker;
 
 use Piwik\Common;
 use Piwik\Tracker;
-use Piwik\Config;
 
 /**
  * An Event is composed of a URL, a Category name, an Action name, and optionally a Name and Value.
@@ -26,10 +25,10 @@ class ActionEvent extends Action
     {
         parent::__construct(Action::TYPE_EVENT, $request);
         $this->setActionUrl($url);
-        $this->eventCategory = $eventCategory;
-        $this->eventAction = $eventAction;
-        $this->eventName = $request->getParam('e_n');
-        $this->eventValue = $request->getParam('e_v');
+        $this->eventCategory = trim($eventCategory);
+        $this->eventAction = trim($eventAction);
+        $this->eventName = trim($request->getParam('e_n'));
+        $this->eventValue = trim($request->getParam('e_v'));
     }
 
     function getCustomFloatValue()

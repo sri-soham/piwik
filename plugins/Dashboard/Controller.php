@@ -55,7 +55,7 @@ class Controller extends \Piwik\Plugin\Controller
     {
         $view = $this->_getDashboardView('@Dashboard/embeddedIndex');
 
-        echo $view->render();
+        return $view->render();
     }
 
     public function index()
@@ -67,7 +67,7 @@ class Controller extends \Piwik\Plugin\Controller
 
             $view->dashboards = $this->dashboard->getAllDashboards($login);
         }
-        echo $view->render();
+        return $view->render();
     }
 
     public function getAvailableWidgets()
@@ -75,7 +75,7 @@ class Controller extends \Piwik\Plugin\Controller
         $this->checkTokenInUrl();
 
         Json::sendHeaderJSON();
-        echo Common::json_encode(WidgetsList::get());
+        return Common::json_encode(WidgetsList::get());
     }
 
     public function getDashboardLayout()
@@ -86,7 +86,7 @@ class Controller extends \Piwik\Plugin\Controller
 
         $layout = $this->getLayout($idDashboard);
 
-        echo $layout;
+        return $layout;
     }
 
     /**
@@ -164,16 +164,14 @@ class Controller extends \Piwik\Plugin\Controller
 
         if (Piwik::isUserIsAnonymous()) {
             Json::sendHeaderJSON();
-            echo '[]';
-
-            return;
+            return '[]';
         }
 
         $login = Piwik::getCurrentUserLogin();
         $dashboards = $this->dashboard->getAllDashboards($login);
 
         Json::sendHeaderJSON();
-        echo Common::json_encode($dashboards);
+        return Common::json_encode($dashboards);
     }
 
     /**
@@ -185,8 +183,7 @@ class Controller extends \Piwik\Plugin\Controller
         $this->checkTokenInUrl();
 
         if (Piwik::isUserIsAnonymous()) {
-            echo '0';
-            return;
+            return '0';
         }
         $user = Piwik::getCurrentUserLogin();
         $UserDashboard = Factory::getDAO('user_dashboard');
@@ -201,7 +198,8 @@ class Controller extends \Piwik\Plugin\Controller
         }
 
         $UserDashboard->newDashboard($user, $nextId, $name, $layout);
-        echo Common::json_encode($nextId);
+        Json::sendHeaderJSON();
+        return Common::json_encode($nextId);
     }
 
     public function copyDashboardToUser()
@@ -209,8 +207,7 @@ class Controller extends \Piwik\Plugin\Controller
         $this->checkTokenInUrl();
 
         if (!Piwik::isUserIsSuperUser()) {
-            echo '0';
-            return;
+            return '0';
         }
         $login = Piwik::getCurrentUserLogin();
         $name = urldecode(Common::getRequestVar('name', '', 'string'));
@@ -225,8 +222,7 @@ class Controller extends \Piwik\Plugin\Controller
             $UserDashboard->newDashboard($user, $nextId, $name, $layout);
 
             Json::sendHeaderJSON();
-            echo Common::json_encode($nextId);
-            return;
+            return Common::json_encode($nextId);
         }
     }
 

@@ -21,6 +21,7 @@
  * PiwikTracker implements the Piwik Tracking API.
  *
  * @package PiwikTracker
+ * @api
  */
 class PiwikTracker
 {
@@ -64,6 +65,14 @@ class PiwikTracker
      * See piwik.js
      */
     const FIRST_PARTY_COOKIES_PREFIX = '_pk_';
+
+    /**
+     * Ecommerce item page view tracking stores item's metadata in these Custom Variables slots.
+     */
+    const CVAR_INDEX_ECOMMERCE_ITEM_PRICE = 2;
+    const CVAR_INDEX_ECOMMERCE_ITEM_SKU = 3;
+    const CVAR_INDEX_ECOMMERCE_ITEM_NAME = 4;
+    const CVAR_INDEX_ECOMMERCE_ITEM_CATEGORY = 5;
 
     /**
      * Builds a PiwikTracker object, used to track visits, pages and Goal conversions
@@ -122,7 +131,7 @@ class PiwikTracker
 
         $this->currentTs = time();
         $this->createTs = $this->currentTs;
-        $this->visitCount = false;
+        $this->visitCount = 0;
         $this->currentVisitTs = false;
         $this->lastVisitTs = false;
         $this->lastEcommerceOrderTs = false;
@@ -610,10 +619,10 @@ class PiwikTracker
         } else {
             $category = "";
         }
-        $this->pageCustomVar[5] = array('_pkc', $category);
+        $this->pageCustomVar[self::CVAR_INDEX_ECOMMERCE_ITEM_CATEGORY] = array('_pkc', $category);
 
         if (!empty($price)) {
-            $this->pageCustomVar[2] = array('_pkp', (float)$price);
+            $this->pageCustomVar[self::CVAR_INDEX_ECOMMERCE_ITEM_PRICE] = array('_pkp', (float)$price);
         }
 
         // On a category page, do not record "Product name not defined"
@@ -621,12 +630,12 @@ class PiwikTracker
             return;
         }
         if (!empty($sku)) {
-            $this->pageCustomVar[3] = array('_pks', $sku);
+            $this->pageCustomVar[self::CVAR_INDEX_ECOMMERCE_ITEM_SKU] = array('_pks', $sku);
         }
         if (empty($name)) {
             $name = "";
         }
-        $this->pageCustomVar[4] = array('_pkn', $name);
+        $this->pageCustomVar[self::CVAR_INDEX_ECOMMERCE_ITEM_NAME] = array('_pkn', $name);
     }
 
     /**
@@ -898,7 +907,7 @@ class PiwikTracker
         }
         $this->cookieVisitorId = $parts[0]; // provides backward compatibility since getVisitorId() didn't change any existing VisitorId value
         $this->createTs = $parts[1];
-        $this->visitCount = $parts[2];
+        $this->visitCount = (int)$parts[2];
         $this->currentVisitTs = $parts[3];
         $this->lastVisitTs = $parts[4];
         if(isset($parts[5])) {
@@ -906,7 +915,7 @@ class PiwikTracker
         }
         return true;
     }
-    
+
     /**
      * Deletes all first party cookies from the client
      */
@@ -932,7 +941,7 @@ class PiwikTracker
     public function getAttributionInfo()
     {
         if(!empty($this->attributionInfo)) {
-            return $this->attributionInfo;
+            return json_encode($this->attributionInfo);
         }
         return $this->getCookieMatchingName('ref');
     }
@@ -1061,10 +1070,19 @@ class PiwikTracker
     }
 
     /**
+     * Used in tests to output useful error messages.
+     *
+     * @ignore
+     */
+    static public $DEBUG_LAST_REQUESTED_URL = false;
+
+    /**
      * @ignore
      */
     protected function sendRequest($url, $method = 'GET', $data = null, $force = false)
     {
+        self::$DEBUG_LAST_REQUESTED_URL = $url;
+
         // if doing a bulk request, store the url
         if ($this->doBulkRequests && !$force) {
             $this->storedTrackingActions[]
@@ -1365,22 +1383,18 @@ class PiwikTracker
             $this->loadVisitorIdCookie();
         }
 
-        // Set the 'ses' cookie
-        if (!$this->getCookieMatchingName('ses')) {
-            // new session (new visit)
-            $this->visitCount++;
-            $this->lastVisitTs = $this->currentVisitTs;
-
-            // Set the 'ref' cookie
-            $attributionInfo = $this->getAttributionInfo();
-            if(!empty($attributionInfo)) {
-                $this->setCookie('ref', $attributionInfo, $this->configReferralCookieTimeout);
-            }
+        // Set the 'ref' cookie
+        $attributionInfo = $this->getAttributionInfo();
+        if(!empty($attributionInfo)) {
+            $this->setCookie('ref', $attributionInfo, $this->configReferralCookieTimeout);
         }
+
+        // Set the 'ses' cookie
         $this->setCookie('ses', '*', $this->configSessionCookieTimeout);
 
         // Set the 'id' cookie
-        $cookieValue = $this->getVisitorId() . '.' . $this->createTs . '.' . $this->visitCount . '.' . $this->currentTs . '.' . $this->lastVisitTs . '.' . $this->lastEcommerceOrderTs;
+        $visitCount = $this->visitCount + 1;
+        $cookieValue = $this->getVisitorId() . '.' . $this->createTs . '.' . $visitCount . '.' . $this->currentTs . '.' . $this->lastVisitTs . '.' . $this->lastEcommerceOrderTs;
         $this->setCookie('id', $cookieValue, $this->configVisitorCookieTimeout);
 
         // Set the 'cvar' cookie
@@ -1401,7 +1415,7 @@ class PiwikTracker
     {
         $cookieExpire = $this->createTs + $cookieTTL;
         if(!headers_sent()) {
-            setrawcookie($this->getCookieName($cookieName), $cookieValue, $cookieExpire, $this->configCookiePath, $this->configCookieDomain);
+            setcookie($this->getCookieName($cookieName), $cookieValue, $cookieExpire, $this->configCookiePath, $this->configCookieDomain);
         }
     }
 

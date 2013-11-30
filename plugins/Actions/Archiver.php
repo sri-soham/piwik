@@ -61,17 +61,17 @@ class Archiver extends \Piwik\Plugin\Archiver
         Action::TYPE_PAGE_TITLE,
         Action::TYPE_SITE_SEARCH,
     );
-    static protected $invalidSummedColumnNameToRenamedNameFromPeriodArchive = array(
+    static protected $columnsToRenameAfterAggregation = array(
         Metrics::INDEX_NB_UNIQ_VISITORS            => Metrics::INDEX_SUM_DAILY_NB_UNIQ_VISITORS,
         Metrics::INDEX_PAGE_ENTRY_NB_UNIQ_VISITORS => Metrics::INDEX_PAGE_ENTRY_SUM_DAILY_NB_UNIQ_VISITORS,
         Metrics::INDEX_PAGE_EXIT_NB_UNIQ_VISITORS  => Metrics::INDEX_PAGE_EXIT_SUM_DAILY_NB_UNIQ_VISITORS,
     );
-    static public $invalidSummedColumnNameToDeleteFromDayArchive = array(
+    static public $columnsToDeleteAfterAggregation = array(
         Metrics::INDEX_NB_UNIQ_VISITORS,
         Metrics::INDEX_PAGE_ENTRY_NB_UNIQ_VISITORS,
         Metrics::INDEX_PAGE_EXIT_NB_UNIQ_VISITORS,
     );
-    private static $actionColumnAggregationOperations = array(
+    private static $columnsAggregationOperation = array(
         Metrics::INDEX_PAGE_MAX_TIME_GENERATION => 'max',
         Metrics::INDEX_PAGE_MIN_TIME_GENERATION => 'min'
     );
@@ -82,7 +82,7 @@ class Archiver extends \Piwik\Plugin\Archiver
     function __construct($processor)
     {
         parent::__construct($processor);
-        $this->isSiteSearchEnabled = $processor->getSite()->isSiteSearchEnabled();
+        $this->isSiteSearchEnabled = $processor->getParams()->getSite()->isSiteSearchEnabled();
         $this->db = Db::get();
     }
 
@@ -91,7 +91,7 @@ class Archiver extends \Piwik\Plugin\Archiver
      *
      * @return bool
      */
-    public function archiveDay()
+    public function aggregateDayReport()
     {
         $rankingQueryLimit = ArchivingHelper::getRankingQueryLimit();
         ArchivingHelper::reloadConfig();
@@ -102,9 +102,66 @@ class Archiver extends \Piwik\Plugin\Archiver
         $this->archiveDayExitActions($rankingQueryLimit);
         $this->archiveDayActionsTime($rankingQueryLimit);
 
-        $this->recordDayReports();
+        $this->insertDayReports();
 
         return true;
+    }
+
+    /**
+     * @return array
+     */
+    protected function getMetricNames()
+    {
+        return array(
+            self::METRIC_PAGEVIEWS_RECORD_NAME,
+            self::METRIC_UNIQ_PAGEVIEWS_RECORD_NAME,
+            self::METRIC_DOWNLOADS_RECORD_NAME,
+            self::METRIC_UNIQ_DOWNLOADS_RECORD_NAME,
+            self::METRIC_OUTLINKS_RECORD_NAME,
+            self::METRIC_UNIQ_OUTLINKS_RECORD_NAME,
+            self::METRIC_SEARCHES_RECORD_NAME,
+            self::METRIC_SUM_TIME_RECORD_NAME,
+            self::METRIC_HITS_TIMED_RECORD_NAME,
+        );
+    }
+
+    /**
+     * @return string
+     */
+    static public function getWhereClauseActionIsNotEvent()
+    {
+        return " AND log_link_visit_action.idaction_event_category IS NULL";
+    }
+
+    /**
+     * @param $select
+     * @param $from
+     */
+    protected function updateQuerySelectFromForSiteSearch(&$select, &$from)
+    {
+        $max_col = $Generic->castToNumeric('log_link_visit_action.custom_var_v' . ActionSiteSearch::CVAR_INDEX_SEARCH_COUNT);
+        $selectFlagNoResultKeywords = ",
+            CASE WHEN (MAX($max_col) = 0
+                  AND MAX(log_link_visit_action.custom_var_k" . ActionSiteSearch::CVAR_INDEX_SEARCH_COUNT . ") = '" . ActionSiteSearch::CVAR_KEY_SEARCH_COUNT . "')
+              THEN 1 
+              ELSE 0
+            END AS " . $this->db->quoteIdentifier(Metrics::INDEX_SITE_SEARCH_HAS_NO_RESULT);
+
+        //we need an extra JOIN to know whether the referrer "idaction_name_ref" was a Site Search request
+        $from[] = array(
+            "table"      => "log_action",
+            "tableAlias" => "log_action_name_ref",
+            "joinOn"     => "log_link_visit_action.idaction_name_ref = log_action_name_ref.idaction"
+        );
+
+        $selectPageIsFollowingSiteSearch = ",
+            SUM( CASE WHEN log_action_name_ref.type = " . Action::TYPE_SITE_SEARCH . " 
+                    THEN 1 ELSE 0 END) 
+               AS " . $this->db->quoteIdentifier(Metrics::INDEX_PAGE_IS_FOLLOWING_SITE_SEARCH_NB_HITS). " ";
+
+
+        $select .= $selectFlagNoResultKeywords
+            . $selectPageIsFollowingSiteSearch;
     }
 
     /**
@@ -121,7 +178,7 @@ class Archiver extends \Piwik\Plugin\Archiver
                 || $type == Action::TYPE_PAGE_TITLE
             ) {
                 // for page urls and page titles, performance metrics exist and have to be aggregated correctly
-                $dataTable->setMetadata(DataTable::COLUMN_AGGREGATION_OPS_METADATA_NAME, self::$actionColumnAggregationOperations);
+                $dataTable->setMetadata(DataTable::COLUMN_AGGREGATION_OPS_METADATA_NAME, self::$columnsAggregationOperation);
             }
 
             $this->actionsTablesByType[$type] = $dataTable;
@@ -168,8 +225,8 @@ class Archiver extends \Piwik\Plugin\Archiver
         $where = "log_link_visit_action.server_time >= ?
 				AND log_link_visit_action.server_time <= ?
 				AND log_link_visit_action.idsite = ?
-				AND log_link_visit_action.%s IS NOT NULL
-				AND log_link_visit_action.idaction_event_category IS NULL";
+				AND log_link_visit_action.%s IS NOT NULL"
+            . $this->getWhereClauseActionIsNotEvent();
 
         $groupBy = "log_action.idaction";
         $orderBy = $this->db->quoteIdentifier(Metrics::INDEX_PAGE_NB_HITS) . " DESC, name ASC";
@@ -197,28 +254,7 @@ class Archiver extends \Piwik\Plugin\Archiver
         // 1) No result Keywords
         // 2) For each page view, count number of times the referrer page was a Site Search
         if ($this->isSiteSearchEnabled()) {
-            $max_col = $Generic->castToNumeric('log_link_visit_action.custom_var_v' . ActionSiteSearch::CVAR_INDEX_SEARCH_COUNT);
-            $selectFlagNoResultKeywords = ",
-				CASE WHEN (MAX($max_col) = 0
-                      AND MAX(log_link_visit_action.custom_var_k" . ActionSiteSearch::CVAR_INDEX_SEARCH_COUNT . ") = '" . ActionSiteSearch::CVAR_KEY_SEARCH_COUNT . "')
-                  THEN 1 
-                  ELSE 0
-                END AS " . $this->db->quoteIdentifier(Metrics::INDEX_SITE_SEARCH_HAS_NO_RESULT);
-
-            //we need an extra JOIN to know whether the referrer "idaction_name_ref" was a Site Search request
-            $from[] = array(
-                "table"      => "log_action",
-                "tableAlias" => "log_action_name_ref",
-                "joinOn"     => "log_link_visit_action.idaction_name_ref = log_action_name_ref.idaction"
-            );
-
-            $selectPageIsFollowingSiteSearch = ",
-				SUM( CASE WHEN log_action_name_ref.type = " . Action::TYPE_SITE_SEARCH . " 
-                        THEN 1 ELSE 0 END) 
-                   AS " . $this->db->quoteIdentifier(Metrics::INDEX_PAGE_IS_FOLLOWING_SITE_SEARCH_NB_HITS). " ";
-
-            $select .= $selectFlagNoResultKeywords
-                . $selectPageIsFollowingSiteSearch;
+            $this->updateQuerySelectFromForSiteSearch($select, $from);
         }
 
         $this->archiveDayQueryProcess($select, $from, $where, $orderBy, $groupBy, "idaction_name", $rankingQuery);
@@ -310,7 +346,7 @@ class Archiver extends \Piwik\Plugin\Archiver
     /**
      * Exit actions
      */
-    public function archiveDayExitActions($rankingQueryLimit)
+    protected function archiveDayExitActions($rankingQueryLimit)
     {
         $rankingQuery = false;
         if ($rankingQueryLimit > 0) {
@@ -393,8 +429,8 @@ class Archiver extends \Piwik\Plugin\Archiver
 				AND log_link_visit_action.server_time <= ?
 		 		AND log_link_visit_action.idsite = ?
 		 		AND log_link_visit_action.time_spent_ref_action > 0
-		 		AND log_link_visit_action.%s > 0
-		 		AND log_link_visit_action.idaction_event_category IS NULL";
+		 		AND log_link_visit_action.%s > 0"
+            . $this->getWhereClauseActionIsNotEvent();
 
         $groupBy = "log_link_visit_action.%s, idaction";
         if ($extraSelects) {
@@ -409,21 +445,21 @@ class Archiver extends \Piwik\Plugin\Archiver
     /**
      * Records in the DB the archived reports for Page views, Downloads, Outlinks, and Page titles
      */
-    protected function recordDayReports()
+    protected function insertDayReports()
     {
         ArchivingHelper::clearActionsCache();
 
-        $this->recordPageUrlsReports();
-        $this->recordDownloadsReports();
-        $this->recordOutlinksReports();
-        $this->recordPageTitlesReports();
-        $this->recordSiteSearchReports();
+        $this->insertPageUrlsReports();
+        $this->insertDownloadsReports();
+        $this->insertOutlinksReports();
+        $this->insertPageTitlesReports();
+        $this->insertSiteSearchReports();
     }
 
-    protected function recordPageUrlsReports()
+    protected function insertPageUrlsReports()
     {
         $dataTable = $this->getDataTable(Action::TYPE_PAGE_URL);
-        $this->recordDataTable($dataTable, self::PAGE_URLS_RECORD_NAME);
+        $this->insertTable($dataTable, self::PAGE_URLS_RECORD_NAME);
 
         $records = array(
             self::METRIC_PAGEVIEWS_RECORD_NAME      => array_sum($dataTable->getColumn(Metrics::INDEX_PAGE_NB_HITS)),
@@ -443,49 +479,49 @@ class Archiver extends \Piwik\Plugin\Archiver
         return $this->actionsTablesByType[$typeId];
     }
 
-    protected function recordDataTable(DataTable $dataTable, $recordName)
+    protected function insertTable(DataTable $dataTable, $recordName)
     {
         ArchivingHelper::deleteInvalidSummedColumnsFromDataTable($dataTable);
-        $s = $dataTable->getSerialized(ArchivingHelper::$maximumRowsInDataTableLevelZero, ArchivingHelper::$maximumRowsInSubDataTable, ArchivingHelper::$columnToSortByBeforeTruncation);
-        $this->getProcessor()->insertBlobRecord($recordName, $s);
+        $report = $dataTable->getSerialized(ArchivingHelper::$maximumRowsInDataTableLevelZero, ArchivingHelper::$maximumRowsInSubDataTable, ArchivingHelper::$columnToSortByBeforeTruncation);
+        $this->getProcessor()->insertBlobRecord($recordName, $report);
     }
 
 
-    protected function recordDownloadsReports()
+    protected function insertDownloadsReports()
     {
         $dataTable = $this->getDataTable(Action::TYPE_DOWNLOAD);
-        $this->recordDataTable($dataTable, self::DOWNLOADS_RECORD_NAME);
+        $this->insertTable($dataTable, self::DOWNLOADS_RECORD_NAME);
 
         $this->getProcessor()->insertNumericRecord(self::METRIC_DOWNLOADS_RECORD_NAME, array_sum($dataTable->getColumn(Metrics::INDEX_PAGE_NB_HITS)));
         $this->getProcessor()->insertNumericRecord(self::METRIC_UNIQ_DOWNLOADS_RECORD_NAME, array_sum($dataTable->getColumn(Metrics::INDEX_NB_VISITS)));
     }
 
-    protected function recordOutlinksReports()
+    protected function insertOutlinksReports()
     {
         $dataTable = $this->getDataTable(Action::TYPE_OUTLINK);
-        $this->recordDataTable($dataTable, self::OUTLINKS_RECORD_NAME);
+        $this->insertTable($dataTable, self::OUTLINKS_RECORD_NAME);
 
         $this->getProcessor()->insertNumericRecord(self::METRIC_OUTLINKS_RECORD_NAME, array_sum($dataTable->getColumn(Metrics::INDEX_PAGE_NB_HITS)));
         $this->getProcessor()->insertNumericRecord(self::METRIC_UNIQ_OUTLINKS_RECORD_NAME, array_sum($dataTable->getColumn(Metrics::INDEX_NB_VISITS)));
     }
 
-    protected function recordPageTitlesReports()
+    protected function insertPageTitlesReports()
     {
         $dataTable = $this->getDataTable(Action::TYPE_PAGE_TITLE);
-        $this->recordDataTable($dataTable, self::PAGE_TITLES_RECORD_NAME);
+        $this->insertTable($dataTable, self::PAGE_TITLES_RECORD_NAME);
     }
 
-    protected function recordSiteSearchReports()
+    protected function insertSiteSearchReports()
     {
         $dataTable = $this->getDataTable(Action::TYPE_SITE_SEARCH);
         $this->deleteUnusedColumnsFromKeywordsDataTable($dataTable);
-        $this->recordDataTable($dataTable, self::SITE_SEARCH_RECORD_NAME);
+        $this->insertTable($dataTable, self::SITE_SEARCH_RECORD_NAME);
 
         $this->getProcessor()->insertNumericRecord(self::METRIC_SEARCHES_RECORD_NAME, array_sum($dataTable->getColumn(Metrics::INDEX_NB_VISITS)));
         $this->getProcessor()->insertNumericRecord(self::METRIC_KEYWORDS_RECORD_NAME, $dataTable->getRowsCount());
     }
 
-    protected function deleteUnusedColumnsFromKeywordsDataTable($dataTable)
+    protected function deleteUnusedColumnsFromKeywordsDataTable(DataTable $dataTable)
     {
         $columnsToDelete = array(
             Metrics::INDEX_NB_UNIQ_VISITORS,
@@ -500,19 +536,25 @@ class Archiver extends \Piwik\Plugin\Archiver
         $dataTable->deleteColumns($columnsToDelete);
     }
 
-    public function archivePeriod()
+    // archiveDayReportFromLogs
+    // archiveMultipleReportsSum
+
+    // aggregateDayReportFromLogs
+    // aggregateMultipleReports
+
+    public function aggregateMultipleReports()
     {
         ArchivingHelper::reloadConfig();
         $dataTableToSum = array(
             self::PAGE_TITLES_RECORD_NAME,
             self::PAGE_URLS_RECORD_NAME,
         );
-        $this->getProcessor()->aggregateDataTableReports($dataTableToSum,
+        $this->getProcessor()->aggregateDataTableRecords($dataTableToSum,
             ArchivingHelper::$maximumRowsInDataTableLevelZero,
             ArchivingHelper::$maximumRowsInSubDataTable,
             ArchivingHelper::$columnToSortByBeforeTruncation,
-            self::$actionColumnAggregationOperations,
-            self::$invalidSummedColumnNameToRenamedNameFromPeriodArchive
+            self::$columnsAggregationOperation,
+            self::$columnsToRenameAfterAggregation
         );
 
         $dataTableToSum = array(
@@ -521,25 +563,15 @@ class Archiver extends \Piwik\Plugin\Archiver
             self::SITE_SEARCH_RECORD_NAME,
         );
         $aggregation = null;
-        $nameToCount = $this->getProcessor()->aggregateDataTableReports($dataTableToSum,
+        $nameToCount = $this->getProcessor()->aggregateDataTableRecords($dataTableToSum,
             ArchivingHelper::$maximumRowsInDataTableLevelZero,
             ArchivingHelper::$maximumRowsInSubDataTable,
             ArchivingHelper::$columnToSortByBeforeTruncation,
             $aggregation,
-            self::$invalidSummedColumnNameToRenamedNameFromPeriodArchive
+            self::$columnsToRenameAfterAggregation
         );
 
-        $this->getProcessor()->aggregateNumericMetrics(array(
-                                                            self::METRIC_PAGEVIEWS_RECORD_NAME,
-                                                            self::METRIC_UNIQ_PAGEVIEWS_RECORD_NAME,
-                                                            self::METRIC_DOWNLOADS_RECORD_NAME,
-                                                            self::METRIC_UNIQ_DOWNLOADS_RECORD_NAME,
-                                                            self::METRIC_OUTLINKS_RECORD_NAME,
-                                                            self::METRIC_UNIQ_OUTLINKS_RECORD_NAME,
-                                                            self::METRIC_SEARCHES_RECORD_NAME,
-                                                            self::METRIC_SUM_TIME_RECORD_NAME,
-                                                            self::METRIC_HITS_TIMED_RECORD_NAME,
-                                                       ));
+        $this->getProcessor()->aggregateNumericMetrics($this->getMetricNames());
 
         // Unique Keywords can't be summed, instead we take the RowsCount() of the keyword table
         $this->getProcessor()->insertNumericRecord(self::METRIC_KEYWORDS_RECORD_NAME, $nameToCount[self::SITE_SEARCH_RECORD_NAME]['level0']);

@@ -15,9 +15,7 @@ use Piwik\Config;
 use Piwik\Cookie;
 use Piwik\Option;
 use Piwik\Piwik;
-use Piwik\Plugins\UsersManager\API;
 use Piwik\Plugins\UsersManager\UsersManager;
-use Piwik\ProxyHttp;
 use Piwik\Session;
 
 /**
@@ -48,7 +46,8 @@ class Login extends \Piwik\Plugin
         $exceptionMessage = $exception->getMessage();
 
         $controller = new Controller();
-        $controller->login($exceptionMessage, '' /* $exception->getTraceAsString() */);
+
+        echo $controller->login($exceptionMessage, '' /* $exception->getTraceAsString() */);
     }
 
     /**

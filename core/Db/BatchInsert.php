@@ -14,9 +14,8 @@ use Exception;
 use Piwik\AssetManager;
 use Piwik\Common;
 use Piwik\Config;
-use Piwik\Db;
 use Piwik\Db\Factory;
-
+use Piwik\Db;
 use Piwik\DbHelper;
 use Piwik\Log;
 use Piwik\SettingsPiwik;

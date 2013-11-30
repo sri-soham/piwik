@@ -12,6 +12,7 @@ namespace Piwik\Db\DAO\Mysql;
 
 use Piwik\Common;
 use Piwik\Config;
+use Piwik\Date;
 use Piwik\Db;
 use Piwik\Db\Factory;
 use Piwik\Db\DAO\Base;
@@ -118,6 +119,7 @@ class LogVisit extends Base
      *  Uses tracker db
      *
      *  @param bool $customVariablesSet If custom variables are set in request
+     *  @param array $persistedVisitAttributes Array of fields to be selected
      *  @param string $timeLookBack Timestamp from which records will be checked
      *  @param bool $shouldMatchOneFieldOnly
      *  @param bool $matchVisitorId
@@ -126,13 +128,15 @@ class LogVisit extends Base
      *  @param int  $idVisitor
      *  @return array
      */
-    public function recognizeVisitor($customVariablesSet, $timeLookBack, $timeLookAhead,
+    public function recognizeVisitor($customVariablesSet, $persistedVisitAttributes,
+                                     $timeLookBack, $timeLookAhead,
                                      $shouldMatchOneFieldOnly, $matchVisitorId,
                                      $idSite, $configId, $idVisitor)
     {
         $this->Generic = Factory::getGeneric($this->db);
 
         $this->recognize = array();
+        $this->recognize['persistedVisitAttributes'] = $persistedVisitAttributes;
         $this->recognize['matchVisitorId'] = $matchVisitorId;
         $this->recognize['configId'] = $configId;
         $this->recognize['idVisitor'] = $idVisitor;
@@ -214,30 +218,9 @@ class LogVisit extends Base
         $this->db->query($q);
     }
 
-    public function getAdjacentVisitorId($idSite,
-                                         $visitorId,
-                                         $orderByDir,
-                                         $visitLastActionTimeCondition,
-                                         $visitLastActionTime,
-                                         $segment)
+    public function getAdjacentVisitorId($idSite, $visitorId, $visitLastActionTime, $segment, $getNext)
     {
-        $select = "log_visit.idvisitor, MAX(log_visit.visit_last_action_time) as visit_last_action_time";
-        $from = "log_visit";
-        $where = "log_visit.idsite = ? AND log_visit.idvisitor <> UNHEX(?)";
-        $whereBind = array($idSite, $visitorId);
-        $orderBy = "MAX(log_visit.visit_last_action_time) $orderByDir";
-        $groupBy = "log_visit.idvisitor";
-
-        $segment = new Segment($segment, $idSite);
-        $queryInfo = $segment->getSelectQuery($select, $from, $where, $whereBind, $orderBy, $groupBy);
-
-        $sql = "SELECT sub.idvisitor, sub.visit_last_action_time
-                  FROM ({$queryInfo['sql']}) as sub
-                 WHERE $visitLastActionTimeCondition
-                 LIMIT 1";
-        $bind = array_merge($queryInfo['bind'], array($visitLastActionTime));
-
-        $visitorId = $this->db->fetchOne($sql, $bind);
+        $visitorId = adjacentVisitorId($idSite, @Common::hex2bin($visitorId), $visitLastActionTime, $segment, $getNext);
         if (!empty($visitorId)) {
             $visitorId = bin2hex($visitorId);
         }
@@ -283,26 +266,14 @@ class LogVisit extends Base
                 custom_var_k5, custom_var_v5 ';
         }
 
-        $idvisitor = $this->Generic->binaryColumn('idvisitor');
-        $select = "SELECT   $idvisitor,
-                            visit_last_action_time,
+        $idvisitorPos = array_search('idvisitor', $this->recognize['persistedVisitAttributes']);
+        if ($idvisitorPos !== false) {
+            $this->recoginze['persistedVisitAttributes'][$idvisitorPos] = $this->Generic->binaryColumn('idvisitor');
+        }
+        $selectFields = implode(",\n", $this->recognize['persistedVisitAttributes']);
+        $select = "SELECT   visit_last_action_time,
                             visit_first_action_time,
-                            idvisit,
-                            visit_exit_idaction_url,
-                            visit_exit_idaction_name,
-                            visitor_returning,
-                            visitor_days_since_first,
-                            visitor_days_since_order,
-                            location_country,
-                            location_region,
-                            location_city,
-                            location_latitude,
-                            location_longitude,
-                            referer_name,
-                            referer_keyword,
-                            referer_type,
-                            visitor_count_visits,
-                            visit_goal_buyer
+                            {$selectFields}
                             {$this->recognize['selectCustomVariables']}
         ";
         $this->recognize['select'] = $select;
@@ -367,5 +338,38 @@ class LogVisit extends Base
                 LIMIT 1";
         $this->recognize['sql'] = $sql;
         $this->recognize['bind'] = $bind;
+    }
+
+    protected function adjacentVisitorId($idSite, $visitorId, $visitLastActionTime, $segment, $getNext)
+    {
+        if ($getNext) {
+            $visitLastActionTimeCondition = "sub.visit_last_action_time <= ?";
+            $orderByDir = "DESC";
+        } else {
+            $visitLastActionTimeCondition = "sub.visit_last_action_time >= ?";
+            $orderByDir = "ASC";
+        }
+
+        $visitLastActionDate = Date::factory($visitLastActionTime);
+        $dateOneDayAgo       = $visitLastActionDate->subDay(1);
+        $dateOneDayInFuture  = $visitLastActionDate->addDay(1);
+
+        $select = "log_visit.idvisitor, MAX(log_visit.visit_last_action_time) as visit_last_action_time";
+        $from = "log_visit";
+        $where = "log_visit.idsite = ? AND log_visit.idvisitor <> ? AND visit_last_action_time >= ? and visit_last_action_time <= ?";
+        $whereBind = array($idSite, $visitorId, $dateOneDayAgo->toString('Y-m-d H:i:s'), $dateOneDayInFuture->toString('Y-m-d H:i:s'));
+        $orderBy = "MAX(log_visit.visit_last_action_time) $orderByDir";
+        $groupBy = "log_visit.idvisitor";
+
+        $segment = new Segment($segment, $idSite);
+        $queryInfo = $segment->getSelectQuery($select, $from, $where, $whereBind, $orderBy, $groupBy);
+
+        $sql = "SELECT sub.idvisitor, sub.visit_last_action_time
+                  FROM ({$queryInfo['sql']}) as sub
+                 WHERE $visitLastActionTimeCondition
+                 LIMIT 1";
+        $bind = array_merge($queryInfo['bind'], array($visitLastActionTime));
+
+        return $this->db->fetchOne($sql, $bind);
     }
 }

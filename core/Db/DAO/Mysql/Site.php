@@ -124,39 +124,9 @@ class Site extends Base
         return $this->db->fetchAll($sql, $timezones);
     }
 
-    public function addRecord($name,
-                              $url,
-                              $ips,
-                              $params,
-                              $user_agents,
-                              $keep_url_fragment,
-                              $tz,
-                              $currency,
-                              $ecommerce,
-                              $search,
-                              $search_keyword_parameters,
-                              $search_category_parameters,
-                              $ts,
-                              $group)
+    public function addRecord($bind)
     {
-        $bind = array();
-        $bind['name']     = $name;
-        $bind['main_url'] = $url;
-        $bind['excluded_ips'] = $ips;
-        $bind['excluded_parameters'] = $params;
-        $bind['excluded_user_agents'] = $user_agents;
-        $bind['keep_url_fragment'] = $keep_url_fragment;
-        $bind['timezone']   = $tz;
-        $bind['currency']   = $currency;
-        $bind['ecommerce']  = $ecommerce;
-        $bind['sitesearch'] = $search;
-        $bind['sitesearch_keyword_parameters'] = $search_keyword_parameters;
-        $bind['sitesearch_category_parameters'] = $search_category_parameters;
-        $bind['ts_created'] = $ts;
-        $bind['group'] = $group;
-
         $this->db->insert($this->table, $bind);
-
         return $this->db->lastInsertId();
     }
 

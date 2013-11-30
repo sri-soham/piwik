@@ -12,11 +12,12 @@ namespace Piwik;
 
 use Exception;
 use Piwik\Db\Adapter;
+
 use Piwik\Db\Schema;
 use Piwik\Db;
 use Piwik\Plugin;
-use Piwik\Plugins\UsersManager\API;
 use Piwik\Plugins\SitesManager\API as APISitesManager;
+use Piwik\Plugins\UsersManager\API;
 use Piwik\Session;
 use Piwik\Tracker;
 use Piwik\View;
@@ -690,7 +691,7 @@ class Piwik
      * need to use this function.
      *
      * @param string $eventName The event name.
-     * @param callable $function The observer.
+     * @param callable|array $function The observer.
      * @api
      */
     public static function addAction($eventName, $function)

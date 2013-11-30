@@ -11,10 +11,8 @@
 namespace Piwik\API;
 
 use Exception;
-
 use Piwik\Common;
 use Piwik\Piwik;
-use Piwik\Plugin\Manager;
 use Piwik\Url;
 
 /**
@@ -140,6 +138,7 @@ class DocumentationGenerator
             'apiAction'      => 'getCountry',
             'lastMinutes'    => '30',
             'abandonedCarts' => '0',
+            'segmentName'    => 'pageTitle',
             'ip'             => '194.57.91.215',
 //            'segmentName'    => 'browserCode',
         );

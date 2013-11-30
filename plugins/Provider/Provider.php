@@ -13,8 +13,9 @@ namespace Piwik\Plugins\Provider;
 use Exception;
 use Piwik\ArchiveProcessor;
 use Piwik\Common;
-use Piwik\Db;
+use Piwik\Config;
 
+use Piwik\Db;
 use Piwik\FrontController;
 use Piwik\IP;
 use Piwik\Db\Factory;
@@ -35,13 +36,11 @@ class Provider extends \Piwik\Plugin
     public function getListHooksRegistered()
     {
         $hooks = array(
-            'ArchiveProcessor.Day.compute'    => 'archiveDay',
-            'ArchiveProcessor.Period.compute' => 'archivePeriod',
             'Tracker.newVisitorInformation'   => 'enrichVisitWithProviderInfo',
             'WidgetsList.addWidgets'          => 'addWidget',
             'Menu.Reporting.addItems'         => 'addMenu',
             'API.getReportMetadata'           => 'getReportMetadata',
-            'API.getSegmentsMetadata'         => 'getSegmentsMetadata',
+            'API.getSegmentDimensionMetadata' => 'getSegmentsMetadata',
             'ViewDataTable.configure'         => 'configureViewDataTable',
         );
         return $hooks;
@@ -112,7 +111,7 @@ class Provider extends \Piwik\Plugin
             return;
         }
 
-        $ip = IP::N2P($visitorInfo['location_ip']);
+        $ip = IP::N2P(Config::getInstance()->Tracker['use_anonymized_ip_for_visit_enrichment'] == 1 ? $visitorInfo['location_ip'] : $request->getIp());
 
         // In case the IP was anonymized, we should not continue since the DNS reverse lookup will fail and this will slow down tracking
         if (substr($ip, -2, 2) == '.0') {
@@ -210,25 +209,6 @@ class Provider extends \Piwik\Plugin
 			<h2>' . Piwik::translate('Provider_WidgetProviders') . '</h2>';
         $out .= FrontController::getInstance()->fetchDispatch('Provider', 'getProvider');
         $out .= '</div>';
-    }
-
-    /**
-     * Daily archive: processes the report Visits by Provider
-     */
-    public function archiveDay(ArchiveProcessor\Day $archiveProcessor)
-    {
-        $archiving = new Archiver($archiveProcessor);
-        if ($archiving->shouldArchive()) {
-            $archiving->archiveDay();
-        }
-    }
-
-    public function archivePeriod(ArchiveProcessor\Period $archiveProcessor)
-    {
-        $archiving = new Archiver($archiveProcessor);
-        if ($archiving->shouldArchive()) {
-            $archiving->archivePeriod();
-        }
     }
 
     public function configureViewDataTable(ViewDataTable $view)
