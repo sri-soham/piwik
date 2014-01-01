@@ -70,7 +70,7 @@ class Report extends Base
         }
 
         // Joining with the site table to work around pre-1.3 where reports could still be linked to a deleted site
-        $sql = 'SELECT * FROM ' . $this->table . ' '
+        $sql = 'SELECT report.* FROM ' . $this->table . ' AS report '
              . 'INNER JOIN ' . Common::prefixTable('site') . ' '
              . '    USING (idsite) '
              . 'WHERE deleted = 0 ' . $where;

@@ -68,7 +68,7 @@ class Archive extends Base
         $sql_parts = implode(' OR ', $sql_parts);
         $sql = 'DELETE FROM ' . $table 
              . ' WHERE ( ' . $sql_parts . ' ) '
-             . '   AND idsite IN ( ' . $idSites . ' )';
+             . '   AND idsite IN ( ' . implode(',', $idSites) . ' )';
         $this->db->query($sql, $bind);
     }
 

@@ -212,7 +212,7 @@ class Site extends Base
     {
         $sql = 'UPDATE ' . $this->table . ' '
              . ' SET ts_created = ? '
-             . 'WHERE idsite IN (' . $idsites . ') '
+             . 'WHERE idsite IN (' . implode(',', $idsites) . ') '
              . '  AND ts_created > ?';
         $this->db->query($sql, array($date, $date));
     }

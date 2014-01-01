@@ -66,7 +66,7 @@ class Report extends \Piwik\Db\DAO\Mysql\Report
         else {
             $where = ' AND ' . implode(' AND ', $where) . ' ';
         }
-        $sql = 'SELECT * FROM ' . $this->table . ' '
+        $sql = 'SELECT report.* FROM ' . $this->table . ' AS report '
              . 'INNER JOIN ' . Common::prefixTable('site') . ' '
              . '    USING(idsite) '
              . 'WHERE deleted = \'0\' ' . $where;

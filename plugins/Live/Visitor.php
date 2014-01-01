@@ -15,6 +15,7 @@ use Piwik\DataAccess\LogAggregator;
 use Piwik\DataTable\Filter\ColumnDelete;
 use Piwik\Date;
 use Piwik\Db;
+use Piwik\Db\Factory;
 use Piwik\IP;
 use Piwik\Piwik;
 use Piwik\Plugins\API\API as APIMetadata;

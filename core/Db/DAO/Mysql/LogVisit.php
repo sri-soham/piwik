@@ -220,7 +220,7 @@ class LogVisit extends Base
 
     public function getAdjacentVisitorId($idSite, $visitorId, $visitLastActionTime, $segment, $getNext)
     {
-        $visitorId = adjacentVisitorId($idSite, @Common::hex2bin($visitorId), $visitLastActionTime, $segment, $getNext);
+        $visitorId = $this->adjacentVisitorId($idSite, @Common::hex2bin($visitorId), $visitLastActionTime, $segment, $getNext);
         if (!empty($visitorId)) {
             $visitorId = bin2hex($visitorId);
         }

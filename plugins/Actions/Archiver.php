@@ -139,6 +139,7 @@ class Archiver extends \Piwik\Plugin\Archiver
      */
     protected function updateQuerySelectFromForSiteSearch(&$select, &$from)
     {
+        $Generic = Factory::getGeneric();
         $max_col = $Generic->castToNumeric('log_link_visit_action.custom_var_v' . ActionSiteSearch::CVAR_INDEX_SEARCH_COUNT);
         $selectFlagNoResultKeywords = ",
             CASE WHEN (MAX($max_col) = 0
