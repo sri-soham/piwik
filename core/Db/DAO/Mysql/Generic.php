@@ -159,11 +159,6 @@ class Generic extends \Piwik\Db\DAO\Generic
         }
     }
 
-    public function hour($timestamp)
-    {
-        return ' HOUR('.$timestamp.') ';
-    }
-
     // mysql doesn't cause error when numeric functions are used on varchar columns
     public function castToNumeric($colName)
     {

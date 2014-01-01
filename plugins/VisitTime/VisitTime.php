@@ -106,15 +106,13 @@ class VisitTime extends \Piwik\Plugin
 
     public function getSegmentsMetadata(&$segments)
     {
-        $Generic = Factory::getGeneric();
-
         $acceptedValues = "0, 1, 2, 3, ..., 20, 21, 22, 23";
         $segments[] = array(
             'type'           => 'dimension',
             'category'       => Piwik::translate('General_Visit'),
             'name'           => Piwik::translate('VisitTime_ColumnServerTime'),
             'segment'        => 'visitServerHour',
-            'sqlSegment'     => $Generic->hour('log_visit.visit_last_action_time'),
+            'sqlSegment'     => 'HOUR(log_visit.visit_last_action_time)',
             'sqlFilter'      => array('Piwik\Common', 'dummyWhenNotTime'),
             'acceptedValues' => $acceptedValues
         );
@@ -123,7 +121,7 @@ class VisitTime extends \Piwik\Plugin
             'category'       => Piwik::translate('General_Visit'),
             'name'           => Piwik::translate('VisitTime_ColumnLocalTime'),
             'segment'        => 'visitLocalHour',
-            'sqlSegment'     => $Generic->hour('log_visit.visitor_localtime'),
+            'sqlSegment'     => 'HOUR(log_visit.visitor_localtime)',
             'sqlFilter'      => array('Piwik\Common', 'dummyWhenNotTime'),
             'acceptedValues' => $acceptedValues
         );

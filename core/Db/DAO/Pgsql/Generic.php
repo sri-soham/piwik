@@ -207,11 +207,6 @@ class Generic extends \Piwik\Db\DAO\Generic
         }
     }
 
-    public function hour($timestampCol)
-    {
-        return ' EXTRACT (HOUR FROM ' . $timestampCol . ') ';
-    }
-
     /**
      *  casts numeric strings to numeric
      *  

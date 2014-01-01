@@ -404,7 +404,17 @@ class Pgsql implements SchemaInterface
                                     SELECT str ~ '^(-)?[0-9]+(.[0-9]+)?$' INTO v_res;
                                     RETURN v_res;
                                 END;
-                                $$ LANGUAGE plpgsql"
+                                $$ LANGUAGE plpgsql",
+            'hour' => "CREATE OR REPLACE FUNCTION hour(p_value TIME) RETURNS INT AS $$
+                        BEGIN
+                            RETURN EXTRACT(HOUR FROM p_value);
+                        END;
+                        $$ LANGUAGE plpgsql",
+            'hour2' => "CREATE OR REPLACE FUNCTION hour(p_value TIMESTAMP) RETURNS INT AS $$
+                            BEGIN
+                                RETURN EXTRACT(HOUR FROM p_value);
+                            END;
+                            $$ LANGUAGE plpgsql"
         );
 
         return $functions;

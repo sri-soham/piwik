@@ -38,12 +38,11 @@ class Archiver extends \Piwik\Plugin\Archiver
 
     protected function aggregateByServerTime()
     {
-        $Generic = Factory::getGeneric();
         $dataArray = $this->getLogAggregator()->getMetricsFromVisitByDimension(
-                        array("label" => $Generic->hour('log_visit.visit_last_action_time'))
+                        array("label" => 'HOUR(log_visit.visit_last_action_time)')
                      );
         $query = $this->getLogAggregator()->queryConversionsByDimension(
-                    array("label" => $Generic->hour('log_conversion.server_time'))
+                    array("label" => 'HOUR(log_conversion.server_time)')
                  );
         if ($query === false) {
             return;
@@ -61,7 +60,6 @@ class Archiver extends \Piwik\Plugin\Archiver
 
     protected function aggregateByLocalTime()
     {
-        $Generic = Factory::getGeneric();
         $array = $this->getLogAggregator()->getMetricsFromVisitByDimension("HOUR(log_visit.visitor_localtime)");
         $this->ensureAllHoursAreSet($array);
         $report = $array->asDataTable()->getSerialized();
