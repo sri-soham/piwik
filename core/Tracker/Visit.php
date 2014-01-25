@@ -400,7 +400,7 @@ class Visit implements VisitInterface
 				$isVisitorIdToLookup ,
 				$this->request->getIdSite(),
 				$configId,
-				$this->visitorInfo['idvisitor']
+				array_key_exists('idvisitor', $this->visitorInfo) ? $this->visitorInfo['idvisitor'] : null
 			);
 
         $isNewVisitForced = $this->request->getParam('new_visit');

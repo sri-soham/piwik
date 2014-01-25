@@ -70,6 +70,17 @@ require_once PIWIK_INCLUDE_PATH . '/core/Tracker/VisitorNotFoundInDb.php';
 require_once PIWIK_INCLUDE_PATH . '/core/CacheFile.php';
 require_once PIWIK_INCLUDE_PATH . '/core/Filesystem.php';
 require_once PIWIK_INCLUDE_PATH . '/core/Cookie.php';
+require_once PIWIK_INCLUDE_PATH . '/core/Db/Factory.php';
+require_once PIWIK_INCLUDE_PATH . '/core/Db/DAO/Base.php';
+require_once PIWIK_INCLUDE_PATH . '/core/Db/DAO/Generic.php';
+require_once PIWIK_INCLUDE_PATH . '/core/Db/DAO/Mysql/Generic.php';
+require_once PIWIK_INCLUDE_PATH . '/core/Db/DAO/Pgsql/Generic.php';
+require_once PIWIK_INCLUDE_PATH . '/core/Db/DAO/Mysql/LogAction.php';
+require_once PIWIK_INCLUDE_PATH . '/core/Db/DAO/Pgsql/LogAction.php';
+require_once PIWIK_INCLUDE_PATH . '/core/Db/DAO/Mysql/LogVisit.php';
+require_once PIWIK_INCLUDE_PATH . '/core/Db/DAO/Pgsql/LogVisit.php';
+require_once PIWIK_INCLUDE_PATH . '/core/Db/DAO/Mysql/LogLinkVisitAction.php';
+require_once PIWIK_INCLUDE_PATH . '/core/Db/DAO/Pgsql/LogLinkVisitAction.php';
 
 session_cache_limiter('nocache');
 @date_default_timezone_set('UTC');
