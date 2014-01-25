@@ -294,6 +294,8 @@ class Generic extends \Piwik\Db\DAO\Generic
     // For version >= 5.4 use hex2bin
     public function db2bin($value)
     {
+        if (is_bool($value)) return $value;
+
         if ($this->isByteaOutputHex) {
             $value = $this->hexToEscape($value);
         }

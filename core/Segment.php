@@ -488,7 +488,19 @@ class Segment
             foreach ($parts as $part) {
                 $part = trim($part);
                 $col_parts = explode('.', $part);
-                if (in_array($col_parts[0], $tables)) {
+                $start_pos = strpos($col_parts[0], '(');
+                if ($start_pos === false) {
+                    $part0 = $col_parts[0];
+                }
+                else {
+                    # $col_parts[0] 'MAX(log_visit'
+                    $part0 = substr($col_parts[0], $start_pos+1);
+                    $start_pos = strpos($part, '(');
+                    $end_pos = strpos($part, ')');
+                    $part = substr($part, $start_pos+1, ($end_pos - $start_pos - 1));
+                }
+                $part0 = trim($part0);
+                if (in_array($part0, $tables)) {
                     $neededColumns[] = $part;
                 }
             }

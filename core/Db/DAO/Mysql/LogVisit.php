@@ -73,7 +73,9 @@ class LogVisit extends Base
     public function update($valuesToUpdate, $idsite, $idvisit)
     {
         $Generic = Factory::getGeneric($this->db);
-        $valuesToUpdate['idvisitor'] = $Generic->bin2db($valuesToUpdate['idvisitor']);
+        if (array_key_exists('idvisitor', $valuesToUpdate)) {
+            $valuesToUpdate['idvisitor'] = $Generic->bin2db($valuesToUpdate['idvisitor']);
+        }
 
         $updateParts = $sqlBind = array();
         foreach ($valuesToUpdate AS $name => $value) {
@@ -268,7 +270,7 @@ class LogVisit extends Base
 
         $idvisitorPos = array_search('idvisitor', $this->recognize['persistedVisitAttributes']);
         if ($idvisitorPos !== false) {
-            $this->recoginze['persistedVisitAttributes'][$idvisitorPos] = $this->Generic->binaryColumn('idvisitor');
+            $this->recognize['persistedVisitAttributes'][$idvisitorPos] = $this->Generic->binaryColumn('idvisitor');
         }
         $selectFields = implode(",\n", $this->recognize['persistedVisitAttributes']);
         $select = "SELECT   visit_last_action_time,
@@ -354,7 +356,9 @@ class LogVisit extends Base
         $dateOneDayAgo       = $visitLastActionDate->subDay(1);
         $dateOneDayInFuture  = $visitLastActionDate->addDay(1);
 
-        $select = "log_visit.idvisitor, MAX(log_visit.visit_last_action_time) as visit_last_action_time";
+        $Generic = Factory::getGeneric();
+        $bin_idvisitor = $Generic->binaryColumn('log_visit.idvisitor');
+        $select = "$bin_idvisitor, MAX(log_visit.visit_last_action_time) as visit_last_action_time";
         $from = "log_visit";
         $where = "log_visit.idsite = ? AND log_visit.idvisitor <> ? AND visit_last_action_time >= ? and visit_last_action_time <= ?";
         $whereBind = array($idSite, $visitorId, $dateOneDayAgo->toString('Y-m-d H:i:s'), $dateOneDayInFuture->toString('Y-m-d H:i:s'));

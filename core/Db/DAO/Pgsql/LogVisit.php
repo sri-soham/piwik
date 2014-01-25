@@ -155,8 +155,10 @@ class LogVisit extends \Piwik\Db\DAO\Mysql\LogVisit
     public function getAdjacentVisitorId($idSite, $visitorId, $visitLastActionTime, $segment, $getNext)
     {
         $visitorId = $this->adjacentVisitorId($idSite, $visitorId, $visitLastActionTime, $segment, $getNext);
+        $Generic = Factory::getGeneric();
+        $Generic->checkByteaOutput();
 
-        return $visitorId;
+        return $Generic->db2bin($visitorId);
     }
 
     /**

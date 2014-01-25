@@ -61,7 +61,10 @@ class ArchiveTableCreator
                 $db->query($sql);
             } catch (Exception $e) {
                 // accept mysql error 1050: table already exists, throw otherwise
-                if (!$db->isErrNo($e, '1050')) {
+                // postgresql is sometimes throwing the error 
+                // "duplicate key value violates unique constraint "pg_type_typname_nsp_index"
+                // if the table already exists.
+                if (!($db->isErrNo($e, '1050') || $db->isErrNo($e, '1062'))) {
                     throw $e;
                 }
             }
