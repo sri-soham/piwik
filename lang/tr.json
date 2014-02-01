@@ -79,9 +79,6 @@
         "ViewAndAddAnnotations": "%s için notları göster ve yeni not ekle...",
         "YouCannotModifyThisNote": "Bunu değiştiremezsiniz. Bunun için bu siteye yönetici erişiminiz olması gerekli."
     },
-    "AnonymizeIP": {
-        "PluginDescription": "Yerel gizlilik kurallarına uymak için ziyaretçi IP adreslerini gizleyin."
-    },
     "API": {
         "GenerateVisits": "Eğer bugün için bir veri yoksa öncelikle %s eklentisiyle biraz veri oluşturabilirsiniz. %s eklentisini aktifleştirin, sonrasında Piwik Yönetim alanından 'Ziyaretçi Oluşturucu' menüsüne tıklayınız.",
         "KeepTokenSecret": "token_auth kullanıcı adı ve şifreniz kadar gizlidir, %s kimseyle paylaşmayınız%s!",
@@ -105,10 +102,12 @@
         "EmailServerSettings": "E-Posta sunucusu ayarları",
         "ForBetaTestersOnly": "Yalnızca beta test edenler için",
         "ImageTracking": "Resimle İzleme",
+        "ImageTrackingIntro1": "Ziyaretçi JavaScript'i devre dışı bıraktığında veya JavaScript kullanılamadığında, ziyaretçileri takip etmek için resim kullanabilirsiniz.",
         "ImageTrackingIntro2": "Aşağıdaki linke tıklayın ve oluşturulan kodu HTML sayfanıza yapıştırın. Bunu eğer geri javascript geri beslemek için kullanacaksanız etiketler %1$s olacaktır",
         "ImageTrackingLink": "Resimle İzleme Linki",
         "ImportingServerLogs": "Sunucu Loglarını İçe Aktar",
         "InvalidPluginsWarning": "Eklentiler %1$s ve %2$s birbiriyle uyumlu olmadığından yüklenemedi.",
+        "InvalidPluginsYouCanUninstall": "Eklentileri %1$sEklenti Yönetimi%2$s sayfasından güncelleştirebilir veya kaldırabilirsiniz.",
         "JavaScriptTracking": "Javascript İzleme Kodu",
         "JSTracking_CampaignKwdParam": "Kampanya Anahtar Kelime Parametreleri",
         "JSTracking_CampaignNameParam": "Kampanya Parametresi",
@@ -131,7 +130,6 @@
         "LatestStableRelease": "En son kararlı sürüm",
         "LogoNotWriteable": "Logoyu değiştirmek için, Piwik için tema dizinindeki logo dosyalarına yazma hakkı gerekir: %s",
         "LogoUpload": "Yüklemek için logo seçiniz",
-        "LogoUploadDescription": "Arka planı transparan olmayan dosyalarınızı %s formatlarında ve minimum yüksekliği %s olarak yükleyiniz.",
         "MenuDiagnostic": "tehşis",
         "MenuGeneralSettings": "Genel Ayarlar",
         "MenuManage": "yönetmek",
@@ -700,6 +698,7 @@
         "LoginUseHttps": "https kullan"
     },
     "PrivacyManager": {
+        "AnonymizeIpInlineHelp": "Yerel gizlilik kurallarına uymak için ziyaretçi IP adreslerini gizleyin.",
         "TeaserHeadline": "Gizlilik Ayarları"
     },
     "Provider": {

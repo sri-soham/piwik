@@ -30,16 +30,23 @@ function getPathFromUrl($url)
 }
 
 /**
- * Returns the last parts of the domain of a URL.
+ * Returns the main url of the social network the given url matches
  *
- * @param string $url e.g. http://www.facebook.com/?sdlfk=lksdfj
- * @return string|false e.g. facebook.com
+ * @param string  $url
+ *
+ * @return string
  */
-function cleanSocialUrl($url)
+function getSocialMainUrl($url)
 {
-    $segment = '[^.:\/]+';
-    preg_match('/(?:https?:\/\/)?(?:' . $segment . '\.)?(' . $segment . '(?:\.' . $segment . ')+)/', $url, $matches);
-    return isset($matches[1]) ? $matches[1] : false;
+    $social  = getSocialNetworkFromDomain($url);
+    foreach (Common::getSocialUrls() AS $domain => $name) {
+
+        if($name == $social) {
+
+            return $domain;
+        }
+    }
+    return $url;
 }
 
 /**
@@ -50,13 +57,15 @@ function cleanSocialUrl($url)
  */
 function getSocialNetworkFromDomain($url)
 {
-    $domain = cleanSocialUrl($url);
+    foreach (Common::getSocialUrls() AS $domain => $name) {
 
-    if (isset($GLOBALS['Piwik_socialUrl'][$domain])) {
-        return $GLOBALS['Piwik_socialUrl'][$domain];
-    } else {
-        return Piwik::translate('General_Unknown');
+        if(preg_match('/(^|[\.\/])'.$domain.'([\.\/]|$)/', $url)) {
+
+            return $name;
+        }
     }
+
+    return Piwik::translate('General_Unknown');
 }
 
 /**
@@ -69,43 +78,38 @@ function getSocialNetworkFromDomain($url)
  */
 function isSocialUrl($url, $socialName = false)
 {
-    $domain = cleanSocialUrl($url);
+    foreach (Common::getSocialUrls() AS $domain => $name) {
 
-    if (isset($GLOBALS['Piwik_socialUrl'][$domain])
-        && ($socialName === false
-            || $GLOBALS['Piwik_socialUrl'][$domain] == $socialName)
-    ) {
-        return true;
+        if (preg_match('/(^|[\.\/])'.$domain.'([\.\/]|$)/', $url) && ($socialName === false || $name == $socialName)) {
+
+            return true;
+        }
     }
 
     return false;
 }
 
-/* Return social network logo path by URL
+/**
+ * Return social network logo path by URL
  *
- * @param string $url
+ * @param string $domain
  * @return string path
  * @see plugins/Referrers/images/socials/
  */
 function getSocialsLogoFromUrl($domain)
 {
-    $domain = cleanSocialUrl($domain);
+    $social = getSocialNetworkFromDomain($domain);
+    $socialNetworks = Common::getSocialUrls();
 
-    if (isset($GLOBALS['Piwik_socialUrl'][$domain])) {
-        // image names are by first domain in list, so make sure we use the first if $domain isn't it
-        $firstDomain = $domain;
-        foreach ($GLOBALS['Piwik_socialUrl'] as $domainKey => $name) {
-            if ($name == $GLOBALS['Piwik_socialUrl'][$domain]) {
-                $firstDomain = $domainKey;
-                break;
-            }
+    $filePattern = 'plugins/Referrers/images/socials/%s.png';
+
+    foreach ($socialNetworks as $domainKey => $name) {
+        if ($social == $socialNetworks[$domainKey] && file_exists(PIWIK_INCLUDE_PATH . '/' . sprintf($filePattern, $domainKey))) {
+            return sprintf($filePattern, $domainKey);
         }
-
-        $pathWithCode = 'plugins/Referrers/images/socials/' . $firstDomain . '.png';
-        return $pathWithCode;
-    } else {
-        return 'plugins/Referrers/images/socials/xx.png';
     }
+
+    return sprintf($filePattern, 'xx');
 }
 
 /**
@@ -135,7 +139,9 @@ function getSearchEngineUrlFromName($name)
  */
 function getSearchEngineHostFromUrl($url)
 {
-    $url = substr($url, strpos($url, '//') + 2);
+    if (strpos($url, '//')) {
+        $url = substr($url, strpos($url, '//') + 2);
+    }
     if (($p = strpos($url, '/')) !== false) {
         $url = substr($url, 0, $p);
     }

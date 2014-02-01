@@ -6,16 +6,16 @@
         "dataTableLabelBrands": "Brand",
         "dataTableLabelTypes": "Type",
         "dataTableLabelModels": "Model",
-        "dataTableLabelSystemFamily": "Operating System family",
         "dataTableLabelSystemVersion": "Operating System version",
         "dataTableLabelBrowserFamily": "Browser family",
-        "dataTableLabelBrowserVersion": "Browser version",
         "OperatingSystemVersions": "Operating System versions",
         "OperatingSystemFamilies": "Operating System families",
-        "BrowsersFamily": "Browsers families",
         "BrowserVersions": "Browser versions",
         "DeviceType": "Device type",
         "DeviceBrand": "Device brand",
-        "DeviceModel": "Device model"
+        "DeviceModel": "Device model",
+        "DeviceDetection": "Device detection",
+        "Device": "Device",
+        "UserAgent": "User-Agent"
     }
 }

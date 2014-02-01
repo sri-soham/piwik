@@ -12,7 +12,7 @@ $(document).ready(function () {
     $('.location-provider').change(function () {
         if (!$(this).is(':checked')) return; // only handle radio buttons that get checked
 
-        var parent = $(this).parent(),
+        var parent = $(this).closest('p'),
             loading = $('.loadingPiwik', parent),
             ajaxSuccess = $('.success', parent);
 
@@ -25,7 +25,6 @@ $(document).ready(function () {
         }, 'get');
         ajaxRequest.setCallback(
             function () {
-
                 var UI = require('piwik/UI');
                 var notification = new UI.Notification();
                 notification.show(_pk_translate('General_Done'), {
@@ -143,8 +142,6 @@ $(document).ready(function () {
             });
         })
         .on('click', '#update-geoip-links', function () {
-            $('#geoipdb-update-info-error').hide();
-
             var currentDownloading = null;
             var updateGeoIPSuccess = function (response) {
                 if (response && response.error) {
@@ -153,10 +150,10 @@ $(document).ready(function () {
                     var UI = require('piwik/UI');
                     var notification = new UI.Notification();
                     notification.show(response.error, {
-                        placeat: 'geoipdb-update-info-error',
+                        placeat: '#geoipdb-update-info-error',
                         context: 'error',
                         style: {display: 'inline-block'},
-                        id: 'userCountryGeoIpUpdate'
+                        id: 'userCountryGeoIpUpdate',
                     });
 
                 }
@@ -175,7 +172,6 @@ $(document).ready(function () {
                         continuing, {key: response.to_download}, updateGeoIPSuccess);
                 }
                 else {
-                    $('#geoipdb-update-info-error').hide();
                     $('#geoip-updater-progressbar-label').html('');
                     $('#geoip-progressbar-container').hide();
 
@@ -189,12 +185,14 @@ $(document).ready(function () {
                         style: {display: 'inline-block'},
                         id: 'userCountryGeoIpUpdate'
                     });
+
+                    $('#geoip-updater-next-run-time').html(response.nextRunTime).parent().effect('highlight', {color: '#FFFFCB'}, 2000);
                 }
             };
 
             // setup the auto-updater
             var ajaxRequest = new ajaxHelper();
-            var periodSelected = $('#geoip-update-period-cell').find('>input:checked').val();
+            var periodSelected = $('#geoip-update-period-cell').find('input:checked').val();
             ajaxRequest.addParams({
                 period: periodSelected
             }, 'get');

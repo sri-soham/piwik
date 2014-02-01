@@ -14,7 +14,7 @@ use Piwik\Piwik;
 
 /**
  * Contains menu entries for the Top menu (the menu at the very top of the page).
- * Plugins can subscribe to the [Menu.Top.addItems](#) event to add new pages to
+ * Plugins can subscribe to the {@hook Menu.Top.addItems} event to add new pages to
  * the top menu.
  * 
  * **Example**
@@ -59,6 +59,11 @@ class MenuTop extends MenuAbstract
         }
     }
 
+    public static function removeEntry($menuName, $subMenuName = false)
+    {
+        MenuTop::getInstance()->remove($menuName, $subMenuName);
+    }
+
 
     /**
      * Directly adds a menu entry containing html.
@@ -92,10 +97,11 @@ class MenuTop extends MenuAbstract
 
             /**
              * Triggered when collecting all available menu items that are be displayed on the very top of every
-             * page, next to the login/logout links. Subscribe to this event if you want to add one or more items
-             * to the top menu.
+             * page, next to the login/logout links.
              * 
-             * Menu items should be added via the [MenuTop::addEntry](#addEntry) method.
+             * Subscribe to this event if you want to add one or more items to the top menu.
+             * 
+             * Menu items should be added via the {@link addEntry()} method.
              *
              * **Example**
              * 

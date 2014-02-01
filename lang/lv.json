@@ -18,9 +18,6 @@
         "SubmenuPagesExit": "Izejas lapas",
         "SubmenuPageTitles": "Lapas virsraksti"
     },
-    "AnonymizeIP": {
-        "PluginDescription": "Anonimizē apmeklētāju IP adrešu pēdējo baitu(s). Nepieciešamību nosaka Jūsu vietējie privātuma likumi\/pavadlīnijas."
-    },
     "API": {
         "PluginDescription": "Visi Piwik dati ir pieejami caur vienkāršiem API. Šis spraudnis ir tīkla servisa pieejas punkts, kuru varat izsaukt, lai iegūtu savus tīkla analīzes datus xml, json, php, csv un citos formātos.",
         "QuickDocumentationTitle": "Ātra API dokumentācija",
@@ -546,7 +543,6 @@
         "SystemCheckExtensions": "Citi vajadzīgie paplašinājumi",
         "SystemCheckFileIntegrity": "Datņu integritāte",
         "SystemCheckFunctions": "Nepieciešamās metodes",
-        "SystemCheckGD": "GD > 2.x (grafika)",
         "SystemCheckIconvHelp": "Jums jāiestata un jāpārbūvē PHP ar ieslēgtu \"iconv\" atbalstu, --with-iconv.",
         "SystemCheckMbstring": "mbstring",
         "SystemCheckMemoryLimit": "Atmiņas limits",
@@ -555,7 +551,7 @@
         "SystemCheckOtherFunctions": "Citas metodes",
         "SystemCheckPdoAndMysqliHelp": "Uz Linux servera Jūs varat kompilēt php ar sekojošiem parametriem: %1$s Savā php.ini datnē pievienojiet sekojošas līnijas: %2$s",
         "SystemCheckPhp": "PHP versija",
-        "SystemCheckPhpPdoAndMysqliSite": "Vairāk informācija par <a style=\"color:red\" href=\"http:\/\/php.net\/pdo\">PHP PDO<\/a> un <a style=\"color:red\" href=\"http:\/\/php.net\/mysqli\">MYSQLI<\/a>.",
+        "SystemCheckPhpPdoAndMysqli": "Vairāk informācija par %1$sPHP PDO%2$s un %3$sMYSQLI%4$s.",
         "SystemCheckSplHelp": "Jums jāiestata un jāpārbūvē PHP ar ieslēgtu Standard PHP Library (SPL) (pēc noklusējuma).",
         "SystemCheckWarnDomHelp": "Jums ir jāieslēdz \"dom\" paplašinājums (piem., instalējiet \"php-dom\" un\/vai \"php-xml\" pakotnes).",
         "SystemCheckWarnJsonHelp": "Jums ir jāieslēdz \"json\" paplašinājums (piem., instalējiet \"php-json\" pakotni) labākai veiktspējai.",
@@ -623,6 +619,7 @@
         "YouAreOffline": "Atvainojiet, bet Jūs paļaik atrodaties bezsaistē"
     },
     "PrivacyManager": {
+        "AnonymizeIpInlineHelp": "Anonimizē apmeklētāju IP adrešu pēdējo baitu(s). Nepieciešamību nosaka Jūsu vietējie privātuma likumi\/pavadlīnijas.",
         "ClickHereSettings": "Klikšķiniet šeit lai piekļūtu %s iestatījumiem.",
         "DeleteLogInfo": "Tiks dzēsti žurnāli no sekojošām tabulām: %s",
         "DeleteLogsOlderThan": "Dzēst vecākus žurnālus par",

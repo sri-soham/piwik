@@ -54,6 +54,7 @@ class CorePluginsAdmin extends \Piwik\Plugin
     public function getStylesheetFiles(&$stylesheets)
     {
         $stylesheets[] = "plugins/CorePluginsAdmin/stylesheets/marketplace.less";
+        $stylesheets[] = "plugins/CorePluginsAdmin/stylesheets/plugins_admin.less";
     }
 
     function addMenu()
@@ -74,7 +75,7 @@ class CorePluginsAdmin extends \Piwik\Plugin
             }
         }
 
-        MenuAdmin::getInstance()->add('CorePluginsAdmin_MenuPlatform', null, "", !Piwik::isUserIsAnonymous(), $order = 15);
+        MenuAdmin::getInstance()->add('CorePluginsAdmin_MenuPlatform', null, "", !Piwik::isUserIsAnonymous(), $order = 7);
         MenuAdmin::getInstance()->add('CorePluginsAdmin_MenuPlatform', Piwik::translate('General_Plugins') . $pluginsUpdateMessage,
             array('module' => 'CorePluginsAdmin', 'action' => 'plugins', 'activated' => ''),
             Piwik::isUserIsSuperUser(),
@@ -97,6 +98,11 @@ class CorePluginsAdmin extends \Piwik\Plugin
     public static function isMarketplaceEnabled()
     {
         return (bool) Config::getInstance()->General['enable_marketplace'];
+    }
+
+    public static function isPluginsAdminEnabled()
+    {
+        return (bool) Config::getInstance()->General['enable_plugins_admin'];
     }
 
     public function getJsFiles(&$jsFiles)

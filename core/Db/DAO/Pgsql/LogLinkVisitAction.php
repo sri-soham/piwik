@@ -35,8 +35,10 @@ class LogLinkVisitAction extends \Piwik\Db\DAO\Mysql\LogLinkVisitAction
         );
 
         $this->db->query($sql, $bind);
+        $id = $this->db->lastInsertId($this->table.'_idlink_va');
+        $insert['idlink_va'] = $id;
 
-        return $this->db->lastInsertId($this->table.'_idlink_va');
+        return $insert;
     }
 
     public function fetchAll()

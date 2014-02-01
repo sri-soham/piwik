@@ -273,7 +273,7 @@ abstract class Action
         }
 
         $LogLinkVisitAction = Factory::getDAO('log_link_visit_action', Tracker::getDatabase());
-        $this->idLinkVisitAction = $LogLinkVisitAction->record(
+        $visitAction = $LogLinkVisitAction->record(
             $idVisit,
             $this->request->getIdSite(),
             $visitorIdCookie,
@@ -287,35 +287,18 @@ abstract class Action
             $customVariables,
             $this->actionIdsCached
         );
+        $this->idLinkVisitAction = $visitAction['idlink_va'];
         
-        $info = array(
-            'idSite'                 => $this->request->getIdSite(),
-            'idLinkVisitAction'      => $this->idLinkVisitAction,
-            'idVisit'                => $idVisit,
-            'idRefererActionUrl'     => $idReferrerActionUrl,
-            'idRefererActionName'    => $idReferrerActionName,
-            'timeSpentRefererAction' => $timeSpentReferrerAction,
-        );
+        Common::printDebug("Inserted new action:");
+        Common::printDebug($visitAction);
 
         /**
-         * Triggered after successfully logging an action for a visit.
+         * Triggered after successfully persisting a [visit action entity](/guides/persistence-and-the-mysql-backend#visit-actions).
          * 
-         * 
-         * @param Action $trackerAction The Action tracker instance.
-         * @param array $info An array describing the current visit action. Includes the
-         *                    following information:
-         *                    - **idSite**: The ID of the site that we are tracking.
-         *                    - **idLinkVisitAction**: The ID of the row that was inserted into the
-         *                                             log_link_visit_action table.
-         *                    - **idVisit**: The visit ID.
-         *                    - **idReferrerActionUrl**: The ID referencing the row in the log_action table
-         *                                               that holds the URL of the visitor's last action.
-         *                    - **idReferrerActionName**: The ID referencing the row in the log_action table
-         *                                                that holds the name of the visitor's last action.
-         *                    - **timeSpentReferrerAction**: The number of seconds since the visitor's last
-         *                                                   action.
+         * @param Action $tracker Action The Action tracker instance.
+         * @param array $visitAction The visit action entity that was persisted. Read
+         *                           [this](/guides/persistence-and-the-mysql-backend#visit-actions) to see what it contains.
          */
-        Piwik::postEvent('Tracker.recordAction', array($trackerAction = $this, $info));
+        Piwik::postEvent('Tracker.recordAction', array($trackerAction = $this, $visitAction));
     }
 }
-

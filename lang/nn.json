@@ -31,9 +31,6 @@
         "SubmenuPagesExit": "Utgangssider",
         "SubmenuPageTitles": "Sidetitlar"
     },
-    "AnonymizeIP": {
-        "PluginDescription": "Anonymiser siste del av IPen til vitjarane for å overhalda lokale lovar og retningsliner for personvern."
-    },
     "API": {
         "LoadedAPIs": "Lasta vellykka %s APIar"
     },
@@ -46,7 +43,6 @@
         "EmailServerSettings": "Innstillingar for e-posttenar",
         "LogoNotWriteable": "For å bruka ein tilpassa logo, krev Piwik skrivetilgang til logofilene i bunad-katalogen: %s",
         "LogoUpload": "Last opp ein logo",
-        "LogoUploadDescription": "Last opp ei fil i %s format, ikkje gjennomsynleg bakgrunn, og minimum %s pikslar høg.",
         "MenuGeneralSettings": "Generelle innstillingar",
         "OptOutComplete": "Avmelding fullførd. Vitjingane dine til denne nettsida vil ikkje loggførast av nettstatistikkverktøyet.",
         "OptOutCompleteBis": "Dersom du slettar infokapslane dine eller byter datamaskin eller nettlesar, må du avmelda deg på nytt.",
@@ -648,7 +644,6 @@
         "SystemCheckExtensions": "Andre påkravde utvidingar",
         "SystemCheckFileIntegrity": "Filintegritet",
         "SystemCheckFunctions": "Påkravde funksjonar",
-        "SystemCheckGD": "GD > 2.x (biletehandsaming)",
         "SystemCheckGDHelp": "Gnistlinjene (små bilete) og biletgrafane (i e-postrapportar og i mobilappen til Piwik) vil ikkje fungera.",
         "SystemCheckIconvHelp": "Du må konfigurera og byggja PHP med \"iconv\"-støtte påslegen, --with-iconv.",
         "SystemCheckMailHelp": "Attendemeldingar og 'Tapt Passord'-meldingar vil ikkje sendast uten mail().",
@@ -660,7 +655,7 @@
         "SystemCheckOtherFunctions": "Andre funksjonar",
         "SystemCheckPdoAndMysqliHelp": "På ein Linux-tenar kan du kompilera php med følgjande val: %1$s Legg til følgjande linjer i di php.ini-fil: %2$s",
         "SystemCheckPhp": "PHP-versjon",
-        "SystemCheckPhpPdoAndMysqliSite": "Meir informasjon om: <a style=\"color:red\" href=\"http:\/\/php.net\/pdo\">PHP PDO<\/a> og <a style=\"color:red\" href=\"http:\/\/php.net\/mysqli\">MYSQLI<\/a>.",
+        "SystemCheckPhpPdoAndMysqli": "Meir informasjon om: %1$sPHP PDO%2$s og %3$sMYSQLI%4$s.",
         "SystemCheckSplHelp": "Du må konfigurera og byggja PHP med Standard PHP Library (SPL) påslegen (standard).",
         "SystemCheckTimeLimitHelp": "På ein nettstad med høg trafikk, kan arkiveringsprosessen nytta meir tid enn den hev lov til.<br \/>Viss det trengs, endre innstillinga max_execution_time i php.ini-fila di.",
         "SystemCheckWarnDomHelp": "Du bør slå på \"dom\"-utvidinga (t.d. installer \"php-dom\"- og\/eller \"php-xml\"-pakken).",
@@ -715,6 +710,7 @@
         "Evolution": "Evolusjon"
     },
     "PrivacyManager": {
+        "AnonymizeIpInlineHelp": "Anonymiser siste del av IPen til vitjarane for å overhalda lokale lovar og retningsliner for personvern.",
         "KeepBasicMetrics": "Behald standardverdiar (vitjingar, sidevisningar, hoppfrekvens, målkonverteringar, netthandelkonverteringar, osb)",
         "KeepDataFor": "Behald all data for:"
     },

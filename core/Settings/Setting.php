@@ -24,16 +24,16 @@ abstract class Setting
      * Describes the setting's PHP data type. When saved, setting values will always be casted to this
      * type.
      * 
-     * See [Settings](#) for a list of supported data types.
+     * See {@link Piwik\Plugin\Settings} for a list of supported data types.
      *
      * @var string
      */
     public $type = null;
 
     /**
-     * Describes how the setting should be manipulated through Piwik's UI.
+     * Describes what HTML element should be used to manipulate the setting through Piwik's UI.
      *
-     * See [Settings](#) for a list of supportted control types.
+     * See {@link Piwik\Plugin\Settings} for a list of supported control types.
      * 
      * @var string
      */
@@ -58,7 +58,7 @@ abstract class Setting
      * The setting value will be validated if this field is set. If the value is not one of the
      * available values, an error will be triggered.
      * 
-     * _Note: If a custom validator is supplied (see [validate](#validate)), the setting value will
+     * _Note: If a custom validator is supplied (see {@link $validate}), the setting value will
      * not be validated._
      *
      * @var null|array
@@ -73,7 +73,7 @@ abstract class Setting
     public $introduction    = null;
 
     /**
-     * Text that will be appear directly underneath the setting title in the _Plugin Settings_ admin
+     * Text that will appear directly underneath the setting title in the _Plugin Settings_ admin
      * page. If set, should be a short description of the setting.
      * 
      * @var null|string
@@ -92,19 +92,17 @@ abstract class Setting
     /**
      * A closure that does some custom validation on the setting before the setting is persisted.
      * 
-     * The closure should take two arguments: the setting value and the [Setting](#) instance being
+     * The closure should take two arguments: the setting value and the {@link Setting} instance being
      * validated. If the value is found to be invalid, the closure should throw an exception with
      * a message that describes the error.
      * 
      * **Example**
      * 
-     * ```
-     * $setting->validate = function ($value, Setting $setting) {
-     *     if ($value > 60) {
-     *         throw new \Exception('The time limit is not allowed to be greater than 60 minutes.');
+     *     $setting->validate = function ($value, Setting $setting) {
+     *         if ($value > 60) {
+     *             throw new \Exception('The time limit is not allowed to be greater than 60 minutes.');
+     *         }
      *     }
-     * }
-     * ```
      *
      * @var null|\Closure
      */
@@ -114,21 +112,19 @@ abstract class Setting
      * A closure that transforms the setting value. If supplied, this closure will be executed after
      * the setting has been validated.
      * 
-     * _Note: If a transform is supplied, the setting's [type](#type) has no effect. This means the
+     * _Note: If a transform is supplied, the setting's {@link $type} has no effect. This means the
      * transformation function will be responsible for casting the setting value to the appropriate
      * data type._
      *
      * **Example**
      * 
-     * ```
-     * $setting->transform = function ($value, Setting $setting) {
-     *     if ($value > 30) {
-     *         $value = 30;
-     *     }
+     *     $setting->transform = function ($value, Setting $setting) {
+     *         if ($value > 30) {
+     *             $value = 30;
+     *         }
      *
-     *     return (int) $value;
-     * }
-     * ```
+     *         return (int) $value;
+     *     }
      *
      * @var null|\Closure
      */
@@ -185,7 +181,7 @@ abstract class Setting
     }
 
     /**
-     * Returns true if this setting can be displayed for the current user, false if otherwise.
+     * Returns `true` if this setting can be displayed for the current user, `false` if otherwise.
      * 
      * @return bool
      */

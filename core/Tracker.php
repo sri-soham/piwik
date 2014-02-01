@@ -194,7 +194,7 @@ class Tracker
         }
         $tokenAuth = Common::getRequestVar('token_auth', false, 'string', $jsonData);
         if (empty($tokenAuth)) {
-            throw new Exception("token_auth must be specified when using Bulk Tracking Import. See <a href='http://piwik.org/docs/tracking-api/reference/'>Tracking Doc</a>");
+            throw new Exception("token_auth must be specified when using Bulk Tracking Import. See <a href='http://developer.piwik.org/api-reference/tracking-api'>Tracking Doc</a>");
         }
         if (!empty($this->requests)) {
             $idSitesForAuthentication = array();
@@ -531,13 +531,13 @@ class Tracker
         }
 
         /**
-         * Triggered before a connection to the database is established in the Tracker.
+         * Triggered before a connection to the database is established by the Tracker.
          * 
-         * This event can be used to dynamically change the settings used to connect to the
-         * database.
+         * This event can be used to change the database connection settings used by the Tracker.
          * 
          * @param array $dbInfos Reference to an array containing database connection info,
          *                       including:
+         * 
          *                       - **host**: The host name or IP address to the MySQL database.
          *                       - **username**: The username to use when connecting to the
          *                                       database.
@@ -596,13 +596,13 @@ class Tracker
         $visit = null;
 
         /**
-         * Triggered before a new `Piwik\Tracker\Visit` object is created. Subscribers to this
-         * event can force the use of a custom visit object that extends from
-         * [Piwik\Tracker\VisitInterface](#).
+         * Triggered before a new **visit tracking object** is created. Subscribers to this
+         * event can force the use of a custom visit tracking object that extends from
+         * {@link Piwik\Tracker\VisitInterface}.
          * 
          * @param \Piwik\Tracker\VisitInterface &$visit Initialized to null, but can be set to
-         *                                             a created Visit object. If it isn't
-         *                                             modified Piwik uses the default class.
+         *                                              a new visit object. If it isn't modified
+         *                                              Piwik uses the default class.
          */
         Piwik::postEvent('Tracker.makeNewVisitObject', array(&$visit));
 
@@ -763,9 +763,8 @@ class Tracker
         if (Common::getRequestVar('forceIpAnonymization', false, null, $args) == 1) {
             self::updateTrackerConfig('ip_address_mask_length', 2);
 
-            $section = Config::getInstance()->Plugins_Tracker;
-            $section['Plugins_Tracker'][] = "AnonymizeIP";
-            Config::getInstance()->Plugins_Tracker = $section;
+            self::connectDatabaseIfNotConnected();
+            \Piwik\Plugins\PrivacyManager\IPAnonymizer::activate();
 
             $forceIpAnonymization = true;
         }
@@ -788,15 +787,10 @@ class Tracker
             self::setForceVisitorId($customVisitorId);
         }
         $pluginsDisabled = array('Provider');
-        if (!$forceIpAnonymization) {
-            $pluginsDisabled[] = 'AnonymizeIP';
-        }
 
         // Disable provider plugin, because it is so slow to do many reverse ip lookups
         self::setPluginsNotToLoad($pluginsDisabled);
 
-        // we load 'DevicesDetection' in tests only (disabled by default)
-        self::setPluginsToLoad(array('DevicesDetection'));
     }
 
     /**

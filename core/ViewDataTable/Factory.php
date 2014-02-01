@@ -16,7 +16,7 @@ use Piwik\Piwik;
 use Piwik\Plugins\CoreVisualizations\Visualizations\HtmlTable;
 
 /**
- * Provides a means of creating [ViewDataTable](#) instances by ID.
+ * Provides a means of creating {@link Piwik\Plugin\ViewDataTable} instances by ID.
  *
  * ### Examples
  * 
@@ -28,7 +28,7 @@ use Piwik\Plugins\CoreVisualizations\Visualizations\HtmlTable;
  *         $view = Factory::build('table', 'MyPlugin.myReport');
  *         $view->config->show_limit_control = true;
  *         $view->config->translations['myFancyMetric'] = "My Fancy Metric";
- *         echo $view->render();
+ *         return $view->render();
  *     }
  * 
  * **Displaying a report in another way**
@@ -40,7 +40,7 @@ use Piwik\Plugins\CoreVisualizations\Visualizations\HtmlTable;
  *     {
  *         $view = Factory::build('table', 'MyPlugin.myReport', 'MyPlugin.myReportShownDifferently');
  *         $view->config->filters[] = array('MyMagicFilter', array('an arg', 'another arg'));
- *         echo $view->render();
+ *         return $view->render();
  *     }
  * 
  * **Force a report to be shown as a bar graph**
@@ -52,7 +52,7 @@ use Piwik\Plugins\CoreVisualizations\Visualizations\HtmlTable;
  *     {
  *         $view = Factory::build('graphVerticalBar', 'MyPlugin.myReport', 'MyPlugin.myReportShownAsABarGraph',
  *                                $forceDefault = true);
- *         echo $view->render();
+ *         return $view->render();
  *     }
  * 
  * @package Piwik
@@ -70,17 +70,17 @@ class Factory
     private static $defaultViewTypes = null;
 
     /**
-     * Creates a [ViewDataTable](#) instance by ID. If the **viewDataTable** query parameter is set,
+     * Creates a {@link Piwik\Plugin\ViewDataTable} instance by ID. If the **viewDataTable** query parameter is set,
      * this parameter's value is used as the ID.
      * 
-     * See [ViewDataTable docs](#) to read about the ViewDataTable implementations that are packaged with Piwik.
+     * See {@link Piwik\Plugin\ViewDataTable} to read about the visualizations that are packaged with Piwik.
      * 
      * @param string|null $defaultType A ViewDataTable ID representing the default ViewDataTable type to use. If
      *                                 the **viewDataTable** query parameter is not found, this value is used as
      *                                 the ID of the ViewDataTable to create.
      *                                 
      *                                 If a visualization type is configured for the report being displayed, it
-     *                                 is used instead of the default type. (See [ViewDataTable.getDefaultType](#)).
+     *                                 is used instead of the default type. (See {@hook ViewDataTable.getDefaultType}).
      *                                 If nothing is configured for the report and `null` is supplied for this
      *                                 argument, **table** is used.
      * @param string|false $apiAction The API method for the report that will be displayed, eg,
@@ -151,18 +151,22 @@ class Factory
         if (null === self::$defaultViewTypes) {
             self::$defaultViewTypes = array();
             /**
-             * Triggered when gathering the default view types for all available reports. By default the HtmlTable
-             * visualization is used. If you define your own report, you may want to subscribe to this event to
-             * make sure another Visualization is used (for example, a pie graph, bar graph, or something else).
+             * Triggered when gathering the default view types for all available reports.
+             * 
+             * If you define your own report, you may want to subscribe to this event to
+             * make sure the correct default Visualization is used (for example, a pie graph,
+             * bar graph, or something else).
              *
+             * If there is no default type associated with a report, the **table** visualization
+             * used.
+             * 
              * **Example**
-             * ```
-             * public function getDefaultTypeViewDataTable(&$defaultViewTypes)
-             * {
-             *     $defaultViewTypes['Referrers.getSocials']       = HtmlTable::ID;
-             *     $defaultViewTypes['Referrers.getUrlsForSocial'] = Pie::ID;
-             * }
-             * ```
+             * 
+             *     public function getDefaultTypeViewDataTable(&$defaultViewTypes)
+             *     {
+             *         $defaultViewTypes['Referrers.getSocials']       = HtmlTable::ID;
+             *         $defaultViewTypes['Referrers.getUrlsForSocial'] = Pie::ID;
+             *     }
              * 
              * @param array &$defaultViewTypes The array mapping report IDs with visualization IDs.
              */

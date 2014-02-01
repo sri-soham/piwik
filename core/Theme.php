@@ -10,6 +10,8 @@
  */
 namespace Piwik;
 
+use Piwik\Plugin\Manager;
+
 /**
  * This class contains logic to make Themes work beautifully.
  *
@@ -23,10 +25,21 @@ class Theme
     /** @var \Piwik\Plugin  */
     private $theme;
 
-    public function __construct()
+    /**
+     * @var Plugin $plugin
+     */
+    public function __construct($plugin = false)
     {
-        $this->theme = \Piwik\Plugin\Manager::getInstance()->getThemeEnabled();
-        $this->themeName = $this->theme->getPluginName();
+        $this->createThemeFromPlugin($plugin ? $plugin : Manager::getInstance()->getThemeEnabled());
+    }
+
+    /**
+     * @param Plugin $plugin
+     */
+    private function createThemeFromPlugin($plugin)
+    {
+        $this->theme = $plugin;
+        $this->themeName = $plugin->getPluginName();
     }
 
     public function getStylesheet()
@@ -78,8 +91,11 @@ class Theme
             // Images as well
             '~(src|href)=[\'"]([^\'"]+)[\'"]~',
 
-            // rewrite images in CSS files, i.e. url(plugins/Morpheus/overrides/themes/default/images/help.png);
+            // rewrite images in CSS files
             '~(url\()[\'"]([^\)]?[plugins]+[^\)]+[.jpg|png|gif|svg]?)[\'"][\)]~',
+
+            // url(plugins/....)
+            '~(url\()([^\)]?[plugins]+[^\)]+[.jpg|png|gif|svg]?)[\)]~',
 
             // rewrites images in JS files
             '~(=)[\s]?[\'"]([^\'"]+[.jpg|.png|.gif|svg]?)[\'"]~',
@@ -117,10 +133,24 @@ class Theme
         $newThemePath = "plugins/" . $this->themeName;
         $overridingAsset = str_replace($defaultThemePath, $newThemePath, $pathAsset);
 
-        if(file_exists($overridingAsset)) {
+        // Strip trailing query string
+        $fileToCheck = $overridingAsset;
+        $queryStringPos = strpos($fileToCheck, '?');
+        if( $queryStringPos !== false) {
+            $fileToCheck = substr($fileToCheck, 0, $queryStringPos);
+        }
+
+        if(file_exists($fileToCheck)) {
             return str_replace($pathAsset, $overridingAsset, $source);
         }
         return $source;
     }
 
+    /**
+     * @return string
+     */
+    public function getThemeName()
+    {
+        return $this->themeName;
+    }
 }

@@ -89,29 +89,26 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         }
     }
 
-    /**
-     * @param bool $installPlugins
-     */
-    protected static function installAndLoadPlugins($installPlugins)
-    {
-        $pluginsManager = \Piwik\Plugin\Manager::getInstance();
-        $plugins = $pluginsManager->readPluginsDirectory();
-
-        $pluginsManager->loadPlugins($plugins);
-        if ($installPlugins)
-        {
-            $messages = $pluginsManager->installLoadedPlugins();
-            if(!empty($messages)) {
-                echo implode("  ----  ", $messages);
-            }
-        }
-    }
-
     public static function loadAllPlugins()
     {
+        $plugins = static::getPluginsToLoadDuringTests();
         $pluginsManager = \Piwik\Plugin\Manager::getInstance();
-        $pluginsToLoad = $pluginsManager->getAllPluginsNames();
-        $pluginsManager->loadPlugins($pluginsToLoad);
+
+        // Load all plugins
+        $pluginsManager->loadPlugins($plugins);
+
+        // Install plugins
+        $messages = $pluginsManager->installLoadedPlugins();
+        if(!empty($messages)) {
+//            echo implode("  ----  ", $messages);
+        }
+
+        // Activate them
+        foreach($plugins as $name) {
+            if(!$pluginsManager->isPluginActivated($name)) {
+                $pluginsManager->activatePlugin($name);
+            }
+        }
     }
 
     public static function unloadAllPlugins()
@@ -181,6 +178,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         }
 
         include "DataFiles/SearchEngines.php";
+        include "DataFiles/Socials.php";
         include "DataFiles/Languages.php";
         include "DataFiles/Countries.php";
         include "DataFiles/Currencies.php";
@@ -193,10 +191,8 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         Piwik::setUserIsSuperUser();
 
         Cache::deleteTrackerCache();
-        if ($installPlugins === null) {
-            $installPlugins = $createEmptyDatabase;
-        }
-        static::installAndLoadPlugins( $installPlugins);
+
+        static::loadAllPlugins();
 
 
         $_GET = $_REQUEST = array();
@@ -215,6 +211,9 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         
         \Piwik\SettingsPiwik::$cachedKnownSegmentsToArchive = null;
         \Piwik\CacheFile::$invalidateOpCacheBeforeRead = true;
+
+        \Piwik\Plugins\PrivacyManager\IPAnonymizer::deactivate();
+        \Piwik\Plugins\PrivacyManager\DoNotTrackHeaderChecker::deactivate();
     }
 
     public static function tearDownAfterClass()
@@ -241,6 +240,18 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
 
         $_GET = $_REQUEST = array();
         Translate::unloadEnglishTranslation();
+    }
+
+    protected static function getPluginsToLoadDuringTests()
+    {
+        $manager = \Piwik\Plugin\Manager::getInstance();
+        $toLoad = array();
+        foreach($manager->readPluginsDirectory() as $plugin) {
+            if($manager->isPluginBundledWithCore($plugin)) {
+                $toLoad[] = $plugin;
+            }
+        }
+        return $toLoad;
     }
 
     public function setUp()

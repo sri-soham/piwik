@@ -1,51 +1,39 @@
 <?php
 
-require_once 'DevicesDetection/UserAgentParserEnhanced/UserAgentParserEnhanced.php';
+require_once PIWIK_INCLUDE_PATH . '/plugins/DevicesDetection/UserAgentParserEnhanced/UserAgentParserEnhanced.php';
 
 class UserAgentParserEnhancedTest extends PHPUnit_Framework_TestCase
 {
     /**
      * @group Plugins
-     * @dataProvider getUserAgents_asParsed
      */
-    public function testParse($expected)
+    public function testParse()
     {
-        $ua = $expected['user_agent'];
-
-        $userAgentParserEnhanced = new UserAgentParserEnhanced($ua);
-        $userAgentParserEnhanced->parse();
-
-        $processed =  array(
-            'user_agent' => $userAgentParserEnhanced->getUserAgent(),
-            'os' => array(
-                'name' => $userAgentParserEnhanced->getOs('name'),
-                'short_name' => $userAgentParserEnhanced->getOs('short_name'),
-                'version' => $userAgentParserEnhanced->getOs('version'),
-            ),
-            'browser' => array(
-                'name' => $userAgentParserEnhanced->getBrowser('name'),
-                'short_name' => $userAgentParserEnhanced->getBrowser('short_name'),
-                'version' => $userAgentParserEnhanced->getBrowser('version'),
-            ),
-            'device' => $userAgentParserEnhanced->getDevice(),
-            'brand' => $userAgentParserEnhanced->getBrand(),
-            'model' => $userAgentParserEnhanced->getModel(),
-            'os_family' => $userAgentParserEnhanced->getOsFamily($userAgentParserEnhanced->getOs('name')),
-            'browser_family' => $userAgentParserEnhanced->getBrowserFamily($userAgentParserEnhanced->getBrowser('name')),
-        );
-
-        $this->assertEquals($expected, $processed);
-    }
-
-    public function getUserAgents_asParsed()
-    {
-        $expected = array();
-
-        $fixtures = Spyc::YAMLLoad(dirname(__FILE__) . '/../Fixtures/userAgentParserEnhancedFixtures.yml');
+        $fixturesPath = realpath(dirname(__FILE__) . '/../Fixtures/userAgentParserEnhancedFixtures.yml');
+        $fixtures = Spyc::YAMLLoad($fixturesPath);
         foreach ($fixtures as $fixtureData) {
-            $expected[] = array($fixtureData);
+            $ua = $fixtureData['user_agent'];
+            $uaInfo = UserAgentParserEnhanced::getInfoFromUserAgent($ua);
+            $parsed[] = $uaInfo;
         }
+        if($fixtures != $parsed) {
+            $processed = Spyc::YAMLDump($parsed, false, $wordWrap = 0);
+            $processedPath = $fixturesPath . '.new';
+            file_put_contents($processedPath, $processed);
+            $diffCommand = "diff -a1 -b1";
+            $command = "{$diffCommand} $fixturesPath $processedPath";
+            echo $command . "\n";
+            echo shell_exec($command);
 
-        return $expected;
+            echo "\nThe processed data was stored in: $processedPath ".
+                "\n $ cp $processedPath $fixturesPath ".
+                "\n to copy the file over if it is valid.";
+
+            $this->assertTrue(false);
+
+        }
+        $this->assertTrue(true);
     }
+
+
 }

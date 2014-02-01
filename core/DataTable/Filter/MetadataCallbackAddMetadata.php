@@ -11,10 +11,10 @@
 namespace Piwik\DataTable\Filter;
 
 use Piwik\DataTable;
-use Piwik\DataTable\Filter;
+use Piwik\DataTable\BaseFilter;
 
 /**
- * Executes a callback for each row of a DataTable and adds the result to the
+ * Executes a callback for each row of a {@link DataTable} and adds the result to the
  * row as a metadata value. Only metadata values are passed to the callback.
  *
  * **Basic usage example**
@@ -26,7 +26,7 @@ use Piwik\DataTable\Filter;
  * @subpackage DataTable
  * @api
  */
-class MetadataCallbackAddMetadata extends Filter
+class MetadataCallbackAddMetadata extends BaseFilter
 {
     private $metadataToRead;
     private $functionToApply;
@@ -60,7 +60,7 @@ class MetadataCallbackAddMetadata extends Filter
     }
 
     /**
-     * See [MetadataCallbackAddMetadata](#).
+     * See {@link MetadataCallbackAddMetadata}.
      * 
      * @param DataTable $table
      */

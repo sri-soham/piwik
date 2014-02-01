@@ -9,11 +9,11 @@
  * @package Piwik
  */
 
-// When set to true, all scheduled tasks will be triggered in all requests (careful!)
 namespace Piwik;
 
 use Exception;
 
+// When set to true, all scheduled tasks will be triggered in all requests (careful!)
 define('DEBUG_FORCE_SCHEDULED_TASKS', false);
 
 /**
@@ -21,7 +21,7 @@ define('DEBUG_FORCE_SCHEDULED_TASKS', false);
  * 
  * A scheduled task is a callback that should be executed every so often (such as daily,
  * weekly, monthly, etc.). They are registered with **TaskScheduler** through the
- * [TaskScheduler.getScheduledTasks](#) event.
+ * {@hook TaskScheduler.getScheduledTasks} event.
  * 
  * Tasks are executed when the cron archive.php script is executed.
  * 
@@ -52,17 +52,25 @@ define('DEBUG_FORCE_SCHEDULED_TASKS', false);
  * 
  * @package Piwik
  */
-class TaskScheduler
+class TaskScheduler extends Singleton
 {
     const GET_TASKS_EVENT = "TaskScheduler.getScheduledTasks";
-    const TIMETABLE_OPTION_STRING = "TaskScheduler.timetable";
-    private static $running = false;
+
+    private $isRunning = false;
+
+    private $timetable = null;
+
+    public function __construct()
+    {
+        $this->timetable = new ScheduledTaskTimetable();
+    }
 
     /**
      * Executes tasks that are scheduled to run, then reschedules them.
      *
      * @return array An array describing the results of scheduled task execution. Each element
      *               in the array will have the following format:
+     * 
      *               ```
      *               array(
      *                   'task' => 'task name',
@@ -72,33 +80,32 @@ class TaskScheduler
      */
     public static function runTasks()
     {
-        // get the array where rescheduled timetables are stored
-        $timetable = self::getTimetableFromOptionTable();
+        return self::getInstance()->doRunTasks();
+    }
 
+    private function doRunTasks()
+    {
         // collect tasks
         $tasks = array();
 
         /**
-         * Triggered when the TaskScheduler runs scheduled tasks. Collects all the tasks that
-         * will be run.
+         * Triggered during scheduled task execution. Collects all the tasks to run.
          * 
          * Subscribe to this event to schedule code execution on an hourly, daily, weekly or monthly
          * basis.
          *
          * **Example**
          * 
-         * ```
-         * public function getScheduledTasks(&$tasks)
-         * {
-         *     $tasks[] = new ScheduledTask(
-         *         'Piwik\Plugins\CorePluginsAdmin\MarketplaceApiClient',
-         *         'clearAllCacheEntries',
-         *         null,
-         *         ScheduledTime::factory('daily'),
-         *         ScheduledTask::LOWEST_PRIORITY
-         *     );
-         * }
-         * ```
+         *     public function getScheduledTasks(&$tasks)
+         *     {
+         *         $tasks[] = new ScheduledTask(
+         *             'Piwik\Plugins\CorePluginsAdmin\MarketplaceApiClient',
+         *             'clearAllCacheEntries',
+         *             null,
+         *             ScheduledTime::factory('daily'),
+         *             ScheduledTask::LOWEST_PRIORITY
+         *         );
+         *     }
          * 
          * @param ScheduledTask[] &$tasks List of tasks to run periodically.
          */
@@ -106,15 +113,7 @@ class TaskScheduler
         /** @var ScheduledTask[] $tasks */
 
         // remove from timetable tasks that are not active anymore
-        $activeTaskNames = array();
-        foreach ($tasks as $task) {
-            $activeTaskNames[] = $task->getName();
-        }
-        foreach (array_keys($timetable) as $taskName) {
-            if (!in_array($taskName, $activeTaskNames)) {
-                unset($timetable[$taskName]);
-            }
-        }
+        $this->timetable->removeInactiveTasks($tasks);
 
         // for every priority level, starting with the highest and concluding with the lowest
         $executionResults = array();
@@ -129,23 +128,35 @@ class TaskScheduler
                 }
 
                 $taskName = $task->getName();
-                if (self::taskShouldBeExecuted($taskName, $timetable)) {
-                    self::$running = true;
+                if ($this->timetable->shouldExecuteTask($taskName)) {
+                    $this->isRunning = true;
                     $message = self::executeTask($task);
-                    self::$running = false;
+                    $this->isRunning = false;
 
                     $executionResults[] = array('task' => $taskName, 'output' => $message);
                 }
 
-                if (self::taskShouldBeRescheduled($taskName, $timetable)) {
-                    // update the scheduled time
-                    $timetable[$taskName] = $task->getRescheduledTime();
-                    Option::set(self::TIMETABLE_OPTION_STRING, serialize($timetable));
+                if ($this->timetable->taskShouldBeRescheduled($taskName)) {
+                    $this->timetable->rescheduleTask($task);
                 }
             }
         }
 
         return $executionResults;
+    }
+
+    /**
+     * Determines a task's scheduled time and persists it, overwriting the previous scheduled time.
+     * 
+     * Call this method if your task's scheduled time has changed due to, for example, an option that
+     * was changed.
+     * 
+     * @param ScheduledTask $task Describes the scheduled task being rescheduled.
+     * @api
+     */
+    static public function rescheduleTask(ScheduledTask $task)
+    {
+        self::getInstance()->timetable->rescheduleTask($task);
     }
 
     /**
@@ -155,7 +166,7 @@ class TaskScheduler
      */
     static public function isTaskBeingExecuted()
     {
-        return self::$running;
+        return self::getInstance()->isRunning;
     }
 
     /**
@@ -169,66 +180,7 @@ class TaskScheduler
      */
     public static function getScheduledTimeForMethod($className, $methodName, $methodParameter = null)
     {
-        // get the array where rescheduled timetables are stored
-        $timetable = self::getTimetableFromOptionTable();
-
-        $taskName = ScheduledTask::getTaskName($className, $methodName, $methodParameter);
-
-        return self::taskHasBeenScheduledOnce($taskName, $timetable) ? $timetable[$taskName] : false;
-    }
-
-    /**
-     * Checks if the task should be executed
-     *
-     * Task has to be executed if :
-     *  - the task has already been scheduled once and the current system time is greater than the scheduled time.
-     *  - execution is forced, see $forceTaskExecution
-     *
-     * @param string $taskName
-     * @param array $timetable
-     *
-     * @return boolean
-     */
-    private static function taskShouldBeExecuted($taskName, $timetable)
-    {
-        $forceTaskExecution =
-            (isset($GLOBALS['PIWIK_TRACKER_DEBUG_FORCE_SCHEDULED_TASKS']) && $GLOBALS['PIWIK_TRACKER_DEBUG_FORCE_SCHEDULED_TASKS'])
-            || DEBUG_FORCE_SCHEDULED_TASKS;
-
-        return $forceTaskExecution || (self::taskHasBeenScheduledOnce($taskName, $timetable) && time() >= $timetable[$taskName]);
-    }
-
-    /**
-     * Checks if a task should be rescheduled
-     *
-     * Task has to be rescheduled if :
-     *  - the task has to be executed
-     *  - the task has never been scheduled before
-     *
-     * @param string $taskName
-     * @param array $timetable
-     *
-     * @return boolean
-     */
-    private static function taskShouldBeRescheduled($taskName, $timetable)
-    {
-        return !self::taskHasBeenScheduledOnce($taskName, $timetable) || self::taskShouldBeExecuted($taskName, $timetable);
-    }
-
-    private static function taskHasBeenScheduledOnce($taskName, $timetable)
-    {
-        return isset($timetable[$taskName]);
-    }
-
-    private static function getTimetableFromOptionValue($option)
-    {
-        $unserializedTimetable = @unserialize($option);
-        return $unserializedTimetable === false ? array() : $unserializedTimetable;
-    }
-
-    private static function getTimetableFromOptionTable()
-    {
-        return self::getTimetableFromOptionValue(Option::get(self::TIMETABLE_OPTION_STRING));
+        return self::getInstance()->timetable->getScheduledTimeForMethod($className, $methodName, $methodParameter);
     }
 
     /**

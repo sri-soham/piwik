@@ -297,6 +297,7 @@
         "YearlyReports": "Yearly reports",
         "RangeReports": "Custom date ranges",
         "ContinueToPiwik": "Continue to Piwik",
+        "HelpTranslatePiwik": "Maybe you would like to %1$shelp us improve the Piwik translations%2$s?",
         "ConfigFileIsNotWritable": "The Piwik configuration file %s is not writable, some of your changes might not be saved. %s Please change permissions of the config file to make it writable.",
         "StatisticsAreNotRecorded": "Piwik Visitor Tracking is currently disabled! Re-enable tracking by setting record_statistics = 1 in your config\/config.ini.php file.",
         "ExceptionDatabaseVersion": "Your %1$s version is %2$s but Piwik requires at least %3$s.",
@@ -498,9 +499,6 @@
         "AvgGenerationTimeTooltip": "Average based on %s hit(s) %s between %s and %s",
         "OneSearch": "1 search"
     },
-    "AnonymizeIP": {
-        "PluginDescription": "Anonymize the last byte(s) of visitors IP addresses to comply with your local privacy laws\/guidelines."
-    },
     "API": {
         "PluginDescription": "All the data in Piwik is available through simple APIs. This plugin is the web service entry point, that you can call to get your Web Analytics data in xml, json, php, csv, etc.",
         "QuickDocumentationTitle": "API quick documentation",
@@ -535,7 +533,7 @@
         "CustomLogoFeedbackInfo": "If you customize the Piwik logo, you might also be interested to hide the %s link in the top menu. To do so, you can disable the Feedback plugin in the %sManage Plugins%s page.",
         "UseCustomLogo": "Use a custom logo",
         "LogoUpload": "Select a Logo to upload",
-        "LogoUploadDescription": "Please upload a file in %s formats, no transparent background, with a minimum height of %s pixels.",
+        "LogoUploadHelp": "Please upload a file in %s formats with a minimum height of %s pixels.",
         "LogoNotWriteable": "To use a custom logo Piwik requires write access to the logo files within the \"misc\" directory: %s",
         "TrustedHostSettings": "Trusted Piwik Hostname",
         "TrustedHostConfirm": "Are you sure you want to change the trusted Piwik hostname?",
@@ -582,10 +580,11 @@
         "ForBetaTestersOnly": "For beta testers only",
         "CheckReleaseGetVersion": "When checking for new version of Piwik, always get",
         "DevelopmentProcess": "While our %sdevelopment process%s includes thousands of automated tests, Beta Testers play a key role in achieving the \"No bug policy\" in Piwik.",
-        "StableReleases": "If Piwik is a critical part of your business, we recommend you use the latest stable release.\n\nIf you use the latest beta and you find a bug or have a suggestion, please %ssee here%s.",
+        "StableReleases": "If Piwik is a critical part of your business, we recommend you use the latest stable release. If you use the latest beta and you find a bug or have a suggestion, please %ssee here%s.",
         "PluginSettingsIntro": "Here you can change the settings for the following 3rd party plugins:",
         "PluginSettingsValueNotAllowed": "The value for field \"%s\" in plugin \"%s\" is not allowed",
-        "PluginSettingChangeNotAllowed": "You are not allowed to change the value of the setting \"%s\" in plugin \"%s\""
+        "PluginSettingChangeNotAllowed": "You are not allowed to change the value of the setting \"%s\" in plugin \"%s\"",
+        "PluginSettings": "Plugin settings"
     },
     "CoreHome": {
         "InjectedHostWarningIntro": "You are now accessing Piwik from %1$s, but Piwik has been configured to run at this address: %2$s.",
@@ -653,6 +652,7 @@
         "MenuPrivacySettings": "Privacy",
         "PluginDescription": "Customize Piwik to make it privacy compliant with existing legislations.",
         "UseAnonymizeIp": "Anonymize Visitors' IP addresses",
+        "AnonymizeIpInlineHelp": "Anonymize the last byte(s) of visitors IP addresses to comply with your local privacy laws\/guidelines.",
         "AnonymizeIpDescription": "Select \"Yes\" if you want Piwik not to track fully qualified IP-Addresses.",
         "AnonymizeIpMaskLengtDescription": "Select how many bytes of the visitors' IPs should be masked.",
         "AnonymizeIpMaskLength": "%s byte(s) - e.g. %s",
@@ -706,7 +706,8 @@
         "GeolocationAnonymizeIpNote": "Note: Geolocation will have approximately the same results with 1 byte anonymized. With 2 bytes or more, Geolocation will be inaccurate.",
         "UseAnonymizedIpForVisitEnrichment": "Also use the Anonymized IP addresses when enriching visits.",
         "UseAnonymizedIpForVisitEnrichmentNote": "Plugins such as Geo Location via IP and Provider improve visitor's metadata. By default these plugins use the anonymized IP addresses. If you select 'No', then the non-anonymized full IP address will be used instead, resulting in less privacy but better data accuracy.",
-        "RecommendedForPrivacy": "(recommended for privacy)"
+        "RecommendedForPrivacy": "(recommended for privacy)",
+        "SeeAlsoOurOfficialGuidePrivacy": "See also our official guide: %sWeb Analytics Privacy%s"
     },
     "CorePluginsAdmin": {
         "PluginDescription": "Plugins Administration Interface.",
@@ -714,7 +715,8 @@
         "PluginsManagement": "Manage Plugins",
         "ThemesManagement": "Manage Themes",
         "MainDescription": "Plugins extend and expand the functionality of Piwik. Once a plugin is installed, you may activate it or deactivate it here.",
-        "ThemesDescription": "Themes can change the appearance of Piwik user interface,\n    and provide a completely new visual experience to enjoy your analytics reports.",
+        "ThemesDescription": "Themes can change the appearance of Piwik user interface, and provide a completely new visual experience to enjoy your analytics reports.",
+        "DoMoreContactPiwikAdmins": "To install a new plugin or a new theme, please get in touch with your Piwik admins.",
         "Theme": "Theme",
         "Version": "Version",
         "Status": "Status",
@@ -729,10 +731,10 @@
         "MenuPlatform": "Platform",
         "Marketplace": "Marketplace",
         "PluginNotCompatibleWith": "%1$s plugin is not compatible with %2$s.",
-        "PluginAskDevToUpdate": "If you enjoyed this plugin, maybe you can ask the developers to update it to work on the latest Piwik. ",
+        "PluginNotWorkingAlternative": "If you've been using this plugin, maybe you can find a more recent version in the Marketplace. If not, you may want to uninstall it.",
         "UninstallConfirm": "You are about to uninstall a plugin %s. The plugin will be completely removed from your platform and it won't be recoverable. Are you sure you want to do this?",
         "NoZipFileSelected": "Please select a ZIP file.",
-        "PluginSuccessfullyActicated": "You have successfully activated plugin <strong>%s</strong>.",
+        "SuccessfullyActicated": "You have successfully activated <strong>%s</strong>.",
         "ChangeSettingsPossible": "You can change %ssettings%s for this plugin.",
         "OriginCore": "Core",
         "OriginThirdParty": "Third-party",
@@ -775,8 +777,7 @@
         "Changelog": "Changelog",
         "Screenshots": "Screenshots",
         "Support": "Support",
-        "PluginUpdateAvailable": "You can update this plugin from version %s to %s.",
-        "ThemeUpdateAvailable": "You can update this theme from version %s to %s.",
+        "PluginUpdateAvailable": "You are using version %s and a new version %s is available.",
         "ViewRepositoryChangelog": "View the changes",
         "History": "History",
         "PluginVersionInfo": "%1$s from %2$s",
@@ -797,7 +798,7 @@
         "NumDownloadsLatestVersion": "Latest version: %s Downloads",
         "EnjoyAnotherLookAndFeelOfThemes": "Enjoy another look & feel",
         "MarketplaceSellPluginSubject": "Marketplace - Sell Plugin",
-        "DownloadAndInstallPluginsFromMarketplace": "You may automatically download and install new Plugins from the %sMarketplace%s</a>.",
+        "DownloadAndInstallPluginsFromMarketplace": "You may automatically download and install new Plugins from the %sMarketplace%s.",
         "GetEarlyAccessForPaidPlugins": "Note: all plugins are available for free at present; in the future we will enable Paid Plugins in the Marketplace (%scontact us%s for early access).",
         "GetNewFunctionality": "Get new functionality",
         "ByInstallingNewPluginFromMarketplace": "by %sinstalling a new plugin from the Marketplace%s",
@@ -805,7 +806,9 @@
         "ByWritingOwnPlugin": "by %swriting your own plugin%s",
         "OrByUploadingAPlugin": "or by %suploading a plugin%s",
         "ByDesigningOwnTheme": "by %sdesign your own theme%s",
-        "OrByUploadingATheme": "or by %suploading a theme%s"
+        "OrByUploadingATheme": "or by %suploading a theme%s",
+        "CorePluginTooltip": "Core plugins have no version since they are distributed with Piwik.",
+        "MissingRequirementsNotice": "Please update %1$s %2$s to a newer version, %1$s %3$s is required."
     },
     "CoreUpdater": {
         "PluginDescription": "Piwik updating mechanism",
@@ -815,6 +818,7 @@
         "PiwikWillBeUpgradedFromVersionXToVersionY": "Piwik database will be upgraded from version %1$s to the new version %2$s.",
         "TheFollowingPluginsWillBeUpgradedX": "The following plugins will be updated: %s.",
         "NoteForLargePiwikInstances": "Important notes for large Piwik installations",
+        "HighTrafficPiwikServerEnableMaintenance": "If you manage a high traffic Piwik server, we recommend to %smomentarily disable visitor Tracking and put the Piwik User Interface in maintenance mode%s.",
         "TheUpgradeProcessMayFailExecuteCommand": "If you have a large Piwik database, updates might take too long to run in the browser. In this situation, you can execute the updates from your command line: %s",
         "YouCouldManuallyExecuteSqlQueries": "If you are not able to use the command line updater and if Piwik fails to upgrade (due to a timeout of the database, a browser timeout, or any other issue), you could manually execute the SQL queries to update Piwik.",
         "ClickHereToViewSqlQueries": "Click here to view and copy the list of SQL queries that will get executed",
@@ -1054,6 +1058,11 @@
         "JsTagArchivingHelp1": "For medium and high traffic websites there are certain optimizations that should be made to help Piwik run faster (such as %1$ssetting up auto-archiving%2$s).",
         "Congratulations": "Congratulations",
         "CongratulationsHelp": "<p>Congratulations! Your Piwik installation is complete.<\/p><p>Make sure your JavaScript code is entered on your pages, and wait for your first visitors!<\/p>",
+        "WelcomeToCommunity": "Welcome to the Piwik community!",
+        "CollaborativeProject": "Piwik is a collaborative project, built with love by people from all over the world.",
+        "GetInvolved": "If you like what you see, you can %1$sget involved%2$s.",
+        "WeHopeYouWillEnjoyPiwik": "We hope you will enjoy using Piwik as much as we enjoy making it.",
+        "HappyAnalysing": "Happy analysing!",
         "SiteSetup": "Please setup the first website you would like to track and analyse with Piwik:",
         "SetupWebsite": "Setup a Website",
         "SetupWebSiteName": "website name",
@@ -1081,7 +1090,7 @@
         "SystemCheckExtensions": "Other required extensions",
         "SystemCheckDatabaseHelp": "Piwik requires either the mysqli extension or both the PDO and pdo_mysql extensions.",
         "SystemCheckPdoAndMysqliHelp": "On a Linux server you can compile php with the following options: %1$s In your php.ini, add the following lines: %2$s",
-        "SystemCheckPhpPdoAndMysqliSite": "More information on: <a style=\"color:red\" href=\"http:\/\/php.net\/pdo\">PHP PDO<\/a> and <a style=\"color:red\" href=\"http:\/\/php.net\/mysqli\">MYSQLI<\/a>.",
+        "SystemCheckPhpPdoAndMysqli": "More information on: %1$sPHP PDO%2$s and %3$sMYSQLI%4$s.",
         "SystemCheckWinPdoAndMysqliHelp": "On a Windows server you can add the following lines to your php.ini: %s",
         "SystemCheckSplHelp": "You need to configure and rebuild PHP with the Standard PHP Library (SPL) enabled (by default).",
         "SystemCheckZlibHelp": "You need to configure and rebuild PHP with \"zlib\" support enabled, --with-zlib.",
@@ -1097,7 +1106,7 @@
         "SystemCheckMemoryLimitHelp": "On a high traffic website, the archiving process may require more memory than currently allowed.  If necessary, change the memory_limit directive in your php.ini file.",
         "SystemCheckOpenURL": "Open URL",
         "SystemCheckOpenURLHelp": "Newsletter subscriptions, update notifications, and one-click updates requires the \"curl\" extension, allow_url_fopen=On, or fsockopen() enabled.",
-        "SystemCheckGD": "GD > 2.x (graphics)",
+        "SystemCheckGDFreeType": "GD > 2.x + Freetype (graphics)",
         "SystemCheckGDHelp": "The sparklines (small graphs) and image graphs (in Piwik Mobile app and Email reports) will not work.",
         "SystemCheckFunctions": "Required functions",
         "SystemCheckOtherFunctions": "Other functions",
@@ -1340,7 +1349,7 @@
         "Referrers": "Referrers",
         "ReferrersOverview": "Referrers Overview",
         "EvolutionDocumentation": "This is an overview of the referrers that led visitors to your website.",
-        "EvolutionDocumentationMoreInfo": "For more information about the different refferrer types, see the documentation of the %s table.",
+        "EvolutionDocumentationMoreInfo": "For more information about the different referrer types, see the documentation of the %s table.",
         "SearchEngines": "Search Engines",
         "SearchEnginesReportDocumentation": "This report shows which search engines referred users to your website. %s By clicking on a row in the table, you can see what users were searching for using a specific search engine.",
         "Keywords": "Keywords",
@@ -1810,7 +1819,6 @@
         "getRegionDocumentation": "This report shows which region your visitors were in when they accessed your website.",
         "getCityDocumentation": "This report shows the cities your visitors were in when they accessed your website.",
         "GeoIPDocumentationSuffix": "In order to see data for this report, you must setup GeoIP in the Geolocation admin tab. The commercial %1$sMaxmind%2$s GeoIP databases are more accurate than the free ones. To see how accurate they are, click %3$shere%4$s.",
-        "OldGeoIPWarning": "We've detected the old GeoIP plugin. GeoIP integration is now in Piwik core and this plugin is considered deprecated. New region and city reports will not be shown while this plugin is loaded. %1$sPlease disable the plugin%2$s and %3$sconfigure GeoIP%4$s. If you want location data for your old visits, use the script described %5$shere%6$s then %7$sreprocess your reports%8$s.",
         "NoDataForGeoIPReport1": "There is no data for this report because there is either no location data available or visitor IP addresses cannot be geolocated.",
         "NoDataForGeoIPReport2": "To enable accurate geolocation, change the settings %1$shere%2$s and use a %3$scity level database%4$s.",
         "ToGeolocateOldVisits": "To get location data for your old visits, use the script described %1$shere%2$s.",
@@ -1843,7 +1851,10 @@
         "HowToInstallNginxModule": "How do I install the GeoIP module for Nginx?",
         "HowToInstallGeoIpPecl": "How do I install the GeoIP PECL extension?",
         "GeoIPIncorrectDatabaseFormat": "Your GeoIP database does not seem to have the correct format. It may be corrupt. Make sure you are using the binary version and try replacing it with another copy.",
-        "DefaultLocationProviderExplanation": "You are using the default location provider, which means Piwik will guess the visitor's location based on the language they use. %1$sRead this%2$s to learn how to setup more accurate geolocation."
+        "DefaultLocationProviderExplanation": "You are using the default location provider, which means Piwik will guess the visitor's location based on the language they use. %1$sRead this%2$s to learn how to setup more accurate geolocation.",
+        "UpdaterWillRunNext": "It is next scheduled to run on %s.",
+        "UpdaterIsNotScheduledToRun": "It is not scheduled to run in the future.",
+        "UpdaterScheduledForNextRun": "It is scheduled to run during the next archive.php cron execution."
     },
     "UserCountryMap": {
         "map": "map",
@@ -1880,7 +1891,6 @@
         "WidgetPluginsDocumentation": "This report shows which browser plugins your visitors had enabled. This information might be important for choosing the right way to deliver your content.",
         "OperatingSystems": "Operating systems",
         "OperatingSystemFamily": "Operating system family",
-        "WidgetOperatingSystemFamily": "Operating System Family",
         "Resolutions": "Resolutions",
         "WideScreen": "Wide Screen",
         "ColumnBrowserFamily": "Browser family",
@@ -2392,11 +2402,11 @@
     },
     "Events": {
         "Events": "Events",
+        "Event": "Event",
         "EventCategory": "Event Category",
         "EventAction": "Event Action",
         "EventName": "Event Name",
         "EventValue": "Event Value",
-        "NbEvents": "Number of Events",
-        "": ""
+        "NbEvents": "Number of Events"
     }
 }

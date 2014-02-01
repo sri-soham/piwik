@@ -73,15 +73,17 @@ class LogLinkVisitAction extends Base
                         $custom_value, $custom_variables, $actionIdsCached
                         )
     {
-        list($sql, $bind) = $this->paramsRecord(
+        list($sql, $bind, $insert) = $this->paramsRecord(
             $idvisit, $idsite, $idvisitor, $server_time,
             $url, $name, $ref_url, $ref_name, $time_spent,
             $custom_value, $custom_variables, $actionIdsCached
         );
 
         $this->db->query($sql, $bind);
+        $id = $this->db->lastInsertId();
+        $insert['idlink_va'] = $id;
 
-        return $this->db->lastInsertId();
+        return $insert;
     }
 
     public function add($idsite, $idvisitor, $server_time, $idvisit,
@@ -164,11 +166,9 @@ class LogLinkVisitAction extends Base
         $fields = implode(', ', array_keys($insert));
         $bind   = array_values($insert);
         $values = Common::getSqlStringFieldsArray($insert);
-        Common::printDebug("About to inserted new action:");
-        Common::printDebug($insert);
 
         $sql = 'INSERT INTO ' . $this->table . '( ' . $fields . ') VALUES ( ' . $values . ')';
 
-        return array($sql, $bind);
+        return array($sql, $bind, $insert);
     }
 } 

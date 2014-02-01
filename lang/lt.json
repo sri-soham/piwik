@@ -12,9 +12,6 @@
         "SubmenuPagesExit": "Išėjimo puslapiai",
         "SubmenuPageTitles": "Puslapių antraštės"
     },
-    "AnonymizeIP": {
-        "PluginDescription": "Paslėpkite savo lankytojų IP adresus, jei to reikalauja Jūsų vidaus taisyklės ar įstatymai."
-    },
     "API": {
         "GenerateVisits": "Jei neturite duomenų šiandienai , galite sugeneruoti jų pasinaudoję %s papildiniu. Įjunkite šį %s papildinį, tada spauskite ant 'Apsilankymų generatorius' meniu Piwik administratoriaus srityje.",
         "KeepTokenSecret": "Šis token_auth yra slaptas kaip ir naudotojo vardas bei slaptažodis, %s neviešinkite jo%s!",
@@ -527,7 +524,6 @@
         "SystemCheckExtensions": "Kiti reikalingi plėtiniai",
         "SystemCheckFileIntegrity": "Failo vientisumas",
         "SystemCheckFunctions": "Reikalingos funkcijos",
-        "SystemCheckGD": "GD > 2.x (grafika)",
         "SystemCheckGDHelp": "Mažos diagramos neveiks.",
         "SystemCheckIconvHelp": "Jums reikia sukonfigūruoti ir perdaryti PHP su įjungtu \"iconv\" palaikymu, --with-iconv.",
         "SystemCheckMailHelp": "Atsiliepimų ir prarastų slpatažodžių pranešimai nebus siunčiami be mail() funkcijos.",
@@ -542,7 +538,7 @@
         "SystemCheckParseIniFileHelp": "Ši integruota funkcija yra išjungta Jūsų serveryje. Piwik pabandys emuliuoti šią funkciją, tačiau galimi saugumo suvaržymai ateityje. Stebėjimo sparta taip pat gali būti paveikta.",
         "SystemCheckPdoAndMysqliHelp": "Linux serveryje galite sukompiliuoti php su šiais nustatymais: %1$s į Jūsų php.ini failą įterpkite šias eilutes: %2$s",
         "SystemCheckPhp": "PHP versija",
-        "SystemCheckPhpPdoAndMysqliSite": "Daugiau informacijos: <a style=\"color:red\" href=\"http:\/\/php.net\/pdo\">PHP PDO<\/a> and <a style=\"color:red\" href=\"http:\/\/php.net\/mysqli\">MYSQLI<\/a>.",
+        "SystemCheckPhpPdoAndMysqli": "Daugiau informacijos: %1$sPHP PDO%2$s and %3$sMYSQLI%4$s.",
         "SystemCheckSecureProtocol": "Saugus protokolas",
         "SystemCheckSplHelp": "Jums reikia sukonfigūruoti ir perdaryti PHP su įjungtu Standard PHP Library (SPL) (pagal nutylėjimą).",
         "SystemCheckTimeLimitHelp": "Didelio lankytojų srauto svetainėse archyvavimo proceso aktyvavimas gali reikalauti daugiau laiko nei šiuo metu leidžiama.<br \/>Pasitikrinkite reikšmę max_execution_time savo php.ini faile, jeigu būtina.",
@@ -596,6 +592,7 @@
         "Evolution": "Raida"
     },
     "PrivacyManager": {
+        "AnonymizeIpInlineHelp": "Paslėpkite savo lankytojų IP adresus, jei to reikalauja Jūsų vidaus taisyklės ar įstatymai.",
         "DeleteLogsOlderThan": "Ištrinti įrašus senesnius nei",
         "DeleteMaxRows": "Maksimalus vienu metu trinamų eilučių kiekis:",
         "LastDelete": "Paskutinis išvalymas atliktas",

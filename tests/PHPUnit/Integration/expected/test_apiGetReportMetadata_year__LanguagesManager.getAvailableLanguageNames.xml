@@ -21,7 +21,12 @@
 		<english_name>Bulgarian</english_name>
 	</row>
 	<row>
-		<code>bs</code>
+        <code>bn</code>
+        <name>ইংরেজি</name>
+        <english_name>Bengali</english_name>
+    </row>
+    <row>
+        <code>bs</code>
 		<name>bosanski jezik</name>
 		<english_name>Bosnian</english_name>
 	</row>
@@ -102,7 +107,7 @@
 	</row>
 	<row>
 		<code>hi</code>
-		<name>मानक हिन्दी</name>
+		<name>हिन्दी</name>
 		<english_name>Hindi</english_name>
 	</row>
 	<row>

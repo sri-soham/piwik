@@ -15,46 +15,43 @@ ob_start();
 Piwik_TestingEnvironment::addHooks();
 
 \Piwik\Tracker::setTestEnvironment();
-
-
 \Piwik\Profiler::setupProfilerXHProf();
-
 
 // Disable index.php dispatch since we do it manually below
 define('PIWIK_ENABLE_DISPATCH', false);
 include PIWIK_INCLUDE_PATH . '/index.php';
 
-$controller = \Piwik\FrontController::getInstance();
 /**
  * @return bool
  */
 function loadAllPluginsButOneTheme()
 {
-// Load all plugins that are found so UI tests are really testing real world use case
+    // Load all plugins that are found so UI tests are really testing real world use case
     $pluginsToEnable = \Piwik\Plugin\Manager::getInstance()->getAllPluginsNames();
 
     $themesNotToEnable = array('ExampleTheme', 'LeftMenu', 'PleineLune');
 
-    $enableMorpheus = !empty($_REQUEST['morpheus']);
-    if (!$enableMorpheus) {
-        $themesNotToEnable[] = 'Morpheus';
+    $enableZeitgeist = !empty($_REQUEST['zeitgeist']);
+    if (!$enableZeitgeist) {
+        $themesNotToEnable[] = 'Zeitgeist';
     }
 
     $pluginsToEnable = array_diff($pluginsToEnable, $themesNotToEnable);
     \Piwik\Config::getInstance()->Plugins['Plugins'] = $pluginsToEnable;
-    return $enableMorpheus;
+    return $enableZeitgeist;
 }
 
-$enableMorpheus = loadAllPluginsButOneTheme();
+$enableZeitgeist = loadAllPluginsButOneTheme();
 
+$controller = \Piwik\FrontController::getInstance();
 $controller->init();
 \Piwik\Filesystem::deleteAllCacheOnUpdate();
 
 $response = $controller->dispatch();
 
-if($enableMorpheus) {
+if($enableZeitgeist) {
     $replace = "action=getCss";
-    $response = str_replace($replace, $replace . "&morpheus=1", $response);
+    $response = str_replace($replace, $replace . "&zeitgeist=1", $response);
 }
 
 if (!is_null($response)) {

@@ -52,8 +52,10 @@ class Config extends Singleton
     protected $initialized = false;
     protected $configGlobal = array();
     protected $configLocal = array();
+    protected $configCommon = array();
     protected $configCache = array();
     protected $pathGlobal = null;
+    protected $pathCommon = null;
     protected $pathLocal = null;
 
     /**
@@ -75,7 +77,7 @@ class Config extends Singleton
      * @param string $pathLocal
      * @param string $pathGlobal
      */
-    public function setTestEnvironment($pathLocal = null, $pathGlobal = null)
+    public function setTestEnvironment($pathLocal = null, $pathGlobal = null, $pathCommon = null)
     {
         $this->isTest = true;
         Factory::setTest(true);
@@ -90,8 +92,14 @@ class Config extends Singleton
             $this->pathGlobal = $pathGlobal;
         }
 
+        if ($pathCommon) {
+            $this->pathCommon = $pathCommon;
+        }
+
         $this->init();
 
+        // this proxy will not record any data in the production database.
+        // this provides security for Piwik installs and tests were setup.
         if (isset($this->configGlobal['database_tests'])
             || isset($this->configLocal['database_tests'])
         ) {
@@ -114,9 +122,14 @@ class Config extends Singleton
         // the test initialization to create the plugins tables, execute ALTER queries, etc.
         $this->configCache['PluginsInstalled'] = array('PluginsInstalled' => array());
 
+        // DevicesDetection plugin is not yet enabled by default
         if (isset($configGlobal['Plugins'])) {
             $this->configCache['Plugins'] = $this->configGlobal['Plugins'];
             $this->configCache['Plugins']['Plugins'][] = 'DevicesDetection';
+        }
+        if (isset($configGlobal['Plugins_Tracker'])) {
+            $this->configCache['Plugins_Tracker'] = $this->configGlobal['Plugins_Tracker'];
+            $this->configCache['Plugins_Tracker']['Plugins_Tracker'][] = 'DevicesDetection';
         }
 
         // to avoid weird session error in travis
@@ -160,6 +173,16 @@ class Config extends Singleton
     }
 
     /**
+     * Returns absolute path to the common configuration file.
+     *
+     * @return string
+     */
+    public static function getCommonConfigPath()
+    {
+        return PIWIK_USER_PATH . '/config/common.config.ini.php';
+    }
+
+    /**
      * Returns absolute path to the local configuration file
      *
      * @return string
@@ -170,7 +193,6 @@ class Config extends Singleton
         if ($path) {
             return $path;
         }
-
         return PIWIK_USER_PATH . '/config/config.ini.php';
     }
 
@@ -213,9 +235,9 @@ class Config extends Singleton
      * If set, Piwik will use the hostname config no matter if it exists or not. Useful for instance if you want to
      * create a new hostname config:
      *
-     * $config = Config::getInstance();
-     * $config->forceUsageOfHostnameConfig('piwik.example.com');
-     * $config->save();
+     *     $config = Config::getInstance();
+     *     $config->forceUsageOfHostnameConfig('piwik.example.com');
+     *     $config->save();
      *
      * @param string $hostname eg piwik.example.com
      *
@@ -236,7 +258,7 @@ class Config extends Singleton
     }
 
     /**
-     * Is local configuration file writable?
+     * Returns `true` if the local configuration file is writable.
      *
      * @return bool
      */
@@ -256,6 +278,7 @@ class Config extends Singleton
         $this->initialized = false;
 
         $this->pathGlobal = self::getGlobalConfigPath();
+        $this->pathCommon = self::getCommonConfigPath();
         $this->pathLocal = self::getLocalConfigPath();
     }
 
@@ -275,9 +298,12 @@ class Config extends Singleton
         }
 
         $this->configGlobal = _parse_ini_file($this->pathGlobal, true);
+
         if (empty($this->configGlobal) && $reportError) {
             Piwik_ExitWithMessage(Piwik::translate('General_ExceptionUnreadableFileDisabledMethod', array($this->pathGlobal, "parse_ini_file()")));
         }
+
+        $this->configCommon = _parse_ini_file($this->pathCommon, true);
 
         if ($reportError) {
             $this->checkLocalConfigFound();
@@ -355,7 +381,13 @@ class Config extends Singleton
             return $tmp;
         }
 
-        $section = $this->getFromDefaultConfig($name);
+        $section = $this->getFromGlobalConfig($name);
+        $sectionCommon = $this->getFromCommonConfig($name);
+        if(empty($section) && !empty($sectionCommon)) {
+            $section = $sectionCommon;
+        } elseif(!empty($section) && !empty($sectionCommon)) {
+            $section = $this->array_merge_recursive_distinct($section, $sectionCommon);
+        }
 
         if (isset($this->configLocal[$name])) {
             // local settings override the global defaults
@@ -375,10 +407,18 @@ class Config extends Singleton
         return $tmp;
     }
 
-    public function getFromDefaultConfig($name)
+    public function getFromGlobalConfig($name)
     {
         if (isset($this->configGlobal[$name])) {
             return $this->configGlobal[$name];
+        }
+        return null;
+    }
+
+    public function getFromCommonConfig($name)
+    {
+        if (isset($this->configCommon[$name])) {
+            return $this->configCommon[$name];
         }
         return null;
     }
@@ -449,7 +489,7 @@ class Config extends Singleton
      * @param array $configCache
      * @return string
      */
-    public function dumpConfig($configLocal, $configGlobal, $configCache)
+    public function dumpConfig($configLocal, $configGlobal, $configCommon, $configCache)
     {
         $dirty = false;
 
@@ -459,6 +499,12 @@ class Config extends Singleton
         if (!$configCache) {
             return false;
         }
+
+        // If there is a common.config.ini.php, this will ensure config.ini.php does not duplicate its values
+        if(!empty($configCommon)) {
+            $configGlobal = $this->array_merge_recursive_distinct($configGlobal, $configCommon);
+        }
+
         if ($configLocal) {
             foreach ($configLocal as $name => $section) {
                 if (!isset($configCache[$name])) {
@@ -543,13 +589,13 @@ class Config extends Singleton
      *
      * @throws Exception if config file not writable
      */
-    protected function writeConfig($configLocal, $configGlobal, $configCache, $pathLocal)
+    protected function writeConfig($configLocal, $configGlobal, $configCommon, $configCache, $pathLocal)
     {
         if ($this->isTest) {
             return;
         }
 
-        $output = $this->dumpConfig($configLocal, $configGlobal, $configCache);
+        $output = $this->dumpConfig($configLocal, $configGlobal, $configCommon, $configCache);
         if ($output !== false) {
             $success = @file_put_contents($pathLocal, $output);
             if (!$success) {
@@ -561,13 +607,14 @@ class Config extends Singleton
     }
 
     /**
-     * Writes the current configuration to `config.ini.php`.
+     * Writes the current configuration to the **config.ini.php** file. Only writes options whose
+     * values are different from the default.
      * 
      * @api
      */
     public function forceSave()
     {
-        $this->writeConfig($this->configLocal, $this->configGlobal, $this->configCache, $this->pathLocal);
+        $this->writeConfig($this->configLocal, $this->configGlobal, $this->configCommon, $this->configCache, $this->pathLocal);
     }
 
     /**
@@ -578,4 +625,43 @@ class Config extends Singleton
         $path = "config/" . basename($this->pathLocal);
         return new Exception(Piwik::translate('General_ConfigFileIsNotWritable', array("(" . $path . ")", "")));
     }
+
+    /**
+     * array_merge_recursive does indeed merge arrays, but it converts values with duplicate
+     * keys to arrays rather than overwriting the value in the first array with the duplicate
+     * value in the second array, as array_merge does. I.e., with array_merge_recursive,
+     * this happens (documented behavior):
+     *
+     * array_merge_recursive(array('key' => 'org value'), array('key' => 'new value'));
+     *     => array('key' => array('org value', 'new value'));
+     *
+     * array_merge_recursive_distinct does not change the datatypes of the values in the arrays.
+     * Matching keys' values in the second array overwrite those in the first array, as is the
+     * case with array_merge, i.e.:
+     *
+     * array_merge_recursive_distinct(array('key' => 'org value'), array('key' => 'new value'));
+     *     => array('key' => array('new value'));
+     *
+     * Parameters are passed by reference, though only for performance reasons. They're not
+     * altered by this function.
+     *
+     * @param array $array1
+     * @param array $array2
+     * @return array
+     * @author Daniel <daniel (at) danielsmedegaardbuus (dot) dk>
+     * @author Gabriel Sobrinho <gabriel (dot) sobrinho (at) gmail (dot) com>
+     */
+    function array_merge_recursive_distinct ( array &$array1, array &$array2 )
+    {
+        $merged = $array1;
+        foreach ( $array2 as $key => &$value ) {
+            if ( is_array ( $value ) && isset ( $merged [$key] ) && is_array ( $merged [$key] ) ) {
+                $merged [$key] = $this->array_merge_recursive_distinct ( $merged [$key], $value );
+            } else {
+                $merged [$key] = $value;
+            }
+        }
+        return $merged;
+    }
+
 }

@@ -82,9 +82,6 @@
         "ViewAndAddAnnotations": "Ver e adicionar notas para %s...",
         "YouCannotModifyThisNote": "Você não pode modificar essa anotação, porque você não possui permição, nem possui acesso de administrador para este site."
     },
-    "AnonymizeIP": {
-        "PluginDescription": "Anonimize o último byte do endereço IP dos visitantes para obedecer suas leis\/guias locais de privacidade."
-    },
     "API": {
         "GenerateVisits": "Se você não tem nenhum dado hoje, você pode gerar alguns dados usando o plugin %s. Você pode habilitar o plugin %s, então clique no menu \"Gerador de Visitantes\" na área Piwik Admin.",
         "KeepTokenSecret": "Esse token_auth é tão secreto quanto seu login e sua senha, %s não compartilhe isso %s!",
@@ -144,7 +141,6 @@
         "LatestStableRelease": "O último release estável",
         "LogoNotWriteable": "Para usar um logo personalizado o Piwik requer permissão de gravação ao diretório dos arquivos de temas: %s",
         "LogoUpload": "Selecione um logotipo para carregar",
-        "LogoUploadDescription": "Faça upload de um arquivo no formato %s, sem nenhum fundo transparente e com uma altura mínima de %s pixels.",
         "MenuDiagnostic": "Diagnostico",
         "MenuGeneralSettings": "Configurações Gerais",
         "MenuManage": "Gerenciar",
@@ -239,7 +235,6 @@
         "MainDescription": "Plugins estendem e expandem a funcionalidade do Piwik. Uma vez que um plugin for instalado, você pode ativá-lo ou desativá-lo aqui.",
         "MenuPlatform": "Plataforma",
         "NoZipFileSelected": "Por favor, selecione um arquivo ZIP.",
-        "PluginAskDevToUpdate": "Se você curtiu este plugin, talvez você possa pedir aos desenvolvedores para atualizá-lo para funcionar no Piwik mais recente.",
         "PluginDescription": "Interface de Administração de Plugins",
         "PluginHomepage": "Página do Plugin",
         "PluginNotCompatibleWith": "O plugin %1$s não é compatível com %2$s.",
@@ -247,7 +242,7 @@
         "Status": "Status",
         "Theme": "Tema",
         "Themes": "Temas",
-        "ThemesDescription": "Os temas podem alterar a aparência da interface do usuário do Piwik,\ne fornecer uma experiência completamente nova visual para desfrutar dos seus relatórios de análise.",
+        "ThemesDescription": "Os temas podem alterar a aparência da interface do usuário do Piwik, e fornecer uma experiência completamente nova visual para desfrutar dos seus relatórios de análise.",
         "ThemesManagement": "Gerenciar Temas",
         "UninstallConfirm": "Você está prestes a desinstalar um plugin %s. O plugin será completamente removido da sua plataforma e isso não poderá ser desfeito. Tem certeza que deseja fazer isso?",
         "Version": "Versão"
@@ -980,7 +975,6 @@
         "SystemCheckExtensions": "Outras extensões requeridas",
         "SystemCheckFileIntegrity": "Integridade de arquivo.",
         "SystemCheckFunctions": "Funções requeridas",
-        "SystemCheckGD": "GD > 2.x (gráficos)",
         "SystemCheckGDHelp": "Os sparklines (gráficos pequenos) não irão funcionar.",
         "SystemCheckGlobHelp": "Essa função embutida foi desabilitada em seu host. Piwik tentará simular essa função mas poderá encontrar mais adiante restrições de segurança. Funcionalidades podem ser impactadas.",
         "SystemCheckGzcompressHelp": "Você precisa habilitar a extensão zlib e a função gzcompress.",
@@ -1001,7 +995,7 @@
         "SystemCheckParseIniFileHelp": "Essa função built-in foi desabilitada em seu host. Piwik tentará simular essa função mas poderá encontrar algumas restrições de segurança. Rastreador de performance também será impactado.",
         "SystemCheckPdoAndMysqliHelp": "Num servidor Linux você poderá compilar o php com as seguintes opções: %1$s No seu php.ini, adicione as seguintes linhas: %2$s",
         "SystemCheckPhp": "Versão do PHP",
-        "SystemCheckPhpPdoAndMysqliSite": "Mais informações em: <a style=\"color:red\" href=\"http:\/\/php.net\/pdo\">PHP PDO<\/a> e <a style=\"color:red\" href=\"http:\/\/php.net\/mysqli\">MYSQLI<\/a>.",
+        "SystemCheckPhpPdoAndMysqli": "Mais informações em: %1$sPHP PDO%2$s e %3$sMYSQLI%4$s.",
         "SystemCheckSecureProtocol": "Protocolo seguro",
         "SystemCheckSecureProtocolHelp": "Parece que você esta usando https com o seu servidor web. Estas linhas serão adicionados à config \/ config.ini.php:",
         "SystemCheckSplHelp": "Você precisa configurar e remontar o PHP com a Standard PHP Library (SPL) habilitada (por padrão).",
@@ -1223,6 +1217,7 @@
     },
     "PrivacyManager": {
         "AnonymizeIpDescription": "Selecione \"Sim\" se você quer que o Piwik não restreie os IPs totalmente.",
+        "AnonymizeIpInlineHelp": "Anonimize o último byte do endereço IP dos visitantes para obedecer suas leis\/guias locais de privacidade.",
         "AnonymizeIpMaskLengtDescription": "Selecione quantos bytes de IPs dos visitantes deve ser mascarado.",
         "AnonymizeIpMaskLength": "%s byte(s) - e.g. %s",
         "CannotLockSoDeleteLogActions": "A tabela log_action não será purgada: por favor, conceder o privilégio LOCK TABLES para o usuário MYSQL '%s'.",
@@ -1883,7 +1878,6 @@
         "Longitude": "Longitude",
         "NoDataForGeoIPReport1": "Não há dados para este relatório porque não há nenhum dado de localização disponível ou o endereço IP do visitante não pode ser geolocalizado.",
         "NoDataForGeoIPReport2": "Para ativar ageolocalização mais precisa, mudar a configuração %1$s aqui%2$s e usar um %3$s banco de dados no nível de cidade %4$s.",
-        "OldGeoIPWarning": "Detectamos um plugin GeoIP antigo. A integração GeoIP está agora no núcleo Piwik e este plugin é considerado obsoleto. Regiões novas e relatórios municipais não serão exibido durante este o carregamento deste plugin. %1$s Por favor, desative um plugin %2$s e %3$s configure o GeoIP %4$s. Se você deseja os dados de localização para suas visitas antigas, use o script descrito %5$s aqui%6$s então%7$s reprocesse seus relatórios %8$s.",
         "Organization": "Organização",
         "OrgDatabase": "Banco de dados da organização",
         "PeclGeoIPNoDBDir": "O módulo PECL está à procura de bancos de dados em %1$s mas este diretório não existe. Por favor, crie-o e adicione as bases de dados GeoIP a ele. Como alternativa, você pode definir %2$s para o diretório correto em seu arquivo php.ini.",
@@ -2139,7 +2133,6 @@
         "WidgetBrowserVersion": "Versão do Browser",
         "WidgetGlobalVisitors": "Configuração Global de Visitante",
         "WidgetGlobalVisitorsDocumentation": "Este relatório mostra as configurações mais comuns gerais que os visitantes tiveram. A configuração é a combinação de um sistema operacional, um tipo de navegador e uma resolução de tela.",
-        "WidgetOperatingSystemFamily": "Família de SO",
         "WidgetOperatingSystems": "Sistemas Operacionais",
         "WidgetPlugins": "Lista de Plugins",
         "WidgetPluginsDocumentation": "Este relatório mostra quais plugins de navegador seus visitantes tinham ativado. Esta informação pode ser importante para escolher o caminho certo para levar o seu conteúdo.",

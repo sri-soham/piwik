@@ -82,9 +82,6 @@
         "ViewAndAddAnnotations": "Ver y añadir anotaciones para %s...",
         "YouCannotModifyThisNote": "No puedes modificar esta anotación debido a que ni la creaste tú mismo ni tienes privilegios de administrador a este sitio."
     },
-    "AnonymizeIP": {
-        "PluginDescription": "Ocultar la dirección IP del visitante para cumplir las leyes\/directrices de privacidad de su localidad."
-    },
     "API": {
         "GenerateVisits": "Si no tiene los datos de hoy puede generar primero algunos datos mediante el plugin %s. Puede habilitar el plugin %s, a continuación, haga clic en el menú 'Generador de Visitas' del zona Administrativa de Piwik.",
         "KeepTokenSecret": "Esta token_auth es tan secreta como su nombre de usuario y contraseña, %s no lo comparta %s!",
@@ -92,7 +89,7 @@
         "MoreInformation": "Para mayor información acerca de las APIs Piwik, por favor mire la %s Introducción a las API Piwik %s y a la %s Referencia de las API Piwik %s.",
         "PluginDescription": "Todos los datos de Piwik están disponibles a través de simples APIs. Este plugin es el punto de entrada de servicio web, que puede llamar para obtener los datos de su Análisis Web en xml, json, php, csv, etc",
         "QuickDocumentationTitle": "Documentación rápida de API",
-        "TopLinkTooltip": "Accede a tus datos de Análisi Web programaticamente, a través de una sencilla API en json, xml, etc.",
+        "TopLinkTooltip": "Accede a tus datos de Análisis Web programáticamente, a través de una sencilla API en json, xml, etc.",
         "UserAuthentication": "Autenticación de usuario",
         "UsingTokenAuth": "Si quieres %s solicitar datos dentro de un script, un crontab, etc %s tiene que agregar el parámetro %s a las llamas a la URL de la API que requieren autenticación."
     },
@@ -122,6 +119,7 @@
         "JSTracking_CodeNote": "Asegúrate de que este código se encuentre en cada página de tu sitio web antes de la etiqueta %1$s.",
         "JSTracking_CustomCampaignQueryParamDesc": "Nota: %1$sPiwik detectara automáticamente los parámetros de Google Analytics.%2$s",
         "JSTracking_EnableDoNotTrack": "Habilitar detección por parte del cliente de DoNotTrack",
+        "JSTracking_EnableDoNotTrack_AlreadyEnabled": "Nota: Soporte del lado del servidor para DoNotTrack ha sido activado, por lo que esta opción no tendrá ningún efecto.",
         "JSTracking_GroupPageTitlesByDomain": "Anteponer el dominio del sitio para el título al rastrear",
         "JSTracking_MergeSubdomains": "Rastrear visitantes a través de todos los subdominios de",
         "JSTracking_MergeSubdomainsDesc": "Entones si un visitante visita %1$s y %2$s, estos serán contados como un único visitante.",
@@ -137,7 +135,6 @@
         "LatestStableRelease": "La última versión estable",
         "LogoNotWriteable": "Para usar un logo personalizado Piwik necesita acceso de escritura a los archivos de logo en el directorio de temas: %s",
         "LogoUpload": "Seleccione un logo para subir",
-        "LogoUploadDescription": "Por favor suba un archivo en %s formatos, sin transparencias, con una altura mínima de %s píxeles.",
         "MenuDiagnostic": "diagnóstico",
         "MenuGeneralSettings": "Configuración General",
         "MenuManage": "gestionar",
@@ -232,7 +229,6 @@
         "MainDescription": "Los plugins extienden y amplían las funcionalidades de Piwik. Una vez que el plugin esté instalado, usted puede activarlo o desactivarlo desde aquí.",
         "MenuPlatform": "Plataforma",
         "NoZipFileSelected": "Por favor selecciona un archivo ZIP.",
-        "PluginAskDevToUpdate": "Si disfrutaste este complemento, quizás puedes preguntarle a los desarrolladores para actualizarlo para que funcione en la última versión de Piwik.",
         "PluginDescription": "Interfaz de Administración de Plugins",
         "PluginHomepage": "Página del Plugin",
         "PluginNotCompatibleWith": "%1$s complemento no es compatible con %2$s.",
@@ -967,7 +963,6 @@
         "SystemCheckExtensions": "Extensiones requeridas",
         "SystemCheckFileIntegrity": "Integridad de archivos",
         "SystemCheckFunctions": "Funciones requeridas",
-        "SystemCheckGD": "GD > 2.x (gráficas)",
         "SystemCheckGDHelp": "Las \"sparklines\" (gráficas pequeñas) no funcionarán.",
         "SystemCheckGlobHelp": "Esta función integrada se ha desactivado en su host. Piwik intentará emular esta función, pero puede encontrarse con restricciones de seguridad. La funcionalidad puede verse afectada.",
         "SystemCheckGzcompressHelp": "Es necesario habilitar la extensión zlib y la función gzcompress.",
@@ -988,7 +983,7 @@
         "SystemCheckParseIniFileHelp": "Esta función integrada se ha desactivado en su host. Piwik intentará emular esta función, pero puede encontrar más restricciones de seguridad.",
         "SystemCheckPdoAndMysqliHelp": "En un servidor Linux puede compilar php con las siguientes opciones: %1$s En su php.ini, añada las siguientes líneas: %2$s",
         "SystemCheckPhp": "Versión PHP",
-        "SystemCheckPhpPdoAndMysqliSite": "Más información en: <a style=\"color:red\" href=\"http:\/\/php.net\/pdo\">PHP PDO<\/a> y <a style=\"color:red\" href=\"http:\/\/php.net\/mysqli\">MYSQLI<\/a>.",
+        "SystemCheckPhpPdoAndMysqli": "Más información en: %1$sPHP PDO%2$s y %3$sMYSQLI%4$s.",
         "SystemCheckSecureProtocol": "Protocolo seguro",
         "SystemCheckSecureProtocolHelp": "Parece que está usando https en su servidor. Estas líneas serán añadidas en el archivo config\/config.ini.php:",
         "SystemCheckSplHelp": "Necesita configurar y reconstruir PHP con la Librería Estándar de PHP habilitada (por defecto).",
@@ -1209,6 +1204,7 @@
     },
     "PrivacyManager": {
         "AnonymizeIpDescription": "Seleccione \"Si\" si que Piwik no registre direcciones IP completas.",
+        "AnonymizeIpInlineHelp": "Ocultar la dirección IP del visitante para cumplir las leyes\/directrices de privacidad de su localidad.",
         "AnonymizeIpMaskLengtDescription": "Seleccione cuantos bytes de las direcciones IP de los visitantes deben ser ocultados.",
         "AnonymizeIpMaskLength": "%s byte(s) - ej. %s",
         "CannotLockSoDeleteLogActions": "La tabla log_action no será purgada: por favor, conceda el privilegio LOCK TABLES al usuario MYSQL '%s'.",
@@ -1862,7 +1858,6 @@
         "Longitude": "Longitud",
         "NoDataForGeoIPReport1": "No hay datos para este informe debido a que no existe información o las direcciones IP de los visitantes no puede ser geolocalizada.",
         "NoDataForGeoIPReport2": "Para habilitar una geolocalización precisa, cambie la opción %1$saquí%2$s y utilice una %3$sbase de datos a nivel ciudad%4$s.",
-        "OldGeoIPWarning": "Hemos detectado una extensión antigua GeoIP. La integración GeoIP es parte actualmente del corazón en Piwik y esta extensión está considerada obsoleta. Mientras esta extensión esté activa, las nuevas regiones y ciudades no serán visualizadas. %1$sPor favor deshabilite las extensiones%2$s y %3$sconfigure GeoIP%4$s. Si busca información de ubicación de sus antiguas visitas, utilize este información descripta %5$saquí%6$s después %7$sreprocese sus informes%8$s.",
         "Organization": "Organización",
         "OrgDatabase": "Base de datos de la organización",
         "PeclGeoIPNoDBDir": "El módulo PECL está buscando base de datos en %1$s, pero esta carpeta no existe. Por favor, créela y agreguéle una base de datos GeoIP a la misma. Alternativamente, puede disponer %2$s una determinada carpeta en su archivo php.ini",
@@ -2118,7 +2113,6 @@
         "WidgetBrowserVersion": "Versión del navegador",
         "WidgetGlobalVisitors": "Configuración global de visitantes",
         "WidgetGlobalVisitorsDocumentation": "Este informe muestra las más usuales configuraciones que poseen sus visitantes. Una configuración es una combinación de un sistema operativo, un tipo de navegador de internet y una resolución de pantalla.",
-        "WidgetOperatingSystemFamily": "Familia de sistema operativo",
         "WidgetOperatingSystems": "Sistemas operativos",
         "WidgetPlugins": "Lista de Plugins",
         "WidgetPluginsDocumentation": "Este informe muestra que extensiones del navegador sus visitantes han habilitado. Esta información puede ser importante sea para elegir el método eficiente de enviar su contenido.",

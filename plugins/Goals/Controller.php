@@ -36,6 +36,9 @@ class Controller extends \Piwik\Plugin\Controller
      */
     const COUNT_TOP_ROWS_TO_DISPLAY = 3;
 
+    const ECOMMERCE_LOG_SHOW_ORDERS = 1;
+    const ECOMMERCE_LOG_SHOW_ABANDONED_CARTS = 2;
+
     protected $goalColumnNameToLabel = array(
         'avg_order_revenue' => 'General_AverageOrderValue',
         'nb_conversions'    => 'Goals_ColumnConversions',
@@ -98,9 +101,15 @@ class Controller extends \Piwik\Plugin\Controller
     public function getEcommerceLog($fetch = false)
     {
         $saveGET = $_GET;
-        $_GET['filterEcommerce'] = Common::getRequestVar('filterEcommerce', 1, 'int');
+        $filterEcommerce = Common::getRequestVar('filterEcommerce', self::ECOMMERCE_LOG_SHOW_ORDERS, 'int');
+        if($filterEcommerce == self::ECOMMERCE_LOG_SHOW_ORDERS) {
+            $segment = urlencode('visitEcommerceStatus==ordered,visitEcommerceStatus==orderedThenAbandonedCart');
+        } else {
+            $segment = urlencode('visitEcommerceStatus==abandonedCart,visitEcommerceStatus==orderedThenAbandonedCart');
+        }
+        $_GET['segment'] = $segment;
+        $_GET['filterEcommerce'] = $filterEcommerce;
         $_GET['widget'] = 1;
-        $_GET['segment'] = 'visitEcommerceStatus!=none';
         $output = FrontController::getInstance()->dispatch('Live', 'getVisitorLog', array($fetch));
         $_GET = $saveGET;
         return $output;
@@ -134,7 +143,7 @@ class Controller extends \Piwik\Plugin\Controller
         $view->idGoal = $idGoal;
         $view->goalName = $goalDefinition['name'];
         $view->goalAllowMultipleConversionsPerVisit = $goalDefinition['allow_multiple'];
-        $view->graphEvolution = $this->getEvolutionGraph(true, array('nb_conversions'), $idGoal);
+        $view->graphEvolution = $this->getEvolutionGraph(array('nb_conversions'), $idGoal);
         $view->nameGraphEvolution = 'Goals.getEvolutionGraph' . $idGoal;
         $view->topDimensions = $this->getTopDimensions($idGoal);
 
@@ -183,7 +192,7 @@ class Controller extends \Piwik\Plugin\Controller
         $view = new View('@Goals/getOverviewView');
         $this->setGeneralVariablesView($view);
 
-        $view->graphEvolution = $this->getEvolutionGraph(true, array('nb_conversions'));
+        $view->graphEvolution = $this->getEvolutionGraph(array('nb_conversions'));
         $view->nameGraphEvolution = 'GoalsgetEvolutionGraph';
 
         // sparkline for the historical data of the above values
@@ -241,7 +250,7 @@ class Controller extends \Piwik\Plugin\Controller
         return $view->render();
     }
 
-    public function getEvolutionGraph($fetch = false, array $columns = array(), $idGoal = false)
+    public function getEvolutionGraph(array $columns = array(), $idGoal = false)
     {
         if (empty($columns)) {
             $columns = Common::getRequestVar('columns');
@@ -416,7 +425,7 @@ class Controller extends \Piwik\Plugin\Controller
         if ($ecommerce) {
             if ($preloadAbandonedCart) {
                 $ecommerceCustomParams['viewDataTable'] = 'ecommerceAbandonedCart';
-                $ecommerceCustomParams['filterEcommerce'] = 2;
+                $ecommerceCustomParams['filterEcommerce'] = self::ECOMMERCE_LOG_SHOW_ABANDONED_CARTS;
             }
 
             $goalReportsByDimension->addReport(
@@ -425,6 +434,7 @@ class Controller extends \Piwik\Plugin\Controller
                 'Goals_EcommerceReports', 'Goals_ProductName', 'Goals.getItemsName', $ecommerceCustomParams);
             $goalReportsByDimension->addReport(
                 'Goals_EcommerceReports', 'Goals_ProductCategory', 'Goals.getItemsCategory', $ecommerceCustomParams);
+
             $goalReportsByDimension->addReport(
                 'Goals_EcommerceReports', 'Goals_EcommerceLog', 'Goals.getEcommerceLog', $ecommerceCustomParams);
         }

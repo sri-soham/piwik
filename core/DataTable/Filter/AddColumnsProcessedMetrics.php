@@ -10,26 +10,26 @@
  */
 namespace Piwik\DataTable\Filter;
 
-use Piwik\DataTable\Filter;
+use Piwik\DataTable\BaseFilter;
 use Piwik\DataTable\Row;
 use Piwik\DataTable;
 use Piwik\Metrics;
 
 /**
- * Adds processed metrics columns to a DataTable using metrics that already exist.
+ * Adds processed metrics columns to a {@link DataTable} using metrics that already exist.
  *
  * Columns added are:
  * 
  * - **conversion_rate**: percent value of `nb_visits_converted / nb_visits
  * - **nb_actions_per_visit**: `nb_actions / nb_visits`
- * - **avg_time_on_site**: in number of seconds, `round(visit_length / nb_visits)`. not
+ * - **avg_time_on_site**: in number of seconds, `round(visit_length / nb_visits)`. Not
  *                         pretty formatted.
  * - **bounce_rate**: percent value of `bounce_count / nb_visits`
  * 
  * Adding the **filter_add_columns_when_show_all_columns** query parameter to
  * an API request will trigger the execution of this Filter.
  * 
- * _Note: This filter must be called before [ReplaceColumnNames](#) is called._
+ * _Note: This filter must be called before {@link ReplaceColumnNames} is called._
  * 
  * **Basic usage example**
  * 
@@ -39,7 +39,7 @@ use Piwik\Metrics;
  * @subpackage DataTable
  * @api
  */
-class AddColumnsProcessedMetrics extends Filter
+class AddColumnsProcessedMetrics extends BaseFilter
 {
     protected $invalidDivision = 0;
     protected $roundPrecision = 2;
@@ -58,7 +58,7 @@ class AddColumnsProcessedMetrics extends Filter
     }
 
     /**
-     * Adds the processed metrics. See [AddColumnsProcessedMetrics](#AddColumnsProcessedMetrics) for
+     * Adds the processed metrics. See {@link AddColumnsProcessedMetrics} for
      * more information.
      *
      * @param DataTable $table

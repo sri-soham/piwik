@@ -10,13 +10,12 @@
  */
 namespace Piwik\DataTable\Filter;
 
-use Piwik\DataTable\Filter;
+use Piwik\DataTable\BaseFilter;
 use Piwik\DataTable;
 use Piwik\DataTable\Row\DataTableSummaryRow;
 
 /**
- * Add a summary row row to the table that is the sum of all other table
- * rows.
+ * Adds a summary row to {@link DataTable}s that contains the sum of all other table rows.
  *
  * **Basic usage example**
  * 
@@ -29,7 +28,7 @@ use Piwik\DataTable\Row\DataTableSummaryRow;
  * @subpackage DataTable
  * @api
  */
-class AddSummaryRow extends Filter
+class AddSummaryRow extends BaseFilter
 {
     /**
      * Constructor.
@@ -44,7 +43,7 @@ class AddSummaryRow extends Filter
     }
 
     /**
-     * Executes the filter. See [AddSummaryRow](#).
+     * Executes the filter. See {@link AddSummaryRow}.
      *
      * @param DataTable $table
      */

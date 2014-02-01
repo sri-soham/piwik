@@ -63,7 +63,7 @@ abstract class Test_Piwik_BaseFixture extends PHPUnit_Framework_Assert
      */
     public static function createWebsite($dateTime, $ecommerce = 0, $siteName = false, $siteUrl = false,
                                          $siteSearch = 1, $searchKeywordParameters = null,
-                                         $searchCategoryParameters = null)
+                                         $searchCategoryParameters = null, $timezone = null)
     {
         if($siteName === false) {
             $siteName = self::DEFAULT_SITE_NAME;
@@ -75,7 +75,7 @@ abstract class Test_Piwik_BaseFixture extends PHPUnit_Framework_Assert
             $siteSearch, $searchKeywordParameters, $searchCategoryParameters,
             $ips = null,
             $excludedQueryParameters = null,
-            $timezone = null,
+            $timezone,
             $currency = null
         );
 
@@ -399,5 +399,15 @@ abstract class Test_Piwik_BaseFixture extends PHPUnit_Framework_Assert
         }
 
         return $output;
+    }
+
+    public static function siteCreated($idSite)
+    {
+        return Db::fetchOne("SELECT COUNT(*) FROM " . Common::prefixTable('site') . " WHERE idsite = ?", array($idSite)) != 0;
+    }
+
+    public static function goalExists($idSite, $idGoal)
+    {
+        return Db::fetchOne("SELECT COUNT(*) FROM " . Common::prefixTable('goal') . " WHERE idgoal = ? AND idsite = ?", array($idGoal, $idSite)) != 0;
     }
 }

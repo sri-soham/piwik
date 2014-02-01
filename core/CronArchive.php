@@ -795,8 +795,13 @@ Notes:
         $websiteIds = array_intersect($websiteIds, $this->allWebsites);
 
         /**
-         * When the cron to run archive.php is executed, it fetches the list of website IDs to process.
-         * Use this hook to add, remove, or change the order of websites IDs to pre-archive.
+         * Triggered by the **archive.php** cron script so plugins can modify the list of
+         * websites that the archiving process will be launched for.
+         * 
+         * Plugins can use this hook to add websites to archive, remove websites to archive, or change
+         * the order in which websites will be archived.
+         * 
+         * @param array $websiteIds The list of website IDs to launch the archiving process for.
          */
         Piwik::postEvent('CronArchive.filterWebsiteIds', array(&$websiteIds));
     }
@@ -835,7 +840,7 @@ Notes:
 
     private function initPiwikHost()
     {
-        // If archive.php run as a web cron, we use the current hostname
+        // If archive.php run as a web cron, we use the current hostname+path
         if (!Common::isPhpCliMode()) {
             // example.org/piwik/misc/cron/
             $piwikUrl = Common::sanitizeInputValue(Url::getCurrentUrlWithoutFileName());
@@ -844,12 +849,19 @@ Notes:
         } else {
             // If archive.php run as CLI/shell we require the piwik url to be set
             $piwikUrl = $this->isParameterSet("url", true);
-            if (!$piwikUrl
-                || !\Piwik\UrlHelper::isLookLikeUrl($piwikUrl)
-            ) {
-                $this->logFatalError("archive.php expects the argument --url to be set to your Piwik URL, for example: --url=http://example.org/piwik/ "
-                    . "\n--help for more information", $backtrace = false);
+
+            if (!$piwikUrl) {
+                $this->logFatalErrorUrlExpected();
             }
+
+            if(!\Piwik\UrlHelper::isLookLikeUrl($piwikUrl)) {
+                // try adding http:// in case it's missing
+                $piwikUrl = "http://" . $piwikUrl;
+            }
+            if(!\Piwik\UrlHelper::isLookLikeUrl($piwikUrl)) {
+                $this->logFatalErrorUrlExpected();
+            }
+
             // ensure there is a trailing slash
             if ($piwikUrl[strlen($piwikUrl) - 1] != '/') {
                 $piwikUrl .= '/';
@@ -1080,6 +1092,12 @@ Notes:
                 Option::set(APICoreAdminHome::OPTION_INVALIDATED_IDSITES, serialize($websiteIdsInvalidated));
             }
         }
+    }
+
+    private function logFatalErrorUrlExpected()
+    {
+        $this->logFatalError("archive.php expects the argument --url to be set to your Piwik URL, for example: --url=http://example.org/piwik/ "
+            . "\n--help for more information", $backtrace = false);
     }
 }
 

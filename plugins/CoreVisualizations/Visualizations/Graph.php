@@ -59,6 +59,8 @@ abstract class Graph extends Visualization
         if ($this->config->max_graph_elements) {
             $this->requestConfig->request_parameters_to_modify['filter_truncate'] = $this->config->max_graph_elements - 1;
         }
+
+        $this->requestConfig->request_parameters_to_modify['disable_queued_filters'] = 1;
     }
 
     /**
@@ -84,22 +86,26 @@ abstract class Graph extends Visualization
                     continue;
                 }
 
-                // determine whether row is visible
-                $isVisible = true;
-                if ('label' == $self->config->row_picker_match_rows_by) {
-                    $isVisible = in_array($rowLabel, $self->config->rows_to_display);
-                }
-
                 // build config
                 if (!isset($self->selectableRows[$rowLabel])) {
                     $self->selectableRows[$rowLabel] = array(
                         'label'     => $rowLabel,
                         'matcher'   => $rowLabel,
-                        'displayed' => $isVisible
+                        'displayed' => $self->isRowVisible($rowLabel)
                     );
                 }
             }
         });
+    }
+
+    public function isRowVisible($rowLabel)
+    {
+        $isVisible = true;
+        if ('label' == $this->config->row_picker_match_rows_by) {
+            $isVisible = in_array($rowLabel, $this->config->rows_to_display);
+        }
+
+        return $isVisible;
     }
 
     /**
@@ -112,24 +118,31 @@ abstract class Graph extends Visualization
 
         $this->config->selectable_rows = array_values($this->selectableRows);
 
-        $selectableColumns = $this->config->selectable_columns;
-
-        // set default selectable columns, if none specified
-        if (false === $selectableColumns) {
-            $selectableColumns = array('nb_visits', 'nb_actions');
-
-            if (in_array('nb_uniq_visitors', $this->dataTable->getColumns())) {
-                $selectableColumns[] = 'nb_uniq_visitors';
-            }
+        if ($this->config->add_total_row) {
+            $totalTranslation = Piwik::translate('General_Total');
+            $this->config->selectable_rows[] = array(
+                'label'     => $totalTranslation,
+                'matcher'   => $totalTranslation,
+                'displayed' => $this->isRowVisible($totalTranslation)
+            );
         }
 
         if ($this->config->show_goals) {
-            $goalMetrics       = array('nb_conversions', 'revenue');
-            $selectableColumns = array_merge($selectableColumns, $goalMetrics);
             $this->config->addTranslations(array(
                 'nb_conversions' => Piwik::translate('Goals_ColumnConversions'),
                 'revenue'        => Piwik::translate('General_TotalRevenue')
             ));
+        }
+
+        // set default selectable columns, if none specified
+        $selectableColumns = $this->config->selectable_columns;
+        if (false === $selectableColumns) {
+            $selectableColumns = array('nb_visits', 'nb_actions', 'nb_uniq_visitors');
+
+            if ($this->config->show_goals) {
+                $goalMetrics       = array('nb_conversions', 'revenue');
+                $selectableColumns = array_merge($selectableColumns, $goalMetrics);
+            }
         }
 
         $transformed = array();

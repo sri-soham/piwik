@@ -78,4 +78,10 @@ class Option extends Base
              . "WHERE option_name = '$name' ";
         return $sql;
     }
+
+    public function deleteByOptionNames($optionNames) {
+        $sql = 'DELETE FROM '. $this->table
+             . " WHERE option_name In ('" . implode("','", $optionNames) . "')";
+        $this->db->query($sql);
+    }
 }

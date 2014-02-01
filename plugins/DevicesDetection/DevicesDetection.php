@@ -18,6 +18,7 @@ use Piwik\Common;
 use Piwik\Config;
 use Piwik\Db;
 use Piwik\Db\Factory;
+use Piwik\Menu\MenuAdmin;
 use Piwik\Menu\MenuMain;
 use Piwik\Piwik;
 use Piwik\Plugin\ViewDataTable;
@@ -39,6 +40,8 @@ class DevicesDetection extends \Piwik\Plugin
             'author'          => 'Piwik PRO',
             'author_homepage' => 'http://piwik.pro',
             'version'         => '1.14',
+            'license'          => 'GPL v3+',
+            'license_homepage' => 'http://www.gnu.org/licenses/gpl.html'
         );
     }
 
@@ -54,7 +57,7 @@ class DevicesDetection extends \Piwik\Plugin
             'DevicesDetection.getOsVersions' => Piwik::translate('DevicesDetection_OperatingSystemVersions')
         );
         $this->browserRelatedReports = array(
-            'DevicesDetection.getBrowserFamilies' => Piwik::translate('DevicesDetection_BrowsersFamily'),
+            'DevicesDetection.getBrowserFamilies' => Piwik::translate('UserSettings_BrowserFamilies'),
             'DevicesDetection.getBrowserVersions' => Piwik::translate('DevicesDetection_BrowserVersions')
         );
     }
@@ -93,11 +96,22 @@ class DevicesDetection extends \Piwik\Plugin
     {
         return array(
             'Menu.Reporting.addItems'         => 'addMenu',
+            'Menu.Admin.addItems'             => 'addAdminMenu',
             'Tracker.newVisitorInformation'   => 'parseMobileVisitData',
             'WidgetsList.addWidgets'          => 'addWidgets',
             'API.getReportMetadata'           => 'getReportMetadata',
             'API.getSegmentDimensionMetadata' => 'getSegmentsMetadata',
             'ViewDataTable.configure'         => 'configureViewDataTable',
+        );
+    }
+
+    public function addAdminMenu()
+    {
+        MenuAdmin::getInstance()->add(
+            'CoreAdminHome_MenuDiagnostic', 'DevicesDetection_DeviceDetection',
+            array('module' => 'DevicesDetection', 'action' => 'deviceDetection'),
+            Piwik::isUserHasSomeAdminAccess(),
+            $order = 40
         );
     }
 
@@ -149,10 +163,10 @@ class DevicesDetection extends \Piwik\Plugin
             // Browser family report
             array(
                 'DevicesDetection_DevicesDetection',
-                'DevicesDetection_BrowsersFamily',
+                'UserSettings_BrowserFamilies',
                 'DevicesDetection',
                 'getBrowserFamilies',
-                'DevicesDetection_BrowsersFamily',
+                'UserSettings_BrowserFamilies',
             ),
             // Browser versions report
             array(
@@ -183,7 +197,7 @@ class DevicesDetection extends \Piwik\Plugin
     {
         // Note: only one field segmented so far: deviceType
         foreach ($this->getRawMetadataReports() as $report) {
-            @list($category, $name, $apiModule, $apiAction, $columnName, $segment, $sqlSegment, $acceptedValues) = $report;
+            @list($category, $name, $apiModule, $apiAction, $columnName, $segment, $sqlSegment, $acceptedValues, $sqlFilter) = $report;
 
             if (empty($segment)) continue;
 
@@ -193,7 +207,8 @@ class DevicesDetection extends \Piwik\Plugin
                 'name'           => $columnName,
                 'segment'        => $segment,
                 'acceptedValues' => $acceptedValues,
-                'sqlSegment'     => $sqlSegment
+                'sqlSegment'     => $sqlSegment,
+                'sqlFilter'      => isset($sqlFilter) ? $sqlFilter : false
             );
         }
     }
@@ -312,7 +327,7 @@ class DevicesDetection extends \Piwik\Plugin
         $view->config->title = Piwik::translate('DevicesDetection_OperatingSystemFamilies');
         $view->config->show_search = false;
         $view->config->show_exclude_low_population = false;
-        $view->config->addTranslation('label', Piwik::translate("DevicesDetection_dataTableLabelSystemFamily"));
+        $view->config->addTranslation('label', Piwik::translate("UserSettings_OperatingSystemFamily"));
         $view->config->addRelatedReports($this->getOsRelatedReports());
     }
 
@@ -327,7 +342,7 @@ class DevicesDetection extends \Piwik\Plugin
 
     private function configureViewForGetBrowserFamilies(ViewDataTable $view)
     {
-        $view->config->title = Piwik::translate('DevicesDetection_BrowsersFamily');
+        $view->config->title = Piwik::translate('UserSettings_BrowserFamilies');
         $view->config->show_search = false;
         $view->config->show_exclude_low_population = false;
         $view->config->addTranslation('label', Piwik::translate("DevicesDetection_dataTableLabelBrowserFamily"));
@@ -338,7 +353,7 @@ class DevicesDetection extends \Piwik\Plugin
     {
         $view->config->show_search = false;
         $view->config->show_exclude_low_population = false;
-        $view->config->addTranslation('label', Piwik::translate("DevicesDetection_dataTableLabelBrowserVersion"));
+        $view->config->addTranslation('label', Piwik::translate("UserSettings_ColumnBrowserVersion"));
         $view->config->addRelatedReports($this->getBrowserRelatedReports());
     }
 
@@ -353,7 +368,7 @@ class DevicesDetection extends \Piwik\Plugin
     private function getBrowserRelatedReports()
     {
         return array(
-            'DevicesDetection.getBrowserFamilies' => Piwik::translate('DevicesDetection_BrowsersFamily'),
+            'DevicesDetection.getBrowserFamilies' => Piwik::translate('UserSettings_BrowserFamilies'),
             'DevicesDetection.getBrowserVersions' => Piwik::translate('DevicesDetection_BrowserVersions')
         );
     }

@@ -160,6 +160,7 @@ function initManagePdf() {
         formSetEditReport(idReport);
         $('.entityAddContainer').show();
         $('#entityEditContainer').hide();
+        $(document).trigger('ScheduledReport.edit', {});
     });
 
     // Switch Report Type

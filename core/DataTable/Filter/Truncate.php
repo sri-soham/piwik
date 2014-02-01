@@ -10,16 +10,16 @@
  */
 namespace Piwik\DataTable\Filter;
 
-use Piwik\DataTable\Filter;
+use Piwik\DataTable\BaseFilter;
 use Piwik\DataTable;
 use Piwik\DataTable\Row;
 use Piwik\Piwik;
 
 /**
- * Truncates a DataTable by merging all rows after a certain index into a new summary
- * row, unless the count of rows is less than the index.
+ * Truncates a {@link DataTable} by merging all rows after a certain index into a new summary
+ * row. If the count of rows is less than the index, nothing happens.
  * 
- * The [ReplaceSummaryRow](#) filter will be queued after the table is truncated.
+ * The {@link ReplaceSummaryRowLabel} filter will be queued after the table is truncated.
  * 
  * ### Examples
  * 
@@ -35,7 +35,7 @@ use Piwik\Piwik;
  * @subpackage DataTable
  * @api
  */
-class Truncate extends Filter
+class Truncate extends BaseFilter
 {
     /**
      * Constructor.
@@ -67,7 +67,7 @@ class Truncate extends Filter
     }
 
     /**
-     * Executes the filter, see [Truncate](#).
+     * Executes the filter, see {@link Truncate}.
      *
      * @param DataTable $table
      */
@@ -85,7 +85,7 @@ class Truncate extends Filter
         }
     }
 
-    public function addSummaryRow($table)
+    private function addSummaryRow($table)
     {
         $table->filter('Sort', array($this->columnToSortByBeforeTruncating, 'desc'));
 

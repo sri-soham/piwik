@@ -10,7 +10,7 @@
  */
 namespace Piwik\DataTable\Filter;
 
-use Piwik\DataTable\Filter;
+use Piwik\DataTable\BaseFilter;
 use Piwik\DataTable;
 use Piwik\DataTable\Row;
 
@@ -21,11 +21,15 @@ use Piwik\DataTable\Row;
  * This filter is used to calculate rate values (eg, `'bounce_rate'`), averages
  * (eg, `'avg_time_on_page'`) and other types of values.
  *
+ * **Basic usage example**
+ * 
+ *     $dataTable->queueFilter('ColumnCallbackAddColumnQuotient', array('bounce_rate', 'bounce_count', 'nb_visits', $precision = 2));
+ * 
  * @package Piwik
  * @subpackage DataTable
  * @api
  */
-class ColumnCallbackAddColumnQuotient extends Filter
+class ColumnCallbackAddColumnQuotient extends BaseFilter
 {
     protected $table;
     protected $columnValueToRead;
@@ -51,7 +55,8 @@ class ColumnCallbackAddColumnQuotient extends Filter
      * @param bool $getDivisorFromSummaryRow Whether to get the divisor from the summary row or the current
      *                                       row iteration.
      */
-    public function __construct($table, $columnNameToAdd, $columnValueToRead, $divisorValueOrDivisorColumnName, $quotientPrecision = 0, $shouldSkipRows = false, $getDivisorFromSummaryRow = false)
+    public function __construct($table, $columnNameToAdd, $columnValueToRead, $divisorValueOrDivisorColumnName,
+                                $quotientPrecision = 0,$shouldSkipRows = false, $getDivisorFromSummaryRow = false)
     {
         parent::__construct($table);
         $this->table = $table;
@@ -68,7 +73,7 @@ class ColumnCallbackAddColumnQuotient extends Filter
     }
 
     /**
-     * See [ColumnCallbackAddColumnQuotient](#).
+     * See {@link ColumnCallbackAddColumnQuotient}.
      *
      * @param DataTable $table
      */

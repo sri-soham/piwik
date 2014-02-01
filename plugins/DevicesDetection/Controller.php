@@ -13,6 +13,7 @@ namespace Piwik\Plugins\DevicesDetection;
 use Piwik\Common;
 use Piwik\Db;
 use Piwik\Piwik;
+use Piwik\Plugin\ControllerAdmin;
 use Piwik\View;
 use Piwik\ViewDataTable\Factory;
 use UserAgentParserEnhanced;
@@ -66,33 +67,6 @@ class Controller extends \Piwik\Plugin\Controller
         return $this->renderReport(__FUNCTION__);
     }
 
-    /**
-     * You may manually call this controller action to force re-processing of past user agents
-     */
-    public function refreshParsedUserAgents()
-    {
-        Piwik::checkUserIsSuperUser();
-        $q = "SELECT idvisit, config_debug_ua FROM " . Common::prefixTable("log_visit");
-        $res = Db::fetchAll($q);
-
-        $output = '';
-
-        foreach ($res as $rec) {
-            $UAParser = new UserAgentParserEnhanced($rec['config_debug_ua']);
-            $UAParser->parse();
-            $output .= "Processing idvisit = " . $rec['idvisit'] . "<br/>";
-            $output .= "UserAgent string: " . $rec['config_debug_ua'] . "<br/> Decoded values:";
-            $uaDetails = $this->getArray($UAParser);
-            var_export($uaDetails);
-            $output .= "<hr/>";
-            $this->updateVisit($rec['idvisit'], $uaDetails);
-            unset($UAParser);
-        }
-        $output .=  "Please remember to truncate your archives !";
-
-        return $output;
-    }
-
     private function getArray(UserAgentParserEnhanced $UAParser)
     {
         $UADetails['config_browser_name'] = $UAParser->getBrowser("short_name");
@@ -109,5 +83,39 @@ class Controller extends \Piwik\Plugin\Controller
     {
         $LogVisit = \Piwik\Db\Factory::getDAO('log_visit');
         $LogVisit->updateVisit($idVisit, $uaDetails);
+    }
+
+    public function deviceDetection()
+    {
+        Piwik::checkUserHasSomeAdminAccess();
+
+        $view = new View('@DevicesDetection/detection');
+        $this->setBasicVariablesView($view);
+        ControllerAdmin::setBasicVariablesAdminView($view);
+
+        $userAgent = Common::getRequestVar('ua', $_SERVER['HTTP_USER_AGENT'], 'string');
+
+        $parsedUA = UserAgentParserEnhanced::getInfoFromUserAgent($userAgent);
+
+        $view->userAgent           = $userAgent;
+        $view->browser_name        = $parsedUA['browser']['name'];
+        $view->browser_short_name  = $parsedUA['browser']['short_name'];
+        $view->browser_version     = $parsedUA['browser']['version'];
+        $view->browser_logo        = getBrowserLogoExtended($parsedUA['browser']['short_name']);
+        $view->browser_family      = $parsedUA['browser_family'];
+        $view->browser_family_logo = getBrowserFamilyLogoExtended($parsedUA['browser_family']);
+        $view->os_name             = $parsedUA['os']['name'];
+        $view->os_logo             = getOsLogoExtended($parsedUA['os']['short_name']);
+        $view->os_short_name       = $parsedUA['os']['short_name'];
+        $view->os_family           = $parsedUA['os_family'];
+        $view->os_family_logo      = getOsFamilyLogoExtended($parsedUA['os_family']);
+        $view->os_version          = $parsedUA['os']['version'];
+        $view->device_type         = $parsedUA['device']['type'];
+        $view->device_type_logo    = getDeviceTypeLogo(ucfirst($view->device_type));
+        $view->device_model        = $parsedUA['device']['model'];
+        $view->device_brand        = getDeviceBrandLabel($parsedUA['device']['brand']);
+        $view->device_brand_logo   = getBrandLogo($view->device_brand);
+
+        return $view->render();
     }
 }

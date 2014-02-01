@@ -51,10 +51,9 @@ class SettingsPiwik
     public static $cachedKnownSegmentsToArchive = null;
 
     /**
-     * Returns the list of stored segments to pre-process for all sites when executing cron archiving.
+     * Returns every stored segment to pre-process for each site during cron archiving.
      *
      * @return array The list of stored segments that apply to all sites.
-     * @api
      */
     public static function getKnownSegmentsToArchive()
     {
@@ -65,23 +64,29 @@ class SettingsPiwik
             /**
              * Triggered during the cron archiving process to collect segments that
              * should be pre-processed for all websites. The archiving process will be launched
-             * for each of these segments when archiving data for each site.
+             * for each of these segments when archiving data.
              * 
-             * This event can be used to add segments to be pre-processed. This can be provide
-             * enhanced performance if your plugin depends on data from a specific segment.
+             * This event can be used to add segments to be pre-processed. If your plugin depends
+             * on data from a specific segment, this event could be used to provide enhanced
+             * performance.
              * 
-             * Note: If you just want to add a segment that is managed by the user, you should use the
-             * SegmentEditor API.
+             * _Note: If you just want to add a segment that is managed by the user, use the
+             * SegmentEditor API._
+             * 
+             * **Example**
+             * 
+             *     Piwik::addAction('Segments.getKnownSegmentsToArchiveAllSites', function (&$segments) {
+             *         $segments[] = 'country=jp;city=Tokyo';
+             *     });
              * 
              * @param array &$segmentsToProcess List of segment definitions, eg,
-             *                                  ```
-             *                                  array(
-             *                                      'browserCode=ff;resolution=800x600',
-             *                                      'country=JP;city=Tokyo'
-             *                                  )
-             *                                  ```
-             *                                  Add segments to process to this array in your event
-             *                                  handler.
+             *                                  
+             *                                      array(
+             *                                          'browserCode=ff;resolution=800x600',
+             *                                          'country=jp;city=Tokyo'
+             *                                      )
+             *                                  
+             *                                  Add segments to this array in your event handler.
              */
             Piwik::postEvent('Segments.getKnownSegmentsToArchiveAllSites', array(&$segmentsToProcess));
 
@@ -107,21 +112,25 @@ class SettingsPiwik
          * should be pre-processed for one specific site. The archiving process will be launched
          * for each of these segments when archiving data for that one site.
          * 
-         * This event can be used to add segments to be pre-processed. This can be provide
-         * enhanced performance if your plugin depends on data from a specific segment.
+         * This event can be used to add segments to be pre-processed for one site.
          * 
-         * Note: If you just want to add a segment that is managed by the user, you should use the
-         * SegmentEditor API.
+         * _Note: If you just want to add a segment that is managed by the user, you should use the
+         * SegmentEditor API._
+         * 
+         * **Example**
+         * 
+         *     Piwik::addAction('Segments.getKnownSegmentsToArchiveForSite', function (&$segments, $idSite) {
+         *         $segments[] = 'country=jp;city=Tokyo';
+         *     });
          * 
          * @param array &$segmentsToProcess List of segment definitions, eg,
-         *                                  ```
-         *                                  array(
-         *                                      'browserCode=ff;resolution=800x600',
-         *                                      'country=JP;city=Tokyo'
-         *                                  )
-         *                                  ```
-         *                                  Add segments to process to this array in your event
-         *                                  handler.
+         *                                  
+         *                                      array(
+         *                                          'browserCode=ff;resolution=800x600',
+         *                                          'country=JP;city=Tokyo'
+         *                                      )
+         *                                  
+         *                                  Add segments to this array in your event handler.
          * @param int $idSite The ID of the site to get segments for.
          */
         Piwik::postEvent('Segments.getKnownSegmentsToArchiveForSite', array(&$segments, $idSite));
@@ -149,7 +158,7 @@ class SettingsPiwik
     static public $piwikUrlCache = null;
 
     /**
-     * Returns the URL to this Piwik instance, eg. http://demo.piwik.org/ or http://example.org/piwik/.
+     * Returns the URL to this Piwik instance, eg. **http://demo.piwik.org/** or **http://example.org/piwik/**.
      *
      * @return string
      * @api
@@ -186,7 +195,7 @@ class SettingsPiwik
     }
 
     /**
-     * Returns true if segmentation is allowed for this user, false if otherwise.
+     * Returns `true` if segmentation is allowed for this user, `false` if otherwise.
      *
      * @return bool
      * @api
@@ -200,9 +209,8 @@ class SettingsPiwik
     /**
      * Returns true if unique visitors should be processed for the given period type.
      * 
-     * Unique visitor processing is controlled by the **[General] enable_processing_unique_visitors_...**
-     * INI config options. By default, day/week/month periods always process unique visitors and
-     * year/range are not.
+     * Unique visitor processing is controlled by the `[General] enable_processing_unique_visitors_...`
+     * INI config options. By default, unique visitors are processed only for day/week/month periods.
      *
      * @param string $periodLabel `"day"`, `"week"`, `"month"`, `"year"` or `"range"`
      * @return bool
@@ -233,25 +241,20 @@ class SettingsPiwik
      */
     public static function rewriteTmpPathWithHostname($path)
     {
-        try {
-            $configByHost = Config::getInstance()->getConfigHostnameIfSet();
-        } catch (Exception $e) {
-            // Config file not found
-        }
-        if (empty($configByHost)) {
-            return $path;
-        }
-
         $tmp = '/tmp/';
-        if (($posTmp = strrpos($path, $tmp)) === false) {
-            throw new Exception("The path $path was expected to contain the string /tmp/ ");
-        }
+        $path = self::rewritePathAppendHostname($path, $tmp);
+        return $path;
+    }
 
-        $tmpToReplace = $tmp . $configByHost . '/';
-
-        // replace only the latest occurrence (in case path contains twice /tmp)
-        $path = substr_replace($path, $tmpToReplace, $posTmp, strlen($tmp));
-
+    /**
+     * If Piwik uses per-domain config file, make sure CustomLogo is unique
+     * @param $path
+     * @return mixed
+     */
+    public static function rewriteMiscUserPathWithHostname($path)
+    {
+        $tmp = 'misc/user/';
+        $path = self::rewritePathAppendHostname($path, $tmp);
         return $path;
     }
 
@@ -265,7 +268,19 @@ class SettingsPiwik
     {
         // Now testing if the webserver is running
         try {
-            $fetched = Http::sendHttpRequest($piwikServerUrl, $timeout = 45);
+            $fetched = Http::sendHttpRequestBy('curl',
+                                                $piwikServerUrl,
+                                                $timeout = 45,
+                                                $userAgent = null,
+                                                $destinationPath = null,
+                                                $file = null,
+                                                $followDepth = 0,
+                                                $acceptLanguage = false,
+
+                                                // Accept self signed certificates for developers
+                                                $acceptInvalidSslCertificate = true
+        );
+
         } catch (Exception $e) {
             $fetched = "ERROR fetching: " . $e->getMessage();
         }
@@ -281,14 +296,61 @@ class SettingsPiwik
 
     public static function getCurrentGitBranch()
     {
-        $firstLineOfGitHead = file(PIWIK_INCLUDE_PATH . '/.git/HEAD');
+        $file = PIWIK_INCLUDE_PATH . '/.git/HEAD';
+        if(!file_exists($file)) {
+            return '';
+        }
+        $firstLineOfGitHead = file($file);
         if (empty($firstLineOfGitHead)) {
             return '';
         }
         $firstLineOfGitHead = $firstLineOfGitHead[0];
-        $parts = explode("/", $firstLineOfGitHead);
+        $parts = explode('/', $firstLineOfGitHead);
+        if (empty($parts[2])) {
+            return '';
+        }
         $currentGitBranch = trim($parts[2]);
         return $currentGitBranch;
+    }
+
+    /**
+     * @param $pathToRewrite
+     * @param $leadingPathToAppendHostnameTo
+     * @param $hostname
+     * @return mixed
+     * @throws \Exception
+     */
+    protected static function rewritePathAppendHostname($pathToRewrite, $leadingPathToAppendHostnameTo)
+    {
+        $hostname = self::getConfigHostname();
+        if (empty($hostname)) {
+            return $pathToRewrite;
+        }
+
+        if (($posTmp = strrpos($pathToRewrite, $leadingPathToAppendHostnameTo)) === false) {
+            throw new Exception("The path $pathToRewrite was expected to contain the string  $leadingPathToAppendHostnameTo");
+        }
+
+        $tmpToReplace = $leadingPathToAppendHostnameTo . $hostname . '/';
+
+        // replace only the latest occurrence (in case path contains twice /tmp)
+        $pathToRewrite = substr_replace($pathToRewrite, $tmpToReplace, $posTmp, strlen($leadingPathToAppendHostnameTo));
+        return $pathToRewrite;
+    }
+
+    /**
+     * @return bool|string
+     */
+    protected static function getConfigHostname()
+    {
+        $configByHost = false;
+        try {
+            $configByHost = Config::getInstance()->getConfigHostnameIfSet();
+            return $configByHost;
+        } catch (Exception $e) {
+            // Config file not found
+        }
+        return $configByHost;
     }
 
 }

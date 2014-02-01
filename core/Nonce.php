@@ -19,7 +19,7 @@ use Piwik\Session\SessionNamespace;
  * part of a robust defense against cross-site request forgery (CSRF/XSRF). This
  * class provides static methods that create and manage nonce values.
  * 
- * Nonces in Piwik are stored as a session variable and have a configurable expiration:
+ * Nonces in Piwik are stored as a session variable and have a configurable expiration.
  *
  * Learn more about nonces [here](http://en.wikipedia.org/wiki/Cryptographic_nonce).
  * 
@@ -29,14 +29,14 @@ use Piwik\Session\SessionNamespace;
 class Nonce
 {
     /**
-     * Returns the existing nonce. If none exists, a new nonce will be generated.
+     * Returns an existing nonce by ID. If none exists, a new nonce will be generated.
      *
      * @param string $id Unique id to avoid namespace conflicts, e.g., `'ModuleName.ActionName'`.
      * @param int $ttl Optional time-to-live in seconds; default is 5 minutes. (ie, in 5 minutes,
      *                 the nonce will no longer be valid).
      * @return string
      */
-    static public function getNonce($id, $ttl = 300)
+    static public function getNonce($id, $ttl = 600)
     {
         // save session-dependent nonce
         $ns = new SessionNamespace($id);
@@ -63,12 +63,12 @@ class Nonce
      * A nonce is valid if it matches the current nonce and if the current nonce
      * has not expired.
      * 
-     * The request is valid if the referrer is a local URL (see [Url::isLocalUrl](#))
-     * and if the HTTP origin is valid (see [getAcceptableOrigins](#getAcceptableOrigins)).
+     * The request is valid if the referrer is a local URL (see {@link Url::isLocalUrl()})
+     * and if the HTTP origin is valid (see {@link getAcceptableOrigins()}).
      *
-     * @param string $id Unique id
-     * @param string $cnonce Nonce sent to client
-     * @return bool  true if valid; false otherwise
+     * @param string $id The nonce's unique ID. See {@link getNonce()}.
+     * @param string $cnonce Nonce sent from client.
+     * @return bool `true` if valid; `false` otherwise.
      */
     static public function verifyNonce($id, $cnonce)
     {
@@ -110,7 +110,7 @@ class Nonce
     }
 
     /**
-     * Returns Origin HTTP header or false if not found.
+     * Returns the **Origin** HTTP header or `false` if not found.
      * 
      * @return string|bool
      */
@@ -123,7 +123,7 @@ class Nonce
     }
 
     /**
-     * Returns a list acceptable values for the HTTP Origin header.
+     * Returns a list acceptable values for the HTTP **Origin** header.
      *
      * @return array
      */
@@ -153,5 +153,26 @@ class Nonce
         }
 
         return $origins;
+    }
+
+    /**
+     * Verifies and discards a nonce.
+     * 
+     * @param string $nonceName The nonce's unique ID. See {@link getNonce()}.
+     * @param string|null $nonce The nonce from the client. If `null`, the value from the
+     *                           **nonce** query parameter is used.
+     * @throws Exception if the nonce is invalid. See {@link verifyNonce()}.
+     */
+    static public function checkNonce($nonceName, $nonce = null)
+    {
+        if ($nonce === null) {
+            $nonce = Common::getRequestVar('nonce', null, 'string');
+        }
+
+        if (!self::verifyNonce($nonceName, $nonce)) {
+            throw new \Exception(Piwik::translate('General_ExceptionNonceMismatch'));
+        }
+
+        self::discardNonce($nonceName);
     }
 }

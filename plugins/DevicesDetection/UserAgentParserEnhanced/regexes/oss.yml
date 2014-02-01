@@ -14,9 +14,18 @@
 - regex: 'Tizen'
   name: 'Tizen'
   version: ''
-  
-  
-  
+
+
+
+##########
+## Sailfish OS
+###########
+- regex: 'Sailfish|Jolla'
+  name: 'Sailfish OS'
+  version: ''
+
+
+
 ##########
 # Android
 ##########
@@ -39,12 +48,12 @@
   version: '$2'
   
   
-- regex: '((?:Arch Linux|Debian|Knoppix|Mint|Ubuntu|Kubuntu|Xubuntu|Lubuntu|Fedora|Red Hat|Mandriva|Gentoo|Slackware|SUSE|Puppy|CentOS|BackTrack|YunOs|Presto));.*Linux'
+- regex: '((?:Arch Linux|Debian|Knoppix|Mint|Ubuntu|Kubuntu|Xubuntu|Lubuntu|Fedora|Red Hat|Mandriva|Gentoo|Slackware|SUSE|Puppy|CentOS|BackTrack|YunOs))'
   name: '$1'
   version: ''
   
   
-- regex: 'Linux; |Linux (?:x86_64|zbov|i686)'
+- regex: 'Linux[;\)] |Linux (?:x86_64|zbov|i686)'
   name: 'Linux'
   version: ''
   
@@ -264,7 +273,7 @@
   name: 'Symbian'
   version: ''
 
-  
+
 
 ##########
 # Firefox OS
@@ -374,9 +383,9 @@
   version: 'Wii'
   
   
-- regex: 'PlayStation 3|PlayStation3'
+- regex: 'PlayStation ?([3|4])'
   name: 'PlayStation'
-  version: '3'
+  version: '$1'
   
   
 - regex: 'Xbox|KIN\.(?:One|Two)'

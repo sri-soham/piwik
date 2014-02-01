@@ -18,3 +18,11 @@
 	path = tests/PHPUnit/UI
 	url = https://github.com/piwik/piwik-ui-tests.git
 	branch = master
+[submodule "plugins/CustomAlerts"]
+	path = plugins/CustomAlerts
+	url = https://github.com/piwik/plugin-CustomAlerts.git
+	branch = master
+
+[submodule "plugins/TasksTimetable"]
+	path = plugins/TasksTimetable
+	url = https://github.com/piwik/plugin-TasksTimetable.git

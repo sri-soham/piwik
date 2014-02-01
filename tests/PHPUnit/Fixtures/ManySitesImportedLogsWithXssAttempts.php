@@ -23,7 +23,6 @@ require_once PIWIK_INCLUDE_PATH . '/tests/PHPUnit/Fixtures/ManySitesImportedLogs
 class Test_Piwik_Fixture_ManySitesImportedLogsWithXssAttempts extends Test_Piwik_Fixture_ManySitesImportedLogs
 {
     public $now = null;
-    public $visitorIdForDeterministicDate = null;
 
     public function __construct()
     {
@@ -36,10 +35,6 @@ class Test_Piwik_Fixture_ManySitesImportedLogsWithXssAttempts extends Test_Piwik
 
         $this->trackVisitsForRealtimeMap(Date::factory('2012-08-11 11:22:33'), $createSeperateVisitors = false);
 
-        $this->visitorIdForDeterministicDate = bin2hex(Db::fetchOne(
-            "SELECT idvisitor FROM " . Common::prefixTable('log_visit')
-          . " WHERE idsite = 2 AND location_latitude IS NOT NULL LIMIT 1"));
-
         $this->setupDashboards();
         $this->setupXssSegment();
         $this->addAnnotations();
@@ -49,13 +44,20 @@ class Test_Piwik_Fixture_ManySitesImportedLogsWithXssAttempts extends Test_Piwik
     public function setUpWebsitesAndGoals()
     {
         // for conversion testing
-        $siteName = self::makeXssContent("site name", $sanitize = true);
-        self::createWebsite($this->dateTime, $ecommerce = 1, $siteName);
-        APIGoals::getInstance()->addGoal(
-            $this->idSite, self::makeXssContent("goal name"), 'url', 'http', 'contains', false, 5);
-        
-        self::createWebsite($this->dateTime, $ecommerce = 0, $siteName = 'Piwik test two',
-            $siteUrl = 'http://example-site-two.com');
+        if (!self::siteCreated($idSite = 1)) {
+            $siteName = self::makeXssContent("site name", $sanitize = true);
+            self::createWebsite($this->dateTime, $ecommerce = 1, $siteName);
+        }
+
+        if (!self::goalExists($idSite = 1, $idGoal = 1)) {
+            APIGoals::getInstance()->addGoal(
+                $this->idSite, self::makeXssContent("goal name"), 'url', 'http', 'contains', false, 5);
+        }
+
+        if (!self::siteCreated($idSite = 2)) {
+            self::createWebsite($this->dateTime, $ecommerce = 0, $siteName = 'Piwik test two',
+                $siteUrl = 'http://example-site-two.com');
+        }
     }
     
     /** Creates two dashboards that split the widgets up into different groups. */

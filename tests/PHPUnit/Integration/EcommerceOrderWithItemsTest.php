@@ -50,129 +50,159 @@ class Test_Piwik_Integration_EcommerceOrderWithItems extends IntegrationTestCase
 
         $processedReportApi = array('API.getProcessedReport');
 
+        $apiWithSegments = array(
+            'Goals.getItemsSku', 'Goals.getItemsName', 'Goals.getItemsCategory'
+        );
+
         // Normal standard goal
         return array_merge(array(
 
-                                // day tests
-                                array($dayApi, array('idSite' => $idSite, 'date' => $dateTime, 'periods' => array('day'), 'otherRequestParameters' => array('_leavePiwikCoreVariables' => 1))),
+                // Segment: This will match the first visit of the fixture only
+                array(
+                    $apiWithSegments,
+                    array(
+                        'idSite' => $idSite,
+                        'date' => $dateTime,
+                        'periods' => array('day', 'week'),
+                        'otherRequestParameters' => array('_leavePiwikCoreVariables' => 1),
+                        'segment' => 'pageUrl=@Another%20Product%20page',
+                        'testSuffix' => '_SegmentPageUrlContains'
+                    )
+                ),
 
-                                // goals API week tests
-                                array($goalWeekApi, array('idSite' => $idSite, 'date' => $dateTime, 'periods' => array('week'))),
+                // Segment: This will match the first visit of the fixture only
+                array(
+                    $apiWithSegments,
+                    array(
+                        'idSite' => $idSite,
+                        'date' => $dateTime,
+                        'periods' => array('day', 'week'),
+                        'otherRequestParameters' => array('_leavePiwikCoreVariables' => 1),
+                        'segment' => 'countryCode==fr',
+                        'testSuffix' => '_SegmentCountryIsFr'
+                    )
+                ),
 
-                                // abandoned carts tests
-                                array($goalItemApi, array('idSite'     => $idSite, 'date' => $dateTime,
-                                                          'periods'    => array('day', 'week'), 'abandonedCarts' => 1,
-                                                          'testSuffix' => '_AbandonedCarts')),
+                // day tests
+                array($dayApi, array('idSite' => $idSite, 'date' => $dateTime, 'periods' => array('day'), 'otherRequestParameters' => array('_leavePiwikCoreVariables' => 1))),
 
-                                // multiple periods tests
-                                array($goalItemApi, array('idSite'       => $idSite, 'date' => $dateTime, 'periods' => array('day'),
-                                                          'setDateLastN' => true, 'testSuffix' => 'multipleDates')),
+                // goals API week tests
+                array($goalWeekApi, array('idSite' => $idSite, 'date' => $dateTime, 'periods' => array('week'))),
 
-                                // multiple periods & multiple websites tests
-                                array($goalItemApi, array('idSite'     => sprintf("%u,%u", $idSite, $idSite2), 'date' => $dateTime,
-                                                          'periods'    => array('day'), 'setDateLastN' => true,
-                                                          'testSuffix' => 'multipleDates_andMultipleWebsites')),
+                // abandoned carts tests
+                array($goalItemApi, array('idSite'     => $idSite, 'date' => $dateTime,
+                                          'periods'    => array('day', 'week'), 'abandonedCarts' => 1,
+                                          'testSuffix' => '_AbandonedCarts')),
 
-                                // test metadata products
-                                array($processedReportApi, array('idSite'    => $idSite, 'date' => $dateTime,
-                                                                 'periods'   => array('day'), 'apiModule' => 'Goals',
-                                                                 'apiAction' => 'getItemsSku', 'testSuffix' => '_Metadata_ItemsSku')),
-                                array($processedReportApi, array('idSite'    => $idSite, 'date' => $dateTime,
-                                                                 'periods'   => array('day'), 'apiModule' => 'Goals',
-                                                                 'apiAction' => 'getItemsCategory', 'testSuffix' => '_Metadata_ItemsCategory')),
+                // multiple periods tests
+                array($goalItemApi, array('idSite'       => $idSite, 'date' => $dateTime, 'periods' => array('day'),
+                                          'setDateLastN' => true, 'testSuffix' => 'multipleDates')),
 
-                                // test metadata Goals.get for Ecommerce orders & Carts
-                                array($processedReportApi, array('idSite'     => $idSite, 'date' => $dateTime,
-                                                                 'periods'    => array('day'), 'apiModule' => 'Goals', 'apiAction' => 'get',
-                                                                 'idGoal'     => Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_ORDER,
-                                                                 'testSuffix' => '_Metadata_Goals.Get_Order')),
-                                array($processedReportApi, array('idSite'     => $idSite, 'date' => $dateTime,
-                                                                 'periods'    => array('day'), 'apiModule' => 'Goals', 'apiAction' => 'get',
-                                                                 'idGoal'     => Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_CART,
-                                                                 'testSuffix' => '_Metadata_Goals.Get_AbandonedCart')),
+                // multiple periods & multiple websites tests
+                array($goalItemApi, array('idSite'     => sprintf("%u,%u", $idSite, $idSite2), 'date' => $dateTime,
+                                          'periods'    => array('day'), 'setDateLastN' => true,
+                                          'testSuffix' => 'multipleDates_andMultipleWebsites')),
 
-                                // normal standard goal test
-                                array($processedReportApi, array('idSite'     => $idSite, 'date' => $dateTime,
-                                                                 'periods'    => array('day'), 'apiModule' => 'Goals', 'apiAction' => 'get',
-                                                                 'idGoal'     => self::$fixture->idGoalStandard,
-                                                                 'testSuffix' => '_Metadata_Goals.Get_NormalGoal')),
+                // test metadata products
+                array($processedReportApi, array('idSite'    => $idSite, 'date' => $dateTime,
+                                                 'periods'   => array('day'), 'apiModule' => 'Goals',
+                                                 'apiAction' => 'getItemsSku', 'testSuffix' => '_Metadata_ItemsSku')),
+                array($processedReportApi, array('idSite'    => $idSite, 'date' => $dateTime,
+                                                 'periods'   => array('day'), 'apiModule' => 'Goals',
+                                                 'apiAction' => 'getItemsCategory', 'testSuffix' => '_Metadata_ItemsCategory')),
 
-                                // non-existant goal test
-                                array($processedReportApi, array('idSite'     => $idSite, 'date' => $dateTime,
-                                                                 'periods'    => array('day'), 'apiModule' => 'Goals', 'apiAction' => 'get',
-                                                                 'idGoal'     => 'FAKE IDGOAL',
-                                                                 'testSuffix' => '_Metadata_Goals.Get_NotExistingGoal')),
+                // test metadata Goals.get for Ecommerce orders & Carts
+                array($processedReportApi, array('idSite'     => $idSite, 'date' => $dateTime,
+                                                 'periods'    => array('day'), 'apiModule' => 'Goals', 'apiAction' => 'get',
+                                                 'idGoal'     => Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_ORDER,
+                                                 'testSuffix' => '_Metadata_Goals.Get_Order')),
+                array($processedReportApi, array('idSite'     => $idSite, 'date' => $dateTime,
+                                                 'periods'    => array('day'), 'apiModule' => 'Goals', 'apiAction' => 'get',
+                                                 'idGoal'     => Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_CART,
+                                                 'testSuffix' => '_Metadata_Goals.Get_AbandonedCart')),
 
-                                // While we're at it, test for a standard Metadata report with zero entries
-                                array($processedReportApi, array('idSite'     => $idSite, 'date' => $dateTime,
-                                                                 'periods'    => array('day'), 'apiModule' => 'VisitTime',
-                                                                 'apiAction'  => 'getVisitInformationPerServerTime',
-                                                                 'testSuffix' => '_Metadata_VisitTime.getVisitInformationPerServerTime')),
+                // normal standard goal test
+                array($processedReportApi, array('idSite'     => $idSite, 'date' => $dateTime,
+                                                 'periods'    => array('day'), 'apiModule' => 'Goals', 'apiAction' => 'get',
+                                                 'idGoal'     => self::$fixture->idGoalStandard,
+                                                 'testSuffix' => '_Metadata_Goals.Get_NormalGoal')),
 
-                                // Standard non metadata Goals.get
-                                // test Goals.get with idGoal=ecommerceOrder and ecommerceAbandonedCart
-                                array('Goals.get', array('idSite'     => $idSite, 'date' => $dateTime,
-                                                         'periods'    => array('day', 'week'), 'idGoal' => Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_CART,
-                                                         'testSuffix' => '_GoalAbandonedCart')),
-                                array('Goals.get', array('idSite'     => $idSite, 'date' => $dateTime,
-                                                         'periods'    => array('day', 'week'), 'idGoal' => Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_ORDER,
-                                                         'testSuffix' => '_GoalOrder')),
-                                array('Goals.get', array('idSite'  => $idSite, 'date' => $dateTime,
-                                                         'periods' => array('day', 'week'), 'idGoal' => 1, 'testSuffix' => '_GoalMatchTitle')),
-                                array('Goals.get', array('idSite'  => $idSite, 'date' => $dateTime,
-                                                         'periods' => array('day', 'week'), 'idGoal' => '', 'testSuffix' => '_GoalOverall')),
+                // non-existant goal test
+                array($processedReportApi, array('idSite'     => $idSite, 'date' => $dateTime,
+                                                 'periods'    => array('day'), 'apiModule' => 'Goals', 'apiAction' => 'get',
+                                                 'idGoal'     => 'FAKE IDGOAL',
+                                                 'testSuffix' => '_Metadata_Goals.Get_NotExistingGoal')),
 
-                                array('VisitsSummary.get', array('idSite'     => $idSite, 'date' => $dateTime,
-                                                                 'periods'    => array('day'), 'segment' => 'visitEcommerceStatus==none',
-                                                                 'testSuffix' => '_SegmentNoEcommerce')),
-                                array('VisitsSummary.get', array('idSite'  => $idSite, 'date' => $dateTime,
-                                                                 'periods' => array('day'), 'testSuffix' => '_SegmentOrderedSomething',
-                                                                 'segment' => 'visitEcommerceStatus==ordered,visitEcommerceStatus==orderedThenAbandonedCart')),
-                                array('VisitsSummary.get', array('idSite'  => $idSite, 'date' => $dateTime,
-                                                                 'periods' => array('day'), 'testSuffix' => '_SegmentAbandonedCart',
-                                                                 'segment' => 'visitEcommerceStatus==abandonedCart,visitEcommerceStatus==orderedThenAbandonedCart')),
+                // While we're at it, test for a standard Metadata report with zero entries
+                array($processedReportApi, array('idSite'     => $idSite, 'date' => $dateTime,
+                                                 'periods'    => array('day'), 'apiModule' => 'VisitTime',
+                                                 'apiAction'  => 'getVisitInformationPerServerTime',
+                                                 'testSuffix' => '_Metadata_VisitTime.getVisitInformationPerServerTime')),
 
-                                // test segment visitConvertedGoalId
-                                array('VisitsSummary.get', array('idSite'  => $idSite, 'date' => $dateTime,
-                                                                 'periods' => array('day', 'week'), 'testSuffix' => '_SegmentConvertedGoalId1',
-                                                                 'segment' => "visitConvertedGoalId==" . self::$fixture->idGoalStandard)),
-                                array('VisitsSummary.get', array('idSite'  => $idSite, 'date' => $dateTime,
-                                                                 'periods' => array('day'), 'testSuffix' => '_SegmentDidNotConvertGoalId1',
-                                                                 'segment' => "visitConvertedGoalId!=" . self::$fixture->idGoalStandard)),
+                // Standard non metadata Goals.get
+                // test Goals.get with idGoal=ecommerceOrder and ecommerceAbandonedCart
+                array('Goals.get', array('idSite'     => $idSite, 'date' => $dateTime,
+                                         'periods'    => array('day', 'week'), 'idGoal' => Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_CART,
+                                         'testSuffix' => '_GoalAbandonedCart')),
+                array('Goals.get', array('idSite'     => $idSite, 'date' => $dateTime,
+                                         'periods'    => array('day', 'week'), 'idGoal' => Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_ORDER,
+                                         'testSuffix' => '_GoalOrder')),
+                array('Goals.get', array('idSite'  => $idSite, 'date' => $dateTime,
+                                         'periods' => array('day', 'week'), 'idGoal' => 1, 'testSuffix' => '_GoalMatchTitle')),
+                array('Goals.get', array('idSite'  => $idSite, 'date' => $dateTime,
+                                         'periods' => array('day', 'week'), 'idGoal' => '', 'testSuffix' => '_GoalOverall')),
 
-                                // test segment visitorType
-                                array('VisitsSummary.get', array('idSite'     => $idSite, 'date' => $dateTime,
-                                                                 'periods'    => array('week'), 'segment' => 'visitorType==new',
-                                                                 'testSuffix' => '_SegmentNewVisitors')),
-                                array('VisitsSummary.get', array('idSite'     => $idSite, 'date' => $dateTime,
-                                                                 'periods'    => array('week'), 'segment' => 'visitorType==returning',
-                                                                 'testSuffix' => '_SegmentReturningVisitors')),
-                                array('VisitsSummary.get', array('idSite'     => $idSite, 'date' => $dateTime,
-                                                                 'periods'    => array('week'), 'segment' => 'visitorType==returningCustomer',
-                                                                 'testSuffix' => '_SegmentReturningCustomers')),
+                array('VisitsSummary.get', array('idSite'     => $idSite, 'date' => $dateTime,
+                                                 'periods'    => array('day'), 'segment' => 'visitEcommerceStatus==none',
+                                                 'testSuffix' => '_SegmentNoEcommerce')),
+                array('VisitsSummary.get', array('idSite'  => $idSite, 'date' => $dateTime,
+                                                 'periods' => array('day'), 'testSuffix' => '_SegmentOrderedSomething',
+                                                 'segment' => 'visitEcommerceStatus==ordered,visitEcommerceStatus==orderedThenAbandonedCart')),
+                array('VisitsSummary.get', array('idSite'  => $idSite, 'date' => $dateTime,
+                                                 'periods' => array('day'), 'testSuffix' => '_SegmentAbandonedCart',
+                                                 'segment' => 'visitEcommerceStatus==abandonedCart,visitEcommerceStatus==orderedThenAbandonedCart')),
 
-                                // test segment pageTitle
-                                array('VisitsSummary.get', array('idSite'     => $idSite, 'date' => $dateTime,
-                                                                 'periods'    => array('day'), 'segment' => 'pageTitle==incredible title!',
-                                                                 'testSuffix' => '_SegmentPageTitleMatch')),
+                // test segment visitConvertedGoalId
+                array('VisitsSummary.get', array('idSite'  => $idSite, 'date' => $dateTime,
+                                                 'periods' => array('day', 'week'), 'testSuffix' => '_SegmentConvertedGoalId1',
+                                                 'segment' => "visitConvertedGoalId==" . self::$fixture->idGoalStandard)),
+                array('VisitsSummary.get', array('idSite'  => $idSite, 'date' => $dateTime,
+                                                 'periods' => array('day'), 'testSuffix' => '_SegmentDidNotConvertGoalId1',
+                                                 'segment' => "visitConvertedGoalId!=" . self::$fixture->idGoalStandard)),
 
-                                // test Live! output is OK also for the visit that just bought something (other visits leave an abandoned cart)
-                                array('Live.getLastVisitsDetails', array('idSite'  => $idSite,
-                                                                         'date'    => Date::factory($dateTime)->addHour(30.65)->getDatetime(),
-                                                                         'periods' => array('day'), 'testSuffix' => '_LiveEcommerceStatusOrdered')),
+                // test segment visitorType
+                array('VisitsSummary.get', array('idSite'     => $idSite, 'date' => $dateTime,
+                                                 'periods'    => array('week'), 'segment' => 'visitorType==new',
+                                                 'testSuffix' => '_SegmentNewVisitors')),
+                array('VisitsSummary.get', array('idSite'     => $idSite, 'date' => $dateTime,
+                                                 'periods'    => array('week'), 'segment' => 'visitorType==returning',
+                                                 'testSuffix' => '_SegmentReturningVisitors')),
+                array('VisitsSummary.get', array('idSite'     => $idSite, 'date' => $dateTime,
+                                                 'periods'    => array('week'), 'segment' => 'visitorType==returningCustomer',
+                                                 'testSuffix' => '_SegmentReturningCustomers')),
 
-                                // test API.get method
-                                array('API.get', array('idSite'                 => $idSite, 'date' => $dateTime, 'periods' => array('day', 'week'),
-                                                       'otherRequestParameters' => array(
-                                                           'columns' => 'nb_pageviews,nb_visits,avg_time_on_site,nb_visits_converted'),
-                                                       'testSuffix'             => '_API_get')),
+                // test segment pageTitle
+                array('VisitsSummary.get', array('idSite'     => $idSite, 'date' => $dateTime,
+                                                 'periods'    => array('day'), 'segment' => 'pageTitle==incredible title!',
+                                                 'testSuffix' => '_SegmentPageTitleMatch')),
 
-                                // Website2
-                                array($goalWeekApi, array('idSite'     => $idSite2, 'date' => $dateTime, 'periods' => array('week'),
-                                                          'testSuffix' => '_Website2')),
+                // test Live! output is OK also for the visit that just bought something (other visits leave an abandoned cart)
+                array('Live.getLastVisitsDetails', array('idSite'  => $idSite,
+                                                         'date'    => Date::factory($dateTime)->addHour(30.65)->getDatetime(),
+                                                         'periods' => array('day'), 'testSuffix' => '_LiveEcommerceStatusOrdered')),
 
-                           ),
-                            self::getApiForTestingScheduledReports($dateTime, 'week')
+                // test API.get method
+                array('API.get', array('idSite'                 => $idSite, 'date' => $dateTime, 'periods' => array('day', 'week'),
+                                       'otherRequestParameters' => array(
+                                           'columns' => 'nb_pageviews,nb_visits,avg_time_on_site,nb_visits_converted'),
+                                       'testSuffix'             => '_API_get')),
+
+                // Website2
+                array($goalWeekApi, array('idSite'     => $idSite2, 'date' => $dateTime, 'periods' => array('week'),
+                                          'testSuffix' => '_Website2')),
+
+           ),
+            self::getApiForTestingScheduledReports($dateTime, 'week')
         );
     }
 

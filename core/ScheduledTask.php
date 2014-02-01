@@ -15,10 +15,10 @@ use Exception;
 use Piwik\ScheduledTime;
 
 /**
- * Contains metadata describing a chunk of PHP code that should be executed at regular
+ * Contains metadata referencing PHP code that should be executed at regular
  * intervals.
  * 
- * See the [TaskScheduler](#) docs to learn more about scheduled tasks.
+ * See the {@link TaskScheduler} docs to learn more about scheduled tasks.
  * 
  * @package Piwik
  * @subpackage ScheduledTask
@@ -72,13 +72,12 @@ class ScheduledTask
     /**
      * Constructor.
      * 
-     * @param mixed $objectInstance The object or class name for the class that contains the method to
-     *                              regularly execute. Usually this will be a [Plugin](#) instance.
-     * @param string $methodName The name of the method of `$objectInstance` that will be regularly
-     *                           executed.
+     * @param mixed $objectInstance The object or class that contains the method to execute regularly.
+     *                              Usually this will be a {@link Plugin} instance.
+     * @param string $methodName The name of the method that will be regularly executed.
      * @param mixed|null $methodParameter An optional parameter to pass to the method when executed.
      *                                    Must be convertible to string.
-     * @param ScheduledTime|null $scheduledTime A [ScheduledTime](#) instance that describes when the method
+     * @param ScheduledTime|null $scheduledTime A {@link ScheduledTime} instance that describes when the method
      *                                          should be executed and how long before the next execution.
      * @param int $priority The priority of the task. Tasks with a higher priority will be executed first.
      *                      Tasks with low priority will be executed last.
@@ -111,7 +110,7 @@ class ScheduledTask
     }
 
     /**
-     * Returns the object instance on which the method should be executed. Returns a class
+     * Returns the object instance that contains the method to execute. Returns a class
      * name if the method is static.
      * 
      * @return mixed
@@ -122,7 +121,7 @@ class ScheduledTask
     }
 
     /**
-     * Returns the class name that contains the method to execute regularly.
+     * Returns the name of the class that contains the method to execute.
      * 
      * @return string
      */
@@ -132,7 +131,7 @@ class ScheduledTask
     }
 
     /**
-     * Returns the method name that will be regularly executed.
+     * Returns the name of the method that will be executed.
      * 
      * @return string
      */
@@ -142,7 +141,7 @@ class ScheduledTask
     }
 
     /**
-     * Returns the a value that will be passed to the method when executed, or `null` if
+     * Returns the value that will be passed to the method when executed, or `null` if
      * no value will be supplied.
      * 
      * @return string|null
@@ -153,7 +152,7 @@ class ScheduledTask
     }
 
     /**
-     * Returns a [ScheduledTime](#) instance that describes when the method should be executed
+     * Returns a {@link ScheduledTime} instance that describes when the method should be executed
      * and how long before the next execution.
      *
      * @return ScheduledTime
@@ -175,7 +174,7 @@ class ScheduledTask
 
     /**
      * Returns the task priority. The priority will be an integer whose value is
-     * between [ScheduledTask::HIGH_PRIORITY](#) and [ScheduledTask::LOW_PRIORITY](#).
+     * between {@link HIGH_PRIORITY} and {@link LOW_PRIORITY}.
      *
      * @return int
      */
@@ -186,9 +185,9 @@ class ScheduledTask
 
     /**
      * Returns a unique name for this scheduled task. The name is stored in the DB and is used
-     * to store when tasks were last executed. The name is created using:
+     * to store a task's previous execution time. The name is created using:
      * 
-     * - the class name that contains the method to execute,
+     * - the name of the class that contains the method to execute,
      * - the name of the method to regularly execute,
      * - and the value that is passed to the executed task.
      * 

@@ -26,6 +26,7 @@ use Piwik\Http;
 use Piwik\Piwik;
 use Piwik\Plugins\LanguagesManager\LanguagesManager;
 use Piwik\Plugins\SitesManager\API as APISitesManager;
+use Piwik\Plugins\UserCountry\LocationProvider;
 use Piwik\Plugins\UsersManager\API as APIUsersManager;
 use Piwik\ProxyHeaders;
 use Piwik\Session\SessionNamespace;
@@ -296,7 +297,7 @@ class Controller extends \Piwik\Plugin\ControllerAdmin
             // remove monthly archive tables
             $archiveTables = ArchiveTableCreator::getTablesArchivesInstalled();
             $baseTablesInstalled = count($tablesInstalled) - count($archiveTables);
-            $minimumCountPiwikTables = 17;
+            $minimumCountPiwikTables = 14;
 
             Access::getInstance();
             Piwik::setUserIsSuperUser();
@@ -600,7 +601,7 @@ class Controller extends \Piwik\Plugin\ControllerAdmin
     public function getBaseCss()
     {
         @header('Content-Type: text/css');
-        return AssetManager::getCompiledBaseCss();
+        return AssetManager::getInstance()->getCompiledBaseCss()->getContent();
     }
 
     /**
@@ -884,7 +885,18 @@ class Controller extends \Piwik\Plugin\ControllerAdmin
 
         // check if filesystem is NFS, if it is file based sessions won't work properly
         $infos['is_nfs'] = Filesystem::checkIfFileSystemIsNFS();
+        $infos = self::enrichSystemChecks($infos);
 
+        return $infos;
+    }
+
+
+    /**
+     * @param $infos
+     * @return mixed
+     */
+    public static function enrichSystemChecks($infos)
+    {
         // determine whether there are any errors/warnings from the checks done above
         $infos['has_errors'] = false;
         $infos['has_warnings'] = false;
@@ -910,7 +922,6 @@ class Controller extends \Piwik\Plugin\ControllerAdmin
         ) {
             $infos['has_warnings'] = true;
         }
-
         return $infos;
     }
 
@@ -984,12 +995,36 @@ class Controller extends \Piwik\Plugin\ControllerAdmin
      *    is stored in $result['load_data_infile_available']. The error message is
      *    stored in $result['load_data_infile_error'].
      *
+     * - Check whether geo location is setup correctly
+     *
      * @return array
      */
     public static function performAdminPageOnlySystemCheck()
     {
         $result = array();
+        self::checkLoadDataInfile($result);
+        self::checkGeolocation($result);
+        return $result;
+    }
 
+
+    private static function checkGeolocation(&$result)
+    {
+        $currentProviderId = LocationProvider::getCurrentProviderId();
+        $allProviders = LocationProvider::getAllProviderInfo();
+        $isRecommendedProvider = in_array($currentProviderId, array( LocationProvider\GeoIp\Php::ID, $currentProviderId == LocationProvider\GeoIp\Pecl::ID));
+        $isProviderInstalled = ($allProviders[$currentProviderId]['status'] == LocationProvider::INSTALLED);
+
+        $result['geolocation_using_non_recommended'] = $result['geolocation_ok'] = false;
+        if ($isRecommendedProvider && $isProviderInstalled) {
+            $result['geolocation_ok'] = true;
+        } elseif ($isProviderInstalled) {
+            $result['geolocation_using_non_recommended'] = true;
+        }
+    }
+
+    private static function checkLoadDataInfile(&$result)
+    {
         // check if LOAD DATA INFILE works
         $optionTable = Common::prefixTable('option');
         $testOptionNames = array('test_system_check1', 'test_system_check2');
@@ -1000,8 +1035,8 @@ class Controller extends \Piwik\Plugin\ControllerAdmin
                 $optionTable,
                 array('option_name', 'option_value'),
                 array(
-                     array($testOptionNames[0], '1'),
-                     array($testOptionNames[1], '2'),
+                    array($testOptionNames[0], '1'),
+                    array($testOptionNames[1], '2'),
                 ),
                 $throwException = true
             );
@@ -1010,8 +1045,8 @@ class Controller extends \Piwik\Plugin\ControllerAdmin
         }
 
         // delete the temporary rows that were created
-        Db::exec("DELETE FROM `$optionTable` WHERE option_name IN ('" . implode("','", $testOptionNames) . "')");
-
-        return $result;
+        $Option = Factory::getDAO('option');
+        $Option->deleteByOptionNames($testOptionNames);
     }
+
 }

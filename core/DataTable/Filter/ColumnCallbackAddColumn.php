@@ -11,10 +11,10 @@
 namespace Piwik\DataTable\Filter;
 
 use Piwik\DataTable;
-use Piwik\DataTable\Filter;
+use Piwik\DataTable\BaseFilter;
 
 /**
- * Adds a new column to every row of a DataTable based on the result of callback.
+ * Adds a new column to every row of a {@link DataTable} based on the result of callback.
  * 
  * **Basic usage example**
  * 
@@ -28,7 +28,7 @@ use Piwik\DataTable\Filter;
  * @subpackage DataTable
  * @api
  */
-class ColumnCallbackAddColumn extends Filter
+class ColumnCallbackAddColumn extends BaseFilter
 {
     /**
      * The names of the columns to pass to the callback.
@@ -77,7 +77,7 @@ class ColumnCallbackAddColumn extends Filter
     }
 
     /**
-     * See [ColumnCallbackAddColumn](#).
+     * See {@link ColumnCallbackAddColumn}.
      *
      * @param DataTable $table The table to filter.
      */

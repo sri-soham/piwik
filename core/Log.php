@@ -25,14 +25,15 @@ use Piwik\Db;
  * screen writer.
  *
  * Currently, Piwik supports the following logging backends:
- * - logging to the screen
- * - logging to a file
- * - logging to a database
+ * 
+ * - **screen**: logging to the screen
+ * - **file**: logging to a file
+ * - **database**: logging to Piwik's MySQL database
  *
  * ### Logging configuration
  * 
  * The logging utility can be configured by manipulating the INI config options in the
- * [log] section.
+ * `[log]` section.
  * 
  * The following configuration options can be set:
  * 
@@ -56,13 +57,18 @@ use Piwik\Db;
  * ### Custom message formatting
  * 
  * If you'd like to format log messages differently for different backends, you can use
- * one of the `'Log.format...Message'` events. These events are fired when an object is
- * logged. You can create your own custom class containing the information to log and
- * listen to this event.
+ * one of the `'Log.format...Message'` events.
+ * 
+ * These events are fired when an object is logged. You can create your own custom class
+ * containing the information to log and listen to these events to format it correctly for
+ * different backends.
+ * 
+ * If you don't care about the backend when formatting an object, implement a `__toString()`
+ * in the custom class.
  * 
  * ### Custom log writers
  * 
- * New logging backends can be added via the `'Log.getAvailableWriters'` event. A log
+ * New logging backends can be added via the {@hook Log.getAvailableWriters}` event. A log
  * writer is just a callback that accepts log entry information (such as the message,
  * level, etc.), so any backend could conceivably be used (including existing PSR3
  * backends).
@@ -74,6 +80,25 @@ use Piwik\Db;
  *     Log::error("This log message will end up on the screen and in a file.")
  *     Log::verbose("This log message uses %s params, but %s will only be called if the"
  *                . " configured log level includes %s.", "sprintf", "sprintf", "verbose");
+ * 
+ * **Logging objects**
+ * 
+ *     class MyDebugInfo
+ *     {
+ *         // ...
+ * 
+ *         public function __toString()
+ *         {
+ *             return // ...
+ *         }
+ *     }
+ * 
+ *     try {
+ *         $myThirdPartyServiceClient->doSomething();
+ *     } catch (Exception $unexpectedError) {
+ *         $debugInfo = new MyDebugInfo($unexpectedError, $myThirdPartyServiceClient);
+ *         Log::debug($debugInfo);
+ *     }
  * 
  * @method static \Piwik\Log getInstance()
  */
@@ -155,8 +180,8 @@ class Log extends Singleton
     /**
      * Logs a message using the ERROR log level.
      *
-     * Note: Messages logged with the ERROR level are always logged to the screen in addition
-     * to configured writers.
+     * _Note: Messages logged with the ERROR level are always logged to the screen in addition
+     * to configured writers._
      *
      * @param string $message The log message. This can be a sprintf format string.
      * @param ... mixed Optional sprintf params.
@@ -164,7 +189,7 @@ class Log extends Singleton
      */
     public static function error($message /* ... */)
     {
-        self::log(self::ERROR, $message, array_slice(func_get_args(), 1));
+        self::logMessage(self::ERROR, $message, array_slice(func_get_args(), 1));
     }
 
     /**
@@ -176,7 +201,7 @@ class Log extends Singleton
      */
     public static function warning($message /* ... */)
     {
-        self::log(self::WARN, $message, array_slice(func_get_args(), 1));
+        self::logMessage(self::WARN, $message, array_slice(func_get_args(), 1));
     }
 
     /**
@@ -188,7 +213,7 @@ class Log extends Singleton
      */
     public static function info($message /* ... */)
     {
-        self::log(self::INFO, $message, array_slice(func_get_args(), 1));
+        self::logMessage(self::INFO, $message, array_slice(func_get_args(), 1));
     }
 
     /**
@@ -200,7 +225,7 @@ class Log extends Singleton
      */
     public static function debug($message /* ... */)
     {
-        self::log(self::DEBUG, $message, array_slice(func_get_args(), 1));
+        self::logMessage(self::DEBUG, $message, array_slice(func_get_args(), 1));
     }
 
     /**
@@ -212,16 +237,16 @@ class Log extends Singleton
      */
     public static function verbose($message /* ... */)
     {
-        self::log(self::VERBOSE, $message, array_slice(func_get_args(), 1));
+        self::logMessage(self::VERBOSE, $message, array_slice(func_get_args(), 1));
     }
 
     /**
      * Creates log message combining logging info including a log level, tag name,
-     * date time, and caller provided log message. The log message can be set through
-     * the string_message_format ini option in the [log] section. By default it will
+     * date time, and caller-provided log message. The log message can be set through
+     * the `[log] string_message_format` INI config option. By default it will
      * create log messages like:
      *
-     * [tag:datetime] log message
+     * **LEVEL [tag:datetime] log message**
      *
      * @param int $level
      * @param string $tag
@@ -302,17 +327,19 @@ class Log extends Singleton
          * This event is called when the Log instance is created. Plugins can use this event to
          * make new logging writers available.
          *
-         * A logging writer is a callback that takes the following arguments:
-         *   int $level, string $tag, string $datetime, string $message
-         *
-         * $level is the log level to use, $tag is the log tag used, $datetime is the date time
-         * of the logging call and $message is the formatted log message.
-         *
-         * Logging writers must be associated by name in the array passed to event handlers.
-         *
-         * ***Example**
+         * A logging writer is a callback with the following signature:
          * 
-         *     function (&$writers) {
+         *     function (int $level, string $tag, string $datetime, string $message)
+         *
+         * `$level` is the log level to use, `$tag` is the log tag used, `$datetime` is the date time
+         * of the logging call and `$message` is the formatted log message.
+         *
+         * Logging writers must be associated by name in the array passed to event handlers. The
+         * name specified can be used in Piwik's INI configuration.
+         *
+         * **Example**
+         * 
+         *     public function getAvailableWriters(&$writers) {
          *         $writers['myloggername'] = function ($level, $tag, $datetime, $message) {
          *             // ...
          *         };
@@ -320,7 +347,7 @@ class Log extends Singleton
          *
          *     // 'myloggername' can now be used in the log_writers config option.
          * 
-         * @param $
+         * @param array $writers Array mapping writer names with logging writers.
          */
         Piwik::postEvent(self::GET_AVAILABLE_WRITERS_EVENT, array(&$writers));
 
@@ -338,12 +365,20 @@ class Log extends Singleton
             $logger = $this;
 
             /**
-             * This event is called when trying to log an object to a file. Plugins can use
+             * Triggered when trying to log an object to a file. Plugins can use
              * this event to convert objects to strings before they are logged.
              *
+             * **Example**
+             * 
+             *     public function formatFileMessage(&$message, $level, $tag, $datetime, $logger) {
+             *         if ($message instanceof MyCustomDebugInfo) {
+             *             $message = $message->formatForFile();
+             *         }
+             *     }
+             * 
              * @param mixed &$message The object that is being logged. Event handlers should
              *                        check if the object is of a certain type and if it is,
-             *                        set $message to the string that should be logged.
+             *                        set `$message` to the string that should be logged.
              * @param int $level The log level used with this log entry.
              * @param string $tag The current plugin that started logging (or if no plugin,
              *                    the current class).
@@ -387,15 +422,23 @@ class Log extends Singleton
             $logger = $this;
 
             /**
-             * This event is called when trying to log an object to the screen. Plugins can use
+             * Triggered when trying to log an object to the screen. Plugins can use
              * this event to convert objects to strings before they are logged.
              *
              * The result of this callback can be HTML so no sanitization is done on the result.
-             * This means YOU MUST SANITIZE THE MESSAGE YOURSELF if you use this event.
+             * This means **YOU MUST SANITIZE THE MESSAGE YOURSELF** if you use this event.
              *
+             * **Example**
+             * 
+             *     public function formatScreenMessage(&$message, $level, $tag, $datetime, $logger) {
+             *         if ($message instanceof MyCustomDebugInfo) {
+             *             $message = Common::sanitizeInputValue($message->formatForScreen());
+             *         }
+             *     }
+             * 
              * @param mixed &$message The object that is being logged. Event handlers should
              *                        check if the object is of a certain type and if it is,
-             *                        set $message to the string that should be logged.
+             *                        set `$message` to the string that should be logged.
              * @param int $level The log level used with this log entry.
              * @param string $tag The current plugin that started logging (or if no plugin,
              *                    the current class).
@@ -420,12 +463,20 @@ class Log extends Singleton
             $logger = $this;
 
             /**
-             * This event is called when trying to log an object to a database table. Plugins can use
+             * Triggered when trying to log an object to a database table. Plugins can use
              * this event to convert objects to strings before they are logged.
              *
+             * **Example**
+             * 
+             *     public function formatDatabaseMessage(&$message, $level, $tag, $datetime, $logger) {
+             *         if ($message instanceof MyCustomDebugInfo) {
+             *             $message = $message->formatForDatabase();
+             *         }
+             *     }
+             * 
              * @param mixed &$message The object that is being logged. Event handlers should
              *                        check if the object is of a certain type and if it is,
-             *                        set $message to the string that should be logged.
+             *                        set `$message` to the string that should be logged.
              * @param int $level The log level used with this log entry.
              * @param string $tag The current plugin that started logging (or if no plugin,
              *                    the current class).
@@ -485,7 +536,7 @@ class Log extends Singleton
         }
     }
 
-    private static function log($level, $message, $sprintfParams)
+    private static function logMessage($level, $message, $sprintfParams)
     {
         self::getInstance()->doLog($level, $message, $sprintfParams);
     }

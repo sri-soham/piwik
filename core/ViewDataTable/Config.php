@@ -15,20 +15,31 @@ use Piwik\Metrics;
 use Piwik\Plugins\API\API;
 
 /**
- * Contains base display properties for ViewDataTables. Manipulating these properties
- * in a ViewDataTable instance will change how its report will be displayed.
+ * Contains base display properties for {@link Piwik\Plugin\ViewDataTable}s. Manipulating these
+ * properties in a ViewDataTable instance will change how its report will be displayed.
  * 
  * <a name="client-side-properties-desc"></a>
  * **Client Side Properties**
  * 
  * Client side properties are properties that should be passed on to the browser so
  * client side JavaScript can use them. Only affects ViewDataTables that output HTML.
- * 
+ *
+ * <a name="overridable-properties-desc"></a>
  * **Overridable Properties**
  * 
  * Overridable properties are properties that can be set via the query string.
  * If a request has a query parameter that matches an overridable property, the property
  * will be set to the query parameter value.
+ * 
+ * **Reusing base properties**
+ * 
+ * Many of the properties in this class only have meaning for the {@link Piwik\Plugin\Visualization}
+ * class, but can be set for other visualizations that extend {@link Piwik\Plugin\ViewDataTable} 
+ * directly.
+ * 
+ * Visualizations that extend {@link Piwik\Plugin\ViewDataTable} directly and want to re-use these
+ * properties must make sure the properties are used in the exact same way they are used in
+ * {@link Piwik\Plugin\Visualization}.
  * 
  * **Defining new display properties**
  * 
@@ -36,10 +47,10 @@ use Piwik\Plugins\API\API;
  * it, extend this class and add your properties as fields.
  * 
  * Properties are marked as client side properties by calling the
- * [addPropertiesThatShouldBeAvailableClientSide](#addPropertiesThatShouldBeAvailableClientSide) method.
+ * {@link addPropertiesThatShouldBeAvailableClientSide()} method.
  * 
  * Properties are marked as overridable by calling the
- * [addPropertiesThatCanBeOverwrittenByQueryParams](#addPropertiesThatCanBeOverwrittenByQueryParams) method.
+ * {@link addPropertiesThatCanBeOverwrittenByQueryParams()} method.
  * 
  * ### Example
  * 
@@ -393,17 +404,17 @@ class Config
     public $export_limit = '';
 
     /**
-     * TODO
+     * @ignore
      */
     public $report_id = '';
 
     /**
-     * TODO
+     * @ignore
      */
     public $controllerName;
 
     /**
-     * TODO
+     * @ignore
      */
     public $controllerAction;
 
@@ -420,7 +431,7 @@ class Config
     }
 
     /**
-     * TODO
+     * @ignore
      */
     public function setController($controllerName, $controllerAction)
     {
@@ -534,7 +545,7 @@ class Config
     }
 
     /**
-     * Adds a related report to the [related_reports](#related_reports) property. If the report
+     * Adds a related report to the {@link $related_reports} property. If the report
      * references the one that is currently being displayed, it will not be added to the related
      * report list.
      * 
@@ -558,12 +569,12 @@ class Config
     }
 
     /**
-     * Adds several related reports to the [related_reports](#related_reports) property. If
+     * Adds several related reports to the {@link $related_reports} property. If
      * any of the reports references the report that is currently being displayed, it will not
      * be added to the list. All other reports will still be added though.
      * 
      * If you need to make sure the related report URL has some extra query parameters,
-     * use [addRelatedReport](#addRelatedReport).
+     * use {@link addRelatedReport()}.
      * 
      * @param array $relatedReports Array mapping report IDs with their internationalized display
      *                              titles, eg,
@@ -584,7 +595,7 @@ class Config
     /**
      * Associates internationalized text with a metric. Overwrites existing mappings.
      * 
-     * See [translations](#translations).
+     * See {@link $translations}.
      * 
      * @param string $columnName The name of a column in the report data, eg, `'nb_visits'` or
      *                           `'goal_1_nb_conversions'`.
@@ -598,7 +609,7 @@ class Config
     /**
      * Associates multiple translations with metrics.
      * 
-     * See [translations](#translations) and [addTranslation](#addTranslation).
+     * See {@link $translations} and {@link addTranslation()}.
      * 
      * @param array $translations An array of column name => text mappings, eg,
      *                            ```

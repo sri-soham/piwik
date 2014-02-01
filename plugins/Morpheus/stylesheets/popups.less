@@ -3,6 +3,12 @@
     font-weight: normal;
 }
 
+.ui-dialog .ui-widget-header {
+    color: @brand-black;
+    .font-default(18px, 24px);
+    font-weight: bold;
+}
+
 #feedback-sent,
 #feedback-faq {
     p {
@@ -27,6 +33,13 @@
         background: none !important;
     }
 }
+
+button.ui-state-default, .ui-widget-content button.ui-state-default, .ui-widget-header button.ui-state-default {
+  &:hover {
+    background: @brand-red !important;
+  }
+}
+
 .ui-state-hover, .ui-widget-content .ui-state-hover, .ui-widget-header .ui-state-hover, .ui-state-focus, .ui-widget-content .ui-state-focus, .ui-widget-header .ui-state-focus {
     border: 0px !important;
 }

@@ -378,6 +378,14 @@ class Configuration(object):
             help="Each line from this file is a path to exclude"
         )
         option_parser.add_option(
+            '--include-path', dest='included_paths', action='append', default=[],
+            help="Paths to include. Can be specified multiple times. If not specified, all paths are included."
+        )
+        option_parser.add_option(
+            '--include-path-from', dest='include_path_from',
+            help="Each line from this file is a path to include"
+        )
+        option_parser.add_option(
             '--useragent-exclude', dest='excluded_useragents',
             action='append', default=[],
             help="User agents to exclude (in addition to the standard excluded "
@@ -509,6 +517,12 @@ class Configuration(object):
             self.options.excluded_paths.extend(path for path in paths if len(path) > 0)
         if self.options.excluded_paths:
             logging.debug('Excluded paths: %s', ' '.join(self.options.excluded_paths))
+
+        if self.options.include_path_from:
+            paths = [path.strip() for path in open(self.options.include_path_from).readlines()]
+            self.options.included_paths.extend(path for path in paths if len(path) > 0)
+        if self.options.included_paths:
+            logging.debug('Included paths: %s', ' '.join(self.options.included_paths))
 
         if self.options.hostnames:
             logging.debug('Accepted hostnames: %s', ', '.join(self.options.hostnames))
@@ -880,7 +894,7 @@ class Piwik(object):
         try:
             return json.loads(res)
         except ValueError:
-            truncate_after = 700
+            truncate_after = 1100
             raise urllib2.URLError('Piwik returned an invalid response: ' + res[:truncate_after])
 
 
@@ -897,7 +911,7 @@ class Piwik(object):
                     if on_failure is not None:
                         error_message = on_failure(response, kwargs.get('data'))
                     else:
-                        truncate_after = 700
+                        truncate_after = 1100
                         truncated_response = (response[:truncate_after] + '..') if len(response) > truncate_after else response
                         error_message = "didn't receive the expected response. Response was %s " % truncated_response
 
@@ -1399,20 +1413,30 @@ class Parser(object):
         for excluded_path in config.options.excluded_paths:
             if fnmatch.fnmatch(hit.path, excluded_path):
                 return False
+        # By default, all paths are included.
+        if config.options.included_paths:
+           for included_path in config.options.included_paths:
+               if fnmatch.fnmatch(hit.path, included_path):
+                   return True
+           return False
         return True
 
     @staticmethod
-    def detect_format(file):
-        """
-        Return the best matching format for this file, or None if none was found.
-        """
-        logging.debug('Detecting the log format')
-
-        format = None
+    def check_format(lineOrFile):
+        format = False
         format_groups = 0
         for name, candidate_format in FORMATS.iteritems():
             logging.debug("Check format %s", name)
-            match = candidate_format.check_format(file)
+
+            match = None
+            try:
+                if isinstance(lineOrFile, basestring):
+                    match = candidate_format.check_format_line(lineOrFile)
+                else:
+                    match = candidate_format.check_format(lineOrFile)
+            except:
+                pass
+
             if match:
                 logging.debug('Format %s matches', name)
 
@@ -1428,10 +1452,36 @@ class Parser(object):
 
             else:
                 logging.debug('Format %s does not match', name)
+        
+        return format
+
+    @staticmethod
+    def detect_format(file):
+        """
+        Return the best matching format for this file, or None if none was found.
+        """
+        logging.debug('Detecting the log format')
+
+        format = False
+
+        # check the format using the file (for formats like the IIS one)
+        format = Parser.check_format(file)
+
+        # check the format using the first N lines (to avoid irregular ones)
+        lineno = 0
+        limit = 100000
+        while not format and lineno < limit:
+            line = file.readline()
+            lineno = lineno + 1
+
+            logging.debug("Detecting format against line %i" % lineno)
+            format = Parser.check_format(line)
+
+        file.seek(0)
 
         if not format:
-            fatal_error("cannot determine the log format using the first line of the log file. Try removing it" +
-                        " or specifying the format with the --log-format-name command line argument.")
+            fatal_error("cannot automatically determine the log format using the first %d lines of the log file. " % limit +
+                        "\Maybe try specifying the format with the --log-format-name command line argument." )
             return
 
         logging.debug('Format %s is the best match', format.name)

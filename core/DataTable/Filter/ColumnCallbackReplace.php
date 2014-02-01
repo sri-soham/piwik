@@ -10,7 +10,7 @@
  */
 namespace Piwik\DataTable\Filter;
 
-use Piwik\DataTable\Filter;
+use Piwik\DataTable\BaseFilter;
 use Piwik\DataTable;
 use Piwik\DataTable\Row;
 
@@ -34,7 +34,7 @@ use Piwik\DataTable\Row;
  * @package Piwik
  * @subpackage DataTable
  */
-class ColumnCallbackReplace extends Filter
+class ColumnCallbackReplace extends BaseFilter
 {
     private $columnsToFilter;
     private $functionToApply;
@@ -70,7 +70,7 @@ class ColumnCallbackReplace extends Filter
     }
 
     /**
-     * See [ColumnCallbackReplace](#).
+     * See {@link ColumnCallbackReplace}.
      *
      * @param DataTable $table
      */

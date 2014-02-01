@@ -10,21 +10,22 @@
  */
 namespace Piwik\DataTable\Filter;
 
-use Piwik\DataTable\Filter;
+use Piwik\DataTable\BaseFilter;
 use Piwik\DataTable\Row;
 use Piwik\DataTable\Simple;
 use Piwik\DataTable;
 use Piwik\Metrics;
 
 /**
- * Sorts a DataTable based on the value of a specific column.
- * Possible to specify a natural sorting (see php.net/natsort for details)
+ * Sorts a {@link DataTable} based on the value of a specific column.
+ * 
+ * It is possible to specify a natural sorting (see [php.net/natsort](http://php.net/natsort) for details).
  *
  * @package Piwik
  * @subpackage DataTable
  * @api
  */
-class Sort extends Filter
+class Sort extends BaseFilter
 {
     protected $columnToSort;
     protected $order;
@@ -35,7 +36,7 @@ class Sort extends Filter
      * @param DataTable $table The table to eventually filter.
      * @param string $columnToSort The name of the column to sort by.
      * @param string $order order `'asc'` or `'desc'`.
-     * @param bool $naturalSort Whether to use a natural sort or not (see [http://php.net/natsort](#http://php.net/natsort)).
+     * @param bool $naturalSort Whether to use a natural sort or not (see {@link http://php.net/natsort}).
      * @param bool $recursiveSort Whether to sort all subtables or not.
      */
     public function __construct($table, $columnToSort, $order = 'desc', $naturalSort = true, $recursiveSort = false)
@@ -72,7 +73,7 @@ class Sort extends Filter
      * @param number $b
      * @return int
      */
-    public function sort($a, $b)
+    public function numberSort($a, $b)
     {
         return !isset($a->c[Row::COLUMNS][$this->columnToSort])
         && !isset($b->c[Row::COLUMNS][$this->columnToSort])
@@ -186,7 +187,7 @@ class Sort extends Filter
     }
 
     /**
-     * Sorts the given data table by defined column and sorting method
+     * See {@link Sort}.
      *
      * @param DataTable $table
      * @return mixed
@@ -211,7 +212,7 @@ class Sort extends Filter
 
         $value = $row->getColumn($this->columnToSort);
         if (is_numeric($value)) {
-            $methodToUse = "sort";
+            $methodToUse = "numberSort";
         } else {
             if ($this->naturalSort) {
                 $methodToUse = "naturalSort";

@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Piwik - Open source web analytics
  *
@@ -14,7 +13,15 @@ require_once(PIWIK_INCLUDE_PATH . '/libs/spyc.php');
 
 class UserAgentParserEnhanced
 {
-    public static $deviceTypes = array('desktop', 'smartphone', 'tablet', 'feature phone', 'console', 'tv', 'car browser');
+    public static $deviceTypes = array(
+        'desktop',
+        'smartphone',
+        'tablet',
+        'feature phone',
+        'console',
+        'tv',
+        'car browser'
+    );
 
     public static $deviceBrands = array(
         'AC' => 'Acer',
@@ -33,6 +40,7 @@ class UserAgentParserEnhanced
         'CK' => 'Cricket',
         'CL' => 'Compal',
         'CT' => 'Capitel',
+        'DE' => 'Denver',
         'DB' => 'Dbtel',
         'DC' => 'DoCoMo',
         'DI' => 'Dicam',
@@ -57,10 +65,12 @@ class UserAgentParserEnhanced
         'IN' => 'Innostream',
         'IO' => 'i-mobile',
         'IQ' => 'INQ',
+        'JO' => 'Jolla',
         'KA' => 'Karbonn',
         'KD' => 'KDDI',
         'KN' => 'Kindle',
         'KO' => 'Konka',
+        'KT' => 'K-Touch',
         'KY' => 'Kyocera',
         'LA' => 'Lanix',
         'LC' => 'LCT',
@@ -165,6 +175,7 @@ class UserAgentParserEnhanced
         'Puppy'                => 'PPY',
         'Red Hat'              => 'RHT',
         'SUSE'                 => 'SSE',
+        'Sailfish OS'          => 'SAF',
         'Slackware'            => 'SLW',
         'Solaris'              => 'SOS',
         'Syllable'             => 'SYL',
@@ -217,9 +228,10 @@ class UserAgentParserEnhanced
         'Linux'                 => array('LIN', 'ARL', 'DEB', 'KNO', 'MIN', 'UBT', 'KBT', 'XBT', 'LBT', 'FED', 'RHT', 'MDR', 'GNT', 'SLW', 'SSE', 'PPY', 'CES', 'BTR', 'YNS', 'PRS'),
         'Mac'                   => array('MAC'),
         'Mobile Gaming Console' => array('PSP', 'NDS', 'XBX'),
-        'Other Mobile'          => array('WOS', 'POS', 'QNX', 'SBA', 'TIZ'),
+        'Other Mobile'          => array('WOS', 'POS', 'QNX', 'SBA', 'TIZ', 'SMG'),
+        'Sailfish'              => array('SAF'),
         'Simulator'             => array('TKT', 'WWP'),
-        'Symbian'               => array('SYM', 'SYS', 'SY3', 'S60', 'S40', 'SMG'),
+        'Symbian'               => array('SYM', 'SYS', 'SY3', 'S60', 'S40'),
         'Unix'                  => array('SOS', 'AIX', 'HPX', 'BSD', 'NBS', 'OBS', 'DFB', 'SYL', 'IRI', 'T64'),
         'WebTV'                 => array('WTV'),
         'Windows'               => array('WI8', 'WI7', 'WVI', 'WS3', 'WXP', 'W2K', 'WNT', 'WME', 'W98', 'W95', 'WRT', 'W31', 'WIN'),
@@ -235,7 +247,8 @@ class UserAgentParserEnhanced
         'NetFront'           => array('NF'),
         'Nokia Browser'      => array('NB'),
         'Opera'              => array('OP', 'OM', 'OI'),
-        'Safari'             => array('SF', 'MF')
+        'Safari'             => array('SF', 'MF'),
+        'Sailfish Browser'   => array('SA')
     );
     public static $browsers = array(
         'AB' => 'ABrowse',
@@ -305,6 +318,7 @@ class UserAgentParserEnhanced
         'PX' => 'Phoenix',
         'RK' => 'Rekonq',
         'RM' => 'RockMelt',
+        'SA' => 'Sailfish Browser',
         'SF' => 'Safari',
         'SM' => 'SeaMonkey',
         'SN' => 'Snowshoe',
@@ -321,11 +335,11 @@ class UserAgentParserEnhanced
     protected static $browserRegexesFile = 'browsers.yml';
     protected static $mobileRegexesFile = 'mobiles.yml';
     protected $userAgent;
-    protected $os;
-    protected $browser;
-    protected $device;
-    protected $brand;
-    protected $model;
+    protected $os = '';
+    protected $browser = '';
+    protected $device = '';
+    protected $brand = '';
+    protected $model = '';
     protected $debug = false;
 
     public function __construct($userAgent)
@@ -335,17 +349,29 @@ class UserAgentParserEnhanced
 
     protected function getOsRegexes()
     {
-        return Spyc::YAMLLoad(dirname(__FILE__) . self::$regexesDir . self::$osRegexesFile);
+        static $regexOs = null;
+        if(empty($regexOs)) {
+            $regexOs = Spyc::YAMLLoad(dirname(__FILE__) . self::$regexesDir . self::$osRegexesFile);
+        }
+        return $regexOs;
     }
 
     protected function getBrowserRegexes()
     {
-        return Spyc::YAMLLoad(dirname(__FILE__) . self::$regexesDir . self::$browserRegexesFile);
+        static $regexBrowser = null;
+        if(empty($regexBrowser)) {
+            $regexBrowser = Spyc::YAMLLoad(dirname(__FILE__) . self::$regexesDir . self::$browserRegexesFile);
+        }
+        return $regexBrowser;
     }
 
     protected function getMobileRegexes()
     {
-        return Spyc::YAMLLoad(dirname(__FILE__) . self::$regexesDir . self::$mobileRegexesFile);
+        static $regexMobile = null;
+        if(empty($regexMobile)) {
+            $regexMobile = Spyc::YAMLLoad(dirname(__FILE__) . self::$regexesDir . self::$mobileRegexesFile);
+        }
+        return $regexMobile;
     }
 
     public function parse()
@@ -357,7 +383,9 @@ class UserAgentParserEnhanced
         $this->parseBrowser();
 
         if ($this->isMobile()) {
-            $this->parseMobile();
+            $mobileDef = $this->getMobileRegexes();
+            $this->parseBrand($mobileDef);
+            $this->parseModel($mobileDef);
         } else {
             $this->device = array_search('desktop', self::$deviceTypes);
         }
@@ -418,13 +446,6 @@ class UserAgentParserEnhanced
         );
     }
 
-    protected function parseMobile()
-    {
-        $mobileRegexes = $this->getMobileRegexes();
-        $this->parseBrand($mobileRegexes);
-        $this->parseModel($mobileRegexes);
-    }
-
     protected function parseBrand($mobileRegexes)
     {
         foreach ($mobileRegexes as $brand => $mobileRegex) {
@@ -435,7 +456,12 @@ class UserAgentParserEnhanced
 
         if (!$matches)
             return;
-        $this->brand = array_search($brand, self::$deviceBrands);
+
+        $brandId = array_search($brand, self::$deviceBrands);
+        if($brandId === false) {
+            throw new Exception("The brand with name '$brand' should be listed in the deviceBrands array.");
+        }
+        $this->brand = $brandId;
         $this->fullName = $brand;
 
         if (isset($mobileRegex['device'])) {
@@ -692,28 +718,32 @@ class UserAgentParserEnhanced
         return $this->userAgent;
     }
 
+    /**
+     * @param $osLabel
+     * @return bool|string If false, "Unknown"
+     */
     public static function getOsFamily($osLabel)
     {
-        $osShortName = substr($osLabel, 0, 3);
-
-        foreach (self::$osFamilies as $osFamily => $osShortNames) {
-            if (in_array($osShortName, $osShortNames)) {
-                return $osFamily;
+        foreach (self::$osFamilies as $family => $labels) {
+            if (in_array($osLabel, $labels)) {
+                return $family;
             }
         }
-
-        return 'Other';
+        return false;
     }
 
+    /**
+     * @param $browserLabel
+     * @return bool|string If false, "Unknown"
+     */
     public static function getBrowserFamily($browserLabel)
     {
-        foreach (self::$browserFamilies as $browserFamily => $browserShortNames) {
-            if (in_array($browserLabel, $browserShortNames)) {
+        foreach (self::$browserFamilies as $browserFamily => $browserLabels) {
+            if (in_array($browserLabel, $browserLabels)) {
                 return $browserFamily;
             }
         }
-
-        return 'Other';
+        return false;
     }
 
     public static function getOsNameFromId($os, $ver = false)
@@ -727,6 +757,39 @@ class UserAgentParserEnhanced
             }
         }
         return false;
+    }
+
+    static public function getInfoFromUserAgent($ua)
+    {
+        $userAgentParserEnhanced = new UserAgentParserEnhanced($ua);
+        $userAgentParserEnhanced->parse();
+
+        $osFamily = $userAgentParserEnhanced->getOsFamily($userAgentParserEnhanced->getOs('short_name'));
+        $browserFamily = $userAgentParserEnhanced->getBrowserFamily($userAgentParserEnhanced->getBrowser('short_name'));
+        $device = $userAgentParserEnhanced->getDevice();
+
+        $deviceName = $device === '' ? '' : UserAgentParserEnhanced::$deviceTypes[$device];
+        $processed = array(
+            'user_agent'     => $userAgentParserEnhanced->getUserAgent(),
+            'os'             => array(
+                'name'       => $userAgentParserEnhanced->getOs('name'),
+                'short_name' => $userAgentParserEnhanced->getOs('short_name'),
+                'version'    => $userAgentParserEnhanced->getOs('version'),
+            ),
+            'browser'        => array(
+                'name'       => $userAgentParserEnhanced->getBrowser('name'),
+                'short_name' => $userAgentParserEnhanced->getBrowser('short_name'),
+                'version'    => $userAgentParserEnhanced->getBrowser('version'),
+            ),
+            'device'         => array(
+                'type'       => $deviceName,
+                'brand'      => $userAgentParserEnhanced->getBrand(),
+                'model'      => $userAgentParserEnhanced->getModel(),
+            ),
+            'os_family'      => $osFamily !== false ? $osFamily : 'Unknown',
+            'browser_family' => $browserFamily !== false ? $browserFamily : 'Unknown',
+        );
+        return $processed;
     }
 
 }

@@ -38,9 +38,6 @@
         "Annotations": "註解",
         "CreateNewAnnotation": "建立新註解"
     },
-    "AnonymizeIP": {
-        "PluginDescription": "隱藏訪客IP位址最後一個字元以符合你的當地隱私條例\/政策。"
-    },
     "API": {
         "GenerateVisits": "如果你今天還沒有任何資料，你可以先使用 %s 外掛來產生一些數據。你可以啟用 %s 外掛，然後點擊在 Piwik 管理員區域裡的'產生訪客'選單。",
         "KeepTokenSecret": "token_auth 如你的帳號和密碼般重要，%s請不要公開它%s！",
@@ -533,7 +530,6 @@
         "SystemCheckExtensions": "其他需要的擴充元件",
         "SystemCheckFileIntegrity": "檔案完整性",
         "SystemCheckFunctions": "必須函式",
-        "SystemCheckGD": "GD > 2.x (繪圖函式庫)",
         "SystemCheckGDHelp": "Sparklines (小圖) 將無法運作。",
         "SystemCheckGlobHelp": "這個內建的函式已被你的主機商停用。Piwik 將嘗試模擬這個功能，但可能會遇到更多安全限制。功能可能受到影響。",
         "SystemCheckIconvHelp": "你需要設定及重建 PHP, 然後啟用\"iconv\"支援, --with-iconv.",
@@ -546,7 +542,7 @@
         "SystemCheckParseIniFileHelp": "內建的函式在你的空間內已被停用。Piwik 將會嘗試模擬這些功能，但可能會造成更多安全性問題。追蹤的表現也會受到影響。",
         "SystemCheckPdoAndMysqliHelp": "在 Linux 伺服器上你可以使用以下選項編譯 PHP: 在你的php.ini 中 %1$s, 加入以下幾行: %2$s",
         "SystemCheckPhp": "PHP 版本",
-        "SystemCheckPhpPdoAndMysqliSite": "更多資訊：<a style=\"color:red\" href=\"http:\/\/php.net\/pdo\">PHP PDO<\/a> 和 <a style=\"color:red\" href=\"http:\/\/php.net\/mysqli\">MYSQLI<\/a>.",
+        "SystemCheckPhpPdoAndMysqli": "更多資訊：%1$sPHP PDO%2$s 和 %3$sMYSQLI%4$s.",
         "SystemCheckSplHelp": "你需要設定及重建 PHP, 然後啟用 Standard PHP Library (SPL)。",
         "SystemCheckTimeLimitHelp": "在一個高流量的網站，執行資料彙整歸檔過程可能超過目前所允許使用的時間。<br \/>假如必要，試著變更在你的 php.ini 檔案裡的 max_execution_time.",
         "SystemCheckWarning": "Piwik 能正常運作，但部份功能可能會失效",
@@ -607,6 +603,9 @@
     "MultiSites": {
         "Evolution": "發展趨勢",
         "PluginDescription": "顯示多個網站的摘要 \/ 統計。目前為 Piwik 的核心外掛。"
+    },
+    "PrivacyManager": {
+        "AnonymizeIpInlineHelp": "隱藏訪客IP位址最後一個字元以符合你的當地隱私條例\/政策。"
     },
     "Provider": {
         "ColumnProvider": "供應商",
@@ -1191,6 +1190,7 @@
         "Language_zh": "中文",
         "Language_zu": "祖鲁文",
         "LanguageCode": "語系代碼",
+        "OperatingSystemFamily": "作業系統家族",
         "OperatingSystems": "作業系統",
         "PluginDescription": "各個用戶設定報表：瀏覽器、瀏覽器家族、作業系統、外掛、解析度、全域設定。",
         "PluginDetectionDoesNotWorkInIE": "注意：外掛偵測無法在 Internet Explorer 上運作。這個報告僅提供非 IE 瀏覽器。",
@@ -1202,7 +1202,6 @@
         "WidgetBrowserVersion": "瀏覽器版本",
         "WidgetGlobalVisitors": "全域訪客配置",
         "WidgetGlobalVisitorsDocumentation": "此報表列出貴站訪客最常見的設定配置。設定配置包含作業系統、瀏覽器、螢幕解析度等資訊。",
-        "WidgetOperatingSystemFamily": "作業系統家族",
         "WidgetOperatingSystems": "作業系統",
         "WidgetPlugins": "瀏覽器外掛清單",
         "WidgetResolutions": "畫面解析度",
@@ -1218,7 +1217,7 @@
         "ClickHereToSetTheCookieOnDomain": "點擊這裡設定一個 cookie 讓 %s 的 Piwik 排除你的訪問紀錄",
         "DeleteConfirm": "你確定要刪除使用者 %s 嗎？",
         "Email": "E-mail",
-        "ExceptionAccessValues": "參數存取必須有一個以下的值： [ %s ]",
+        "ExceptionAccessValues": "參數存取必須有一個以下的值：[ %s ]",
         "ExceptionAdminAnonymous": "你不能把'管理員'存取權限給匿名用戶。",
         "ExceptionDeleteDoesNotExist": "使用者 '%s' 並不存在，所以無法刪除它。",
         "ExceptionEditAnonymous": "匿名用戶不能修改或刪除。因為 Piwik 用來定義一個還未登入的使用者。舉例來說，你可以把'檢視'權限給匿名用戶來公開你的統計資料。",

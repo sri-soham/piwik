@@ -1,9 +1,9 @@
 {
     "name": "ExampleVisualization",
     "version": "0.1.0",
-    "description": "ExampleVisualizationDescription",
+    "description": "Example for generating a simple visualization",
     "theme": false,
-    "license": "GPL-3.0+",
+    "license": "GPL v3+",
     "keywords": ["SimpleTable"],
     "homepage": "http://piwik.org",
     "authors": [

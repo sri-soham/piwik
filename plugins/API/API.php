@@ -17,11 +17,10 @@ use Piwik\DataTable\Filter\ColumnDelete;
 use Piwik\DataTable\Row;
 use Piwik\DataTable;
 use Piwik\Date;
-use Piwik\Filesystem;
 use Piwik\Menu\MenuTop;
 use Piwik\Metrics;
 use Piwik\Piwik;
-use Piwik\SettingsPiwik;
+use Piwik\Plugins\CoreAdminHome\CustomLogo;
 use Piwik\Tracker\GoalManager;
 use Piwik\Translate;
 use Piwik\Version;
@@ -85,9 +84,9 @@ class API extends \Piwik\Plugin\API
         $segments = array();
 
         /**
-         * Triggered when gathering all available segments.
+         * Triggered when gathering all available segment dimensions.
          * 
-         * This event can be used to make new segments available.
+         * This event can be used to make new segment dimensions available.
          * 
          * **Example**
          * 
@@ -95,7 +94,7 @@ class API extends \Piwik\Plugin\API
          *     {
          *         $segments[] = array(
          *             'type'           => 'dimension',
-         *            'category'       => Piwik::translate('General_Visit'),
+         *             'category'       => Piwik::translate('General_Visit'),
          *             'name'           => 'General_VisitorIP',
          *             'segment'        => 'visitIp',
          *             'acceptedValues' => '13.54.122.1, etc.',
@@ -105,27 +104,27 @@ class API extends \Piwik\Plugin\API
          *         );
          *     }
          * 
-         * @param array &$segments The list of available segments. Append to this list to add
-         *                         new segments. Each element in this list must contain the
-         *                         following information:
+         * @param array &$dimensions The list of available segment dimensions. Append to this list to add
+         *                           new segments. Each element in this list must contain the
+         *                           following information:
          *                         
-         *                         - **type**: Either `'metric'` or `'dimension'`. `'metric'` means
-         *                                     the value is a numeric and `'dimension'` means it is
-         *                                     a string. Also, `'metric'` values will be displayed
-         *                                     **Visit (metrics)** in the Segment Editor.
-         *                         - **category**: The segment category name. This can be an existing
-         *                                         segment category visible in the segment editor.
-         *                         - **name**: The pretty name of the segment.
-         *                         - **segment**: The segment name, eg, `'visitIp'` or `'searches'`.
-         *                         - **acceptedValues**: A string describing one or two exacmple values, eg
-         *                                               `'13.54.122.1, etc.'`.
-         *                         - **sqlSegment**: The table column this segment will segment by.
-         *                                           For example, `'log_visit.location_ip'` for the
-         *                                           **visitIp** segment.
-         *                         - **sqlFilter**: A PHP callback to apply to segment values before
-         *                                          they are used in SQL.
-         *                         - **permission**: True if the current user has view access to this
-         *                                           segment, false if otherwise.
+         *                           - **type**: Either `'metric'` or `'dimension'`. `'metric'` means
+         *                                       the value is a numeric and `'dimension'` means it is
+         *                                       a string. Also, `'metric'` values will be displayed
+         *                                       under **Visit (metrics)** in the Segment Editor.
+         *                           - **category**: The segment category name. This can be an existing
+         *                                           segment category visible in the segment editor.
+         *                           - **name**: The pretty name of the segment. Can be a translation token.
+         *                           - **segment**: The segment name, eg, `'visitIp'` or `'searches'`.
+         *                           - **acceptedValues**: A string describing one or two exacmple values, eg
+         *                                                 `'13.54.122.1, etc.'`.
+         *                           - **sqlSegment**: The table column this segment will segment by.
+         *                                             For example, `'log_visit.location_ip'` for the
+         *                                             **visitIp** segment.
+         *                           - **sqlFilter**: A PHP callback to apply to segment values before
+         *                                            they are used in SQL.
+         *                           - **permission**: True if the current user has view access to this
+         *                                             segment, false if otherwise.
          * @param array $idSites The list of site IDs we're getting the available segments
          *                       for. Some segments (such as Goal segments) depend on the
          *                       site.
@@ -323,6 +322,7 @@ class API extends \Piwik\Plugin\API
         return $compare;
     }
 
+
     /**
      * Returns the url to application logo (~280x110px)
      *
@@ -331,10 +331,8 @@ class API extends \Piwik\Plugin\API
      */
     public function getLogoUrl($pathOnly = false)
     {
-        $defaultLogo = 'plugins/Zeitgeist/images/logo.png';
-        $themeLogo = 'plugins/%s/images/logo.png';
-        $userLogo = 'misc/user/logo.png';
-        return $this->getPathToLogo($pathOnly, $defaultLogo, $themeLogo, $userLogo);
+        $logo = new CustomLogo();
+        return $logo->getLogoUrl($pathOnly);
     }
 
     /**
@@ -345,10 +343,8 @@ class API extends \Piwik\Plugin\API
      */
     public function getHeaderLogoUrl($pathOnly = false)
     {
-        $defaultLogo = 'plugins/Zeitgeist/images/logo-header.png';
-        $themeLogo = 'plugins/%s/images/logo-header.png';
-        $customLogo = 'misc/user/logo-header.png';
-        return $this->getPathToLogo($pathOnly, $defaultLogo, $themeLogo, $customLogo);
+        $logo = new CustomLogo();
+        return $logo->getHeaderLogoUrl($pathOnly);
     }
 
     /**
@@ -360,36 +356,10 @@ class API extends \Piwik\Plugin\API
      */
     public function getSVGLogoUrl($pathOnly = false)
     {
-        $defaultLogo = 'plugins/Zeitgeist/images/logo.svg';
-        $themeLogo = 'plugins/%s/images/logo.svg';
-        $customLogo = 'misc/user/logo.svg';
-        $svg = $this->getPathToLogo($pathOnly, $defaultLogo, $themeLogo, $customLogo);
-        return $svg;
+        $logo = new CustomLogo();
+        return $logo->getSVGLogoUrl($pathOnly);
     }
 
-    protected function getPathToLogo($pathOnly, $defaultLogo, $themeLogo, $customLogo)
-    {
-        $pathToPiwikRoot = Filesystem::getPathToPiwikRoot();
-
-        $logo = $defaultLogo;
-
-        $themeName = \Piwik\Plugin\Manager::getInstance()->getThemeEnabled()->getPluginName();
-        $themeLogo = sprintf($themeLogo, $themeName);
-
-        if (file_exists($pathToPiwikRoot . '/' . $themeLogo)) {
-            $logo = $themeLogo;
-        }
-        if (Config::getInstance()->branding['use_custom_logo'] == 1
-            && file_exists($pathToPiwikRoot . '/' . $customLogo)
-        ) {
-            $logo = $customLogo;
-        }
-
-        if (!$pathOnly) {
-            return SettingsPiwik::getPiwikUrl() . $logo;
-        }
-        return $pathToPiwikRoot . '/' . $logo;
-    }
 
     /**
      * Returns whether there is an SVG Logo available.
@@ -398,19 +368,10 @@ class API extends \Piwik\Plugin\API
      */
     public function hasSVGLogo()
     {
-        if (Config::getInstance()->branding['use_custom_logo'] == 0) {
-            /* We always have our application logo */
-            return true;
-        }
-
-        if (Config::getInstance()->branding['use_custom_logo'] == 1
-            && file_exists(Filesystem::getPathToPiwikRoot() . '/misc/user/logo.svg')
-        ) {
-            return true;
-        }
-
-        return false;
+        $logo = new CustomLogo();
+        return $logo->hasSVGLogo();
     }
+
 
     /**
      * Loads reports metadata, then return the requested one,
@@ -660,17 +621,12 @@ class API extends \Piwik\Plugin\API
         $valuesBis = $table->getColumnsStartingWith($segmentName . ColumnDelete::APPEND_TO_COLUMN_NAME_TO_KEEP);
         $values = array_merge($values, $valuesBis);
 
-        // remove false values (while keeping zeros)
-        $values = array_filter($values, 'strlen');
+        $values = $this->getMostFrequentValues($values);
 
-        // we have a list of all values. let's show the most frequently used first.
-        $values = array_count_values($values);
-        arsort($values);
-        $values = array_keys($values);
+        $values = array_slice($values, 0, $maxSuggestionsToReturn);
 
         $values = array_map(array('Piwik\Common', 'unsanitizeInputValue'), $values);
 
-        $values = array_slice($values, 0, $maxSuggestionsToReturn);
         return $values;
     }
 
@@ -688,6 +644,30 @@ class API extends \Piwik\Plugin\API
         $isEventSegment = stripos($segmentName, 'event') !== false;
         $doesSegmentNeedActionsInfo = in_array($segmentName, $segmentsNeedActionsInfo) || $isCustomVariablePage || $isEventSegment;
         return $doesSegmentNeedActionsInfo;
+    }
+
+    /**
+     * @param $values
+     * @param $value
+     * @return array
+     */
+    private function getMostFrequentValues($values)
+    {
+        // remove false values (while keeping zeros)
+        $values = array_filter($values, 'strlen');
+
+        // array_count_values requires strings or integer, convert floats to string (mysqli)
+        foreach ($values as &$value) {
+            if (is_numeric($value)) {
+                $value = (string)round($value, 3);
+            }
+        }
+        // we have a list of all values. let's show the most frequently used first.
+        $values = array_count_values($values);
+
+        arsort($values);
+        $values = array_keys($values);
+        return $values;
     }
 }
 

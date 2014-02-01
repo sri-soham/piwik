@@ -49,7 +49,7 @@ class Controller extends \Piwik\Plugin\Controller
         $view = new View('@ExampleUI/evolutiongraph');
 
         $this->setPeriodVariablesView($view);
-        $view->evolutionGraph = $this->getEvolutionGraph(true, array('server1', 'server2'));
+        $view->evolutionGraph = $this->getEvolutionGraph(array('server1', 'server2'));
 
         return $view->render();
     }
@@ -81,7 +81,7 @@ class Controller extends \Piwik\Plugin\Controller
         return $view->render();
     }
 
-    public function getEvolutionGraph($fetch = false, array $columns = array())
+    public function getEvolutionGraph(array $columns = array())
     {
         if (empty($columns)) {
             $columns = Common::getRequestVar('columns');
@@ -180,6 +180,19 @@ class Controller extends \Piwik\Plugin\Controller
         if (false !== $serverRequested) {
             $view->config->columns_to_display = array($serverRequested);
         }
+
+        return $view->render();
+    }
+
+    public function treemap()
+    {
+        $view = ViewDataTableFactory::build(
+            'infoviz-treemap', 'ExampleUI.getTemperatures', $controllerAction = 'ExampleUI.treemap');
+
+        $view->config->translations['value'] = "Temperature";
+        $view->config->columns_to_display = array("label", "value");
+        $view->config->selectable_columns = array("value");
+        $view->config->show_evolution_values = 0;
 
         return $view->render();
     }

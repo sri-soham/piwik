@@ -11,11 +11,11 @@
 namespace Piwik\DataTable\Filter;
 
 use Piwik\DataTable;
-use Piwik\DataTable\Filter;
+use Piwik\DataTable\BaseFilter;
 
 /**
  * Deletes all rows for which a specific column has a value that is lower than
- * specific minimum threshold value.
+ * specified minimum threshold value.
  * 
  * **Basic usage examples**
  * 
@@ -35,7 +35,7 @@ use Piwik\DataTable\Filter;
  * @subpackage DataTable
  * @api
  */
-class ExcludeLowPopulation extends Filter
+class ExcludeLowPopulation extends BaseFilter
 {
     const MINIMUM_SIGNIFICANT_PERCENTAGE_THRESHOLD = 0.02;
 
@@ -52,13 +52,13 @@ class ExcludeLowPopulation extends Filter
      *
      * @param DataTable $table The DataTable that will be filtered eventually.
      * @param string $columnToFilter The name of the column whose value will determine whether
-     *                               row is deleted or not.
+     *                               a row is deleted or not.
      * @param number|false $minimumValue The minimum column value. Rows with column values <
      *                                   this number will be deleted. If false, 
      *                                   `$minimumPercentageThreshold` is used.
      * @param bool|float $minimumPercentageThreshold If supplied, column values must be a greater
      *                                               percentage of the sum of all column values than
-     *                                               this value.
+     *                                               this precentage.
      */
     public function __construct($table, $columnToFilter, $minimumValue, $minimumPercentageThreshold = false)
     {
@@ -78,7 +78,7 @@ class ExcludeLowPopulation extends Filter
     }
 
     /**
-     * See [ExcludeLowPopulation](#).
+     * See {@link ExcludeLowPopulation}.
      *
      * @param DataTable $table
      */

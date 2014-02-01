@@ -11,13 +11,13 @@
 namespace Piwik\DataTable\Filter;
 
 use Piwik\DataTable;
-use Piwik\DataTable\Filter;
+use Piwik\DataTable\BaseFilter;
 
 /**
- * DataTable filter that will group DataTable rows together based on the results
+ * DataTable filter that will group {@link DataTable} rows together based on the results
  * of a reduce function. Rows with the same reduce result will be summed and merged.
  *
- * NOTE: This filter should never be queued, it must be applied directly on a DataTable.
+ * _NOTE: This filter should never be queued, it must be applied directly on a {@link DataTable}._
  *
  * **Basic usage example**
  * 
@@ -30,7 +30,7 @@ use Piwik\DataTable\Filter;
  * @subpackage DataTable
  * @api
  */
-class GroupBy extends Filter
+class GroupBy extends BaseFilter
 {
     /**
      * The name of the columns to reduce.
@@ -69,7 +69,7 @@ class GroupBy extends Filter
     }
 
     /**
-     * See [GroupBy](#).
+     * See {@link GroupBy}.
      *
      * @param DataTable $table
      */

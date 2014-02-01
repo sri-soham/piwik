@@ -11,7 +11,7 @@
 namespace Piwik\DataTable\Filter;
 
 use Piwik\DataTable;
-use Piwik\DataTable\Filter;
+use Piwik\DataTable\BaseFilter;
 
 /**
  * Sanitizes DataTable labels as an extra precaution. Called internally by Piwik.
@@ -19,7 +19,7 @@ use Piwik\DataTable\Filter;
  * @package Piwik
  * @subpackage DataTable
  */
-class SafeDecodeLabel extends Filter
+class SafeDecodeLabel extends BaseFilter
 {
     private $columnToDecode;
 
@@ -38,7 +38,7 @@ class SafeDecodeLabel extends Filter
      * @param string $value
      * @return mixed|string
      */
-    public static function safeDecodeLabel($value)
+    public static function decodeLabelSafe($value)
     {
         if (empty($value)) {
             return $value;
@@ -66,7 +66,7 @@ class SafeDecodeLabel extends Filter
         foreach ($table->getRows() as $row) {
             $value = $row->getColumn($this->columnToDecode);
             if ($value !== false) {
-                $value = self::safeDecodeLabel($value);
+                $value = self::decodeLabelSafe($value);
                 $row->setColumn($this->columnToDecode, $value);
 
                 $this->filterSubTable($row);

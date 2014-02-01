@@ -15,8 +15,8 @@ body {
     font-family: Verdana, sans-serif;
 }
 
-#logo {
-    img {
+#logo  {
+    img.default-piwik-logo {
         height: 21px;
         width: 82px;
         margin-top: 14px;
@@ -73,11 +73,6 @@ body {
     }
 }
 
-.entityContainer {
-    
-    //width: auto !important;
-}
-
 .entityTable {
     .border-radius(0px)!important;
     border:1px solid @silver-80!important;
@@ -88,7 +83,10 @@ body {
             }
         }
     }
+}
 
+table.entityTable tr td a:hover {
+    text-decoration: underline !important;
 }
 
 #root {
@@ -105,18 +103,17 @@ body {
         }
 
         .topBarElem {
-            color: @silver-40;
+          padding: 0 3px;
+          color: @silver-40;
             strong {
                 font-weight: normal;
                 color: @brand-black;
             }
         }
-
     }
 
     .top_bar_sites_selector {
-        margin-right: 20px;
-        margin-top: 10px;
+        margin-right: 10px;
         label {
             padding-top: 9px;
             .font-default(13px, 15px);
@@ -130,7 +127,7 @@ body {
             margin: 0;
             a {
                .font-default(18px, 22px);
-               padding: 14px 27px 11px;
+               padding: 14px 28px 11px;
             }
             > li {
                 .border-radius(0px);
@@ -145,6 +142,7 @@ body {
                         a {
                             color: @silver-40;
                             .font-default(15px, 18px);
+                            padding: 14px 22px 11px;
                         }
 
                         &.sfHover {
@@ -197,132 +195,159 @@ body {
         .box-shadow-1(~"inset 0 2px 4px #d8d8d8");
     }
 
-    .top_controls_inner {
-        margin: 0 10px;
-    }
-
     .widgetize {
         width: auto;
     }
+}
 
-
-    .top_controls {
-        #segmentEditorPanel {
-            border: 1px solid @silver-80;
-            background: #fff;
-            padding: 8px 10px 8px 10px;
-            .border-radius(0px);
-            .segmentationTitle {
-                background: none;
-                text-transform: uppercase;
-                .font-default(10px, 12px);
-                position: relative;
-                &:after {
-                    content: '';
-                    border-left: 4px solid transparent;
-                    border-right: 4px solid transparent;
-                    border-top: 5px solid @brand-red;
-                    position: absolute;
-                    top: 3px;
-                    right: 0;
-                }
-            }
-            .segmentationContainer {
-                > span > strong {
-                    color: @brand-red;
-                }
-                .submenu {
-                    li {
-                        font-weight: normal;
-                        .font-default(12px, 14px) !important;
-                        color: @silver-30;
-                    }
-                    
-                    ul li:hover  {
-                        color: @brand-black;
-                    }
-
-                }
-
-                .add_new_segment {
-                    .submit();
-                    .font-default(12px, 16px) !important;
-                    width: auto;
-                    padding: 7px 10px !important;
-                }
-            } 
-
-            #segmentList {
-                .segmentationContainer {
-                    &.visible {
-                        .submenu {
-                            li {
-                                .font-default(13px, 16px);
-                                color: #444;
-                                &:hover {
-                                    border-color: @silver-80 !important;
-                                    background: #fff !important;
-                                    .border-radius(0px);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        #dashboardSettings {
-            border: 1px solid @silver-80;
-            background: #fff;
-            z-index: 10;
-            padding: 8px 10px 8px 10px;
-            .border-radius(0px);
-            .font-default(10px, 12px);
-            > span {
-                position: relative;
-                background: none;
-                text-transform: uppercase;
-                &:after {
-                    content: '';
-                    border-left: 4px solid transparent;
-                    border-right: 4px solid transparent;
-                    border-top: 5px solid @brand-red;
-                    position: absolute;
-                    top: 3px;
-                    right: 0;
-                }
-            }
-
-            ul.submenu {
-                margin-left: 0;
-                li {
-                    list-style-type: none;
-                    > div {
-                        .font-default(11px, 14px);
-                        color: @brand-black;
-                    }
-                    text-transform: none;
-                    color: @silver-20;
-                    &.widgetpreview-choosen {
-                        color: @brand-black;
-                        font-weight: normal;
-                        background: @silver-95;
-                        position: relative;
-                        &:after {
-                            position: absolute;
-                            content: '';
-                            top: 6px;
-                            right: 10px;
-                            border-top: 4px solid transparent;
-                            border-bottom: 4px solid transparent;
-                            border-left: 5px solid @brand-red;
-
-                        }
-                    }
-                }
-            }
-        }
+.top_controls {
+  #segmentEditorPanel {
+    border: 1px solid @silver-80;
+    background: #fff;
+    padding: 8px 10px 8px 10px;
+    .border-radius(0px);
+    .segmentationTitle {
+      background: none;
+      text-transform: uppercase;
+      .font-default(10px, 12px);
+      position: relative;
+      &:after {
+        content: '';
+        border-left: 4px solid transparent;
+        border-right: 4px solid transparent;
+        border-top: 5px solid @brand-red;
+        position: absolute;
+        top: 3px;
+        right: 0;
+      }
     }
+    .segmentationContainer {
+      > span > strong {
+        color: @brand-red;
+      }
+      .submenu {
+        li {
+          font-weight: normal;
+          .font-default(12px, 14px) !important;
+          color: @silver-30;
+        }
+
+        ul li:hover  {
+          color: @brand-black;
+        }
+
+      }
+
+      .add_new_segment {
+        .submit();
+        .font-default(12px, 16px) !important;
+        width: auto;
+        padding: 7px 10px !important;
+      }
+    }
+
+    #segmentList {
+      .segmentationContainer {
+        &.visible {
+          .submenu {
+            li {
+              .font-default(13px, 16px);
+              color: #444;
+              &:hover {
+                border-color: @silver-80 !important;
+                background: #fff !important;
+                .border-radius(0px);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  #dashboardSettings {
+    border: 1px solid @silver-80;
+    background: #fff;
+    z-index: 10;
+    padding: 8px 10px 8px 10px;
+    .border-radius(0px);
+    .font-default(10px, 12px);
+    > span {
+      position: relative;
+      background: none;
+      text-transform: uppercase;
+      &:after {
+        content: '';
+        border-left: 4px solid transparent;
+        border-right: 4px solid transparent;
+        border-top: 5px solid @brand-red;
+        position: absolute;
+        top: 3px;
+        right: 0;
+      }
+    }
+
+    ul.submenu {
+      margin-left: 0;
+      li {
+        list-style-type: none;
+        > div {
+          .font-default(11px, 14px);
+          color: @brand-black;
+        }
+        text-transform: none;
+        color: @silver-20;
+        &.widgetpreview-choosen {
+          color: @brand-black;
+          font-weight: normal;
+          background: @silver-95;
+          position: relative;
+          &:after {
+            position: absolute;
+            content: '';
+            top: 6px;
+            right: 10px;
+            border-top: 4px solid transparent;
+            border-bottom: 4px solid transparent;
+            border-left: 5px solid @brand-red;
+
+          }
+        }
+      }
+    }
+  }
+}
+
+/* Iframed Embed dashboard style */
+#standalone {
+
+  #Dashboard:hover ul {
+    background: #f1f0eb;
+    border-color: #a9a399;
+  }
+
+  #Dashboard {
+    ul {
+
+      background: #fff;
+      border: 1px solid @silver-80;
+      padding: 8px 10px 8px 10px;
+      color: #444;
+      height: 12px;
+      line-height:0.5em;
+      .border-radius(0px);
+    }
+    > ul > li:hover,
+    > ul > li:hover a,
+    > ul > li.sfHover,
+    > ul > li.sfHover a {
+      color: @brand-red;
+    }
+    > ul > li.sfHover,
+    > ul > li.sfHover a {
+      font-weight: normal;
+    }
+  }
 }
 
 .rss-title {
@@ -404,6 +429,10 @@ body {
 
 table.dataTable tr.subDataTable:hover > td, table.dataTable tr.subDataTable:hover > td .dataTableRowActions {
     background-color: #d9d9d9;
+}
+
+table.dataTable .dataTableRowActions {
+  margin-top: -8px;
 }
 
 .visitsLiveFooter {
@@ -528,14 +557,18 @@ div.sparkline {
             margin: 0;
             float: none;
             .font-default(10px, 12px) !important;
-            padding: 8px !important;
+            padding: 0px !important;
             position: relative;
-            right: 41px;
-            background: no-repeat 9px 7px url('plugins/Zeitgeist/images/search_ico.png') !important;
+            right: 33px;
+            background: no-repeat 0px 7px url('plugins/Zeitgeist/images/search_ico.png') !important;
             text-indent: 999999px;
-            width: 35px !important;
+            width: 17px !important;
         }
     }
+}
+
+.dataTable .searchReset>img {
+    left: -45px;
 }
 
 .visitor-profile a {
@@ -587,7 +620,7 @@ div.sparkline {
 
     ol.visitor-profile-visits {
         > li {
-            padding: 10px 0 0 !important;
+            padding: 0 0 0 !important;
             span {
                 color: @silver-40;
                 .font-default(13px, 18px);
@@ -616,6 +649,14 @@ div.sparkline {
             }
         }
     } 
+}
+
+.visitor-profile-visit-title-row {
+  padding-top:10px;
+
+  &:hover {
+    background-color: @silver-90;
+  }
 }
 
 .widget .visitor-profile .visitor-profile-info > div > div {
@@ -706,12 +747,25 @@ div.sparkline {
         } 
     }  
 
+    .visitor-profile-avatar > div:nth-child(2n) {
+        width: 376px;
+    }
+
     .visitor-profile-latest-visit {
         .visitor-profile-latest-visit-column {
-            width: 100%;
-            display: block;
+            display: inline-block;
             margin-left: 0;
         }      
+
+        .visitor-profile-latest-visit-column:first-child {
+            width: 50%;
+            margin-right:-4px;
+        }
+
+        .visitor-profile-latest-visit-column:last-child {
+            width: 50%;
+            margin-right:-4px;
+        }
     }
 }
 
@@ -749,116 +803,6 @@ div.sparkline {
     padding: 5px !important;
 }
 
-.segment-element {
-    background: @white;
-    border-color: @silver-80;
-
-    .segment-add-row {
-        .border-radius(5px);
-    }
-
-    .custom_select_search {
-        input {
-            margin-top: -10px;
-        }
-    }
-
-    .segment-content {
-        h3 {
-            font-weight: normal;
-            .font-default(13px, 15px);
-            color: @brand-black;
-        }
-        
-        .segment-add-row > div a span,
-        .segment-add-or > div a span {
-            color: @brand-red;
-            text-shadow: none;
-        }
-
-        .segment-input {
-            select, input {
-                .font-default(12px, 14px);
-                color: @brand-black;
-                font-weight: 500;
-                margin: 0px;
-                min-height: auto;
-            }
-        }
-    }
-    .segment-nav {
-        div > ul > li {
-            padding: 5px 0;
-            a {
-                font-weight: normal;
-                color: #333333;
-                text-shadow: none;
-            }
-            li {
-                padding: 3px 0 ;
-                &:hover {
-                    background: #f2f2f2;
-                    border: 0;
-                     padding: 5px 0;
-                  
-                    a {
-                        border: 0;
-                        background-color: #f2f2f2;
-
-                    }
-                }
-            }
-
-        } 
-    } 
-
-    .segment-top {
-        .font-default(10px, 12px);
-        color: #444;
-        text-transform: uppercase;
-
-        h4 {
-            color: @silver-30;
-            text-transform: uppercase;
-            .font-default(10px, 12px);
-            a.dropdown {
-                color: @silver-30;
-                text-transform: uppercase;
-                .font-default(10px, 12px);
-            }
-        }
-
-        a.dropdown {
-            color: @brand-black;
-            background: url(plugins/Zeitgeist/images/sort_subtable_desc.png) 100% -2px no-repeat;
-            &.ui-autocomplete-input {
-                background-position: 100% -2px;
-            }
-        }
-    }
-    .segment-footer {
-        background: @white;
-        button {
-            height: auto;
-            font-weight: normal;
-            min-width: 100px;
-        }
-
-        a.delete {
-            color: @brand-red;
-        }
-        .segmentFooterNote, .segment-element .segment-footer .segmentFooterNote a {
-            color: #444;
-        }
-    }
-}
-
-#available_segments a.dropdown  {
-    color: @brand-black;
-    text-transform: uppercase;
-    .font-default(10px, 12px);
-    background-position: 100% 3px !important;
-}
 
 #piwik-promo-share {
     border: 0px;
@@ -866,5 +810,33 @@ div.sparkline {
     .font-default(10px, 16px);
 }
 
+#token_auth {
+    background: @silver-95;
+}
 
+tr:hover #token_auth {
+  background: #FFFFF7;
+}
 
+table#users {
+    .deleteuser:hover > span,
+    .edituser:hover > span {
+        text-decoration:underline;
+    }
+}
+
+table#editSites {
+    .editSite:hover > span,
+    .deleteSite:hover > span {
+        text-decoration:underline;
+    }
+}
+
+// previous style overrides
+#header_message a {
+    text-decoration:underline;
+}
+
+#header_message a:hover {
+    text-decoration:none;
+}

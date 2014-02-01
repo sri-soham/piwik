@@ -11,10 +11,10 @@
 namespace Piwik\DataTable\Filter;
 
 use Piwik\DataTable;
-use Piwik\DataTable\Filter;
+use Piwik\DataTable\BaseFilter;
 
 /**
- * Filter that will remove columns from a DataTable using either a blacklist,
+ * Filter that will remove columns from a {@link DataTable} using either a blacklist,
  * whitelist or both.
  *
  * This filter is used to handle the **hideColumn** and **showColumn** query parameters.
@@ -27,12 +27,11 @@ use Piwik\DataTable\Filter;
  *     $columnsToKeep = array('nb_visits');
  *     $dataTable->filter('ColumnDelete', array(array(), $columnsToKeep));
  * 
- * 
  * @package Piwik
  * @subpackage DataTable
  * @api
  */
-class ColumnDelete extends Filter
+class ColumnDelete extends BaseFilter
 {
     /**
      * The columns that should be removed from DataTable rows.
@@ -93,8 +92,7 @@ class ColumnDelete extends Filter
     }
 
     /**
-     * Filters the given DataTable. Removes columns that are not desired from
-     * each DataTable row.
+     * See {@link ColumnDelete}.
      *
      * @param DataTable $table
      */

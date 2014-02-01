@@ -15,9 +15,9 @@ use Exception;
 
 /**
  * The ranking query class wraps an arbitrary SQL query with more SQL that limits
- * the number of results while grouping the rest to "Others" and allows for some
- * more fancy things that can be configured via method calls of this class. The
- * advanced use cases are explained in the doc comments of the methods.
+ * the number of results while aggregating the rest in an a new "Others" row. It als
+ * allows for some more fancy things that can be configured via method calls of this
+ * class. The advanced use cases are explained in the doc comments of the methods.
  *
  * The general use case looks like this:
  *
@@ -92,7 +92,7 @@ class RankingQuery
     /**
      * Constructor.
      * 
-     * @param int|false $limit The result row limit. See [setLimit](#setLimit).
+     * @param int|false $limit The result row limit. See {@link setLimit()}.
      */
     public function __construct($limit = false)
     {
@@ -160,7 +160,7 @@ class RankingQuery
      * Sets a column that will be used to filter the result into two categories.
      * Rows where this column has a value > 0 will be removed from the result and put
      * into another array. Both the result and the array of excluded rows are returned
-     * by [execute](#execute).
+     * by {@link execute()}.
      *
      * @param $column string Name of the column.
      * @throws Exception if method is used more than once.
@@ -183,10 +183,11 @@ class RankingQuery
      * limited resulting in several limited result sets.
      * 
      * For example, you can run a query aggregating some data on the log_action table and
-     * partition by log_action.type with the possible values of [TYPE_ACTION_URL](#),
-     * [TYPE_OUTLINK](#), [TYPE_DOWNLOAD](#). The result will be three separate result sets
-     * that are aggregated the same ways, but for rows where `log_action.type = TYPE_OUTLINK`,
-     * for rows where `log_action.type = TYPE_ACTION_URL` and for rows `log_action.type = TYPE_DOWNLOAD`.
+     * partition by log_action.type with the possible values of {@link Piwik\Tracker\Action::TYPE_PAGE_URL},
+     * {@link Piwik\Tracker\Action::TYPE_OUTLINK}, {@link Piwik\Tracker\Action::TYPE_DOWNLOAD}.
+     * The result will be three separate result sets that are aggregated the same ways, but for rows
+     * where `log_action.type = TYPE_OUTLINK`, for rows where `log_action.type = TYPE_ACTION_URL` and for
+     * rows `log_action.type = TYPE_DOWNLOAD`.
      *
      * @param $partitionColumn string The column name to partion by.
      * @param $possibleValues Array of possible column values.
@@ -208,7 +209,7 @@ class RankingQuery
      * The object has to be configured first using the other methods.
      *
      * @param $innerQuery string  The "payload" query that does the actual data aggregation. The ordering
-     *                            has to be specified in this query. [RankingQuery](#) cannot apply ordering
+     *                            has to be specified in this query. {@link RankingQuery} cannot apply ordering
      *                            itself.
      * @param $bind array         Bindings for the inner query.
      * @return array              The format depends on which methods have been used
@@ -266,7 +267,7 @@ class RankingQuery
      * yourself, use this method.
      *
      * @param $innerQuery string  The "payload" query that does the actual data aggregation. The ordering
-     *                            has to be specified in this query. [RankingQuery](#) cannot apply ordering
+     *                            has to be specified in this query. {@link RankingQuery} cannot apply ordering
      *                            itself.
      * @return string             The entire ranking query SQL.
      */

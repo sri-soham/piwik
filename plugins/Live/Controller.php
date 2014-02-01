@@ -175,10 +175,11 @@ class Controller extends \Piwik\Plugin\Controller
 
     public function getVisitList()
     {
+        $startCounter = Common::getRequestVar('filter_offset', 0, 'int');
         $nextVisits = Request::processRequest('Live.getLastVisitsDetails', array(
                                                                                 'segment'                 => self::getSegmentWithVisitorId(),
                                                                                 'filter_limit'            => API::VISITOR_PROFILE_MAX_VISITS_TO_SHOW,
-                                                                                'disable_generic_filters' => 1,
+                                                                                'filter_offset'           => $startCounter,
                                                                                 'period'                  => false,
                                                                                 'date'                    => false
                                                                            ));
@@ -189,7 +190,7 @@ class Controller extends \Piwik\Plugin\Controller
 
         $view = new View('@Live/getVisitList.twig');
         $view->idSite = Common::getRequestVar('idSite', null, 'int');
-        $view->startCounter = Common::getRequestVar('filter_offset', 0, 'int') + 1;
+        $view->startCounter = $startCounter + 1;
         $view->visits = $nextVisits;
         return $view->render();
     }
@@ -248,7 +249,7 @@ class Controller extends \Piwik\Plugin\Controller
                 $idVisitor = Request::processRequest('Live.getMostRecentVisitorId');
             }
 
-            $cached = $segment . 'visitorId==' . $idVisitor;
+            $cached = urlencode($segment . 'visitorId==' . $idVisitor);
         }
         return $cached;
     }

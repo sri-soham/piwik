@@ -23,7 +23,7 @@ Piwik is released under the GPL v3 (or later) license, see [misc/gpl-3.0.txt](mi
 
 ## Requirements
 
-  * PHP 5.3 or greater
+  * PHP 5.3.2 or greater
   * MySQL 4.1 or greater, and either MySQLi or PDO library must be enabled
   * Piwik is OS / server independent
 
@@ -43,14 +43,14 @@ If you do not have a server, consider our Piwik Hosting partner: http://piwik.or
 
 ## Changelog
 
-For the list of all tickets closed in the current and past relases, see http://piwik.org/changelog/
+For the list of all tickets closed in the current and past releases, see http://piwik.org/changelog/
 
 ## Participate!
 
 We believe in liberating Web Analytics, providing a free platform for simple and advanced analytics. Piwik was built by dozens of people like you,
 and we need your help to make Piwik better… Why not participate in a useful project today?
 
-You will find pointers on how you can participate in Piwik at http://piwik.org/contribute/
+You will find pointers on how you can participate in Piwik at http://piwik.org/get-involved/
 
 ## Contact
 
@@ -88,4 +88,5 @@ Documentation and more info on http://piwik.org
 The Piwik project uses an ever-expanding comprehensive set of thousands of unit tests and dozens of integration [tests](https://github.com/piwik/piwik/tree/master/tests),
  running on the hosted distributed continuous integration platform Travis-CI.
 
-Build status (master branch) [![Build Status](https://travis-ci.org/piwik/piwik.png?branch=master)](https://travis-ci.org/piwik/piwik)
+Build status (master branch) [![Build Status](https://travis-ci.org/piwik/piwik.png?branch=master)](https://travis-ci.org/piwik/piwik) - Screenshot tests Build  [![Build Status](https://travis-ci.org/piwik/piwik-ui-tests.png?branch=master)](https://travis-ci.org/piwik/piwik-ui-tests)
+

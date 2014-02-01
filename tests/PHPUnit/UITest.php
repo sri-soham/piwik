@@ -11,6 +11,7 @@ use Piwik\Date;
 use Piwik\Db;
 use Piwik\DbHelper;
 use Piwik\Plugins\VisitsSummary\API;
+use Piwik\ArchiveProcessor\Rules;
 
 abstract class UITest extends IntegrationTestCase
 {
@@ -48,7 +49,7 @@ abstract class UITest extends IntegrationTestCase
 
         DbHelper::createAnonymousUser();
         
-        AssetManager::removeMergedAssets();
+        AssetManager::getInstance()->removeMergedAssets();
         
         // launch archiving so tests don't run out of time
         $date = Date::factory(static::$fixture->dateTime)->toString();
@@ -81,14 +82,14 @@ abstract class UITest extends IntegrationTestCase
                 list($processedScreenshotPath, $expectedScreenshotPath) = self::getProcessedAndExpectedScreenshotPaths($name);
                 $urls[] = array($processedScreenshotPath, $testUrl, $jsToTest);
 
-                // Screenshot Morpheus
-                list($processedScreenshotPath, $expectedScreenshotPath) = self::getProcessedAndExpectedScreenshotPaths($name, "Morpheus/");
-                $enableMorpheus = "&morpheus=1";
+                // Screenshot Zeitgeist
+                list($processedScreenshotPath, $expectedScreenshotPath) = self::getProcessedAndExpectedScreenshotPaths($name, "Zeitgeist/");
+                $enableZeitgeist = "&zeitgeist=1";
                 // Add the parameter to the query string, not the hash
                 if(($hash = strpos($testUrl, '#')) !== false) {
-                    $testUrl = substr($testUrl, 0, $hash) . $enableMorpheus . substr($testUrl, $hash);
+                    $testUrl = substr($testUrl, 0, $hash) . $enableZeitgeist . substr($testUrl, $hash);
                 } else {
-                    $testUrl .= $enableMorpheus;
+                    $testUrl .= $enableZeitgeist;
                 }
 
                 $urls[] = array($processedScreenshotPath, $testUrl, $jsToTest);
@@ -182,8 +183,6 @@ abstract class UITest extends IntegrationTestCase
         list($processedPath, $expectedPath) = self::getProcessedAndExpectedScreenshotPaths($name);
 
         $this->compareScreenshotAgainstExpected($name, $urlQuery, $processedPath, $expectedPath);
-
-
     }
 
     private function saveImageDiff($expectedPath, $processedPath, $diffPath)

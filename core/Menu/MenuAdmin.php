@@ -14,7 +14,7 @@ use Piwik\Piwik;
 
 /**
  * Contains menu entries for the Admin menu. Plugins can subscribe to the 
- * [Menu.Admin.addItems](#) event to add new pages to the admin menu.
+ * {@hook Menu.Admin.addItems} event to add new pages to the admin menu.
  * 
  * **Example**
  * 
@@ -64,7 +64,7 @@ class MenuAdmin extends MenuAbstract
              * Triggered when collecting all available admin menu items. Subscribe to this event if you want
              * to add one or more items to the Piwik admin menu.
              *
-             * Menu items should be added via the [Menu::add](#) method.
+             * Menu items should be added via the {@link add()} method.
              *
              * **Example**
              * 

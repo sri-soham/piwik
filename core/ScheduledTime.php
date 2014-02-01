@@ -18,7 +18,7 @@ use Piwik\ScheduledTime\Monthly;
 use Piwik\ScheduledTime\Weekly;
 
 /**
- * Describes the interval on which a scheduled task is executed. Use the [factory](#factory) method
+ * Describes the interval on which a scheduled task is executed. Use the {@link factory()} method
  * to create ScheduledTime instances.
  *
  * @see \Piwik\ScheduledTask
@@ -74,6 +74,33 @@ abstract class ScheduledTime
     }
 
     /**
+     * This method takes the websites timezone into consideration when scheduling a task.
+     * @param int $idSite
+     * @param string $period  Eg 'day', 'week', 'month'
+     * @return Daily|Monthly|Weekly
+     * @throws \Exception
+     * @ignore
+     */
+    static public function getScheduledTimeForSite($idSite, $period)
+    {
+        $arbitraryDateInUTC     = Date::factory('2011-01-01');
+        $midnightInSiteTimezone = date(
+                                      'H',
+                                      Date::factory(
+                                          $arbitraryDateInUTC,
+                                          Site::getTimezoneFor($idSite)
+                                      )->getTimestamp()
+                                  );
+
+        $hourInUTC = (24 - $midnightInSiteTimezone) % 24;
+
+        $schedule = self::getScheduledTimeForPeriod($period);
+        $schedule->setHour($hourInUTC);
+
+        return $schedule;
+    }
+
+    /**
      * Returns the system time used by subclasses to compute schedulings.
      * This method has been introduced so unit tests can override the current system time.
      * @return int
@@ -94,8 +121,10 @@ abstract class ScheduledTime
     abstract public function getRescheduledTime();
 
     /**
+     * Sets the day of the period to execute the scheduled task. Not a valid operation for all period types.
+     * 
      * @abstract
-     * @param  int $_day the day to set
+     * @param  int $_day a number describing the day to set. Its meaning depends on the ScheduledTime's period type.
      * @throws Exception if method not supported by subclass or parameter _day is invalid
      */
     abstract public function setDay($_day);

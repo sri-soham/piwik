@@ -17,9 +17,10 @@ body#simple  {
 	font-weight: lighter;
 }
 #subh1 {
-	margin-left:15px;
-	color: #6B320B;
-    font-size: 15pt;
+	color: #444444;
+    font-size: 17pt;
+    margin-left: 15px;
+    vertical-align: bottom;
 }
 
 #titleUpdate {
@@ -28,7 +29,7 @@ body#simple  {
 	clear:both;
 }
 #subh1 a {
-	color: #6B320B;
+	color: #444;
     text-decoration:none;
 }
 
@@ -93,4 +94,7 @@ a { color: #006; }
 .warning.normalFontSize {
 	font-size: 100%;
 	padding: 10px;
+}
+.indented-radio-button {
+  margin-left:20px;
 }

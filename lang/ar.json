@@ -81,9 +81,6 @@
         "ViewAndAddAnnotations": "مشاهدة وإضافة توضيحات حول %s...",
         "YouCannotModifyThisNote": "لا يمكنك تحرير هذا التوضيح لأنك لم تنشأها، ولا تملك صلاحيات وصول مشرف في هذا الموقع."
     },
-    "AnonymizeIP": {
-        "PluginDescription": "قم بتشفير آخر بايت من عناوين IP للزوار للإلتزام بقوانين\/إرشادات الخصوصية المحلية."
-    },
     "API": {
         "GenerateVisits": "إذا كنت لا تملك بيانات لليوم الحالي، فيمكنك أن تنشئ بعض البيانات باستخدام تطبيق %s. يمكنك تفعيل تطبيق %s، ثم النقر على قائمة \"مولد الزوا\" في لوحة إدارة Piwik.",
         "KeepTokenSecret": "مفتاح المصادقة هذا سري كما هو الحال في اسم المستخدم ولكلمة المرور، %s لا تعطه لأحد قط%s!",
@@ -124,7 +121,6 @@
         "JSTrackingIntro4": "إذا لم تكن ترغب في استخدام جافاسكريبت لتتبع زوارك، قم %1$sبتوليد رابط تتبع بالصورة أدناه%2$s.",
         "LogoNotWriteable": "لاستخدام شعار مخصص، ستحتاج إلى صلاحيات الكتابة على ملفات الشعار في مجلد القالب: %s",
         "LogoUpload": "اختر شعاراً لرفعه",
-        "LogoUploadDescription": "الرجاء رفع ملف بصيغة %s، بدون خلفيات شفافة بارتفاع لا يقل عن %s بكسل.",
         "MenuDiagnostic": "التشخيص",
         "MenuGeneralSettings": "الإعدادات العامة",
         "MenuManage": "الإدارة",
@@ -712,7 +708,6 @@
         "SystemCheckExtensions": "الإضافات الأخرى المطلوبة",
         "SystemCheckFileIntegrity": "سلامة الملفات",
         "SystemCheckFunctions": "الدوال المطلوبة",
-        "SystemCheckGD": "GD > 2.x (رسوميات)",
         "SystemCheckGDHelp": "لن تعمل خاصية sparklines (الرسومات المصغرة).",
         "SystemCheckGlobHelp": "تم تعطيل هذه الدالة المبنية ضمنياً، وسيحاول Piwik تقليدها ولكنه قد يواجه اعتبارات أمنية أخرى. قد يتأثر عدد من الوظائف أيضاً.",
         "SystemCheckGzcompressHelp": "تحتاج إلى تفعيل إضافة zlib ودالة gzcompress.",
@@ -732,7 +727,7 @@
         "SystemCheckParseIniFileHelp": "تم تعطيل الدالة المبنية ضمناً من طرف مزود الخدمة لديك. Piwik سيحاول أن يقلد هذه الدالة ذاتياً ولكنه قد يواجه عدداً من الاعتبارات الأمنية الأخرى. سيتأثر أيضاً أداء عملية التتبع.",
         "SystemCheckPdoAndMysqliHelp": "على ملقم لينوكس يمكنك ضبط PHP بالإعدادات التالية: %1$s في ملف php.ini أضف السطور التالية: %2$s",
         "SystemCheckPhp": "إصدار PHP",
-        "SystemCheckPhpPdoAndMysqliSite": "لمزيد من المعلومات عن: <a style=\"color:red\" href=\"http:\/\/php.net\/pdo\">PHP PDO<\/a> و <a style=\"color:red\" href=\"http:\/\/php.net\/mysqli\">MYSQLI<\/a>.",
+        "SystemCheckPhpPdoAndMysqli": "لمزيد من المعلومات عن: %1$sPHP PDO%2$s و %3$sMYSQLI%4$s.",
         "SystemCheckSecureProtocol": "بروتوكول الأمان",
         "SystemCheckSecureProtocolHelp": "يبدو أنك تستخدم https في ملقمك. هذه السطور سيتم إضافة إلى ملف config\/config.ini.php:",
         "SystemCheckSplHelp": "ستحتاج لضبط وإعادة بناء PHP وتكون مكتبة PHP القياسية SPL فيها مفعلة (افتراضياً).",
@@ -794,6 +789,9 @@
     "MultiSites": {
         "Evolution": "التطور",
         "PluginDescription": "يعرض إحصائيات مواقع متعددة، يتم تطويره حالياً كإضافة رئيسية في Piwik."
+    },
+    "PrivacyManager": {
+        "AnonymizeIpInlineHelp": "قم بتشفير آخر بايت من عناوين IP للزوار للإلتزام بقوانين\/إرشادات الخصوصية المحلية."
     },
     "Provider": {
         "ColumnProvider": "مزود الخدمة",

@@ -472,8 +472,14 @@ class API extends \Piwik\Plugin\API
      */
     public function userExists($userLogin)
     {
+        if($userLogin == 'anonymous') {
+            return true;
+        }
+        Piwik::checkUserIsNotAnonymous();
+        Piwik::checkUserHasSomeViewAccess();
         $dao = Factory::getDAO('user');
         $count = $dao->getCountByLogin($userLogin);
+
         return $count != 0;
     }
 
@@ -618,8 +624,8 @@ class API extends \Piwik\Plugin\API
         /**
          * Triggered after a user has been deleted.
          * 
-         * This event should be used to clean up any data that is related to the user that was
-         * deleted. For example, the Dashboard plugin uses this event to remove the user's dashboards.
+         * This event should be used to clean up any data that is related to the now deleted user.
+         * The **Dashboard** plugin, for example, uses this event to remove the user's dashboards.
          * 
          * @param string $userLogin The login handle of the deleted user.
          */

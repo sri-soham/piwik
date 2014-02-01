@@ -7,7 +7,7 @@ COPYRIGHT
 		Copyright (C) 2013  Matthieu Aubry
 
 	Individual contributions, components, and libraries are copyright
-	their respective authors.
+	of their respective authors.
 
 
 SOFTWARE LICENSE
@@ -108,21 +108,19 @@ THIRD-PARTY COMPONENTS AND LIBRARIES
 	Link:  http://mths.be/placeholder
 	License:  Dual licensed: MIT or GPL
 
+	Name:  jquery smartbanner
+	Link:  https://github.com/jasny/jquery.smartbanner
+	License:  Dual licensed: MIT
+
 	Name:  json2.js
 	Link:  http://json.org/
 	License:  Public domain
 	Notes:
 	- reference implementation
 
-	Name:  cssmin
-	Link:  http://code.google.com/p/cssmin/
-	License:  MIT
-
-	Name:  jsmin
-	Link:  http://code.google.com/p/jsmin-php/
-	License:  MIT
-	Notes:
-	- contains additional clause "The Software shall be used for Good, not Evil."
+	Name:  jshrink
+	Link: https://github.com/tedivm/jshrink
+	License: BSD-3-Clause
 
 	Name:  sparkline
 	Link:  https//sourceforge.net/projects/sparkline/
@@ -209,6 +207,15 @@ THIRD-PARTY COMPONENTS AND LIBRARIES
 	Name: Raphaël - JavaScript Vector Library
 	Link: http://raphaeljs.com/
 	License: MIT
+
+	Name: lessphp
+	Link: http://leafo.net/lessphp
+	License: GPL3/MIT
+
+	Name: Symfony Console Component
+	Link: https://github.com/symfony/Console
+	License: MIT
+
 
 THIRD-PARTY CONTENT
 

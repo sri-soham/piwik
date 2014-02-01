@@ -12,6 +12,7 @@ namespace Piwik\Plugin;
 
 use Exception;
 use Piwik\Access;
+use Piwik\API\Proxy;
 use Piwik\API\Request;
 use Piwik\Common;
 use Piwik\Config as PiwikConfig;
@@ -35,16 +36,16 @@ use Piwik\Url;
 use Piwik\View;
 use Piwik\View\ViewInterface;
 use Piwik\ViewDataTable\Factory as ViewDataTableFactory;
-use Piwik\API\Proxy;
 
 /**
  * Base class of all plugin Controllers.
  * 
  * Plugins that wish to add display HTML should create a Controller that either
- * extends from this class or from [ControllerAdmin](#). Every public method in
- * the controller will be exposed as a controller action.
+ * extends from this class or from {@link ControllerAdmin}. Every public method in
+ * the controller will be exposed as a controller method and can be invoked via
+ * an HTTP request.
  * 
- * Learn more about Piwik's MVC system [here](#).
+ * Learn more about Piwik's MVC system [here](/guides/mvc-in-piwik).
  * 
  * ### Examples
  * 
@@ -77,7 +78,7 @@ abstract class Controller
     protected $pluginName;
 
     /**
-     * The value of the `'date'` query parameter.
+     * The value of the **date** query parameter.
      *
      * @var string
      * @api
@@ -93,7 +94,7 @@ abstract class Controller
     protected $date;
 
     /**
-     * The value of the `'idSite'` query parameter.
+     * The value of the **idSite** query parameter.
      * 
      * @var int
      * @api
@@ -101,7 +102,7 @@ abstract class Controller
     protected $idSite;
 
     /**
-     * The Site object created with ($idSite)[#idSite].
+     * The Site object created with {@link $idSite}.
      * 
      * @var Site
      * @api
@@ -110,6 +111,7 @@ abstract class Controller
 
     /**
      * Constructor.
+     * 
      * @api
      */
     public function __construct()
@@ -135,11 +137,11 @@ abstract class Controller
     }
 
     /**
-     * Helper method that converts "today" or "yesterday" to the specified timezone.
+     * Helper method that converts `"today"` or `"yesterday"` to the specified timezone.
      * If the date is absolute, ie. YYYY-MM-DD, it will not be converted to the timezone.
      *
-     * @param string $date today, yesterday, YYYY-MM-DD
-     * @param string $timezone default timezone to use
+     * @param string $date `'today'`, `'yesterday'`, `'YYYY-MM-DD'`
+     * @param string $timezone The timezone to use.
      * @return Date
      * @api
      */
@@ -194,7 +196,6 @@ abstract class Controller
      *
      * @param ViewInterface $view The view to render.
      * @return string|void
-     * @api
      */
     protected function renderView(ViewInterface $view)
     {
@@ -210,6 +211,7 @@ abstract class Controller
      * @throws \Exception if `$pluginName` is not an existing plugin or if `$apiAction` is not an
      *                    existing method of the plugin's API.
      * @return string|void See `$fetch`.
+     * @api
      */
     protected function renderReport($apiAction)
     {
@@ -251,7 +253,7 @@ abstract class Controller
     }
 
     /**
-     * Same as [getLastUnitGraph](#getLastUnitGraph), but will set some properties of the ViewDataTable
+     * Same as {@link getLastUnitGraph()}, but will set some properties of the ViewDataTable
      * object based on the arguments supplied.
      *
      * @param string $currentModuleName The name of the current plugin.
@@ -375,12 +377,10 @@ abstract class Controller
     /**
      * Returns a URL to a sparkline image for a report served by the current plugin.
      * 
-     * The result of this URL should be used with the [sparkline()](#) twig function.
+     * The result of this URL should be used with the [sparkline()](/api-reference/Piwik/View#twig) twig function.
      * 
      * The current site ID and period will be used.
      * 
-     * See [Sparkline](#) for more information about the Sparkline visualization.
-     *
      * @param string $action Method name of the controller that serves the report.
      * @param array $customParameters The array of query parameter name/value pairs that
      *                                should be set in result URL.
@@ -406,7 +406,7 @@ abstract class Controller
     }
 
     /**
-     * Sets the first date available in the calendar.
+     * Sets the first date available in the period selector's calendar.
      *
      * @param Date $minDate The min date.
      * @param View $view The view that contains the period selector.
@@ -420,8 +420,8 @@ abstract class Controller
     }
 
     /**
-     * Sets the last date available in the calendar. Usually this just the "today" date
-     * for a site (which can depend on the timezone of a site).
+     * Sets the last date available in the period selector's calendar. Usually this is just the "today" date
+     * for a site (which varies based on the timezone of a site).
      *
      * @param Date $maxDate The max date.
      * @param View $view The view that contains the period selector.
@@ -435,7 +435,7 @@ abstract class Controller
     }
 
     /**
-     * Assigns variables to [View](#) instances that display an entire page.
+     * Assigns variables to {@link Piwik\View} instances that display an entire page.
      * 
      * The following variables assigned:
      * 
@@ -445,14 +445,14 @@ abstract class Controller
      * **prettyDate** - A pretty string description of the current period.
      * **siteName** - The current site's name.
      * **siteMainUrl** - The URL of the current site.
-     * **startDate** - The start date of the current period. A [Date](#) instance.
-     * **endDate** - The end date of the current period. A [Date](#) instance.
+     * **startDate** - The start date of the current period. A {@link Piwik\Date} instance.
+     * **endDate** - The end date of the current period. A {@link Piwik\Date} instance.
      * **language** - The current language's language code.
      * **config_action_url_category_delimiter** - The value of the `[General] action_url_category_delimiter`
      *                                            INI config option.
      * **topMenu** - The result of `MenuTop::getInstance()->getMenu()`.
      * 
-     * As well as the variables set by [setPeriodVariablesView](#setPeriodVariablesView).
+     * As well as the variables set by {@link setPeriodVariablesView()}.
      * 
      * Will exit on error.
      * 
@@ -522,7 +522,7 @@ abstract class Controller
     }
 
     /**
-     * Assigns a set of generally useful variables to a [View](#) instance.
+     * Assigns a set of generally useful variables to a {@link Piwik\View} instance.
      * 
      * The following variables assigned:
      * 
@@ -537,9 +537,9 @@ abstract class Controller
      * **logoSVG** - The SVG logo URL to use.
      * **hasSVGLogo** - True if there is a SVG logo, false if otherwise.
      * **enableFrames** - The value of the `[General] enable_framed_pages` INI config option. If
-     *                    true, [View::setXFrameOptions](#) is called on the view.
+     *                    true, {@link Piwik\View::setXFrameOptions()} is called on the view.
      * 
-     * Also calls [setHostValidationVariablesView](#setHostValidationVariablesView).
+     * Also calls {@link setHostValidationVariablesView()}.
      *
      * @param View $view
      * @api
@@ -550,6 +550,7 @@ abstract class Controller
         $view->isSuperUser = Access::getInstance()->isSuperUser();
         $view->hasSomeAdminAccess = Piwik::isUserHasSomeAdminAccess();
         $view->isCustomLogo = PiwikConfig::getInstance()->branding['use_custom_logo'];
+
         $view->logoHeader = \Piwik\Plugins\API\API::getInstance()->getHeaderLogoUrl();
         $view->logoLarge = \Piwik\Plugins\API\API::getInstance()->getLogoUrl();
         $view->logoSVG = \Piwik\Plugins\API\API::getInstance()->getSVGLogoUrl();
@@ -684,8 +685,7 @@ abstract class Controller
     }
 
     /**
-     * Helper method used to redirect the current http request to another module/action.
-     * If specified, will also change the idSite, date and/or period query parameters.
+     * Helper method used to redirect the current HTTP request to another module/action.
      * 
      * This function will exit immediately after executing.
      *
@@ -700,13 +700,13 @@ abstract class Controller
     public function redirectToIndex($moduleToRedirect, $actionToRedirect, $websiteId = null, $defaultPeriod = null,
                                     $defaultDate = null, $parameters = array())
     {
-        if (is_null($websiteId)) {
+        if (empty($websiteId)) {
             $websiteId = $this->getDefaultWebsiteId();
         }
-        if (is_null($defaultDate)) {
+        if (empty($defaultDate)) {
             $defaultDate = $this->getDefaultDate();
         }
-        if (is_null($defaultPeriod)) {
+        if (empty($defaultPeriod)) {
             $defaultPeriod = $this->getDefaultPeriod();
         }
         $parametersString = '';
@@ -745,6 +745,8 @@ abstract class Controller
 
     /**
      * Returns default site ID that Piwik should load.
+     * 
+     * _Note: This value is a Piwik setting set by each user._
      *
      * @return bool|int
      * @api
@@ -775,6 +777,8 @@ abstract class Controller
     /**
      * Returns default date for Piwik reports.
      *
+     * _Note: This value is a Piwik setting set by each user._
+     * 
      * @return string `'today'`, `'2010-01-01'`, etc.
      * @api
      */
@@ -818,12 +822,10 @@ abstract class Controller
     }
 
     /**
-     * Checks that the token_auth in the URl matches the current logged in user's token_auth.
+     * Checks that the token_auth in the URL matches the currently logged-in user's token_auth.
      * 
-     * This is a protection against CSRF should be used in controller
-     * actions that are either invoked via AJAX or redirect to a page
-     * within the site. It should be used in all controller actions that modify
-     * Piwik or user settings.
+     * This is a protection against CSRF and should be used in all controller
+     * methods that modify Piwik or any user settings.
      * 
      * **The token_auth should never appear in the browser's address bar.**
      *
@@ -877,7 +879,7 @@ abstract class Controller
      * @param int $currentValue The value to calculate evolution to.
      * @param string $pastDate The date of past value.
      * @param int $pastValue The value in the past to calculate evolution from.
-     * @return string|bool The HTML or false if the evolution is 0 and the current value is 0.
+     * @return string|false The HTML or `false` if the evolution is 0 and the current value is 0.
      * @api
      */
     protected function getEvolutionHtml($date, $currentValue, $pastDate, $pastValue)

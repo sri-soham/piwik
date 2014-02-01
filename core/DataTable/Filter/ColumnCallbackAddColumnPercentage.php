@@ -13,10 +13,10 @@ namespace Piwik\DataTable\Filter;
 use Piwik\Piwik;
 
 /**
- * Calculates a percentage value for each row of a DataTable and adds the result
+ * Calculates a percentage value for each row of a {@link DataTable} and adds the result
  * to each row.
  * 
- * See [ColumnCallbackAddColumnQuotient](#) for more information.
+ * See {@link ColumnCallbackAddColumnQuotient} for more information.
  *
  * **Basic usage example**
  * 
