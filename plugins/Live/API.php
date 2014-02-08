@@ -642,11 +642,7 @@ class API extends \Piwik\Plugin\API
         $from = "log_visit";
         $subQuery = $segment->getSelectQuery($select, $from, $where, $whereBind, $orderBy);
 
-<<<<<<< HEAD
         $sqlLimit = $numLastVisitorsToFetch >= 1 ? " LIMIT " . (int)$numLastVisitorsToFetch . " OFFSET 0 " : "";
-
-=======
-        $sqlLimit = $countVisitorsToFetch >= 1 ? " LIMIT 0, " . (int)$countVisitorsToFetch : "";
 
         // Group by idvisit so that a visitor converting 2 goals only appears once
         $sql = "
@@ -658,7 +654,6 @@ class API extends \Piwik\Plugin\API
 			GROUP BY sub.idvisit
 			ORDER BY $orderByParent
 		";
->>>>>>> piwik-master
         try {
             $data = $LogVisit->loadLastVisitorDetails($subQuery, $sqlLimit, $orderByParent);
         } catch (Exception $e) {
