@@ -96,18 +96,8 @@ class DbTable implements Zend_Session_SaveHandler_Interface
      */
     public function write($id, $data)
     {
-        $sql = 'INSERT INTO ' . $this->config['name']
-            . ' (' . $this->config['primary'] . ','
-            . $this->config['modifiedColumn'] . ','
-            . $this->config['lifetimeColumn'] . ','
-            . $this->config['dataColumn'] . ')'
-            . ' VALUES (?,?,?,?)'
-            . ' ON DUPLICATE KEY UPDATE '
-            . $this->config['modifiedColumn'] . ' = ?,'
-            . $this->config['lifetimeColumn'] . ' = ?,'
-            . $this->config['dataColumn'] . ' = ?';
-
-        $this->config['db']->query($sql, array($id, time(), $this->maxLifetime, $data, time(), $this->maxLifetime, $data));
+        $session = Factory::getDAO('session');
+        $session->write($id, $data, $this->maxLifetime);
 
         return true;
     }
