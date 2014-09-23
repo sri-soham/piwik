@@ -21,4 +21,16 @@ use Piwik\Db\DAO\Base;
  */
 class Session extends Base
 {
+	public function __construct($db, $table)
+    {
+        parent::__construct($db, $table);
+    }
+
+    public function write($id, $data, $maxLifetime)
+    {
+    	 $sql = 'INSERT INTO '. $this->table . ' (id, modified, lifetime, data) '
+    	 	. 'VALUES (?, ?, ?, ?) '
+    	 	. 'ON DUPLICATE KEY UPDATE modified = ?, lifetime = ?, data = ?';
+        $this->db->query($sql, array($id, time(), $this->maxLifetime, $data, time(), $this->maxLifetime, $data));
+    }
 }
