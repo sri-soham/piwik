@@ -1,20 +1,16 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Piwik
  */
 
 namespace Piwik;
 
 /**
  * Piwik version information.
- *
- * @package Piwik
  *
  * @api
  */
@@ -24,5 +20,20 @@ final class Version
      * The current Piwik version.
      * @var string
      */
-    const VERSION = '2.0.4-b4';
+    const VERSION = '2.15.0-b7';
+
+    public function isStableVersion($version)
+    {
+        return (bool) preg_match('/^(\d+)\.(\d+)\.(\d+)$/', $version);
+    }
+
+    public function isVersionNumber($version)
+    {
+        return $this->isStableVersion($version) || $this->isNonStableVersion($version);
+    }
+
+    private function isNonStableVersion($version)
+    {
+        return (bool) preg_match('/^(\d+)\.(\d+)\.(\d+)-.{1,4}(\d+)$/', $version);
+    }
 }

@@ -1,19 +1,19 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Piwik
  */
 namespace Piwik;
 
+use Piwik\Container\StaticContainer;
+use Piwik\Intl\Data\Provider\RegionDataProvider;
+
 /**
  * Contains less commonly needed URL helper methods.
- * 
- * @package Piwik
+ *
  */
 class UrlHelper
 {
@@ -45,7 +45,7 @@ class UrlHelper
                             $validQuery .= $name . '[]=' . $param . $separator;
                         }
                     }
-                } else if ($value === false) {
+                } elseif ($value === false) {
                     $validQuery .= $name . $separator;
                 } else {
                     $validQuery .= $name . '=' . $value . $separator;
@@ -75,7 +75,9 @@ class UrlHelper
     {
         static $countries;
         if (!isset($countries)) {
-            $countries = implode('|', array_keys(Common::getCountriesList(true)));
+            /** @var RegionDataProvider $regionDataProvider */
+            $regionDataProvider = StaticContainer::get('Piwik\Intl\Data\Provider\RegionDataProvider');
+            $countries = implode('|', array_keys($regionDataProvider->getCountryList(true)));
         }
 
         return preg_replace(
@@ -95,25 +97,26 @@ class UrlHelper
     }
 
     /**
-     * Returns true if the string passed may be a URL.
+     * Returns true if the string passed may be a URL ie. it starts with protocol://.
      * We don't need a precise test here because the value comes from the website
      * tracked source code and the URLs may look very strange.
      *
+     * @api
      * @param string $url
      * @return bool
      */
     public static function isLookLikeUrl($url)
     {
-        return preg_match('~^(ftp|news|http|https)?://(.*)$~D', $url, $matches) !== 0
-        && strlen($matches[2]) > 0;
+        return preg_match('~^(([[:alpha:]][[:alnum:]+.-]*)?:)?//(.*)$~D', $url, $matches) !== 0
+            && strlen($matches[3]) > 0;
     }
 
     /**
      * Returns a URL created from the result of the [parse_url](http://php.net/manual/en/function.parse-url.php)
      * function.
-     * 
+     *
      * Copied from the PHP comments at [http://php.net/parse_url](http://php.net/parse_url).
-     * 
+     *
      * @param array $parsed Result of [parse_url](http://php.net/manual/en/function.parse-url.php).
      * @return false|string The URL or `false` if `$parsed` isn't an array.
      * @api
@@ -152,6 +155,17 @@ class UrlHelper
         if (strlen($urlQuery) == 0) {
             return array();
         }
+
+        // TODO: this method should not use a cache. callers should instead have their own cache, configured through DI.
+        //       one undesirable side effect of using a cache here, is that this method can now init the StaticContainer, which makes setting
+        //       test environment for RequestCommand more complicated.
+        $cache    = Cache::getTransientCache();
+        $cacheKey = 'arrayFromQuery' . $urlQuery;
+
+        if ($cache->contains($cacheKey)) {
+            return $cache->fetch($cacheKey);
+        }
+
         if ($urlQuery[0] == '?') {
             $urlQuery = substr($urlQuery, 1);
         }
@@ -193,10 +207,13 @@ class UrlHelper
                     $nameToValue[$name] = array();
                 }
                 array_push($nameToValue[$name], $value);
-            } else if (!empty($name)) {
+            } elseif (!empty($name)) {
                 $nameToValue[$name] = $value;
             }
         }
+
+        $cache->save($cacheKey, $nameToValue);
+
         return $nameToValue;
     }
 
@@ -211,6 +228,7 @@ class UrlHelper
     public static function getParameterFromQueryString($urlQuery, $parameter)
     {
         $nameToValue = self::getArrayFromQueryString($urlQuery);
+
         if (isset($nameToValue[$parameter])) {
             return $nameToValue[$parameter];
         }
@@ -229,14 +247,16 @@ class UrlHelper
         $parsedUrl = parse_url($url);
         $result = '';
         if (isset($parsedUrl['path'])) {
-            $result .= substr($parsedUrl['path'], 1);
+            if (substr($parsedUrl['path'], 0, 1) == '/') {
+                $parsedUrl['path'] = substr($parsedUrl['path'], 1);
+            }
+            $result .= $parsedUrl['path'];
         }
         if (isset($parsedUrl['query'])) {
             $result .= '?' . $parsedUrl['query'];
         }
         return $result;
     }
-
 
     /**
      * Extracts a keyword from a raw not encoded URL.
@@ -289,8 +309,18 @@ class UrlHelper
         $searchEngines = Common::getSearchEngineUrls();
 
         $hostPattern = self::getLossyUrl($referrerHost);
+        /*
+         * Try to get the best matching 'host' in definitions
+         * 1. check if host + path matches an definition
+         * 2. check if host only matches
+         * 3. check if host pattern + path matches
+         * 4. check if host pattern matches
+         * 5. special handling
+         */
         if (array_key_exists($referrerHost . $referrerPath, $searchEngines)) {
             $referrerHost = $referrerHost . $referrerPath;
+        } elseif (array_key_exists($referrerHost, $searchEngines)) {
+            // no need to change host
         } elseif (array_key_exists($hostPattern . $referrerPath, $searchEngines)) {
             $referrerHost = $hostPattern . $referrerPath;
         } elseif (array_key_exists($hostPattern, $searchEngines)) {
@@ -335,7 +365,7 @@ class UrlHelper
                 $query = str_replace('&', '&amp;', strstr($query, '?'));
             }
             $searchEngineName = 'Google Images';
-        } else if ($searchEngineName === 'Google'
+        } elseif ($searchEngineName === 'Google'
             && (strpos($query, '&as_') !== false || strpos($query, 'as_') === 0)
         ) {
             $keys = array();
@@ -387,21 +417,25 @@ class UrlHelper
                     $key = self::getParameterFromQueryString($query, $variableName);
                     $key = trim(urldecode($key));
 
-                    // Special case: Google & empty q parameter
+                    // Special cases: empty or no keywords
                     if (empty($key)
-                        && $variableName == 'q'
-
                         && (
                             // Google search with no keyword
                             ($searchEngineName == 'Google'
-                                && ( // First, they started putting an empty q= parameter
-                                    strpos($query, '&q=') !== false
-                                    || strpos($query, '?q=') !== false
-                                    // then they started sending the full host only (no path/query string)
-                                    || (empty($query) && (empty($referrerPath) || $referrerPath == '/') && empty($referrerParsed['fragment']))
-                                )
+                                && (empty($query) && (empty($referrerPath) || $referrerPath == '/') && empty($referrerParsed['fragment']))
                             )
+
+                            // Yahoo search with no keyword
+                            || ($searchEngineName == 'Yahoo!'
+                                && ($referrerParsed['host'] == 'r.search.yahoo.com')
+                            )
+
+                            // empty keyword parameter
+                            || strpos($query, sprintf('&%s=', $variableName)) !== false
+                            || strpos($query, sprintf('?%s=', $variableName)) !== false
+
                             // search engines with no keyword
+                            || $searchEngineName == 'Ixquick'
                             || $searchEngineName == 'Google Images'
                             || $searchEngineName == 'DuckDuckGo')
                     ) {
@@ -458,5 +492,42 @@ class UrlHelper
             'name'     => $searchEngineName,
             'keywords' => $key,
         );
+    }
+
+    /**
+     * Returns the query part from any valid url and adds additional parameters to the query part if needed.
+     *
+     * @param string $url    Any url eg `"http://example.com/piwik/?foo=bar"`
+     * @param array $additionalParamsToAdd    If not empty the given parameters will be added to the query.
+     *
+     * @return string eg. `"foo=bar&foo2=bar2"`
+     * @api
+     */
+    public static function getQueryFromUrl($url, array $additionalParamsToAdd = array())
+    {
+        $url = @parse_url($url);
+        $query = '';
+
+        if (!empty($url['query'])) {
+            $query .= $url['query'];
+        }
+
+        if (!empty($additionalParamsToAdd)) {
+            if (!empty($query)) {
+                $query .= '&';
+            }
+
+            $query .= Url::getQueryStringFromParameters($additionalParamsToAdd);
+        }
+
+        return $query;
+    }
+
+    public static function getHostFromUrl($url)
+    {
+        if (!UrlHelper::isLookLikeUrl($url)) {
+            $url = "http://" . $url;
+        }
+        return parse_url($url, PHP_URL_HOST);
     }
 }

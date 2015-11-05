@@ -1,5 +1,5 @@
 /*!
- * Piwik - Web Analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
@@ -26,17 +26,17 @@
 
     // helper function for ActionDataTable
     function setImageMinus(domElem) {
-        $('img.plusMinus', domElem).attr('src', 'plugins/Zeitgeist/images/minus.png');
+        $('img.plusMinus', domElem).attr('src', 'plugins/Morpheus/images/minus.png');
     }
 
     // helper function for ActionDataTable
     function setImagePlus(domElem) {
-        $('img.plusMinus', domElem).attr('src', 'plugins/Zeitgeist/images/plus.png');
+        $('img.plusMinus', domElem).attr('src', 'plugins/Morpheus/images/plus.png');
     }
 
     /**
      * UI control that handles extra functionality for Actions datatables.
-     * 
+     *
      * @constructor
      */
     exports.ActionsDataTable = function (element) {
@@ -54,7 +54,7 @@
             var self = this;
 
             self.cleanParams();
-            
+
             if (!rows) {
                 rows = $('tr', domElem);
             }
@@ -67,7 +67,6 @@
                     self.onClickActionSubDataTable(this)
                 }).size();
             }
-
             self.applyCosmetics(domElem, rows);
             self.handleColumnHighlighting(domElem);
             self.handleRowActions(domElem, rows);
@@ -86,10 +85,42 @@
             }
 
             self.handleColumnDocumentation(domElem);
-            self.handleReportDocumentation(domElem);
             self.handleRelatedReports(domElem);
             self.handleTriggeredEvents(domElem);
             self.handleCellTooltips(domElem);
+            self.handleExpandFooter(domElem);
+            self.setFixWidthToMakeEllipsisWork(domElem);
+            self.handleSummaryRow(domElem);
+            self.openSubtableFromLevel0IfOnlyOneSubtableGiven(domElem);
+        },
+
+        openSubtableFromLevel0IfOnlyOneSubtableGiven: function (domElem) {
+            var $subtables = domElem.find('.subDataTable');
+            var hasOnlyOneSubtable = $subtables.length === 1;
+
+            if (hasOnlyOneSubtable) {
+                var hasOnlyOneRow = domElem.find('tbody tr.level0').length === 1;
+                
+                if (hasOnlyOneRow) {
+                    var $labels = $subtables.find('.label');
+                    if ($labels.length) {
+                        $labels.first().click();
+                    }
+                }
+            }
+        },
+
+        openSubtableFromSubtableIfOnlyOneSubtableGiven: function (domElem) {
+            var hasOnlyOneRow = domElem.length === 1
+            var hasOnlyOneSubtable = domElem.hasClass('subDataTable');
+
+            if (hasOnlyOneRow && hasOnlyOneSubtable) {
+                // when subtable is loaded
+                var $labels = domElem.find('.label');
+                if ($labels.length) {
+                    $labels.first().click();
+                }
+            }
         },
 
         //see dataTable::applyCosmetics
@@ -100,7 +131,6 @@
             rowsWithSubtables.css('font-weight', 'bold');
 
             $("th:first-child", domElem).addClass('label');
-            $('td span.label', domElem).each(function () { self.truncate($(this)); });
             var imagePlusMinusWidth = 12;
             var imagePlusMinusHeight = 12;
             $('td:first-child', rowsWithSubtables)
@@ -115,11 +145,11 @@
                 });
 
             var rootRow = rows.first().prev();
-            
+
             // we look at the style of the row before the new rows to determine the rows'
             // level
             var level = rootRow.length ? getLevelFromClass(rootRow.attr('class')) + 1 : 0;
-            
+
             rows.each(function () {
                 var currentStyle = $(this).attr('class') || '';
 
@@ -133,14 +163,16 @@
                 $(this).prop('parent', function () {
                     return self.parentAttributeParent + ' ' + self.parentId;
                 });
-
-                // Add some styles on the cells even/odd
-                // label (first column of a data row) or not
-                $("td:first-child:odd", this).addClass('label labeleven');
-                $("td:first-child:even", this).addClass('label labelodd');
-                $("tr:odd td", domElem).slice(1).addClass('column columnodd');
-                $("tr:even td", domElem).slice(1).addClass('column columneven');
             });
+
+            self.addOddAndEvenClasses(domElem);
+        },
+
+        addOddAndEvenClasses: function(domElem) {
+            // Add some styles on the cells
+            // label (first column of a data row) or not
+            $("tr:not(.hidden) td:first-child", domElem).addClass('label');
+            $("tr:not(.hidden) td", domElem).slice(1).addClass('column');
         },
 
         handleRowActions: function (domElem, rows) {
@@ -174,7 +206,7 @@
                 $(domElem).after('\
                 <tr id="' + divIdToReplaceWithSubTable + '" class="cellSubDataTable">\
                     <td colspan="' + numberOfColumns + '">\
-                            <span class="loadingPiwik" style="display:inline"><img src="plugins/Zeitgeist/images/loading-blue.gif" /> Loading...</span>\
+                            <span class="loadingPiwik" style="display:inline"><img src="plugins/Morpheus/images/loading-blue.gif" /> Loading...</span>\
                     </td>\
                 </tr>\
                 ');
@@ -211,7 +243,7 @@
                         if (parents.indexOf(idSubTable) >= 0
                             || parents.indexOf('subDataTable_' + idSubTable) >= 0) {
                             if (plusDetected) {
-                                $(this).css('display', '');
+                                $(this).css('display', '').removeClass('hidden');
 
                                 //unroll everything and display '-' sign
                                 //if the row is already opened
@@ -225,12 +257,19 @@
                                     setImageMinus(this);
                             }
                             else {
-                                $(this).css('display', 'none');
+                                $(this).css('display', 'none').addClass('hidden');
                             }
                             self.repositionRowActions($(domElem));
                         }
                     }
                 });
+
+                var table = $(domElem);
+                if (!table.hasClass('dataTable')) {
+                    table = table.closest('.dataTable');
+                }
+
+                self.$element.trigger('piwik:actionsSubTableToggled');
             }
 
             // toggle the +/- image
@@ -259,6 +298,9 @@
             $('.datatableRelatedReports', content).replaceWith(oldReportsElem);
 
             dataTableSel.replaceWith(content);
+
+            content.trigger('piwik:dataTableLoaded');
+
             piwikHelper.lazyScrollTo(content[0], 400);
 
             return content;
@@ -292,11 +334,15 @@
             // we execute the bindDataTableEvent function for the new DIV
             self.bindEventsAndApplyStyle($('#' + self.workingDivId), response);
 
+            self.$element.trigger('piwik:actionsSubDataTableLoaded');
+
             //bind back the click event (disabled to avoid double-click problem)
             self.disabledRowDom.click(
                 function () {
                     self.onClickActionSubDataTable(this)
                 });
+
+            self.openSubtableFromSubtableIfOnlyOneSubtableGiven(response);
         }
     });
 

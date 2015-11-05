@@ -1,29 +1,27 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Piwik
  */
 namespace Piwik\DataTable;
 
+use Closure;
+use Piwik\Common;
 use Piwik\DataTable;
 use Piwik\DataTable\Renderer\Console;
 
 /**
  * Stores an array of {@link DataTable}s indexed by one type of {@link DataTable} metadata (such as site ID
  * or period).
- * 
+ *
  * DataTable Maps are returned on all queries that involve multiple sites and/or multiple
  * periods. The Maps will contain a {@link DataTable} for each site and period combination.
- * 
+ *
  * The Map implements some {@link DataTable} such as {@link queueFilter()} and {@link getRowsCount}.
  *
- * @package Piwik
- * @subpackage DataTable
  *
  * @api
  */
@@ -76,7 +74,7 @@ class Map implements DataTableInterface
 
     /**
      * Queue a filter to {@link DataTable} child of contained by this instance.
-     * 
+     *
      * See {@link Piwik\DataTable::queueFilter()} for more information..
      *
      * @param string|Closure $className Filter name, eg. `'Limit'` or a Closure.
@@ -107,8 +105,34 @@ class Map implements DataTableInterface
      */
     public function filter($className, $parameters = array())
     {
-        foreach ($this->getDataTables() as $id => $table) {
+        foreach ($this->getDataTables() as $table) {
             $table->filter($className, $parameters);
+        }
+    }
+
+    /**
+     * Apply a filter to all subtables contained by this instance.
+     *
+     * @param string|Closure $className Name of filter class or a Closure.
+     * @param array $parameters Parameters to pass to the filter.
+     */
+    public function filterSubtables($className, $parameters = array())
+    {
+        foreach ($this->getDataTables() as $table) {
+            $table->filterSubtables($className, $parameters);
+        }
+    }
+
+    /**
+     * Apply a queued filter to all subtables contained by this instance.
+     *
+     * @param string|Closure $className Name of filter class or a Closure.
+     * @param array $parameters Parameters to pass to the filter.
+     */
+    public function queueFilterSubtables($className, $parameters = array())
+    {
+        foreach ($this->getDataTables() as $table) {
+            $table->queueFilterSubtables($className, $parameters);
         }
     }
 
@@ -145,7 +169,7 @@ class Map implements DataTableInterface
 
     /**
      * Returns the last element in the Map's array.
-     * 
+     *
      * @return DataTable|Map|false
      */
     public function getLastRow()
@@ -162,6 +186,22 @@ class Map implements DataTableInterface
     public function addTable($table, $label)
     {
         $this->array[$label] = $table;
+    }
+
+    public function getRowFromIdSubDataTable($idSubtable)
+    {
+        $dataTables = $this->getDataTables();
+
+        // find first datatable containing data
+        foreach ($dataTables as $subTable) {
+            $subTableRow = $subTable->getRowFromIdSubDataTable($idSubtable);
+
+            if (!empty($subTableRow)) {
+                return $subTableRow;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -188,10 +228,30 @@ class Map implements DataTableInterface
     }
 
     /**
+     * @ignore
+     */
+    public function disableRecursiveFilters()
+    {
+        foreach ($this->getDataTables() as $table) {
+            $table->disableRecursiveFilters();
+        }
+    }
+
+    /**
+     * @ignore
+     */
+    public function enableRecursiveFilters()
+    {
+        foreach ($this->getDataTables() as $table) {
+            $table->enableRecursiveFilters();
+        }
+    }
+
+    /**
      * Renames the given column in each contained {@link DataTable}.
      *
      * See {@link DataTable::renameColumn()}.
-     * 
+     *
      * @param string $oldName
      * @param string $newName
      */
@@ -206,7 +266,7 @@ class Map implements DataTableInterface
      * Deletes the specified columns in each contained {@link DataTable}.
      *
      * See {@link DataTable::deleteColumns()}.
-     * 
+     *
      * @param array $columns The columns to delete.
      * @param bool $deleteRecursiveInSubtables This param is currently not used.
      */
@@ -219,7 +279,7 @@ class Map implements DataTableInterface
 
     /**
      * Deletes a table from the array of DataTables.
-     * 
+     *
      * @param string $id The label associated with {@link DataTable}.
      */
     public function deleteRow($id)
@@ -249,12 +309,14 @@ class Map implements DataTableInterface
     public function getColumn($name)
     {
         $values = array();
+
         foreach ($this->getDataTables() as $table) {
             $moreValues = $table->getColumn($name);
             foreach ($moreValues as &$value) {
                 $values[] = $value;
             }
         }
+
         return $values;
     }
 
@@ -266,19 +328,19 @@ class Map implements DataTableInterface
      * The result of this function is determined by the type of DataTable
      * this instance holds. If this DataTable\Map instance holds an array
      * of DataTables, this function will transform it from:
-     * 
+     *
      *     Label 0:
      *       DataTable(row1)
      *     Label 1:
      *       DataTable(row2)
-     * 
+     *
      * to:
-     * 
+     *
      *     DataTable(row1[label = 'Label 0'], row2[label = 'Label 1'])
      *
      * If this instance holds an array of DataTable\Maps, this function will
      * transform it from:
-     * 
+     *
      *     Outer Label 0:            // the outer DataTable\Map
      *       Inner Label 0:            // one of the inner DataTable\Maps
      *         DataTable(row1)
@@ -289,9 +351,9 @@ class Map implements DataTableInterface
      *         DataTable(row3)
      *       Inner Label 1:
      *         DataTable(row4)
-     * 
+     *
      * to:
-     * 
+     *
      *     Inner Label 0:
      *       DataTable(row1[label = 'Outer Label 0'], row3[label = 'Outer Label 1'])
      *     Inner Label 1:
@@ -302,6 +364,10 @@ class Map implements DataTableInterface
      *
      * This function can be used, for example, to smoosh IndexedBySite archive
      * query results into one DataTable w/ different rows differentiated by site ID.
+     *
+     * Note: This DataTable/Map will be destroyed and will be no longer usable after the tables have been merged into
+     *       the new dataTable to reduce memory usage. Destroying all DataTables witihn the Map also seems to fix a
+     *       Segmentation Fault that occurred in the AllWebsitesDashboard when having > 16k sites.
      *
      * @return DataTable|Map
      */
@@ -330,7 +396,10 @@ class Map implements DataTableInterface
 
             foreach ($this->getDataTables() as $label => $subTable) {
                 $this->copyRowsAndSetLabel($result, $subTable, $label);
+                Common::destroy($subTable);
             }
+
+            $this->array = array();
         }
 
         return $result;
@@ -362,11 +431,11 @@ class Map implements DataTableInterface
 
     /**
      * Sums a DataTable to all the tables in this array.
-     * 
+     *
      * _Note: Will only add `$tableToSum` if the childTable has some rows._
      *
      * See {@link Piwik\DataTable::addDataTable()}.
-     * 
+     *
      * @param DataTable $tableToSum
      */
     public function addDataTable(DataTable $tableToSum)

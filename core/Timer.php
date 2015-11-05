@@ -1,29 +1,31 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Piwik
  */
 namespace Piwik;
 
+use Piwik\Metrics\Formatter;
+
 /**
  *
- * @package Piwik
  */
 class Timer
 {
     private $timerStart;
     private $memoryStart;
+    private $formatter;
 
     /**
      * @return \Piwik\Timer
      */
     public function __construct()
     {
+        $this->formatter = new Formatter();
+
         $this->init();
     }
 
@@ -59,7 +61,7 @@ class Timer
      */
     public function getMemoryLeak()
     {
-        return "Memory delta: " . MetricsFormatter::getPrettySizeFromBytes($this->getMemoryUsage() - $this->memoryStart);
+        return "Memory delta: " . $this->formatter->getPrettySizeFromBytes($this->getMemoryUsage() - $this->memoryStart);
     }
 
     /**

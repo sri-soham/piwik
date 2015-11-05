@@ -1,12 +1,10 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Piwik
  */
 namespace Piwik\AssetManager;
 
@@ -39,7 +37,7 @@ abstract class UIAssetFetcher
      * @param string[] $plugins
      * @param Theme $theme
      */
-    function __construct($plugins, $theme)
+    public function __construct($plugins, $theme)
     {
         $this->plugins = $plugins;
         $this->theme = $theme;
@@ -58,8 +56,9 @@ abstract class UIAssetFetcher
      */
     public function getCatalog()
     {
-        if($this->catalog == null)
+        if ($this->catalog == null) {
             $this->createCatalog();
+        }
 
         return $this->catalog;
     }
@@ -91,7 +90,6 @@ abstract class UIAssetFetcher
     private function populateCatalog()
     {
         foreach ($this->fileLocations as $fileLocation) {
-
             $newUIAsset = new OnDiskUIAsset($this->getBaseDirectory(), $fileLocation);
             $this->catalog->addUIAsset($newUIAsset);
         }

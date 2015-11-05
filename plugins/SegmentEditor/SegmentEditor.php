@@ -1,45 +1,25 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik_Plugins
- * @package SegmentEditor
  */
 namespace Piwik\Plugins\SegmentEditor;
 
-use Exception;
-use Piwik\Common;
+use Piwik\Config;
 use Piwik\Db;
-use Piwik\Db\Factory;
 use Piwik\Version;
 
 /**
- * @package SegmentEditor
  */
 class SegmentEditor extends \Piwik\Plugin
 {
     /**
-     * @see Piwik_Plugin::getInformation
+     * @see Piwik\Plugin::registerEvents
      */
-    public function getInformation()
-    {
-        return array(
-            'description'     => 'Create and reuse custom visitor Segments with the Segment Editor.',
-            'author'          => 'Piwik',
-            'author_homepage' => 'http://piwik.org/',
-            'version'         => Version::VERSION,
-            'license'          => 'GPL v3+',
-            'license_homepage' => 'http://www.gnu.org/licenses/gpl.html'
-        );
-    }
-
-    /**
-     * @see Piwik_Plugin::getListHooksRegistered
-     */
-    public function getListHooksRegistered()
+    public function registerEvents()
     {
         return array(
             'Segments.getKnownSegmentsToArchiveForSite'  => 'getKnownSegmentsToArchiveForSite',
@@ -52,32 +32,37 @@ class SegmentEditor extends \Piwik\Plugin
 
     function getSegmentEditorHtml(&$out)
     {
-        $controller = new Controller();
-        $out .= $controller->getSelector();
+        $selector = new SegmentSelectorControl();
+        $out .= $selector->render();
     }
 
     public function getKnownSegmentsToArchiveAllSites(&$segments)
     {
-        $segmentsToAutoArchive = API::getInstance()->getAll($idSite = false, $returnAutoArchived = true);
-        foreach ($segmentsToAutoArchive as $segment) {
-            $segments[] = $segment['definition'];
-        }
+        $this->getKnownSegmentsToArchiveForSite($segments, $idSite = false);
     }
 
+    /**
+     * Adds the pre-processed segments to the list of Segments.
+     * Used by CronArchive, ArchiveProcessor\Rules, etc.
+     *
+     * @param $segments
+     * @param $idSite
+     */
     public function getKnownSegmentsToArchiveForSite(&$segments, $idSite)
     {
-        $segmentToAutoArchive = API::getInstance()->getAll($idSite, $returnAutoArchived = true);
+        $model = new Model();
+        $segmentToAutoArchive = $model->getSegmentsToAutoArchive($idSite);
 
         foreach ($segmentToAutoArchive as $segmentInfo) {
             $segments[] = $segmentInfo['definition'];
         }
+
         $segments = array_unique($segments);
     }
 
     public function install()
     {
-        $dao = Factory::getDAO('segment');
-        $dao->install();
+        Model::install();
     }
 
     public function getJsFiles(&$jsFiles)
@@ -88,5 +73,15 @@ class SegmentEditor extends \Piwik\Plugin
     public function getStylesheetFiles(&$stylesheets)
     {
         $stylesheets[] = "plugins/SegmentEditor/stylesheets/segmentation.less";
+    }
+
+    /**
+     * Returns whether adding segments for all websites is enabled or not.
+     *
+     * @return bool
+     */
+    public static function isAddingSegmentsForAllWebsitesEnabled()
+    {
+        return Config::getInstance()->General['allow_adding_segments_for_all_websites'] == 1;
     }
 }

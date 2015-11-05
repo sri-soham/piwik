@@ -1,18 +1,17 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik_Plugins
- * @package CoreVisualizations
  */
 
 namespace Piwik\Plugins\CoreVisualizations\Visualizations\HtmlTable;
 
 use Piwik\Common;
 use Piwik\Config as PiwikConfig;
+use Piwik\Metrics;
 use Piwik\ViewDataTable\RequestConfig as VisualizationRequestConfig;
 
 /**
@@ -35,7 +34,12 @@ class RequestConfig extends VisualizationRequestConfig
         $this->filter_limit = PiwikConfig::getInstance()->General['datatable_default_limit'];
 
         if (Common::getRequestVar('enable_filter_excludelowpop', false) == '1') {
-            $this->filter_excludelowpop       = 'nb_visits';
+            if (Common::getRequestVar('flat', 0, 'int') === 1) {
+                $this->filter_excludelowpop = 'nb_visits';
+            } else {
+                $this->filter_excludelowpop = Metrics::INDEX_NB_VISITS;
+            }
+
             $this->filter_excludelowpop_value = false;
         }
 

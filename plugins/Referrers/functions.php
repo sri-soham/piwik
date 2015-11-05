@@ -1,12 +1,10 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik_Plugins
- * @package Referrers
  */
 namespace Piwik\Plugins\Referrers;
 
@@ -39,9 +37,9 @@ function getPathFromUrl($url)
 function getSocialMainUrl($url)
 {
     $social  = getSocialNetworkFromDomain($url);
-    foreach (Common::getSocialUrls() AS $domain => $name) {
+    foreach (Common::getSocialUrls() as $domain => $name) {
 
-        if($name == $social) {
+        if ($name == $social) {
 
             return $domain;
         }
@@ -57,9 +55,9 @@ function getSocialMainUrl($url)
  */
 function getSocialNetworkFromDomain($url)
 {
-    foreach (Common::getSocialUrls() AS $domain => $name) {
+    foreach (Common::getSocialUrls() as $domain => $name) {
 
-        if(preg_match('/(^|[\.\/])'.$domain.'([\.\/]|$)/', $url)) {
+        if (preg_match('/(^|[\.\/])'.$domain.'([\.\/]|$)/', $url)) {
 
             return $name;
         }
@@ -78,7 +76,7 @@ function getSocialNetworkFromDomain($url)
  */
 function isSocialUrl($url, $socialName = false)
 {
-    foreach (Common::getSocialUrls() AS $domain => $name) {
+    foreach (Common::getSocialUrls() as $domain => $name) {
 
         if (preg_match('/(^|[\.\/])'.$domain.'([\.\/]|$)/', $url) && ($socialName === false || $name == $socialName)) {
 
@@ -206,7 +204,7 @@ function getSearchEngineUrlFromUrlAndKeyword($url, $keyword)
 /**
  * Return search engine URL for keyword and URL
  *
- * @see Piwik_getSearchEngineUrlFromUrlAndKeyword(getSearchEngineUrlFromUrlAndKeyword
+ * @see \Piwik\Plugins\Referrers\getSearchEngineUrlFromUrlAndKeyword
  *
  * @param string $keyword Keyword, e.g., web+analytics
  * @param string $url Domain name, e.g., search.piwik.org

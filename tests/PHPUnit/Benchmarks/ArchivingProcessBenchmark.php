@@ -1,13 +1,12 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
 use Piwik\Plugins\VisitsSummary\API;
-
-require_once PIWIK_INCLUDE_PATH . '/tests/PHPUnit/BenchmarkTestCase.php';
+use Piwik\Tests\Framework\TestCase\BenchmarkTestCase;
 
 /**
  * Runs the archiving process.

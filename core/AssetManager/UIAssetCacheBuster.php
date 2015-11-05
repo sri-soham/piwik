@@ -1,13 +1,11 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
  * @method static \Piwik\AssetManager\UIAssetCacheBuster getInstance()
- * @package Piwik
  */
 namespace Piwik\AssetManager;
 
@@ -20,7 +18,7 @@ class UIAssetCacheBuster extends Singleton
     /**
      * Cache buster based on
      *  - Piwik version
-     *  - Loaded plugins
+     *  - Loaded plugins (name and version)
      *  - Super user salt
      *  - Latest
      *
@@ -31,8 +29,17 @@ class UIAssetCacheBuster extends Singleton
     {
         $masterFile = PIWIK_INCLUDE_PATH . '/.git/refs/heads/master';
         $currentGitHash = file_exists($masterFile) ? @file_get_contents($masterFile) : null;
-        $pluginList = implode(",", !$pluginNames ? Manager::getInstance()->getLoadedPluginsName() : $pluginNames);
-        $cacheBuster = md5($pluginList . PHP_VERSION . Version::VERSION . trim($currentGitHash));
+
+        $pluginNames = !$pluginNames ? Manager::getInstance()->getLoadedPluginsName() : $pluginNames;
+        sort($pluginNames);
+
+        $pluginsInfo = '';
+        foreach ($pluginNames as $pluginName) {
+            $plugin       = Manager::getInstance()->getLoadedPlugin($pluginName);
+            $pluginsInfo .= $plugin->getPluginName() . $plugin->getVersion() . ',';
+        }
+
+        $cacheBuster = md5($pluginsInfo . PHP_VERSION . Version::VERSION . trim($currentGitHash));
         return $cacheBuster;
     }
 

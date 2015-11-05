@@ -1,12 +1,10 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Piwik
  */
 namespace Piwik\API\DataTableManipulator;
 
@@ -22,13 +20,11 @@ use Piwik\DataTable\Row;
  *
  * The labels passed to this class should be urlencoded.
  * Some reports use recursive labels (e.g. action reports). Use > to join them.
- *
- * @package Piwik
- * @subpackage Piwik_API
  */
 class LabelFilter extends DataTableManipulator
 {
     const SEPARATOR_RECURSIVE_LABEL = '>';
+    const TERMINAL_OPERATOR = '@';
 
     private $labels;
     private $addLabelIndex;
@@ -68,6 +64,10 @@ class LabelFilter extends DataTableManipulator
      */
     private function doFilterRecursiveDescend($labelParts, $dataTable)
     {
+        // we need to make sure to rebuild the index as some filters change the label column directly via
+        // $row->setColumn('label', '') which would not be noticed in the label index otherwise.
+        $dataTable->rebuildIndex();
+
         // search for the first part of the tree search
         $labelPart = array_shift($labelParts);
 
@@ -106,6 +106,9 @@ class LabelFilter extends DataTableManipulator
     protected function manipulateSubtableRequest($request)
     {
         unset($request['label']);
+        unset($request['flat']);
+        $request['totals'] = 0;
+        $request['filter_sort_column'] = ''; // do not sort, we only want to find a matching column
 
         return $request;
     }
@@ -116,16 +119,22 @@ class LabelFilter extends DataTableManipulator
      * Note: The HTML Encoded version must be tried first, since in ResponseBuilder the $label is unsanitized
      * via Common::unsanitizeLabelParameter.
      *
-     * @param string $label
+     * @param string $originalLabel
      * @return array
      */
-    private function getLabelVariations($label)
+    private function getLabelVariations($originalLabel)
     {
         static $pageTitleReports = array('getPageTitles', 'getEntryPageTitles', 'getExitPageTitles');
 
+        $originalLabel = trim($originalLabel);
+
+        $isTerminal = substr($originalLabel, 0, 1) == self::TERMINAL_OPERATOR;
+        if ($isTerminal) {
+            $originalLabel = substr($originalLabel, 1);
+        }
+
         $variations = array();
-        $label = urldecode($label);
-        $label = trim($label);
+        $label = trim(urldecode($originalLabel));
 
         $sanitizedLabel = Common::sanitizeInputValue($label);
         $variations[] = $sanitizedLabel;
@@ -133,12 +142,19 @@ class LabelFilter extends DataTableManipulator
         if ($this->apiModule == 'Actions'
             && in_array($this->apiMethod, $pageTitleReports)
         ) {
-            // special case: the Actions.getPageTitles report prefixes some labels with a blank.
-            // the blank might be passed by the user but is removed in Request::getRequestArrayFromString.
-            $variations[] = ' ' . $sanitizedLabel;
-            $variations[] = ' ' . $label;
+            if ($isTerminal) {
+                array_unshift($variations, ' ' . $sanitizedLabel);
+                array_unshift($variations, ' ' . $label);
+            } else {
+                // special case: the Actions.getPageTitles report prefixes some labels with a blank.
+                // the blank might be passed by the user but is removed in Request::getRequestArrayFromString.
+                $variations[] = ' ' . $sanitizedLabel;
+                $variations[] = ' ' . $label;
+            }
         }
         $variations[] = $label;
+
+        $variations = array_unique($variations);
 
         return $variations;
     }

@@ -1,27 +1,30 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik_Plugins
- * @package CoreConsole
  */
 
 namespace Piwik\Plugins\CoreConsole\Commands;
 
+use Piwik\Development;
 use Piwik\Plugin\ConsoleCommand;
-use Symfony\Component\Console\Input\InputArgument;
+use Piwik\SettingsPiwik;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * @package CoreConsole
  */
 class GitCommit extends ConsoleCommand
 {
+    public function isEnabled()
+    {
+        return Development::isEnabled() && SettingsPiwik::isGitDeployment();
+    }
+
     protected function configure()
     {
         $this->setName('git:commit')

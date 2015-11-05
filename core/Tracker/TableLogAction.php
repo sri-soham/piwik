@@ -1,21 +1,16 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Piwik
  */
 
 namespace Piwik\Tracker;
 
 use Piwik\Common;
-use Piwik\Db\Factory;
-use Piwik\SegmentExpression;
-use Piwik\Tracker;
-
+use Piwik\Segment\SegmentExpression;
 
 /**
  * This class is used to query Action IDs from the log_action table.
@@ -23,7 +18,6 @@ use Piwik\Tracker;
  * A pageview, outlink, download or site search are made of several "Action IDs"
  * For example pageview is idaction_url and idaction_name.
  *
- * @package Piwik\Tracker
  */
 class TableLogAction
 {
@@ -39,46 +33,95 @@ class TableLogAction
      */
     public static function loadIdsAction($actionsNameAndType)
     {
-        $LogAction = Factory::getDAO('log_action', Tracker::getDatabase());
-        
         // Add url prefix if not set
-        foreach($actionsNameAndType as &$action) {
-            if(count($action) == 2) {
+        foreach ($actionsNameAndType as &$action) {
+            if (2 == count($action)) {
                 $action[] = null;
             }
         }
-        $actionIds = $LogAction->queryIdsAction($actionsNameAndType);
+
+        $actionIds = self::queryIdsAction($actionsNameAndType);
 
         list($queriedIds, $fieldNamesToInsert) = self::processIdsToInsert($actionsNameAndType, $actionIds);
 
         $insertedIds = self::insertNewIdsAction($actionsNameAndType, $fieldNamesToInsert);
-
-        $queriedIds = $queriedIds + $insertedIds;
+        $queriedIds  = $queriedIds + $insertedIds;
 
         return $queriedIds;
     }
 
+    /**
+     * @param $matchType
+     * @param $actionType
+     * @return string
+     * @throws \Exception
+     */
+    private static function getSelectQueryWhereNameContains($matchType, $actionType)
+    {
+        // now, we handle the cases =@ (contains) and !@ (does not contain)
+        // build the expression based on the match type
+        $sql = 'SELECT idaction FROM ' . Common::prefixTable('log_action') . ' WHERE %s AND type = ' . $actionType . ' )';
+
+        switch ($matchType) {
+            case '=@':
+                // use concat to make sure, no %s occurs because some plugins use %s in their sql
+                $where = '( name LIKE CONCAT(\'%\', ?, \'%\') ';
+                break;
+            case '!@':
+                $where = '( name NOT LIKE CONCAT(\'%\', ?, \'%\') ';
+                break;
+            default:
+                throw new \Exception("This match type $matchType is not available for action-segments.");
+                break;
+        }
+
+        $sql = sprintf($sql, $where);
+
+        return $sql;
+    }
+
     private static function insertNewIdsAction($actionsNameAndType, $fieldNamesToInsert)
     {
-        $LogAction = Factory::getDAO('log_action', Tracker::getDatabase());
-
         // Then, we insert all new actions in the lookup table
         $inserted = array();
+
         foreach ($fieldNamesToInsert as $fieldName) {
             list($name, $type, $urlPrefix) = $actionsNameAndType[$fieldName];
-            $actionId = $LogAction->add($name, $type, $urlPrefix);
-            $inserted[$fieldName] = $actionId;
+
+            $actionId = self::getModel()->createNewIdAction($name, $type, $urlPrefix);
 
             Common::printDebug("Recorded a new action (" . Action::getTypeAsString($type) . ") in the lookup table: " . $name . " (idaction = " . $actionId . ")");
+
+            $inserted[$fieldName] = $actionId;
         }
+
         return $inserted;
     }
 
-    protected static function processIdsToInsert($actionsNameAndType, $actionIds)
+    private static function getModel()
+    {
+        return new Model();
+    }
+
+    private static function queryIdsAction($actionsNameAndType)
+    {
+        $toQuery = array();
+        foreach ($actionsNameAndType as &$actionNameType) {
+            list($name, $type, $urlPrefix) = $actionNameType;
+            $toQuery[] = array('name' => $name, 'type' => $type);
+        }
+
+        $actionIds = self::getModel()->getIdsAction($toQuery);
+
+        return $actionIds;
+    }
+
+    private static function processIdsToInsert($actionsNameAndType, $actionIds)
     {
         // For the Actions found in the lookup table, add the idaction in the array,
         // If not found in lookup table, queue for INSERT
         $fieldNamesToInsert = $fieldNameToActionId = array();
+
         foreach ($actionsNameAndType as $fieldName => &$actionNameType) {
             @list($name, $type, $urlPrefix) = $actionNameType;
             if (empty($name)) {
@@ -101,9 +144,9 @@ class TableLogAction
                 $fieldNamesToInsert[] = $fieldName;
             }
         }
+
         return array($fieldNameToActionId, $fieldNamesToInsert);
     }
-
 
     /**
      * Convert segment expression to an action ID or an SQL expression.
@@ -127,24 +170,24 @@ class TableLogAction
             // for urls trim protocol and www because it is not recorded in the db
             $valueToMatch = preg_replace('@^http[s]?://(www\.)?@i', '', $valueToMatch);
         }
-        $valueToMatch = Common::sanitizeInputValue(Common::unsanitizeInputValue($valueToMatch));
 
-        $LogAction = Factory::getDAO('log_action');
+        $valueToMatch = self::normaliseActionString($actionType, $valueToMatch);
+
         if ($matchType == SegmentExpression::MATCH_EQUAL
             || $matchType == SegmentExpression::MATCH_NOT_EQUAL
         ) {
-            $idAction = $LogAction->getIdaction($valueToMatch, $actionType);
-            // if the action is not found, we hack -100 to ensure it tries to match against an integer
-            // otherwise binding idaction_name to "false" returns some rows for some reasons (in case &segment=pageTitle==Větrnásssssss)
+            $idAction = self::getModel()->getIdActionMatchingNameAndType($valueToMatch, $actionType);
+            // Action is not found (eg. &segment=pageTitle==Větrnásssssss)
             if (empty($idAction)) {
-                $idAction = -100;
+                $idAction = null;
             }
             return $idAction;
         }
 
         // "name contains $string" match can match several idaction so we cannot return yet an idaction
         // special case
-        $sql = $LogAction->sqlIdactionFromSegment($matchType, $actionType);
+        $sql = TableLogAction::getSelectQueryWhereNameContains($matchType, $actionType);
+
         return array(
             // mark that the returned value is an sql-expression instead of a literal value
             'SQL'  => $sql,
@@ -160,11 +203,16 @@ class TableLogAction
     private static function guessActionTypeFromSegment($segmentName)
     {
         $exactMatch = array(
-            'eventAction' => Action::TYPE_EVENT_ACTION,
-            'eventCategory' => Action::TYPE_EVENT_CATEGORY,
-            'eventName' => Action::TYPE_EVENT_NAME,
+            'eventAction'        => Action::TYPE_EVENT_ACTION,
+            'eventCategory'      => Action::TYPE_EVENT_CATEGORY,
+            'eventName'          => Action::TYPE_EVENT_NAME,
+            'contentPiece'       => Action::TYPE_CONTENT_PIECE,
+            'contentTarget'      => Action::TYPE_CONTENT_TARGET,
+            'contentName'        => Action::TYPE_CONTENT_NAME,
+            'contentInteraction' => Action::TYPE_CONTENT_INTERACTION,
         );
-        if(!empty($exactMatch[$segmentName])) {
+
+        if (!empty($exactMatch[$segmentName])) {
             return $exactMatch[$segmentName];
         }
 
@@ -182,5 +230,38 @@ class TableLogAction
         }
     }
 
-}
+    /**
+     * This function will sanitize or not if it's needed for the specified action type
+     *
+     * URLs (Download URL, Outlink URL) are stored raw (unsanitized)
+     * while other action types are stored Sanitized
+     *
+     * @param $actionType
+     * @param $actionString
+     * @return string
+     */
+    private static function normaliseActionString($actionType, $actionString)
+    {
+        $actionString = Common::unsanitizeInputValue($actionString);
 
+        if (self::isActionTypeStoredUnsanitized($actionType)) {
+            return $actionString;
+        }
+
+        return Common::sanitizeInputValue($actionString);
+    }
+
+    /**
+     * @param $actionType
+     * @return bool
+     */
+    private static function isActionTypeStoredUnsanitized($actionType)
+    {
+        $actionsTypesStoredUnsanitized = array(
+            $actionType == Action::TYPE_DOWNLOAD,
+            $actionType == Action::TYPE_OUTLINK,
+        );
+
+        return in_array($actionType, $actionsTypesStoredUnsanitized);
+    }
+}

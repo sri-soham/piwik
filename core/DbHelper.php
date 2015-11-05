@@ -1,19 +1,20 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package PluginsFunctions
  */
 namespace Piwik;
 
 use Exception;
-use Piwik\Db\Adapter;
 use Piwik\Db\Schema;
+use Piwik\DataAccess\ArchiveTableCreator;
 
+/**
+ * Contains database related helper functions.
+ */
 class DbHelper
 {
     /**
@@ -28,13 +29,36 @@ class DbHelper
     }
 
     /**
-     * Drop specific tables
+     * Get list of installed columns in a table
      *
-     * @param array $doNotDelete Names of tables to not delete
+     * @param  string $tableName The name of a table.
+     *
+     * @return array  Installed columns indexed by the column name.
      */
-    public static function dropTables($doNotDelete = array())
+    public static function getTableColumns($tableName)
     {
-        Schema::getInstance()->dropTables($doNotDelete);
+        return Schema::getInstance()->getTableColumns($tableName);
+    }
+
+    /**
+     * Creates a new table in the database.
+     *
+     * Example:
+     * ```
+     * $tableDefinition = "`age` INT(11) NOT NULL AUTO_INCREMENT,
+     *                     `name` VARCHAR(255) NOT NULL";
+     *
+     * DbHelper::createTable('tablename', $tableDefinition);
+     * ``
+     *
+     * @param string $nameWithoutPrefix   The name of the table without any piwik prefix.
+     * @param string $createDefinition    The table create definition
+     *
+     * @api
+     */
+    public static function createTable($nameWithoutPrefix, $createDefinition)
+    {
+        Schema::getInstance()->createTable($nameWithoutPrefix, $createDefinition);
     }
 
     /**
@@ -80,10 +104,10 @@ class DbHelper
     /**
      * Drop database, used in tests
      */
-    public static function dropDatabase()
+    public static function dropDatabase($dbName = null)
     {
         if (defined('PIWIK_TEST_MODE') && PIWIK_TEST_MODE) {
-            Schema::getInstance()->dropDatabase();
+            Schema::getInstance()->dropDatabase($dbName);
         }
     }
 
@@ -141,11 +165,25 @@ class DbHelper
     /**
      * Get the SQL to create a specific Piwik table
      *
-     * @param string $tableName
+     * @param string $tableName Unprefixed table name.
      * @return string  SQL
      */
     public static function getTableCreateSql($tableName)
     {
         return Schema::getInstance()->getTableCreateSql($tableName);
+    }
+
+    /**
+     * Deletes archive tables. For use in tests.
+     */
+    public static function deleteArchiveTables()
+    {
+        foreach (ArchiveTableCreator::getTablesArchivesInstalled() as $table) {
+            Log::debug("Dropping table $table");
+
+            Db::query("DROP TABLE IF EXISTS `$table`");
+        }
+
+        ArchiveTableCreator::refreshTableList($forceReload = true);
     }
 }

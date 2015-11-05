@@ -1,12 +1,10 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Piwik
  */
 namespace Piwik\DataTable\Renderer;
 
@@ -16,15 +14,13 @@ use Piwik\Common;
 use Piwik\DataTable\Renderer;
 use Piwik\DataTable;
 use Piwik\Date;
-use Piwik\Url;
+use Piwik\SettingsPiwik;
 
 /**
  * RSS Feed.
  * The RSS renderer can be used only on Set that are arrays of DataTable.
  * A RSS feed contains one dataTable per element in the Set.
  *
- * @package Piwik
- * @subpackage DataTable
  */
 class Rss extends Renderer
 {
@@ -33,22 +29,9 @@ class Rss extends Renderer
      *
      * @return string
      */
-    function render()
+    public function render()
     {
-        $this->renderHeader();
         return $this->renderTable($this->table);
-    }
-
-    /**
-     * Computes the exception output and returns the string/binary
-     *
-     * @return string
-     */
-    function renderException()
-    {
-        header('Content-type: text/plain');
-        $exceptionMessage = $this->getExceptionMessage();
-        return 'Error: ' . $exceptionMessage;
     }
 
     /**
@@ -70,7 +53,7 @@ class Rss extends Renderer
         $idSite = Common::getRequestVar('idSite', 1, 'int');
         $period = Common::getRequestVar('period');
 
-        $piwikUrl = Url::getCurrentUrlWithoutFileName()
+        $piwikUrl = SettingsPiwik::getPiwikUrl()
             . "?module=CoreHome&action=index&idSite=" . $idSite . "&period=" . $period;
         $out = "";
         $moreRecentFirst = array_reverse($table->getDataTables(), true);
@@ -102,14 +85,6 @@ class Rss extends Renderer
         $footer = $this->getRssFooter();
 
         return $header . $out . $footer;
-    }
-
-    /**
-     * Sends the xml file http header
-     */
-    protected function renderHeader()
-    {
-        @header('Content-Type: text/xml; charset=utf-8');
     }
 
     /**
@@ -188,7 +163,6 @@ class Rss extends Renderer
             }
         }
         $html .= "\n</tr>";
-        $colspan = count($allColumns);
 
         foreach ($tableStructure as $row) {
             $html .= "\n\n<tr>";

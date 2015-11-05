@@ -123,7 +123,7 @@ class Report extends Base
     {
         $where = array();
         $params = array();
-        if (!Piwik::isUserIsSuperUser() || $ifSuperUserReturnOnlySuperUserReports) {
+        if (!Piwik::hasUserSuperUserAccess() || $ifSuperUserReturnOnlySuperUserReports) {
             $where[] = ' login = ? ';
             $params[] = Piwik::getCurrentUserLogin();
         }

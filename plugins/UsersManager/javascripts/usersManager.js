@@ -1,5 +1,5 @@
 /*!
- * Piwik - Web Analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
@@ -60,7 +60,7 @@ function sendAddUserAJAX(row) {
 }
 
 function getIdSites() {
-    return $('.custom_select_main_link').attr('data-siteid');
+    return $('#usersManagerSiteSelect').attr('siteid');
 }
 
 function sendUpdateUserAccess(login, access, successCallback) {
@@ -96,6 +96,60 @@ function launchAjaxRequest(self, successCallback) {
         $(self).parent().attr('id'),
         successCallback
     );
+}
+
+function updateSuperUserAccess(login, hasSuperUserAccess)
+{
+    var parameters = {};
+    parameters.userLogin = login;
+    parameters.hasSuperUserAccess = hasSuperUserAccess ? 1: 0;
+
+    var ajaxHandler = new ajaxHelper();
+    ajaxHandler.addParams({
+        module: 'API',
+        format: 'json',
+        method: 'UsersManager.setSuperUserAccess'
+    }, 'GET');
+    ajaxHandler.addParams(parameters, 'POST');
+    ajaxHandler.setCallback(function () {
+
+        var UI = require('piwik/UI');
+        var notification = new UI.Notification();
+        notification.show(_pk_translate('General_Done'), {
+            placeat: '#superUserAccessUpdated',
+            context: 'success',
+            noclear: true,
+            type: 'toast',
+            style: {display: 'inline-block', marginTop: '10px', marginBottom: '30px'},
+            id: 'usersManagerSuperUserAccessUpdated'
+        });
+        notification.scrollToNotification();
+        piwikHelper.redirect();
+    });
+    ajaxHandler.setLoadingElement('#ajaxErrorSuperUsersManagement');
+    ajaxHandler.setErrorElement('#ajaxErrorSuperUsersManagement');
+    ajaxHandler.send(true);
+}
+
+function bindUpdateSuperUserAccess() {
+    var login     = $(this).parents('td').data('login');
+    var hasAccess = parseInt($(this).data('hasaccess'), 10);
+
+    var message = 'UsersManager_ConfirmGrantSuperUserAccess';
+    if (hasAccess && login == piwik.userLogin) {
+        message = 'UsersManager_ConfirmProhibitMySuperUserAccess';
+    } else if (hasAccess) {
+        message = 'UsersManager_ConfirmProhibitOtherUsersSuperUserAccess';
+    }
+
+    message = _pk_translate(message);
+    message = message.replace('%s', login);
+
+    $('#superUserAccessConfirm h2').text(message);
+
+    piwikHelper.modalConfirm('#superUserAccessConfirm', {yes: function () {
+        updateSuperUserAccess(login, !hasAccess);
+    }});
 }
 
 function bindUpdateAccess() {
@@ -175,7 +229,11 @@ $(document).ready(function () {
             $(this)
                 .toggle()
                 .parent()
-                .prepend($('<input type="submit" class="submit updateuser"  value="' + _pk_translate('General_Save') + '" />')
+                .prepend($('<a class="canceluser">' + _pk_translate('General_OrCancel', ['', '']) + '</a>')
+                    .click(function () {
+                        piwikHelper.redirect();
+                    })
+                ).prepend($('<input type="submit" class="submit updateuser"  value="' + _pk_translate('General_Save') + '" />')
                     .click(function () {
                         var onValidate = function () {
                             sendUpdateUserAJAX($('tr#' + idRow));
@@ -186,7 +244,7 @@ $(document).ready(function () {
                             onValidate();
                         }
                     })
-                );
+            );
         });
 
     $('.editable').keypress(submitOnEnter);
@@ -205,7 +263,7 @@ $(document).ready(function () {
         }
     );
 
-    $('.addrow').click(function () {
+    $('.admin .user .add-user').click(function () {
         piwikHelper.hideAjaxError();
         $(this).toggle();
 
@@ -214,11 +272,12 @@ $(document).ready(function () {
         newRowId = 'row' + newRowId;
 
         $($.parseHTML(' <tr id="' + newRowId + '">\
-				<td><input id="useradd_login" value="login?" size="10" /></td>\
-				<td><input id="useradd_password" value="password" size="10" /></td>\
-				<td><input id="useradd_email" value="email@domain.com" size="15" /></td>\
-				<td><input id="useradd_alias" value="alias" size="15" /></td>\
+				<td><input id="useradd_login" placeholder="login" size="10" /></td>\
+				<td><input id="useradd_password" placeholder="password" size="10" /></td>\
+				<td><input id="useradd_email" placeholder="email@domain.com" size="15" /></td>\
+				<td><input id="useradd_alias" placeholder="alias" size="15" /></td>\
 				<td>-</td>\
+                <td>-</td>\
 				<td><input type="submit" class="submit adduser"  value="' + _pk_translate('General_Save') + '" /></td>\
 	  			<td><span class="cancel">' + sprintf(_pk_translate('General_OrCancel'), "", "") + '</span></td>\
 	 		</tr>'))
@@ -229,22 +288,27 @@ $(document).ready(function () {
         $('.cancel').click(function () {
             piwikHelper.hideAjaxError();
             $(this).parents('tr').remove();
-            $('.addrow').toggle();
+            $('.add-user').toggle();
         });
     });
 
-    $('.updateAccess')
+    $('#access .updateAccess')
         .click(bindUpdateAccess);
 
+    $('#superUserAccess .accessGranted, #superUserAccess .updateAccess').click(bindUpdateSuperUserAccess);
+
     // when a site is selected, reload the page w/o showing the ajax loading element
-    $('#usersManagerSiteSelect').bind('piwik:siteSelected', function (e, site) {
+    $('#usersManagerSiteSelect').bind('change', function (e, site) {
         if (site.id != piwik.idSite) {
-            switchSite(
-                site.id,
-                site.name,
-                false /* do not show main ajax loading animation */,
-                true /* do not go to all websites dash */
-            );
+            piwik.broadcast.propagateNewPage('segment=&idSite=' + site.id, false);
+        }
+    });
+
+    // Show the token_auth
+    $('.token_auth').click(function () {
+        var token = $(this).data('token');
+        if ($(this).text() != token) {
+            $(this).text(token);
         }
     });
 });

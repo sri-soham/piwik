@@ -1,18 +1,21 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link    http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
+namespace Piwik\Tests\Fixtures;
+
 use Piwik\Date;
 use Piwik\Plugins\Goals\API as APIGoals;
 use Piwik\Plugins\SitesManager\API as APISitesManager;
+use Piwik\Tests\Framework\Fixture;
 
 /**
  * Adds two websites and tracks visits from two visitors on different days.
  */
-class Test_Piwik_Fixture_TwoSitesTwoVisitorsDifferentDays extends Test_Piwik_BaseFixture
+class TwoSitesTwoVisitorsDifferentDays extends Fixture
 {
     public $idSite1 = 1;
     public $idSite2 = 2;
@@ -21,6 +24,8 @@ class Test_Piwik_Fixture_TwoSitesTwoVisitorsDifferentDays extends Test_Piwik_Bas
     public $dateTime = '2010-01-03 11:22:33';
 
     public $allowConversions = false;
+    const URL_IS_GOAL_WITH_CAMPAIGN_PARAMETERS = 'http://example.org/index.htm?pk_campaign=goal-matching-url-parameter';
+
 
     public function setUp()
     {
@@ -55,6 +60,9 @@ class Test_Piwik_Fixture_TwoSitesTwoVisitorsDifferentDays extends Test_Piwik_Bas
             if (!self::goalExists($idSite = 1, $idGoal = 2)) {
                 APIGoals::getInstance()->addGoal($this->idSite2, 'all', 'url', 'http', 'contains');
             }
+            if (!self::goalExists($idSite = 1, $idGoal = 3)) {
+                APIGoals::getInstance()->addGoal($this->idSite1, 'matching URL with campaign parameter', 'url', self::URL_IS_GOAL_WITH_CAMPAIGN_PARAMETERS, 'contains');
+            }
         }
 
         APISitesManager::getInstance()->updateSite(
@@ -69,7 +77,7 @@ class Test_Piwik_Fixture_TwoSitesTwoVisitorsDifferentDays extends Test_Piwik_Bas
             $startDate = null, $excludedUserAgents = null, $keepURLFragments = 1); // KEEP_URL_FRAGMENT_YES Yes for idSite 2
     }
 
-    private function trackVisits()
+    public function trackVisits()
     {
         $dateTime = $this->dateTime;
         $idSite = $this->idSite1;
@@ -85,7 +93,7 @@ class Test_Piwik_Fixture_TwoSitesTwoVisitorsDifferentDays extends Test_Piwik_Bas
      */
     private function trackVisitsSite1($idSite, $dateTime)
     {
-// -
+        // -
         // First visitor on Idsite 1: two page views
         $datetimeSpanOverTwoDays = '2010-01-03 23:55:00';
         $visitorA = self::getTracker($idSite, $datetimeSpanOverTwoDays, $defaultInit = true);
@@ -117,34 +125,44 @@ class Test_Piwik_Fixture_TwoSitesTwoVisitorsDifferentDays extends Test_Piwik_Bas
 
         // -
         // Second visitor again on Idsite 1: 2 page views 2 days later, 2010-01-05
-        $visitorB->setForceVisitDateTime(Date::factory($dateTime)->addHour(48)->getDatetime());
-        // visitor_returning is set to 1 only when visit count more than 1
-        // Temporary, until we implement 1st party cookies in PiwikTracker
-        $visitorB->DEBUG_APPEND_URL .= '&_idvc=2&_viewts=' . Date::factory($dateTime)->getTimestamp();
+        // If you are thinking of *decreasing* this value, just DON'T (it's important for our test case)
+        $daysToGenerateVisitsFor = 10;
+        for($days = 2; $days < $daysToGenerateVisitsFor; $days++) {
+            $hoursOffset = $days * 24;
 
-        $visitorB->setUrlReferrer('http://referrer.com/Other_Page.htm');
-        $visitorB->setUrl('http://example.org/index.htm');
-        $visitorB->setGenerationTime(323);
-        self::assertTrue($visitorB->doTrackPageView('second visitor/two days later/a new visit'));
-        // Second page view 6 minutes later
-        $visitorB->setForceVisitDateTime(Date::factory($dateTime)->addHour(48)->addHour(0.1)->getDatetime());
-        $visitorB->setUrl('http://example.org/thankyou');
-        $visitorB->setGenerationTime(173);
-        self::assertTrue($visitorB->doTrackPageView('second visitor/two days later/second page view'));
+            $visitorB->setForceVisitDateTime(Date::factory($dateTime)->addHour($hoursOffset)->getDatetime());
+            // visitor_returning is set to 1 only when visit count more than 1
+            // Temporary, until we implement 1st party cookies in PiwikTracker
+            $visitorB->DEBUG_APPEND_URL .= '&_idvc=2&_viewts=' . Date::factory($dateTime)->getTimestamp();
 
-        // testing a strange combination causing an error in r3767
-        $visitorB->setForceVisitDateTime(Date::factory($dateTime)->addHour(48)->addHour(0.2)->getDatetime());
-        self::assertTrue($visitorB->doTrackAction('mailto:test@example.org', 'link'));
-        $visitorB->setForceVisitDateTime(Date::factory($dateTime)->addHour(48)->addHour(0.25)->getDatetime());
-        self::assertTrue($visitorB->doTrackAction('mailto:test@example.org/strangelink', 'link'));
+            $visitorB->setUrlReferrer('http://referrer.com/Other_Page.htm');
+            if( in_array($days, array(2,3,4,$daysToGenerateVisitsFor-1)) ) {
+                $visitorB->setUrl( self::URL_IS_GOAL_WITH_CAMPAIGN_PARAMETERS );
+            } else {
+                $visitorB->setUrl('http://example.org/index.htm');
+            }
 
-        // Actions.getPageTitle tested with this title
-        $visitorB->setForceVisitDateTime(Date::factory($dateTime)->addHour(48)->addHour(0.25)->getDatetime());
-        $visitorB->setGenerationTime(452);
-        self::assertTrue($visitorB->doTrackPageView('Checkout / Purchasing...'));
-        self::checkBulkTrackingResponse($visitorB->doBulkTrack());
+            $visitorB->setGenerationTime(323);
+            self::assertTrue($visitorB->doTrackPageView('second visitor/two days later/a new visit'));
+            // Second page view 6 minutes later
+            $visitorB->setForceVisitDateTime(Date::factory($dateTime)->addHour($hoursOffset)->addHour(0.1)->getDatetime());
+            $visitorB->setUrl('http://example.org/thankyou');
+            $visitorB->setGenerationTime(173);
+            self::assertTrue($visitorB->doTrackPageView('second visitor/two days later/second page view'));
+
+            // testing a strange combination causing an error in r3767
+            $visitorB->setForceVisitDateTime(Date::factory($dateTime)->addHour($hoursOffset)->addHour(0.2)->getDatetime());
+            self::assertTrue($visitorB->doTrackAction('mailto:test@example.org', 'link'));
+            $visitorB->setForceVisitDateTime(Date::factory($dateTime)->addHour($hoursOffset)->addHour(0.25)->getDatetime());
+            self::assertTrue($visitorB->doTrackAction('mailto:test@example.org/strangelink', 'link'));
+
+            // Actions.getPageTitle tested with this title
+            $visitorB->setForceVisitDateTime(Date::factory($dateTime)->addHour($hoursOffset)->addHour(0.25)->getDatetime());
+            $visitorB->setGenerationTime(452);
+            self::assertTrue($visitorB->doTrackPageView('Checkout / Purchasing...'));
+            self::checkBulkTrackingResponse($visitorB->doBulkTrack());
+        }
     }
-
 
     /**
      * @param $idSite2
@@ -173,6 +191,4 @@ class Test_Piwik_Fixture_TwoSitesTwoVisitorsDifferentDays extends Test_Piwik_Bas
         $visitorAsite2->setGenerationTime(503);
         self::checkResponse($visitorAsite2->doTrackPageView(''));
     }
-
 }
-

@@ -1,39 +1,31 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik_Plugins
- * @package PrivacyManager
  */
 namespace Piwik\Plugins\PrivacyManager;
 
-use Exception;
+use HTML_QuickForm2_DataSource_Array;
 use Piwik\Common;
-use Piwik\Config;
+use Piwik\Config as PiwikConfig;
+use Piwik\Container\StaticContainer;
 use Piwik\DataTable\DataTableInterface;
 use Piwik\Date;
 use Piwik\Db;
-use Piwik\Menu\MenuAdmin;
-
 use Piwik\Metrics;
 use Piwik\Option;
-use Piwik\Period\Range;
 use Piwik\Period;
+use Piwik\Period\Range;
 use Piwik\Piwik;
+use Piwik\Plugin;
 use Piwik\Plugins\Goals\Archiver;
-use Piwik\ScheduledTask;
 use Piwik\Db\Factory;
-use Piwik\ScheduledTime\Daily;
-use Piwik\ScheduledTime;
+use Piwik\Plugins\Installation\FormDefaultSettings;
 use Piwik\Site;
 use Piwik\Tracker\GoalManager;
-
-
-require_once PIWIK_INCLUDE_PATH . '/plugins/PrivacyManager/LogDataPurger.php';
-require_once PIWIK_INCLUDE_PATH . '/plugins/PrivacyManager/ReportsPurger.php';
 
 /**
  * Specifically include this for Tracker API (which does not use autoloader)
@@ -42,30 +34,29 @@ require_once PIWIK_INCLUDE_PATH . '/plugins/PrivacyManager/DoNotTrackHeaderCheck
 require_once PIWIK_INCLUDE_PATH . '/plugins/PrivacyManager/IPAnonymizer.php';
 
 /**
- * @package PrivacyManager
  */
-class PrivacyManager extends \Piwik\Plugin
+class PrivacyManager extends Plugin
 {
     const OPTION_LAST_DELETE_PIWIK_LOGS = "lastDelete_piwik_logs";
     const OPTION_LAST_DELETE_PIWIK_REPORTS = 'lastDelete_piwik_reports';
     const OPTION_LAST_DELETE_PIWIK_LOGS_INITIAL = "lastDelete_piwik_logs_initial";
-    const DEFAULT_MAX_ROWS_PER_QUERY = 100000;
 
-    // default config options for data purging feature
-    public static $defaultPurgeDataOptions = array(
-        'delete_logs_enable'                   => 0,
-        'delete_logs_schedule_lowest_interval' => 7,
-        'delete_logs_older_than'               => 180,
-        'delete_logs_max_rows_per_query'       => self::DEFAULT_MAX_ROWS_PER_QUERY,
-        'delete_reports_enable'                => 0,
-        'delete_reports_older_than'            => 12,
-        'delete_reports_keep_basic_metrics'    => 1,
-        'delete_reports_keep_day_reports'      => 0,
-        'delete_reports_keep_week_reports'     => 0,
-        'delete_reports_keep_month_reports'    => 1,
-        'delete_reports_keep_year_reports'     => 1,
-        'delete_reports_keep_range_reports'    => 0,
-        'delete_reports_keep_segment_reports'  => 0,
+    // options for data purging feature array[configName => configSection]
+    public static $purgeDataOptions = array(
+        'delete_logs_enable'                   => 'Deletelogs',
+        'delete_logs_schedule_lowest_interval' => 'Deletelogs',
+        'delete_logs_older_than'               => 'Deletelogs',
+        'delete_logs_max_rows_per_query'       => 'Deletelogs',
+        'enable_auto_database_size_estimate'   => 'Deletelogs',
+        'delete_reports_enable'                => 'Deletereports',
+        'delete_reports_older_than'            => 'Deletereports',
+        'delete_reports_keep_basic_metrics'    => 'Deletereports',
+        'delete_reports_keep_day_reports'      => 'Deletereports',
+        'delete_reports_keep_week_reports'     => 'Deletereports',
+        'delete_reports_keep_month_reports'    => 'Deletereports',
+        'delete_reports_keep_year_reports'     => 'Deletereports',
+        'delete_reports_keep_range_reports'    => 'Deletereports',
+        'delete_reports_keep_segment_reports'  => 'Deletereports',
     );
 
     private $dntChecker = null;
@@ -140,40 +131,24 @@ class PrivacyManager extends \Piwik\Plugin
     }
 
     /**
-     * @see Piwik_Plugin::getListHooksRegistered
+     * @see Piwik\Plugin::registerEvents
      */
-    public function getListHooksRegistered()
+    public function registerEvents()
     {
         return array(
-            'AssetManager.getJavaScriptFiles' => 'getJsFiles',
-            'Menu.Admin.addItems'             => 'addMenu',
-            'TaskScheduler.getScheduledTasks' => 'getScheduledTasks',
-            'Tracker.setTrackerCacheGeneral'  => 'setTrackerCacheGeneral',
-            'Tracker.isExcludedVisit'         => array($this->dntChecker, 'checkHeaderInTracker'),
-            'Tracker.setVisitorIp'            => array($this->ipAnonymizer, 'setVisitorIpAddress'),
+            'AssetManager.getJavaScriptFiles'         => 'getJsFiles',
+            'Tracker.setTrackerCacheGeneral'          => 'setTrackerCacheGeneral',
+            'Tracker.isExcludedVisit'                 => array($this->dntChecker, 'checkHeaderInTracker'),
+            'Tracker.setVisitorIp'                    => array($this->ipAnonymizer, 'setVisitorIpAddress'),
+            'Installation.defaultSettingsForm.init'   => 'installationFormInit',
+            'Installation.defaultSettingsForm.submit' => 'installationFormSubmit',
         );
     }
 
     public function setTrackerCacheGeneral(&$cacheContent)
     {
-        $this->ipAnonymizer->setTrackerCacheGeneral($cacheContent);
-        $this->dntChecker->setTrackerCacheGeneral($cacheContent);
-    }
-
-    public function getScheduledTasks(&$tasks)
-    {
-        // both tasks are low priority so they will execute after most others, but not lowest, so
-        // they will execute before the optimize tables task
-
-        $purgeReportDataTask = new ScheduledTask(
-            $this, 'deleteReportData', null, ScheduledTime::factory('daily'), ScheduledTask::LOW_PRIORITY
-        );
-        $tasks[] = $purgeReportDataTask;
-
-        $purgeLogDataTask = new ScheduledTask(
-            $this, 'deleteLogData', null, ScheduledTime::factory('daily'), ScheduledTask::LOW_PRIORITY
-        );
-        $tasks[] = $purgeLogDataTask;
+        $config       = new Config();
+        $cacheContent = $config->setTrackerCacheGeneral($cacheContent);
     }
 
     public function getJsFiles(&$jsFiles)
@@ -181,12 +156,50 @@ class PrivacyManager extends \Piwik\Plugin
         $jsFiles[] = "plugins/PrivacyManager/javascripts/privacySettings.js";
     }
 
-    function addMenu()
+    /**
+     * Customize the Installation "default settings" form.
+     *
+     * @param FormDefaultSettings $form
+     */
+    public function installationFormInit(FormDefaultSettings $form)
     {
-        MenuAdmin::addEntry('PrivacyManager_MenuPrivacySettings',
-            array('module' => 'PrivacyManager', 'action' => 'privacySettings'),
-            Piwik::isUserHasSomeAdminAccess(),
-            $order = 7);
+        $form->addElement('checkbox', 'do_not_track', null,
+            array(
+                'content' => '<div class="form-help">' . Piwik::translate('PrivacyManager_DoNotTrack_EnabledMoreInfo') . '</div> &nbsp;&nbsp;' . Piwik::translate('PrivacyManager_DoNotTrack_Enable')
+            ));
+        $form->addElement('checkbox', 'anonymise_ip', null,
+            array(
+                'content' => '<div class="form-help">' . Piwik::translate('PrivacyManager_AnonymizeIpExtendedHelp', array('213.34.51.91', '213.34.0.0')) . '</div> &nbsp;&nbsp;' . Piwik::translate('PrivacyManager_AnonymizeIpInlineHelp')
+            ));
+
+        // default values
+        $form->addDataSource(new HTML_QuickForm2_DataSource_Array(array(
+            'do_not_track' => $this->dntChecker->isActive(),
+            'anonymise_ip' => IPAnonymizer::isActive(),
+        )));
+    }
+
+    /**
+     * Process the submit on the Installation "default settings" form.
+     *
+     * @param FormDefaultSettings $form
+     */
+    public function installationFormSubmit(FormDefaultSettings $form)
+    {
+        $doNotTrack = (bool) $form->getSubmitValue('do_not_track');
+        $dntChecker = new DoNotTrackHeaderChecker();
+        if ($doNotTrack) {
+            $dntChecker->activate();
+        } else {
+            $dntChecker->deactivate();
+        }
+
+        $anonymiseIp = (bool) $form->getSubmitValue('anonymise_ip');
+        if ($anonymiseIp) {
+            IPAnonymizer::activate();
+        } else {
+            IPAnonymizer::deactivate();
+        }
     }
 
     /**
@@ -199,37 +212,21 @@ class PrivacyManager extends \Piwik\Plugin
         $settings = array();
 
         // load settings from ini config
-        try {
-            $oldSettings = array(
-                'enable_auto_database_size_estimate',
+        $config = PiwikConfig::getInstance();
+        foreach (self::$purgeDataOptions as $configKey => $configSection) {
+            $values = $config->$configSection;
+            $settings[$configKey] = $values[$configKey];
+        }
 
-                // backwards compatibility: load old values in ini config if present
-                'delete_logs_enable',
-                'delete_logs_schedule_lowest_interval',
-                'delete_logs_older_than',
-            );
-
-            $deleteLogsSettings = Config::getInstance()->Deletelogs;
-            foreach ($oldSettings as $settingName) {
-                $settings[$settingName] = $deleteLogsSettings[$settingName];
-            }
-        } catch (Exception $e) {
-            // ignore
+        if (!Controller::isDataPurgeSettingsEnabled()) {
+            return $settings;
         }
 
         // load the settings for the data purging settings
-        foreach (self::$defaultPurgeDataOptions as $optionName => $defaultValue) {
-            $value = Option::get($optionName);
+        foreach (self::$purgeDataOptions as $configName => $configSection) {
+            $value = Option::get($configName);
             if ($value !== false) {
-                $settings[$optionName] = $value;
-            } else {
-                // if the option hasn't been set/created, use the default value
-                if (!isset($settings[$optionName])) {
-                    $settings[$optionName] = $defaultValue;
-                }
-
-                // option is not saved in the DB, so save it now
-                Option::set($optionName, $settings[$optionName]);
+                $settings[$configName] = $value;
             }
         }
 
@@ -243,9 +240,9 @@ class PrivacyManager extends \Piwik\Plugin
      */
     public static function savePurgeDataSettings($settings)
     {
-        foreach (self::$defaultPurgeDataOptions as $optionName => $defaultValue) {
-            if (isset($settings[$optionName])) {
-                Option::set($optionName, $settings[$optionName]);
+        foreach (self::$purgeDataOptions as $configName => $configSection) {
+            if (isset($settings[$configName])) {
+                Option::set($configName, $settings[$configName]);
             }
         }
     }
@@ -326,7 +323,9 @@ class PrivacyManager extends \Piwik\Plugin
         Option::set(self::OPTION_LAST_DELETE_PIWIK_LOGS, $lastDeleteDate);
 
         // execute the purge
-        LogDataPurger::make($settings)->purgeData();
+        /** @var LogDataPurger $logDataPurger */
+        $logDataPurger = StaticContainer::get('Piwik\Plugins\PrivacyManager\LogDataPurger');
+        $logDataPurger->purgeData($settings['delete_logs_older_than']);
 
         return true;
     }
@@ -351,8 +350,9 @@ class PrivacyManager extends \Piwik\Plugin
         $result = array();
 
         if ($settings['delete_logs_enable']) {
-            $logDataPurger = LogDataPurger::make($settings);
-            $result = array_merge($result, $logDataPurger->getPurgeEstimate());
+            /** @var LogDataPurger $logDataPurger */
+            $logDataPurger = StaticContainer::get('Piwik\Plugins\PrivacyManager\LogDataPurger');
+            $result = array_merge($result, $logDataPurger->getPurgeEstimate($settings['delete_logs_older_than']));
         }
 
         if ($settings['delete_reports_enable']) {
@@ -405,7 +405,7 @@ class PrivacyManager extends \Piwik\Plugin
      */
     private static function getMetricsToKeep()
     {
-        return array('nb_uniq_visitors', 'nb_visits', 'nb_actions', 'max_actions',
+        return array('nb_uniq_visitors', 'nb_visits', 'nb_users', 'nb_actions', 'max_actions',
                      'sum_visit_length', 'bounce_count', 'nb_visits_converted', 'nb_conversions',
                      'revenue', 'quantity', 'price', 'orders');
     }

@@ -1,12 +1,10 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik_Plugins
- * @package VisitTime
  */
 namespace Piwik\Plugins\VisitTime;
 
@@ -16,6 +14,7 @@ use Piwik\DataTable;
 use Piwik\Date;
 use Piwik\Metrics;
 use Piwik\Period;
+use Piwik\Period\Range;
 use Piwik\Piwik;
 use Piwik\Site;
 
@@ -24,7 +23,6 @@ require_once PIWIK_INCLUDE_PATH . '/plugins/VisitTime/functions.php';
 /**
  * VisitTime API lets you access reports by Hour (Server time), and by Hour Local Time of your visitors.
  *
- * @package VisitTime
  * @method static \Piwik\Plugins\VisitTime\API getInstance()
  */
 class API extends \Piwik\Plugin\API
@@ -34,7 +32,8 @@ class API extends \Piwik\Plugin\API
         Piwik::checkUserHasViewAccess($idSite);
         $archive = Archive::build($idSite, $period, $date, $segment);
         $dataTable = $archive->getDataTable($name);
-        $dataTable->filter('Sort', array('label', 'asc', true));
+
+        $dataTable->filter('Sort', array('label', 'asc', true, false));
         $dataTable->queueFilter('ColumnCallbackReplace', array('label', __NAMESPACE__ . '\getTimeLabel'));
         $dataTable->queueFilter('ReplaceColumnNames');
         return $dataTable;
@@ -42,15 +41,23 @@ class API extends \Piwik\Plugin\API
 
     public function getVisitInformationPerLocalTime($idSite, $period, $date, $segment = false)
     {
-        return $this->getDataTable(Archiver::LOCAL_TIME_RECORD_NAME, $idSite, $period, $date, $segment);
+        $table = $this->getDataTable(Archiver::LOCAL_TIME_RECORD_NAME, $idSite, $period, $date, $segment);
+        $table->filter('AddSegmentValue');
+
+        return $table;
     }
 
     public function getVisitInformationPerServerTime($idSite, $period, $date, $segment = false, $hideFutureHoursWhenToday = false)
     {
         $table = $this->getDataTable(Archiver::SERVER_TIME_RECORD_NAME, $idSite, $period, $date, $segment);
+
+        $timezone = Site::getTimezoneFor($idSite);
+        $table->filter('Piwik\Plugins\VisitTime\DataTable\Filter\AddSegmentByLabelInUTC', array($timezone, $period, $date));
+
         if ($hideFutureHoursWhenToday) {
             $table = $this->removeHoursInFuture($table, $idSite, $period, $date);
         }
+
         return $table;
     }
 
@@ -79,7 +86,7 @@ class API extends \Piwik\Plugin\API
         }
 
         // get metric data for every day within the supplied period
-        $oPeriod = Period::makePeriodFromQueryParams(Site::getTimezoneFor($idSite), $period, $date);
+        $oPeriod = Period\Factory::makePeriodFromQueryParams(Site::getTimezoneFor($idSite), $period, $date);
         $dateRange = $oPeriod->getDateStart()->toString() . ',' . $oPeriod->getDateEnd()->toString();
         $archive = Archive::build($idSite, 'day', $dateRange, $segment);
 

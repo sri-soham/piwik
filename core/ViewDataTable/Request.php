@@ -1,12 +1,10 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Piwik
  */
 
 namespace Piwik\ViewDataTable;
@@ -34,14 +32,10 @@ class Request
      * It builds the API request string and uses Request to call the API.
      * The requested DataTable object is stored in $this->dataTable.
      */
-    public function loadDataTableFromAPI($fixedRequestParams = array())
+    public function loadDataTableFromAPI()
     {
         // we build the request (URL) to call the API
         $requestArray = $this->getRequestArray();
-
-        foreach ($fixedRequestParams as $key => $value) {
-            $requestArray[$key] = $value;
-        }
 
         // we make the request to the API
         $request = new ApiRequest($requestArray);
@@ -75,6 +69,11 @@ class Request
             'filter_excludelowpop_value',
             'filter_column',
             'filter_pattern',
+            'flat',
+            'expanded',
+            'pivotBy',
+            'pivotByColumn',
+            'pivotByColumnLimit'
         );
 
         foreach ($toSetEventually as $varToSet) {
@@ -101,6 +100,14 @@ class Request
             unset($requestArray['filter_limit']);
         }
 
+        if ($this->requestConfig->disable_generic_filters) {
+            $requestArray['disable_generic_filters'] = '1';
+        }
+
+        if ($this->requestConfig->disable_queued_filters) {
+            $requestArray['disable_queued_filters'] = 1;
+        }
+
         return $requestArray;
     }
 
@@ -116,8 +123,8 @@ class Request
         if (isset($_GET[$nameVar])) {
             return Common::sanitizeInputValue($_GET[$nameVar]);
         }
-        $default = $this->getDefault($nameVar);
-        return $default;
+
+        return $this->getDefault($nameVar);
     }
 
     /**
@@ -135,5 +142,4 @@ class Request
 
         return false;
     }
-
 }

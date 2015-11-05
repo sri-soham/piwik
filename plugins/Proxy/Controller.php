@@ -1,12 +1,10 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik_Plugins
- * @package Proxy
  */
 namespace Piwik\Plugins\Proxy;
 
@@ -21,7 +19,6 @@ use Piwik\UrlHelper;
 /**
  * Controller for proxy services
  *
- * @package Proxy
  */
 class Controller extends \Piwik\Plugin\Controller
 {
@@ -81,7 +78,9 @@ class Controller extends \Piwik\Plugin\Controller
     public function redirect()
     {
         $url = Common::getRequestVar('url', '', 'string', $_GET);
-
+        if (!UrlHelper::isLookLikeUrl($url)) {
+            die('Please check the &url= parameter: it should to be a valid URL');
+        }
         // validate referrer
         $referrer = Url::getReferrer();
         if (empty($referrer) || !Url::isLocalUrl($referrer)) {
@@ -96,10 +95,7 @@ class Controller extends \Piwik\Plugin\Controller
         if (!self::isPiwikUrl($url)) {
             Piwik::checkUserHasSomeViewAccess();
         }
-        if (!UrlHelper::isLookLikeUrl($url)) {
-            die('Please check the &url= parameter: it should to be a valid URL');
-        }
-        @header('Content-Type: text/html; charset=utf-8');
+        Common::sendHeader('Content-Type: text/html; charset=utf-8');
         echo '<html><head><meta http-equiv="refresh" content="0;url=' . $url . '" /></head></html>';
 
         exit;
@@ -111,7 +107,7 @@ class Controller extends \Piwik\Plugin\Controller
      * @param string $url
      * @return bool True if valid; false otherwise
      */
-    static public function isPiwikUrl($url)
+    public static function isPiwikUrl($url)
     {
         // guard for IE6 meta refresh parsing weakness (OSVDB 19029)
         if (strpos($url, ';') !== false

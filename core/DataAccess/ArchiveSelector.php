@@ -1,30 +1,24 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Piwik
  */
 namespace Piwik\DataAccess;
 
 use Exception;
-use Piwik\ArchiveProcessor\Rules;
+use Piwik\Archive;
+use Piwik\Archive\Chunk;
 use Piwik\ArchiveProcessor;
+use Piwik\ArchiveProcessor\Rules;
 use Piwik\Common;
 use Piwik\Date;
 use Piwik\Db;
-use Piwik\Log;
-
 use Piwik\Period;
 use Piwik\Period\Range;
-use Piwik\Piwik;
 use Piwik\Segment;
-use Piwik\Site;
-use Piwik\DataAccess\ArchiveTableCreator;
-use Piwik\Db\Factory;
 
 /**
  * Data Access object used to query archives
@@ -46,32 +40,46 @@ class ArchiveSelector
 
     const NB_VISITS_CONVERTED_RECORD_LOOKED_UP = "nb_visits_converted";
 
-    static public function getArchiveIdAndVisits(Site $site, Period $period, Segment $segment, $minDatetimeArchiveProcessedUTC, $requestedPlugin)
+    private static function getModel()
     {
-        $pluginOrVisitsSummary = array("VisitsSummary", $requestedPlugin);
-        $pluginOrVisitsSummary = array_unique($pluginOrVisitsSummary);
-        $sqlWhereArchiveName = self::getNameCondition($pluginOrVisitsSummary, $segment);
+        return new Model();
+    }
 
-        $Archive = Factory::getDAO('archive');
-        $results = $Archive->getArchiveIdAndVisits(
-                        ArchiveTableCreator::getNumericTable($period->getDateStart()),
-                        $site,
-                        $period,
-                        $minDatetimeArchiveProcessedUTC,
-                        $sqlWhereArchiveName
-                   );
+    public static function getArchiveIdAndVisits(ArchiveProcessor\Parameters $params, $minDatetimeArchiveProcessedUTC)
+    {
+        $idSite       = $params->getSite()->getId();
+        $period       = $params->getPeriod()->getId();
+        $dateStart    = $params->getPeriod()->getDateStart();
+        $dateStartIso = $dateStart->toString('Y-m-d');
+        $dateEndIso   = $params->getPeriod()->getDateEnd()->toString('Y-m-d');
+
+        $numericTable = ArchiveTableCreator::getNumericTable($dateStart);
+
+        $minDatetimeIsoArchiveProcessedUTC = null;
+        if ($minDatetimeArchiveProcessedUTC) {
+            $minDatetimeIsoArchiveProcessedUTC = Date::factory($minDatetimeArchiveProcessedUTC)->getDatetime();
+        }
+
+        $requestedPlugin = $params->getRequestedPlugin();
+        $segment         = $params->getSegment();
+        $plugins = array("VisitsSummary", $requestedPlugin);
+
+        $doneFlags      = Rules::getDoneFlags($plugins, $segment);
+        $doneFlagValues = Rules::getSelectableDoneFlagValues();
+
+        $results = self::getModel()->getArchiveIdAndVisits($numericTable, $idSite, $period, $dateStartIso, $dateEndIso, $minDatetimeIsoArchiveProcessedUTC, $doneFlags, $doneFlagValues);
+
         if (empty($results)) {
             return false;
         }
 
         $idArchive = self::getMostRecentIdArchiveFromResults($segment, $requestedPlugin, $results);
+
         $idArchiveVisitsSummary = self::getMostRecentIdArchiveFromResults($segment, "VisitsSummary", $results);
 
         list($visits, $visitsConverted) = self::getVisitsMetricsFromResults($idArchive, $idArchiveVisitsSummary, $results);
 
-        if ($visits === false
-            && $idArchive === false
-        ) {
+        if (false === $visits && false === $idArchive) {
             return false;
         }
 
@@ -82,9 +90,11 @@ class ArchiveSelector
     {
         $visits = $visitsConverted = false;
         $archiveWithVisitsMetricsWasFound = ($idArchiveVisitsSummary !== false);
+
         if ($archiveWithVisitsMetricsWasFound) {
             $visits = $visitsConverted = 0;
         }
+
         foreach ($results as $result) {
             if (in_array($result['idarchive'], array($idArchive, $idArchiveVisitsSummary))) {
                 $value = (int)$result['value'];
@@ -100,6 +110,7 @@ class ArchiveSelector
                 }
             }
         }
+
         return array($visits, $visitsConverted);
     }
 
@@ -107,6 +118,7 @@ class ArchiveSelector
     {
         $idArchive = false;
         $namesRequestedPlugin = Rules::getDoneFlags(array($requestedPlugin), $segment);
+
         foreach ($results as $result) {
             if ($idArchive === false
                 && in_array($result['name'], $namesRequestedPlugin)
@@ -115,6 +127,7 @@ class ArchiveSelector
                 break;
             }
         }
+
         return $idArchive;
     }
 
@@ -131,9 +144,25 @@ class ArchiveSelector
      *                       '2010-01-01' => array(1,2,3)
      *                   )
      *               )
+     * @throws
      */
-    static public function getArchiveIds($siteIds, $periods, $segment, $plugins)
+    public static function getArchiveIds($siteIds, $periods, $segment, $plugins)
     {
+        if (empty($siteIds)) {
+            throw new \Exception("Website IDs could not be read from the request, ie. idSite=");
+        }
+
+        foreach ($siteIds as $index => $siteId) {
+            $siteIds[$index] = (int) $siteId;
+        }
+
+        $getArchiveIdsSql = "SELECT idsite, name, date1, date2, MAX(idarchive) as idarchive
+                               FROM %s
+                              WHERE idsite IN (" . implode(',', $siteIds) . ")
+                                AND " . self::getNameCondition($plugins, $segment) . "
+                                AND %s
+                           GROUP BY idsite, date1, date2";
+
         $monthToPeriods = array();
         foreach ($periods as $period) {
             /** @var Period $period */
@@ -141,12 +170,48 @@ class ArchiveSelector
             $monthToPeriods[$table][] = $period;
         }
 
-        $Archive = Factory::getDAO('archive');
-        $result = $Archive->getArchiveIds(
-                    $siteIds,
-                    $monthToPeriods,
-                    self::getNameCondition($plugins, $segment)
-                  );
+        // for every month within the archive query, select from numeric table
+        $result = array();
+        foreach ($monthToPeriods as $table => $periods) {
+            $firstPeriod = reset($periods);
+
+            $bind = array();
+
+            if ($firstPeriod instanceof Range) {
+                $dateCondition = "period = ? AND date1 = ? AND date2 = ?";
+                $bind[] = $firstPeriod->getId();
+                $bind[] = $firstPeriod->getDateStart()->toString('Y-m-d');
+                $bind[] = $firstPeriod->getDateEnd()->toString('Y-m-d');
+            } else {
+                // we assume there is no range date in $periods
+                $dateCondition = '(';
+
+                foreach ($periods as $period) {
+                    if (strlen($dateCondition) > 1) {
+                        $dateCondition .= ' OR ';
+                    }
+
+                    $dateCondition .= "(period = ? AND date1 = ? AND date2 = ?)";
+                    $bind[] = $period->getId();
+                    $bind[] = $period->getDateStart()->toString('Y-m-d');
+                    $bind[] = $period->getDateEnd()->toString('Y-m-d');
+                }
+
+                $dateCondition .= ')';
+            }
+
+            $sql = sprintf($getArchiveIdsSql, $table, $dateCondition);
+
+            $archiveIds = Db::fetchAll($sql, $bind);
+
+            // get the archive IDs
+            foreach ($archiveIds as $row) {
+                //FIXMEA duplicate with Archive.php
+                $dateStr = $row['date1'] . ',' . $row['date2'];
+
+                $result[$row['name']][$dateStr][] = $row['idarchive'];
+            }
+        }
 
         return $result;
     }
@@ -155,23 +220,130 @@ class ArchiveSelector
      * Queries and returns archive data using a set of archive IDs.
      *
      * @param array $archiveIds The IDs of the archives to get data from.
-     * @param array $recordNames The names of the data to retrieve (ie, nb_visits, nb_actions, etc.)
+     * @param array $recordNames The names of the data to retrieve (ie, nb_visits, nb_actions, etc.).
+     *                           Note: You CANNOT pass multiple recordnames if $loadAllSubtables=true.
      * @param string $archiveDataType The archive data type (either, 'blob' or 'numeric').
-     * @param bool $loadAllSubtables Whether to pre-load all subtables
+     * @param int|null|string $idSubtable  null if the root blob should be loaded, an integer if a subtable should be
+     *                                     loaded and 'all' if all subtables should be loaded.
      * @throws Exception
      * @return array
      */
-    static public function getArchiveData($archiveIds, $recordNames, $archiveDataType, $loadAllSubtables)
+    public static function getArchiveData($archiveIds, $recordNames, $archiveDataType, $idSubtable)
     {
-        $Archive = Factory::getDAO('archive');
-        $rows = $Archive->getArchiveData(
-                    $archiveIds,
-                    $recordNames,
-                    $archiveDataType,
-                    $loadAllSubtables
-                );
+        $chunk = new Chunk();
+
+        // create the SQL to select archive data
+        $loadAllSubtables = $idSubtable == Archive::ID_SUBTABLE_LOAD_ALL_SUBTABLES;
+        if ($loadAllSubtables) {
+            $name = reset($recordNames);
+
+            // select blobs w/ name like "$name_[0-9]+" w/o using RLIKE
+            $nameEnd = strlen($name) + 1;
+            $nameEndAppendix = $nameEnd + 1;
+            $appendix = $chunk->getAppendix();
+            $lenAppendix = strlen($appendix);
+
+            $checkForChunkBlob  = "SUBSTRING(name, $nameEnd, $lenAppendix) = '$appendix'";
+            $checkForSubtableId = "(SUBSTRING(name, $nameEndAppendix, 1) >= '0'
+                                    AND SUBSTRING(name, $nameEndAppendix, 1) <= '9')";
+
+            $whereNameIs = "(name = ? OR (name LIKE ? AND ( $checkForChunkBlob OR $checkForSubtableId ) ))";
+            $bind = array($name, $name . '%');
+        } else {
+            if ($idSubtable === null) {
+                // select root table or specific record names
+                $bind = array_values($recordNames);
+            } else {
+                // select a subtable id
+                $bind = array();
+                foreach ($recordNames as $recordName) {
+                    // to be backwards compatibe we need to look for the exact idSubtable blob and for the chunk
+                    // that stores the subtables (a chunk stores many blobs in one blob)
+                    $bind[] = $chunk->getRecordNameForTableId($recordName, $idSubtable);
+                    $bind[] = self::appendIdSubtable($recordName, $idSubtable);
+                }
+            }
+
+            $inNames     = Common::getSqlStringFieldsArray($bind);
+            $whereNameIs = "name IN ($inNames)";
+        }
+
+        $getValuesSql = "SELECT value, name, idsite, date1, date2, ts_archived
+                                FROM %s
+                                WHERE idarchive IN (%s)
+                                  AND " . $whereNameIs;
+
+        // get data from every table we're querying
+        $rows = array();
+        foreach ($archiveIds as $period => $ids) {
+            if (empty($ids)) {
+                throw new Exception("Unexpected: id archive not found for period '$period' '");
+            }
+
+            // $period = "2009-01-04,2009-01-04",
+            $date = Date::factory(substr($period, 0, 10));
+
+            $isNumeric = $archiveDataType == 'numeric';
+            if ($isNumeric) {
+                $table = ArchiveTableCreator::getNumericTable($date);
+            } else {
+                $table = ArchiveTableCreator::getBlobTable($date);
+            }
+
+            $sql      = sprintf($getValuesSql, $table, implode(',', $ids));
+            $dataRows = Db::fetchAll($sql, $bind);
+
+            foreach ($dataRows as $row) {
+                if ($isNumeric) {
+                    $rows[] = $row;
+                } else {
+                    $row['value'] = self::uncompress($row['value']);
+
+                    if ($chunk->isRecordNameAChunk($row['name'])) {
+                        self::moveChunkRowToRows($rows, $row, $chunk, $loadAllSubtables, $idSubtable);
+                    } else {
+                        $rows[] = $row;
+                    }
+                }
+            }
+        }
 
         return $rows;
+    }
+
+    private static function moveChunkRowToRows(&$rows, $row, Chunk $chunk, $loadAllSubtables, $idSubtable)
+    {
+        // $blobs = array([subtableID] = [blob of subtableId])
+        $blobs = unserialize($row['value']);
+
+        if (!is_array($blobs)) {
+            return;
+        }
+
+        // $rawName = eg 'PluginName_ArchiveName'
+        $rawName = $chunk->getRecordNameWithoutChunkAppendix($row['name']);
+
+        if ($loadAllSubtables) {
+            foreach ($blobs as $subtableId => $blob) {
+                $row['value'] = $blob;
+                $row['name']  = self::appendIdSubtable($rawName, $subtableId);
+                $rows[] = $row;
+            }
+        } elseif (array_key_exists($idSubtable, $blobs)) {
+            $row['value'] = $blobs[$idSubtable];
+            $row['name'] = self::appendIdSubtable($rawName, $idSubtable);
+            $rows[] = $row;
+        }
+    }
+
+    public static function appendIdSubtable($recordName, $id)
+    {
+        return $recordName . "_" . $id;
+    }
+
+    private static function uncompress($data)
+    {
+        return @gzuncompress($data);
     }
 
     /**
@@ -182,67 +354,16 @@ class ArchiveSelector
      * @param Segment $segment
      * @return string
      */
-    static private function getNameCondition(array $plugins, $segment)
+    private static function getNameCondition(array $plugins, Segment $segment)
     {
         // the flags used to tell how the archiving process for a specific archive was completed,
         // if it was completed
-        $doneFlags = Rules::getDoneFlags($plugins, $segment);
-
+        $doneFlags    = Rules::getDoneFlags($plugins, $segment);
         $allDoneFlags = "'" . implode("','", $doneFlags) . "'";
 
+        $possibleValues = Rules::getSelectableDoneFlagValues();
+
         // create the SQL to find archives that are DONE
-        return "(name IN ($allDoneFlags)) AND " .
-        " (value = '" . ArchiveWriter::DONE_OK . "' OR " .
-        " value = '" . ArchiveWriter::DONE_OK_TEMPORARY . "')";
-    }
-
-    static public function purgeOutdatedArchives(Date $dateStart)
-    {
-        $purgeArchivesOlderThan = Rules::shouldPurgeOutdatedArchives($dateStart);
-        if (!$purgeArchivesOlderThan) {
-            return;
-        }
-
-        $idArchivesToDelete = self::getTemporaryArchiveIdsOlderThan($dateStart, $purgeArchivesOlderThan);
-        if (!empty($idArchivesToDelete)) {
-            self::deleteArchiveIds($dateStart, $idArchivesToDelete);
-        }
-        self::deleteArchivesWithPeriodRange($dateStart);
-
-        Log::debug("Purging temporary archives: done [ purged archives older than %s in %s ] [Deleted IDs: %s]",
-            $purgeArchivesOlderThan, $dateStart->toString("Y-m"), implode(',', $idArchivesToDelete));
-    }
-
-    /*
-     * Deleting "Custom Date Range" reports after 1 day, since they can be re-processed and would take up un-necessary space
-     */
-    protected static function deleteArchivesWithPeriodRange(Date $date)
-    {
-        $Archive = Factory::getDAO('archive');
-        $Archive->deleteByPeriodRange($date);
-    }
-
-    protected static function deleteArchiveIds(Date $date, $idArchivesToDelete)
-    {
-        $Archive = Factory::getDAO('archive');
-        $Archive->deleteByArchiveIds($date, $idArchivesToDelete);
-    }
-
-    protected static function getTemporaryArchiveIdsOlderThan(Date $date, $purgeArchivesOlderThan)
-    {
-        $Archive = Factory::getDAO('archive');
-        $result = $Archive->getIdarchiveByValueTS(
-                    ArchiveTableCreator::getNumericTable($date),
-                    ArchiveProcessor::DONE_OK_TEMPORARY,
-                    ArchiveProcessor::DONE_ERROR,
-                    $purgeArchivesOlderThan
-                  );
-        $idArchivesToDelete = array();
-        if (!empty($result)) {
-            foreach ($result as $row) {
-                $idArchivesToDelete[] = $row['idarchive'];
-            }
-        }
-        return $idArchivesToDelete;
+        return "((name IN ($allDoneFlags)) AND (value IN (" . implode(',', $possibleValues) . ")))";
     }
 }

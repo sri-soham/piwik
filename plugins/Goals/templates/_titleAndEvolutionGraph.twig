@@ -1,16 +1,21 @@
 <span data-graph-id="{{ nameGraphEvolution }}"></span>
 
-{% if displayFullReport %}
-    <h2>{% if goalName is defined %}{{ 'Goals_GoalX'|translate(goalName)|raw }}{% else %}{{ 'Goals_GoalsOverview'|translate }}{% endif %}</h2>
+{% if displayFullReport or headline is defined %}
+    <h2 piwik-enriched-headline
+        {% if idGoal is defined and idGoal and goalName is defined and not ecommerce is defined %}
+            edit-url="{{ linkTo({'module': 'Goals', 'action': 'manage', 'idGoal': idGoal})|e('html_attr') }}"
+            feature-name="{{ 'Goals_Details'|translate|e('html_attr') }}"
+        {% endif %}
+       >{% if headline is defined %}{{ headline }}{% elseif goalName is defined %}{{ 'Goals_GoalX'|translate(goalName) }}{% else %}{{ 'General_EvolutionOverPeriod'|translate }}{% endif %}</h2>
 {% endif %}
 {{ graphEvolution|raw }}
 
-<div id='leftcolumn' {% if not isWidget %}style='width:33%;'{% endif %}>
+<div id='leftcolumn' style="clear:both;{% if not isWidget and ecommerce is defined %}width:33%;'{% endif %}">
     <div class="sparkline">{{ sparkline(urlSparklineConversions) }}
         {% if ecommerce is defined %}
             <strong>{{ nb_conversions }}</strong>
             {{ 'General_EcommerceOrders'|translate }}
-            <img src='plugins/Zeitgeist/images/ecommerceOrder.gif'>
+            <img src='plugins/Morpheus/images/ecommerceOrder.gif'>
         {% else %}
             {{ 'Goals_Conversions'|translate("<strong>"~nb_conversions~"</strong>")|raw }}
         {% endif %}
@@ -37,7 +42,7 @@
     {% endif %}
 
 </div>
-<div id='leftcolumn' {% if not isWidget %}style='width:33%;'{% endif %}>
+<div id='leftcolumn' {% if not isWidget and ecommerce is defined %}style='width:33%;'{% endif %}>
     <div class="sparkline">{{ sparkline(urlSparklineConversionRate) }}
         {% if ecommerce is defined %}
             {% set ecommerceOrdersText %}{{ 'General_EcommerceOrders'|translate }}{% endset %}
@@ -54,7 +59,7 @@
 {% if ecommerce is defined %}
     <div id='rightcolumn' {% if not isWidget %}style='width:30%;'{% endif %}>
         <div>
-            <img src='plugins/Zeitgeist/images/ecommerceAbandonedCart.gif'> <em>{{ 'General_AbandonedCarts'|translate }}</em>
+            <img src='plugins/Morpheus/images/ecommerceAbandonedCart.gif'> <em>{{ 'General_AbandonedCarts'|translate }}</em>
         </div>
 
         <div class="sparkline">

@@ -1,28 +1,28 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik_Plugins
- * @package VisitFrequency
  */
 namespace Piwik\Plugins\VisitFrequency;
 
 use Piwik\API\Request;
+use Piwik\Archive;
+use Piwik\DataTable;
 use Piwik\Piwik;
 use Piwik\Plugins\VisitsSummary\API as APIVisitsSummary;
-use Piwik\SegmentExpression;
+use Piwik\Segment\SegmentExpression;
 
 /**
  * VisitFrequency API lets you access a list of metrics related to Returning Visitors.
- * @package VisitFrequency
  * @method static \Piwik\Plugins\VisitFrequency\API getInstance()
  */
 class API extends \Piwik\Plugin\API
 {
-    const RETURNING_VISITOR_SEGMENT = "visitorType==returning,visitorType==returningCustomer";
+    // visitorType==returning,visitorType==returningCustomer
+    const RETURNING_VISITOR_SEGMENT = "visitorType%3D%3Dreturning%2CvisitorType%3D%3DreturningCustomer";
     const COLUMN_SUFFIX = "_returning";
 
     /**
@@ -45,8 +45,10 @@ class API extends \Piwik\Plugin\API
             'segment'   => $segment,
             'columns'   => implode(',', $columns),
             'format'    => 'original',
-            'serialize' => 0 // tests set this to 1
+            'serialize' => 0, // tests set this to 1
+            'format_metrics' => 0
         );
+
         $table = Request::processRequest('VisitsSummary.get', $params);
         $this->prefixColumns($table, $period);
         return $table;
@@ -57,7 +59,7 @@ class API extends \Piwik\Plugin\API
         if (empty($segment)) {
             $segment = '';
         } else {
-            $segment .= SegmentExpression::AND_DELIMITER;
+            $segment .= urlencode(SegmentExpression::AND_DELIMITER);
         }
         $segment .= self::RETURNING_VISITOR_SEGMENT;
         return $segment;

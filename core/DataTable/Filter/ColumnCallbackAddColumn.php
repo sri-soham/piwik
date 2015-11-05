@@ -1,31 +1,28 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Piwik
  */
 namespace Piwik\DataTable\Filter;
 
 use Piwik\DataTable;
 use Piwik\DataTable\BaseFilter;
+use Piwik\Plugins\CoreHome\Columns\Metrics\CallableProcessedMetric;
 
 /**
  * Adds a new column to every row of a {@link DataTable} based on the result of callback.
- * 
+ *
  * **Basic usage example**
- * 
+ *
  *     $callback = function ($visits, $timeSpent) {
  *         return round($timeSpent / $visits, 2);
  *     };
- *     
+ *
  *     $dataTable->filter('ColumnCallbackAddColumn', array(array('nb_visits', 'sum_time_spent'), 'avg_time_on_site', $callback));
  *
- * @package Piwik
- * @subpackage DataTable
  * @api
  */
 class ColumnCallbackAddColumn extends BaseFilter
@@ -83,17 +80,33 @@ class ColumnCallbackAddColumn extends BaseFilter
      */
     public function filter($table)
     {
-        foreach ($table->getRows() as $row) {
+        $columns = $this->columns;
+        $functionParams  = $this->functionParameters;
+        $functionToApply = $this->functionToApply;
+
+        $extraProcessedMetrics = $table->getMetadata(DataTable::EXTRA_PROCESSED_METRICS_METADATA_NAME);
+
+        if (empty($extraProcessedMetrics)) {
+            $extraProcessedMetrics = array();
+        }
+
+        $metric = new CallableProcessedMetric($this->columnToAdd, function (DataTable\Row $row) use ($columns, $functionParams, $functionToApply) {
+
             $columnValues = array();
-            foreach ($this->columns as $column) {
+            foreach ($columns as $column) {
                 $columnValues[] = $row->getColumn($column);
             }
 
-            $parameters = array_merge($columnValues, $this->functionParameters);
-            $value = call_user_func_array($this->functionToApply, $parameters);
+            $parameters = array_merge($columnValues, $functionParams);
 
-            $row->setColumn($this->columnToAdd, $value);
+            return call_user_func_array($functionToApply, $parameters);
+        }, $columns);
+        $extraProcessedMetrics[] = $metric;
 
+        $table->setMetadata(DataTable::EXTRA_PROCESSED_METRICS_METADATA_NAME, $extraProcessedMetrics);
+
+        foreach ($table->getRows() as $row) {
+            $row->setColumn($this->columnToAdd, $metric->compute($row));
             $this->filterSubTable($row);
         }
     }

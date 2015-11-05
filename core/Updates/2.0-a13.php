@@ -1,27 +1,23 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Piwik
  */
 namespace Piwik\Updates;
 
 use Piwik\Common;
-use Piwik\Db;
 use Piwik\Option;
 use Piwik\Updater;
 use Piwik\Updates;
 
 /**
- * @package Updates
  */
 class Updates_2_0_a13 extends Updates
 {
-    public static function getSql($schema = 'Myisam')
+    public function getMigrationQueries(Updater $updater)
     {
         // Renaming old archived records now that the plugin is called Referrers
         $sql = array();
@@ -47,12 +43,12 @@ class Updates_2_0_a13 extends Updates
         return $sql;
     }
 
-    public static function update()
+    public function doUpdate(Updater $updater)
     {
         // delete schema version_
         Option::delete('version_Referers');
 
-        Updater::updateDatabase(__FILE__, self::getSql());
+        $updater->executeMigrationQueries(__FILE__, $this->getMigrationQueries($updater));
 
         // old plugins deleted in 2.0-a17 update file
 
@@ -64,6 +60,5 @@ class Updates_2_0_a13 extends Updates
             \Piwik\Plugin\Manager::getInstance()->activatePlugin('ScheduledReports');
         } catch (\Exception $e) {
         }
-
     }
 }

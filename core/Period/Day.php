@@ -1,12 +1,10 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Piwik
  */
 namespace Piwik\Period;
 
@@ -15,8 +13,6 @@ use Piwik\Period;
 use Piwik\Piwik;
 
 /**
- * @package Piwik
- * @subpackage Period
  */
 class Day extends Period
 {
@@ -41,8 +37,10 @@ class Day extends Period
     public function getLocalizedShortString()
     {
         //"Mon 15 Aug"
-        $date = $this->getDateStart();
-        $out = $date->getLocalized(Piwik::translate('CoreHome_ShortDateFormat'));
+        $date     = $this->getDateStart();
+        $template = $this->translator->translate('CoreHome_ShortDateFormat');
+
+        $out = $date->getLocalized($template);
         return $out;
     }
 
@@ -54,8 +52,9 @@ class Day extends Period
     public function getLocalizedLongString()
     {
         //"Mon 15 Aug"
-        $date = $this->getDateStart();
-        $template = Piwik::translate('CoreHome_DateFormat');
+        $date     = $this->getDateStart();
+        $template = $this->translator->translate('CoreHome_DateFormat');
+
         $out = $date->getLocalized($template);
         return $out;
     }

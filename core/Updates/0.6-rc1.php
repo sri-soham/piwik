@@ -1,12 +1,10 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Updates
  */
 
 namespace Piwik\Updates;
@@ -16,37 +14,36 @@ use Piwik\Updater;
 use Piwik\Updates;
 
 /**
- * @package Updates
  */
 class Updates_0_6_rc1 extends Updates
 {
-    static function getSql($schema = 'Myisam')
+    public function getMigrationQueries(Updater $updater)
     {
         $defaultTimezone = 'UTC';
         $defaultCurrency = 'USD';
         return array(
-            'ALTER TABLE ' . Common::prefixTable('user') . ' CHANGE date_registered date_registered TIMESTAMP NULL'                                                                => false,
-            'ALTER TABLE ' . Common::prefixTable('site') . ' CHANGE ts_created ts_created TIMESTAMP NULL'                                                                          => false,
-            'ALTER TABLE ' . Common::prefixTable('site') . ' ADD `timezone` VARCHAR( 50 ) NOT NULL AFTER `ts_created` ;'                                                           => false,
-            'UPDATE ' . Common::prefixTable('site') . ' SET `timezone` = "' . $defaultTimezone . '";'                                                                              => false,
-            'ALTER TABLE ' . Common::prefixTable('site') . ' ADD currency CHAR( 3 ) NOT NULL AFTER `timezone` ;'                                                                   => false,
-            'UPDATE ' . Common::prefixTable('site') . ' SET `currency` = "' . $defaultCurrency . '";'                                                                              => false,
-            'ALTER TABLE ' . Common::prefixTable('site') . ' ADD `excluded_ips` TEXT NOT NULL AFTER `currency` ;'                                                                  => false,
-            'ALTER TABLE ' . Common::prefixTable('site') . ' ADD excluded_parameters VARCHAR( 255 ) NOT NULL AFTER `excluded_ips` ;'                                               => false,
-            'ALTER TABLE ' . Common::prefixTable('log_visit') . ' ADD INDEX `index_idsite_datetime_config`  ( `idsite` , `visit_last_action_time`  , `config_md5config` ( 8 ) ) ;' => false,
-            'ALTER TABLE ' . Common::prefixTable('log_visit') . ' ADD INDEX index_idsite_idvisit (idsite, idvisit) ;'                                                              => false,
-            'ALTER TABLE ' . Common::prefixTable('log_conversion') . ' DROP INDEX index_idsite_date'                                                                               => false,
-            'ALTER TABLE ' . Common::prefixTable('log_conversion') . ' DROP visit_server_date;'                                                                                    => false,
-            'ALTER TABLE ' . Common::prefixTable('log_conversion') . ' ADD INDEX index_idsite_datetime ( `idsite` , `server_time` )'                                               => false,
+            'ALTER TABLE ' . Common::prefixTable('user') . ' CHANGE date_registered date_registered TIMESTAMP NULL'                                                                => 1054,
+            'ALTER TABLE ' . Common::prefixTable('site') . ' CHANGE ts_created ts_created TIMESTAMP NULL'                                                                          => 1054,
+            'ALTER TABLE ' . Common::prefixTable('site') . ' ADD `timezone` VARCHAR( 50 ) NOT NULL AFTER `ts_created` ;'                                                           => 1060,
+            'UPDATE ' . Common::prefixTable('site') . ' SET `timezone` = "' . $defaultTimezone . '";'                                                                              => 1060,
+            'ALTER TABLE ' . Common::prefixTable('site') . ' ADD currency CHAR( 3 ) NOT NULL AFTER `timezone` ;'                                                                   => 1060,
+            'UPDATE ' . Common::prefixTable('site') . ' SET `currency` = "' . $defaultCurrency . '";'                                                                              => 1060,
+            'ALTER TABLE ' . Common::prefixTable('site') . ' ADD `excluded_ips` TEXT NOT NULL AFTER `currency` ;'                                                                  => 1060,
+            'ALTER TABLE ' . Common::prefixTable('site') . ' ADD excluded_parameters VARCHAR( 255 ) NOT NULL AFTER `excluded_ips` ;'                                               => 1060,
+            'ALTER TABLE ' . Common::prefixTable('log_visit') . ' ADD INDEX `index_idsite_datetime_config`  ( `idsite` , `visit_last_action_time`  , `config_md5config` ( 8 ) ) ;' => array(1061, 1072),
+            'ALTER TABLE ' . Common::prefixTable('log_visit') . ' ADD INDEX index_idsite_idvisit (idsite, idvisit) ;'                                                              => array(1061, 1072),
+            'ALTER TABLE ' . Common::prefixTable('log_conversion') . ' DROP INDEX index_idsite_date'                                                                               => 1091,
+            'ALTER TABLE ' . Common::prefixTable('log_conversion') . ' DROP visit_server_date;'                                                                                    => 1091,
+            'ALTER TABLE ' . Common::prefixTable('log_conversion') . ' ADD INDEX index_idsite_datetime ( `idsite` , `server_time` )'                                               => array(1072, 1061),
         );
     }
 
-    static function update()
+    public function doUpdate(Updater $updater)
     {
         // first we disable the plugins and keep an array of warnings messages
         $pluginsToDisableMessage = array(
-            'SearchEnginePosition' => "SearchEnginePosition plugin was disabled, because it is not compatible with the new Piwik 0.6. \n You can download the latest version of the plugin, compatible with Piwik 0.6.\n<a target='_blank' href='?module=Proxy&action=redirect&url=http://dev.piwik.org/trac/ticket/502'>Click here.</a>",
-            'GeoIP'                => "GeoIP plugin was disabled, because it is not compatible with the new Piwik 0.6. \nYou can download the latest version of the plugin, compatible with Piwik 0.6.\n<a target='_blank' href='?module=Proxy&action=redirect&url=http://dev.piwik.org/trac/ticket/45'>Click here.</a>"
+            'SearchEnginePosition' => "SearchEnginePosition plugin was disabled, because it is not compatible with the new Piwik 0.6. \n You can download the latest version of the plugin, compatible with Piwik 0.6.\n<a target='_blank' href='?module=Proxy&action=redirect&url=https://github.com/piwik/piwik/issues/502'>Click here.</a>",
+            'GeoIP'                => "GeoIP plugin was disabled, because it is not compatible with the new Piwik 0.6. \nYou can download the latest version of the plugin, compatible with Piwik 0.6.\n<a target='_blank' href='?module=Proxy&action=redirect&url=https://github.com/piwik/piwik/issues/45'>Click here.</a>"
         );
         $disabledPlugins = array();
         foreach ($pluginsToDisableMessage as $pluginToDisable => $warningMessage) {
@@ -57,7 +54,7 @@ class Updates_0_6_rc1 extends Updates
         }
 
         // Run the SQL
-        Updater::updateDatabase(__FILE__, self::getSql());
+        $updater->executeMigrationQueries(__FILE__, $this->getMigrationQueries($updater));
 
         // Outputs warning message, pointing users to the plugin download page
         if (!empty($disabledPlugins)) {

@@ -1,12 +1,10 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik_Plugins
- * @package StaticGraph
  */
 namespace Piwik\Plugins\ImageGraph\StaticGraph;
 
@@ -14,7 +12,6 @@ use Piwik\Plugins\ImageGraph\StaticGraph;
 
 /**
  *
- * @package StaticGraph
  */
 abstract class GridGraph extends StaticGraph
 {
@@ -419,14 +416,14 @@ abstract class GridGraph extends StaticGraph
     // can not currently be used because pChart's label design is not flexible enough
     // e.g: it is not possible to remove the box border & the square icon
     // it would require modifying pChart code base which we try to avoid
-    // see http://dev.piwik.org/trac/ticket/3396
+    // see https://github.com/piwik/piwik/issues/3396
 //	protected function displayMinMaxValues()
 //	{
-//		if($displayMinMax)
+//		if ($displayMinMax)
 //		{
 //			// when plotting multiple metrics, display min & max on both series
 //			// to fix: in vertical bars, labels are hidden when multiple metrics are plotted, hence the restriction on count($this->ordinateSeries) == 1
-//			if($this->multipleMetrics && count($this->ordinateSeries) == 1)
+//			if ($this->multipleMetrics && count($this->ordinateSeries) == 1)
 //			{
 //				$colorIndex = 1;
 //				foreach($this->ordinateSeries as $column => $data)
@@ -470,13 +467,13 @@ abstract class GridGraph extends StaticGraph
 //		$maxValueIndex = 0;
 //		foreach($data as $index => $value)
 //		{
-//			if($value > $maxValue)
+//			if ($value > $maxValue)
 //			{
 //				$maxValue = $value;
 //				$maxValueIndex = $index;
 //			}
 //
-//			if($value < $minValue)
+//			if ($value < $minValue)
 //			{
 //				$minValue = $value;
 //				$minValueIndex = $index;

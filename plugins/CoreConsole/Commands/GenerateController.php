@@ -1,12 +1,10 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik_Plugins
- * @package CoreConsole
  */
 
 namespace Piwik\Plugins\CoreConsole\Commands;
@@ -16,7 +14,6 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * @package CoreConsole
  */
 class GenerateController extends GeneratePluginBase
 {
@@ -30,6 +27,7 @@ class GenerateController extends GeneratePluginBase
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         $pluginName = $this->getPluginName($input, $output);
+        $this->checkAndUpdateRequiredPiwikVersion($pluginName, $output);
 
         $exampleFolder  = PIWIK_INCLUDE_PATH . '/plugins/ExamplePlugin';
         $replace        = array('ExamplePlugin' => $pluginName);
@@ -48,14 +46,14 @@ class GenerateController extends GeneratePluginBase
      * @param InputInterface $input
      * @param OutputInterface $output
      * @return array
-     * @throws \RunTimeException
+     * @throws \RuntimeException
      */
     protected function getPluginName(InputInterface $input, OutputInterface $output)
     {
         $pluginNames = $this->getPluginNamesHavingNotSpecificFile('Controller.php');
         $invalidName = 'You have to enter the name of an existing plugin which does not already have a Controller';
 
-        return parent::getPluginName($input, $output, $pluginNames, $invalidName);
+        return $this->askPluginNameAndValidate($input, $output, $pluginNames, $invalidName);
     }
 
 }

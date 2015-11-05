@@ -1,12 +1,10 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik‚
- * @package Updates
  */
 
 namespace Piwik\Updates;
@@ -18,12 +16,11 @@ use Piwik\Updater;
 use Piwik\Updates;
 
 /**
- * @package Updates
  */
 class Updates_1_8_3_b1 extends Updates
 {
 
-    static function getSql($schema = 'Myisam')
+    public function getMigrationQueries(Updater $updater)
     {
         return array(
             'ALTER TABLE `' . Common::prefixTable('site') . '`
@@ -43,13 +40,13 @@ class Updates_1_8_3_b1 extends Updates
 					`ts_last_sent` TIMESTAMP NULL,
 					`deleted` tinyint(4) NOT NULL default 0,
 					PRIMARY KEY (`idreport`)
-				) DEFAULT CHARSET=utf8' => false,
+				) DEFAULT CHARSET=utf8' => 1050,
         );
     }
 
-    static function update()
+    public function doUpdate(Updater $updater)
     {
-        Updater::updateDatabase(__FILE__, self::getSql());
+        $updater->executeMigrationQueries(__FILE__, $this->getMigrationQueries($updater));
         if (!\Piwik\Plugin\Manager::getInstance()->isPluginLoaded('ScheduledReports')) {
             return;
         }
@@ -63,8 +60,7 @@ class Updates_1_8_3_b1 extends Updates
             // - delete Common::prefixTable('pdf')
 
             $reports = Db::fetchAll('SELECT * FROM `' . Common::prefixTable('pdf') . '`');
-            foreach ($reports AS $report) {
-
+            foreach ($reports as $report) {
                 $idreport = $report['idreport'];
                 $idsite = $report['idsite'];
                 $login = $report['login'];
@@ -101,8 +97,8 @@ class Updates_1_8_3_b1 extends Updates
                          is_null($period) ? ScheduledReports::DEFAULT_PERIOD : $period,
                          ScheduledReports::EMAIL_TYPE,
                          is_null($format) ? ScheduledReports::DEFAULT_REPORT_FORMAT : $format,
-                         Common::json_encode(preg_split('/,/', $reports)),
-                         Common::json_encode($parameters),
+                         json_encode(preg_split('/,/', $reports)),
+                         json_encode($parameters),
                          $ts_created,
                          $ts_last_sent,
                          $deleted
@@ -113,6 +109,5 @@ class Updates_1_8_3_b1 extends Updates
             Db::query('DROP TABLE `' . Common::prefixTable('pdf') . '`');
         } catch (\Exception $e) {
         }
-
     }
 }

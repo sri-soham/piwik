@@ -1,12 +1,10 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Piwik
  */
 namespace Piwik\Tracker\Db;
 
@@ -16,8 +14,6 @@ use Piwik\Tracker\Db;
 /**
  * mysqli wrapper
  *
- * @package Piwik
- * @subpackage Tracker
  */
 class Mysqli extends Db
 {
@@ -29,6 +25,7 @@ class Mysqli extends Db
     protected $username;
     protected $password;
     protected $charset;
+    protected $activeTransaction = false;
 
     /**
      * Builds the DB object
@@ -42,13 +39,13 @@ class Mysqli extends Db
             $this->host = null;
             $this->port = null;
             $this->socket = $dbInfo['unix_socket'];
-        } else if ($dbInfo['port'][0] == '/') {
+        } elseif ($dbInfo['port'][0] == '/') {
             $this->host = null;
             $this->port = null;
             $this->socket = $dbInfo['port'];
         } else {
             $this->host = $dbInfo['host'];
-            $this->port = $dbInfo['port'];
+            $this->port = (int)$dbInfo['port'];
             $this->socket = null;
         }
         $this->dbname = $dbInfo['dbname'];
@@ -76,7 +73,14 @@ class Mysqli extends Db
             $timer = $this->initProfiler();
         }
 
-        $this->connection = mysqli_connect($this->host, $this->username, $this->password, $this->dbname, $this->port, $this->socket);
+        $this->connection = mysqli_init();
+
+        // Make sure MySQL returns all matched rows on update queries including
+        // rows that actually didn't have to be updated because the values didn't
+        // change. This matches common behaviour among other database systems.
+        // See #6296 why this is important in tracker
+        $flags = MYSQLI_CLIENT_FOUND_ROWS;
+        mysqli_real_connect($this->connection, $this->host, $this->username, $this->password, $this->dbname, $this->port, $this->socket, $flags);
         if (!$this->connection || mysqli_connect_errno()) {
             throw new DbException("Connect failed: " . mysqli_connect_error());
         }
@@ -208,8 +212,8 @@ class Mysqli extends Db
             return $result;
         } catch (Exception $e) {
             throw new DbException("Error query: " . $e->getMessage() . "
-								In query: $query
-								Parameters: " . var_export($parameters, true));
+                                   In query: $query
+                                   Parameters: " . var_export($parameters, true), $e->getCode());
         }
     }
 
@@ -237,7 +241,7 @@ class Mysqli extends Db
     {
         if (!$parameters) {
             $parameters = array();
-        } else if (!is_array($parameters)) {
+        } elseif (!is_array($parameters)) {
             $parameters = array($parameters);
         }
 
@@ -281,5 +285,63 @@ class Mysqli extends Db
     public function rowCount($queryResult)
     {
         return mysqli_affected_rows($this->connection);
+    }
+
+    /**
+     * Start Transaction
+     * @return string TransactionID
+     */
+    public function beginTransaction()
+    {
+        if (!$this->activeTransaction === false) {
+            return;
+        }
+
+        if ($this->connection->autocommit(false)) {
+            $this->activeTransaction = uniqid();
+            return $this->activeTransaction;
+        }
+    }
+
+    /**
+     * Commit Transaction
+     * @param $xid
+     * @throws DbException
+     * @internal param TransactionID $string from beginTransaction
+     */
+    public function commit($xid)
+    {
+        if ($this->activeTransaction != $xid || $this->activeTransaction === false) {
+            return;
+        }
+
+        $this->activeTransaction = false;
+
+        if (!$this->connection->commit()) {
+            throw new DbException("Commit failed");
+        }
+
+        $this->connection->autocommit(true);
+    }
+
+    /**
+     * Rollback Transaction
+     * @param $xid
+     * @throws DbException
+     * @internal param TransactionID $string from beginTransaction
+     */
+    public function rollBack($xid)
+    {
+        if ($this->activeTransaction != $xid || $this->activeTransaction === false) {
+            return;
+        }
+
+        $this->activeTransaction = false;
+
+        if (!$this->connection->rollback()) {
+            throw new DbException("Rollback failed");
+        }
+
+        $this->connection->autocommit(true);
     }
 }

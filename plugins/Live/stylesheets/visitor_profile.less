@@ -33,10 +33,14 @@
         padding:0;
         font-weight:bold;
         color:black;
+        border: none;
     }
 
     span.truncated-text-line {
         display:inline-block;
+        &.event {
+          max-width: 89%;
+        }
     }
 }
 
@@ -64,6 +68,7 @@
 }
 
 .visitor-profile-close {
+    z-index: 10;
     position:absolute;
     right:-17px;
     top:-16px;
@@ -99,7 +104,7 @@
     }
 
     .visitor-profile-overview { // first column
-      width:574.5px;
+      width:574px;
       border-left:none;
       margin:0 -3px 0 0;
       border-right:1px solid #d1cec8;
@@ -135,7 +140,7 @@
         background:url(../images/avatar_frame.png) no-repeat;
 
         > img { // avatar image
-            width:122px;
+            max-width:122px;
             height:120px;
             margin:11px 0 0 12px;
         }
@@ -299,7 +304,6 @@
 }
 
 .visitor-profile-pages-visited {
-    height:42px;
     overflow-y:auto;
     position:relative;
     margin-right:10px;
@@ -313,6 +317,7 @@
 
 .visitor-profile-visits-container {
     overflow-y:auto;
+    overflow-x: hidden;
     position:relative;
     margin-right:10px;
     border-bottom:none!important;
@@ -386,7 +391,7 @@
     ol > li ol li {
       .action-list-url {
         margin-left:4px;
-        line-height:14px;
+        line-height:15px;
         font-size:13px;
       }
 
@@ -486,11 +491,11 @@ div.visitor-profile-navigation {
 .visitor-profile-header {
     position:relative;
 
-    > .reportDocumentationIcon {
-        display:none;
-        margin:0;
-        width:14px;
-        background-size:14px;
+    .visitorProfileHelp {
+        display: none;
+        &:hover {
+            text-decoration: none;
+        }
     }
 }
 
@@ -508,7 +513,7 @@ a.visitor-profile-next-visitor,a.visitor-profile-prev-visitor {
 }
 
 .visitor-profile-avatar:hover {
-    .visitor-profile-next-visitor,.visitor-profile-prev-visitor,.reportDocumentationIcon {
+    .visitor-profile-next-visitor,.visitor-profile-prev-visitor,.visitorProfileHelp {
         display:inline-block;
     }
 }
@@ -528,7 +533,7 @@ a.visitor-profile-next-visitor,a.visitor-profile-prev-visitor {
 // overrides for the widgetized visitor profile
 .widget .visitor-profile {
     min-width: 100% !important;
-    
+
     p {
         padding-bottom: 0;
     }

@@ -1,12 +1,10 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Piwik
  */
 namespace Piwik\DataTable\Filter;
 
@@ -20,15 +18,15 @@ use Piwik\Tracker\GoalManager;
 /**
  * Replaces column names in each row of a table using an array that maps old column
  * names new ones.
- * 
+ *
  * If no mapping is provided, this column will use one that maps index metric names
  * (which are integers) with their string column names. In the database, reports are
  * stored with integer metric names because it results in blobs that take up less space.
  * When loading the reports, the column names must be replaced, which is handled by this
  * class. (See {@link Piwik\Metrics} for more information about integer metric names.)
- * 
+ *
  * **Basic example**
- * 
+ *
  *     // filter use in a plugin's API method
  *     public function getMyReport($idSite, $period, $date, $segment = false, $expanded = false)
  *     {
@@ -36,9 +34,7 @@ use Piwik\Tracker\GoalManager;
  *         $dataTable->queueFilter('ReplaceColumnNames');
  *         return $dataTable;
  *     }
- * 
- * @package Piwik
- * @subpackage DataTable
+ *
  * @api
  */
 class ReplaceColumnNames extends BaseFilter
@@ -47,14 +43,14 @@ class ReplaceColumnNames extends BaseFilter
 
     /**
      * Constructor.
-     * 
+     *
      * @param DataTable $table The table that will be eventually filtered.
      * @param array|null $mappingToApply The name mapping to apply. Must map old column names
      *                                   with new ones, eg,
-     *                                   
+     *
      *                                       array('OLD_COLUMN_NAME' => 'NEW_COLUMN NAME',
      *                                             'OLD_COLUMN_NAME2' => 'NEW_COLUMN NAME2')
-     *                                   
+     *
      *                                   If null, {@link Piwik\Metrics::$mappingFromIdToName} is used.
      */
     public function __construct($table, $mappingToApply = null)
@@ -85,9 +81,8 @@ class ReplaceColumnNames extends BaseFilter
      */
     protected function filterTable($table)
     {
-        foreach ($table->getRows() as $key => $row) {
-            $oldColumns = $row->getColumns();
-            $newColumns = $this->getRenamedColumns($oldColumns);
+        foreach ($table->getRows() as $row) {
+            $newColumns = $this->getRenamedColumns($row->getColumns());
             $row->setColumns($newColumns);
             $this->filterSubTable($row);
         }

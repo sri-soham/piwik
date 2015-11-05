@@ -1,12 +1,10 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package ReportRenderer
  */
 namespace Piwik\ReportRenderer;
 
@@ -21,12 +19,9 @@ use Piwik\TCPDF;
  * @see libs/tcpdf
  */
 require_once PIWIK_INCLUDE_PATH . '/plugins/ScheduledReports/config/tcpdf_config.php';
-require_once PIWIK_INCLUDE_PATH . '/libs/tcpdf/config/lang/eng.php';
-require_once PIWIK_INCLUDE_PATH . '/core/TCPDF.php';
 
 /**
- *
- * @package ReportRenderer
+ * PDF report renderer
  */
 class Pdf extends ReportRenderer
 {
@@ -78,7 +73,7 @@ class Pdf extends ReportRenderer
     private $reportColumns;
     private $reportRowsMetadata;
     private $currentPage = 0;
-    private $reportFont = ReportRenderer::DEFAULT_REPORT_FONT;
+    private $reportFont = ReportRenderer::DEFAULT_REPORT_FONT_FAMILY;
     private $TCPDF;
     private $orientation = self::PORTRAIT;
 
@@ -95,7 +90,16 @@ class Pdf extends ReportRenderer
 
     public function setLocale($locale)
     {
+        // WARNING
+        // To make Piwik release smaller, we're deleting some fonts from the Piwik build package.
+        // If you change this code below, make sure that the fonts are NOT deleted from the Piwik package:
+        // https://github.com/piwik/piwik-package/blob/master/scripts/build-package.sh
         switch ($locale) {
+            case 'bn':
+            case 'hi':
+                $reportFont = 'freesans';
+                break;
+
             case 'zh-tw':
                 $reportFont = 'msungstdlight';
                 break;
@@ -113,20 +117,30 @@ class Pdf extends ReportRenderer
                 break;
 
             case 'ar':
-                $reportFont = 'almohanad';
+                $reportFont = 'aealarabiya';
                 break;
 
+            case 'am':
+            case 'ta':
+            case 'th':
+                $reportFont = 'freeserif';
+                break;
+
+            case 'te':
+                // not working with bundled fonts
             case 'en':
             default:
-                $reportFont = ReportRenderer::DEFAULT_REPORT_FONT;
+                $reportFont = ReportRenderer::DEFAULT_REPORT_FONT_FAMILY;
                 break;
         }
+        // WARNING: Did you read the warning above?
+
         $this->reportFont = $reportFont;
     }
 
     public function sendToDisk($filename)
     {
-        $filename = ReportRenderer::appendExtension($filename, self::PDF_CONTENT_TYPE);
+        $filename = ReportRenderer::makeFilenameWithExtension($filename, self::PDF_CONTENT_TYPE);
         $outputFilename = ReportRenderer::getOutputPath($filename);
 
         $this->TCPDF->Output($outputFilename, 'F');
@@ -136,13 +150,13 @@ class Pdf extends ReportRenderer
 
     public function sendToBrowserDownload($filename)
     {
-        $filename = ReportRenderer::appendExtension($filename, self::PDF_CONTENT_TYPE);
+        $filename = ReportRenderer::makeFilenameWithExtension($filename, self::PDF_CONTENT_TYPE);
         $this->TCPDF->Output($filename, 'D');
     }
 
     public function sendToBrowserInline($filename)
     {
-        $filename = ReportRenderer::appendExtension($filename, self::PDF_CONTENT_TYPE);
+        $filename = ReportRenderer::makeFilenameWithExtension($filename, self::PDF_CONTENT_TYPE);
         $this->TCPDF->Output($filename, 'I');
     }
 
@@ -188,7 +202,6 @@ class Pdf extends ReportRenderer
 
         // segment
         if ($segment != null) {
-
             $this->TCPDF->Ln();
             $this->TCPDF->Ln();
             $this->TCPDF->SetFont($this->reportFont, '', $this->reportHeaderFontSize - 2);
@@ -331,7 +344,7 @@ class Pdf extends ReportRenderer
         $this->TCPDF->SetTextColor($this->reportTextColor[0], $this->reportTextColor[1], $this->reportTextColor[2]);
         $this->TCPDF->SetFont('');
 
-        $fill = false;
+        $fill = true;
         $url = false;
         $leftSpacesBeforeLogo = str_repeat(' ', $this->leftSpacesBeforeLogo);
 
@@ -464,7 +477,7 @@ class Pdf extends ReportRenderer
             && $columnsCount <= 3
         ) {
             $totalWidth = $this->reportWidthPortrait * 2 / 3;
-        } else if ($this->orientation == self::LANDSCAPE) {
+        } elseif ($this->orientation == self::LANDSCAPE) {
             $totalWidth = $this->reportWidthLandscape;
         } else {
             $totalWidth = $this->reportWidthPortrait;
@@ -497,12 +510,13 @@ class Pdf extends ReportRenderer
         $posX = $initPosX;
         foreach ($this->reportColumns as $columnName) {
             $columnName = $this->formatText($columnName);
+
             //Label column
             if ($countColumns == 0) {
-                $this->TCPDF->MultiCell($this->labelCellWidth, $maxCellHeight, $columnName, 1, 'C', true);
+                $this->TCPDF->MultiCell($this->labelCellWidth, $maxCellHeight, $columnName, $border = 0, $align = 'L', true);
                 $this->TCPDF->SetXY($posX + $this->labelCellWidth, $posY);
             } else {
-                $this->TCPDF->MultiCell($this->cellWidth, $maxCellHeight, $columnName, 1, 'C', true);
+                $this->TCPDF->MultiCell($this->cellWidth, $maxCellHeight, $columnName, $border = 0, $align = 'L', true);
                 $this->TCPDF->SetXY($posX + $this->cellWidth, $posY);
             }
             $countColumns++;
@@ -525,5 +539,18 @@ class Pdf extends ReportRenderer
         $message = $this->formatText($message);
         $this->TCPDF->Write("1em", $message);
         $this->TCPDF->Ln();
+    }
+
+    /**
+     * Get report attachments, ex. graph images
+     *
+     * @param $report
+     * @param $processedReports
+     * @param $prettyDate
+     * @return array
+     */
+    public function getAttachments($report, $processedReports, $prettyDate)
+    {
+        return array();
     }
 }

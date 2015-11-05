@@ -1,11 +1,9 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link     http://piwik.org
  * @license  http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
- * @category Piwik_Plugins
- * @package  Dashboard
  */
 namespace Piwik\Plugins\Dashboard;
 
@@ -13,18 +11,17 @@ use Piwik\Piwik;
 use Piwik\WidgetsList;
 
 /**
- * This API is the <a href='http://piwik.org/docs/analytics-api/reference/' target='_blank'>Dashboard API</a>: it gives information about dashboards.
+ * This API is the <a href='http://piwik.org/docs/analytics-api/reference/' rel='noreferrer' target='_blank'>Dashboard API</a>: it gives information about dashboards.
  *
- * @package Piwik_API
  * @method static \Piwik\Plugins\Dashboard\API getInstance()
  */
 class API extends \Piwik\Plugin\API
 {
     private $dashboard = null;
 
-    protected function __construct()
+    public function __construct(Dashboard $dashboard)
     {
-        $this->dashboard = new Dashboard();
+        $this->dashboard = $dashboard;
     }
 
     /**
@@ -133,7 +130,7 @@ class API extends \Piwik\Plugin\API
 
     private function widgetExists($widget)
     {
-        if (empty($widget->parameters)) {
+        if (empty($widget->parameters->module)) {
             return false;
         }
 

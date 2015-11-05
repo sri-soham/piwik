@@ -1,18 +1,15 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Piwik
  */
 namespace Piwik\API;
 
 use Exception;
 use Piwik\Archive\DataTableFactory;
-use Piwik\Common;
 use Piwik\DataTable\Row;
 use Piwik\DataTable;
 use Piwik\Period\Range;
@@ -29,9 +26,6 @@ use Piwik\Plugins\API\API;
  * of using expanded=1. Another difference between manipulators and filters
  * is that filters keep the overall structure of the table intact while
  * manipulators can change the entire thing.
- *
- * @package Piwik
- * @subpackage Piwik_API
  */
 abstract class DataTableManipulator
 {
@@ -68,7 +62,7 @@ abstract class DataTableManipulator
     {
         if ($dataTable instanceof DataTable\Map) {
             return $this->manipulateDataTableMap($dataTable);
-        } else if ($dataTable instanceof DataTable) {
+        } elseif ($dataTable instanceof DataTable) {
             return $this->manipulateDataTable($dataTable);
         } else {
             return $dataTable;
@@ -95,7 +89,7 @@ abstract class DataTableManipulator
      * Manipulates a single DataTable instance. Derived classes must define
      * this function.
      */
-    protected abstract function manipulateDataTable($dataTable);
+    abstract protected function manipulateDataTable($dataTable);
 
     /**
      * Load the subtable for a row.
@@ -129,7 +123,7 @@ abstract class DataTableManipulator
             }
         }
 
-        $method = $this->getApiMethodForSubtable();
+        $method = $this->getApiMethodForSubtable($request);
         return $this->callApiAndReturnDataTable($this->apiModule, $method, $request);
     }
 
@@ -141,19 +135,26 @@ abstract class DataTableManipulator
      * @param $request
      * @return
      */
-    protected abstract function manipulateSubtableRequest($request);
+    abstract protected function manipulateSubtableRequest($request);
 
     /**
      * Extract the API method for loading subtables from the meta data
      *
+     * @throws Exception
      * @return string
      */
-    private function getApiMethodForSubtable()
+    private function getApiMethodForSubtable($request)
     {
         if (!$this->apiMethodForSubtable) {
-            $meta = API::getInstance()->getMetadata('all', $this->apiModule, $this->apiMethod);
+            if (!empty($request['idSite'])) {
+                $idSite = $request['idSite'];
+            } else {
+                $idSite = 'all';
+            }
 
-            if(empty($meta)) {
+            $meta = API::getInstance()->getMetadata($idSite, $this->apiModule, $this->apiMethod);
+
+            if (empty($meta)) {
                 throw new Exception(sprintf(
                     "The DataTable cannot be manipulated: Metadata for report %s.%s could not be found. You can define the metadata in a hook, see example at: http://developer.piwik.org/api-reference/events#apigetreportmetadata",
                     $this->apiModule, $this->apiMethod
@@ -176,6 +177,8 @@ abstract class DataTableManipulator
         $request = $this->manipulateSubtableRequest($request);
         $request['serialize'] = 0;
         $request['expanded'] = 0;
+        $request['format'] = 'original';
+        $request['format_metrics'] = 0;
 
         // don't want to run recursive filters on the subtables as they are loaded,
         // otherwise the result will be empty in places (or everywhere). instead we
@@ -184,14 +187,8 @@ abstract class DataTableManipulator
 
         $dataTable = Proxy::getInstance()->call($class, $method, $request);
         $response = new ResponseBuilder($format = 'original', $request);
-        $dataTable = $response->getResponse($dataTable);
-
-        if (Common::getRequestVar('disable_queued_filters', 0, 'int', $request) == 0) {
-            if (method_exists($dataTable, 'applyQueuedFilters')) {
-                $dataTable->applyQueuedFilters();
-            }
-        }
-
+        $response->disableSendHeader();
+        $dataTable = $response->getResponse($dataTable, $apiModule, $method);
         return $dataTable;
     }
 }

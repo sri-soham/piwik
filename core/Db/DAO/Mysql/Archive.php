@@ -1,4 +1,4 @@
-<?
+<?php
 /**
  *  Piwik _ Open source web analytics
  *

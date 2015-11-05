@@ -1,15 +1,14 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik_Plugins
- * @package PrivacyManager
  */
 namespace Piwik\Plugins\PrivacyManager;
 
+use Piwik\Common;
 use Piwik\DataAccess\ArchiveTableCreator;
 use Piwik\Date;
 use Piwik\Db;
@@ -83,12 +82,12 @@ class ReportsPurger
     public function __construct($deleteReportsOlderThan, $keepBasicMetrics, $reportPeriodsToKeep,
                                 $keepSegmentReports, $metricsToKeep, $maxRowsToDeletePerQuery)
     {
-        $this->deleteReportsOlderThan = $deleteReportsOlderThan;
-        $this->keepBasicMetrics = $keepBasicMetrics;
+        $this->deleteReportsOlderThan = (int) $deleteReportsOlderThan;
+        $this->keepBasicMetrics = (bool) $keepBasicMetrics;
         $this->reportPeriodsToKeep = $reportPeriodsToKeep;
-        $this->keepSegmentReports = $keepSegmentReports;
+        $this->keepSegmentReports = (bool) $keepSegmentReports;
         $this->metricsToKeep = $metricsToKeep;
-        $this->maxRowsToDeletePerQuery = $maxRowsToDeletePerQuery;
+        $this->maxRowsToDeletePerQuery = (int) $maxRowsToDeletePerQuery;
     }
 
     /**
@@ -111,38 +110,46 @@ class ReportsPurger
 
         // process blob tables first, since archive status is stored in the numeric archives
         if (!empty($oldBlobTables)) {
-            // if no reports should be kept, drop tables, otherwise drop individual reports
-            if (empty($this->reportPeriodsToKeep) && !$this->keepSegmentReports) {
-                Db::dropTables($oldBlobTables);
-            } else {
-                foreach ($oldBlobTables as $table) {
-                    $where = $this->getBlobTableWhereExpr($oldNumericTables, $table);
-                    if (!empty($where)) {
-                        $where = "WHERE $where";
-                    }
-                    $Generic->deleteAll($table, $where, 'idarchive ASC', $this->maxRowsToDeletePerQuery);
+            foreach ($oldBlobTables as $table) {
+                $where = $this->getBlobTableWhereExpr($oldNumericTables, $table);
+                if (!empty($where)) {
+                    $where = "WHERE $where";
                 }
 
-                if ($optimize) {
-                    $Generic->optimizeTables($oldBlobTables);
-                }
+                $Generic->deleteAll($table, $where, 'idarchive ASC', $this->maxRowsToDeletePerQuery);
+            }
+
+            if ($optimize) {
+                $Generic->optimizeTables($oldBlobTables);
             }
         }
 
-        // deal with numeric tables
+        $this->segmentArchiveIds = null;
+
         if (!empty($oldNumericTables)) {
-            // if keep_basic_metrics is set, empty all numeric tables of metrics to purge
-            if ($this->keepBasicMetrics == 1 && !empty($this->metricsToKeep)) {
-                $where = "WHERE name NOT IN ('" . implode("','", $this->metricsToKeep) . "') AND name NOT LIKE 'done%'";
-                foreach ($oldNumericTables as $table) {
-                    $Generic->deleteAll($table, $where, 'idarchive ASC', $this->maxRowsToDeletePerQuery);
+            foreach ($oldNumericTables as $table) {
+                $conditions = array("name NOT LIKE 'done%'");
+                $bind       = array();
+
+                if ($this->keepBasicMetrics && !empty($this->metricsToKeep)) {
+                    $metricFields = Common::getSqlStringFieldsArray($this->metricsToKeep);
+                    $bind         = $this->metricsToKeep;
+                    $conditions[] = sprintf("name NOT IN (%s)", $metricFields);
                 }
 
-                if ($optimize) {
-                    $Generic->optimizeTables($oldNumericTables);
+                $keepWhere = $this->getBlobTableWhereExpr($oldNumericTables, $table);
+
+                if (!empty($keepWhere)) {
+                    $conditions[] = $keepWhere;
                 }
-            } else { // drop numeric tables
-                Db::dropTables($oldNumericTables);
+
+                $where  = 'WHERE ' . implode(' AND ', $conditions);
+
+                $Generic->deleteAll($table, $where, 'idarchive ASC', $this->maxRowsToDeletePerQuery, $bind);
+            }
+
+            if ($optimize) {
+                $Generic->optimizeTables($oldNumericTables);
             }
         }
     }
@@ -180,7 +187,7 @@ class ReportsPurger
         }
 
         // deal w/ numeric tables
-        if ($this->keepBasicMetrics == 1) {
+        if ($this->keepBasicMetrics) {
             // figure out which rows will be deleted
             foreach ($oldNumericTables as $table) {
                 $rowCount = $this->getNumericTableDeleteCount($table);
@@ -294,10 +301,12 @@ class ReportsPurger
             // if not keeping segments make sure segments w/ kept periods are also deleted
             if (!$this->keepSegmentReports) {
                 $this->findSegmentArchives($oldNumericTables);
-                $archiveIds = $this->segmentArchiveIds[ArchiveTableCreator::getDateFromTableName($table)];
 
-                if (!empty($archiveIds)) {
-                    $where .= " OR idarchive IN (" . implode(',', $archiveIds) . ")";
+                $dateFromTable = ArchiveTableCreator::getDateFromTableName($table);
+
+                if (!empty($this->segmentArchiveIds[$dateFromTable])) {
+                    $archiveIds = $this->segmentArchiveIds[$dateFromTable];
+                    $where     .= " OR idarchive IN (" . implode(',', $archiveIds) . ")";
                 }
             }
 
@@ -312,7 +321,7 @@ class ReportsPurger
      */
     private function findSegmentArchives($numericTables)
     {
-        if (!is_null($this->segmentArchiveIds)) {
+        if (!is_null($this->segmentArchiveIds) || empty($numericTables)) {
             return;
         }
 
@@ -328,6 +337,10 @@ class ReportsPurger
                        AND name LIKE 'done_%.%'
                        AND idarchive >= ?
                        AND idarchive < ?";
+
+            if (is_null($this->segmentArchiveIds)) {
+                $this->segmentArchiveIds = array();
+            }
 
             $this->segmentArchiveIds[$tableDate] = array();
             foreach ($Generic->segmentedFetchAll($sql, 0, $maxIdArchive, self::$selectSegmentSize) as $row) {

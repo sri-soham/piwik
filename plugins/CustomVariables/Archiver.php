@@ -1,12 +1,10 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik_Plugins
- * @package CustomVariables
  */
 namespace Piwik\Plugins\CustomVariables;
 
@@ -17,8 +15,8 @@ use Piwik\DataArray;
 use Piwik\Db;
 use Piwik\Db\Factory;
 use Piwik\Metrics;
-use Piwik\Tracker;
 use Piwik\Tracker\GoalManager;
+use Piwik\Tracker;
 
 require_once PIWIK_INCLUDE_PATH . '/libs/PiwikTracker/PiwikTracker.php';
 
@@ -28,6 +26,9 @@ class Archiver extends \Piwik\Plugin\Archiver
     const CUSTOM_VARIABLE_RECORD_NAME = 'CustomVariables_valueByName';
 
     private $Generic;
+    // Ecommerce reports use custom variables.
+    // We specifically set the limits high to get accurate Ecommerce reports
+    const MAX_ROWS_WHEN_ECOMMERCE = 50000;
 
     /**
      * @var DataArray
@@ -40,23 +41,37 @@ class Archiver extends \Piwik\Plugin\Archiver
     function __construct($processor)
     {
         parent::__construct($processor);
-        $this->maximumRowsInDataTableLevelZero = Config::getInstance()->General['datatable_archiving_maximum_rows_custom_variables'];
-        $this->maximumRowsInSubDataTable = Config::getInstance()->General['datatable_archiving_maximum_rows_subtable_custom_variables'];
+
+        if ($processor->getParams()->getSite()->isEcommerceEnabled()) {
+            $this->maximumRowsInDataTableLevelZero = self::MAX_ROWS_WHEN_ECOMMERCE;
+            $this->maximumRowsInSubDataTable = self::MAX_ROWS_WHEN_ECOMMERCE;
+        } else {
+            $this->maximumRowsInDataTableLevelZero = Config::getInstance()->General['datatable_archiving_maximum_rows_custom_variables'];
+            $this->maximumRowsInSubDataTable = Config::getInstance()->General['datatable_archiving_maximum_rows_subtable_custom_variables'];
+        }
         $this->Generic = Factory::getGeneric();
     }
 
     public function aggregateMultipleReports()
     {
+        $columnsAggregationOperation = null;
+
         $this->getProcessor()->aggregateDataTableRecords(
-            self::CUSTOM_VARIABLE_RECORD_NAME, $this->maximumRowsInDataTableLevelZero, $this->maximumRowsInSubDataTable,
-            $columnToSort = Metrics::INDEX_NB_VISITS);
+            self::CUSTOM_VARIABLE_RECORD_NAME,
+            $this->maximumRowsInDataTableLevelZero,
+            $this->maximumRowsInSubDataTable,
+            $columnToSort = Metrics::INDEX_NB_VISITS,
+            $columnsAggregationOperation,
+            $columnsToRenameAfterAggregation = null,
+            $countRowsRecursive = array());
     }
 
     public function aggregateDayReport()
     {
         $this->dataArray = new DataArray();
 
-        for ($i = 1; $i <= Tracker::MAX_CUSTOM_VARIABLES; $i++) {
+        $maxCustomVariables = CustomVariables::getNumUsableCustomVariables();
+        for ($i = 1; $i <= $maxCustomVariables; $i++) {
             $this->aggregateCustomVariable($i);
         }
 
@@ -152,7 +167,7 @@ class Archiver extends \Piwik\Plugin\Archiver
             if (substr($value, -2) != '"]') {
                 $value .= '"]';
             }
-            $decoded = @Common::json_decode($value);
+            $decoded = json_decode($value);
             if (is_array($decoded)) {
                 $count = 0;
                 foreach ($decoded as $category) {
@@ -211,6 +226,7 @@ class Archiver extends \Piwik\Plugin\Archiver
             ) {
                 unset($row[Metrics::INDEX_NB_UNIQ_VISITORS]);
                 unset($row[Metrics::INDEX_NB_VISITS]);
+                unset($row[Metrics::INDEX_NB_USERS]);
             }
         }
     }

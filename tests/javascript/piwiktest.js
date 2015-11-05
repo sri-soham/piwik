@@ -1,5 +1,5 @@
 /*!
- * Piwik - Web Analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
@@ -23,6 +23,7 @@ Piwik.addPlugin('testPlugin', {
 				'_getClassesRegExp : getClassesRegExp,' +
 				'_hasCookies : hasCookies,' +
 				'_getCookie : getCookie,' +
+				'_getCookieName : getCookieName,' +
 				'_setCookie : setCookie,' +
 				'_encode : encodeWrapper,' +
 				'_decode : decodeWrapper,' +

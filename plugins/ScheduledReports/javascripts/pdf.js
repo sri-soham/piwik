@@ -1,5 +1,5 @@
 /*!
- * Piwik - Web Analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
@@ -36,6 +36,23 @@ function formSetEditReport(idReport) {
     $('#report_hour').val(report.hour);
     $('[name=report_format].' + report.type + ' option[value=' + report.format + ']').prop('selected', 'selected');
 
+    $('select[name=report_type]').change( toggleDisplayOptionsByFormat );
+    $('select[name=report_format]').change( toggleDisplayOptionsByFormat );
+
+    // When CSV is selected, hide "Display options"
+    toggleDisplayOptionsByFormat();
+
+    function toggleDisplayOptionsByFormat() {
+        var selectorReportFormat = 'select[name=report_format].' + $('#report_type').val();
+        var format = $(selectorReportFormat).val();
+        var displayOptionsSelector = $('#row_report_display_options');
+        if (format == 'csv' || format == 'sms') {
+            displayOptionsSelector.hide();
+        } else {
+            displayOptionsSelector.show();
+        }
+    }
+
     $('[name=reportsList] input').prop('checked', false);
 
     var key;
@@ -50,7 +67,7 @@ function formSetEditReport(idReport) {
 
 function getReportAjaxRequest(idReport, defaultApiMethod) {
     var parameters = {};
-    piwikHelper.lazyScrollTo(".centerLargeDiv>h2", 400);
+    piwikHelper.lazyScrollTo(".emailReports>h2", 400);
     parameters.module = 'API';
     parameters.method = defaultApiMethod;
     if (idReport == 0) {
@@ -126,6 +143,7 @@ function initManagePdf() {
         var idReport = $(this).attr('idreport');
         var parameters = getReportAjaxRequest(idReport, 'ScheduledReports.sendReport');
         parameters.idReport = idReport;
+        parameters.force = true;
 
         var ajaxHandler = new ajaxHelper();
         ajaxHandler.addParams(parameters, 'POST');
@@ -137,7 +155,7 @@ function initManagePdf() {
     });
 
     // Delete Report
-    $('a[name=linkDeleteReport]').click(function () {
+    $('.delete-report').click(function () {
         var idReport = $(this).attr('id');
 
         function onDelete() {
@@ -155,7 +173,7 @@ function initManagePdf() {
     });
 
     // Edit Report click
-    $('a[name=linkEditReport]').click(function () {
+    $('.edit-report').click(function () {
         var idReport = $(this).attr('id');
         formSetEditReport(idReport);
         $('.entityAddContainer').show();
@@ -170,7 +188,7 @@ function initManagePdf() {
     });
 
     // Add a Report click
-    $('#linkAddReport').click(function () {
+    $('#add-report').click(function () {
         $('.entityAddContainer').show();
         $('#entityEditContainer').hide();
         formSetEditReport(/*idReport = */0);

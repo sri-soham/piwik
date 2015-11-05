@@ -1,93 +1,54 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik_Plugins
- * @package PrivacyManager
  */
 namespace Piwik\Plugins\PrivacyManager;
 
 use Piwik\Common;
-use Piwik\Config;
-use Piwik\IP;
-use Piwik\Tracker\Cache;
-use Piwik\Option;
+use Piwik\Network\IP;
 
 /**
  * Anonymize visitor IP addresses to comply with the privacy laws/guidelines in countries, such as Germany.
- *
- * @package PrivacyManager
  */
 class IPAnonymizer
 {
-    const OPTION_NAME = "PrivacyManager.ipAnonymizerEnabled";
-
     /**
      * Internal function to mask portions of the visitor IP address
      *
-     * @param string $ip IP address in network address format
+     * @param IP $ip
      * @param int $maskLength Number of octets to reset
-     * @return string
+     * @return IP
      */
-    public static function applyIPMask($ip, $maskLength)
+    public static function applyIPMask(IP $ip, $maskLength)
     {
-        // IPv4 or mapped IPv4 in IPv6
-        if (IP::isIPv4($ip)) {
-            $i = strlen($ip);
-            if ($maskLength > $i) {
-                $maskLength = $i;
-            }
+        $newIpObject = $ip->anonymize($maskLength);
 
-            while ($maskLength-- > 0) {
-                $ip[--$i] = chr(0);
-            }
-        } else {
-            $masks = array(
-                'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff',
-                'ffff:ffff:ffff:ffff::',
-                'ffff:ffff:ffff:0000::',
-                'ffff:ff00:0000:0000::'
-            );
-            $ip = $ip & pack('a16', inet_pton($masks[$maskLength]));
-        }
-        return $ip;
+        return $newIpObject;
     }
 
     /**
      * Hook on Tracker.Visit.setVisitorIp to anomymize visitor IP addresses
+     * @param string $ip IP address in binary format (network format)
      */
     public function setVisitorIpAddress(&$ip)
     {
+        $ipObject = IP::fromBinaryIP($ip);
 
-        if (!$this->isActiveInTracker()) {
-            Common::printDebug("Visitor IP was _not_ anonymized: ". IP::N2P($ip));
+        if (!$this->isActive()) {
+            Common::printDebug("Visitor IP was _not_ anonymized: ". $ipObject->toString());
             return;
         }
 
-        $originalIp = $ip;
-        $ip = self::applyIPMask($ip, Config::getInstance()->Tracker['ip_address_mask_length']);
-        Common::printDebug("Visitor IP (was: ". IP::N2P($originalIp) .") has been anonymized: ". IP::N2P($ip));
-    }
+        $privacyConfig = new Config();
 
-    /**
-     * Returns true if IP anonymization is enabled. This function is called by the
-     * Tracker.
-     */
-    private function isActiveInTracker()
-    {
-        $cache = Cache::getCacheGeneral();
-        return !empty($cache[self::OPTION_NAME]);
-    }
+        $newIpObject = self::applyIPMask($ipObject, $privacyConfig->ipAddressMaskLength);
+        $ip = $newIpObject->toBinary();
 
-    /**
-     * Caches the status of IP anonymization (whether it is enabled or not).
-     */
-    public function setTrackerCacheGeneral(&$cacheContent)
-    {
-        $cacheContent[self::OPTION_NAME] = Option::get(self::OPTION_NAME);
+        Common::printDebug("Visitor IP (was: ". $ipObject->toString() .") has been anonymized: ". $newIpObject->toString());
     }
 
     /**
@@ -95,8 +56,8 @@ class IPAnonymizer
      */
     public static function deactivate()
     {
-        Option::set(self::OPTION_NAME, 0);
-        Cache::clearCacheGeneral();
+        $privacyConfig = new Config();
+        $privacyConfig->ipAnonymizerEnabled = false;
     }
 
     /**
@@ -104,8 +65,8 @@ class IPAnonymizer
      */
     public static function activate()
     {
-        Option::set(self::OPTION_NAME, 1);
-        Cache::clearCacheGeneral();
+        $privacyConfig = new Config();
+        $privacyConfig->ipAnonymizerEnabled = true;
     }
 
     /**
@@ -115,7 +76,7 @@ class IPAnonymizer
      */
     public static function isActive()
     {
-        $active = Option::get(self::OPTION_NAME);
-        return !empty($active);
+        $privacyConfig = new Config();
+        return $privacyConfig->ipAnonymizerEnabled;
     }
 }

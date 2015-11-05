@@ -13,33 +13,14 @@ use Piwik\Common;
 use Piwik\ProxyHttp;
 
 define('PIWIK_DOCUMENT_ROOT', dirname(__FILE__).'/../../');
-if(file_exists(PIWIK_DOCUMENT_ROOT . '/bootstrap.php'))
-{
-	require_once PIWIK_DOCUMENT_ROOT . '/bootstrap.php';
+if(file_exists(PIWIK_DOCUMENT_ROOT . '/bootstrap.php')) {
+    require_once PIWIK_DOCUMENT_ROOT . '/bootstrap.php';
+}
+if (!defined('PIWIK_INCLUDE_PATH')) {
+    define('PIWIK_INCLUDE_PATH', PIWIK_DOCUMENT_ROOT);
 }
 
-error_reporting(E_ALL|E_NOTICE);
-@ini_set('display_errors', defined('PIWIK_DISPLAY_ERRORS') ? PIWIK_DISPLAY_ERRORS : @ini_get('display_errors'));
-@ini_set('xdebug.show_exception_trace', 0);
-@ini_set('magic_quotes_runtime', 0);
-
-if(!defined('PIWIK_USER_PATH'))
-{
-	define('PIWIK_USER_PATH', PIWIK_DOCUMENT_ROOT);
-}
-if(!defined('PIWIK_INCLUDE_PATH'))
-{
-	define('PIWIK_INCLUDE_PATH', PIWIK_DOCUMENT_ROOT);
-}
-
-require_once PIWIK_INCLUDE_PATH . '/libs/upgradephp/upgrade.php';
-require_once PIWIK_INCLUDE_PATH . '/core/testMinimumPhpVersion.php';
-
-// NOTE: the code above this comment must be PHP4 compatible
-
-session_cache_limiter('nocache');
-@date_default_timezone_set('UTC');
-require_once PIWIK_INCLUDE_PATH .'/core/Loader.php';
+require_once PIWIK_INCLUDE_PATH . '/core/bootstrap.php';
 
 // This is Piwik logo, the static file used in this test suit
 define("TEST_FILE_LOCATION", dirname(__FILE__) . "/lipsum.txt");
@@ -54,7 +35,11 @@ define("ZLIB_OUTPUT_REQUEST_VAR", "zlibOutput");
 define("NULL_FILE_SRV_MODE", "nullFile");
 define("GHOST_FILE_SRV_MODE", "ghostFile");
 define("TEST_FILE_SRV_MODE", "testFile");
+define("PARTIAL_TEST_FILE_SRV_MODE", "partialTestFile");
+define("WHOLE_TEST_FILE_WITH_RANGE_SRV_MODE", "wholeTestFileWithRange");
 
+define("PARTIAL_BYTE_START", 1204);
+define("PARTIAL_BYTE_END", 14724);
 
 /**
  * If the static file server has been requested, the response sent back to the browser will be the content produced by
@@ -70,6 +55,9 @@ if ($staticFileServerMode === "") {
     throw new Exception("When this testing file is used as a static file server, the request parameter " .
         SRV_MODE_REQUEST_VAR . " must be provided.");
 }
+
+$environment = new \Piwik\Application\Environment(null);
+$environment->init();
 
 switch ($staticFileServerMode) {
     // The static file server calls Piwik::serverStaticFile with a null file
@@ -88,5 +76,15 @@ switch ($staticFileServerMode) {
     case TEST_FILE_SRV_MODE:
 
         ProxyHttp::serverStaticFile(TEST_FILE_LOCATION, TEST_FILE_CONTENT_TYPE);
+        break;
+
+    case PARTIAL_TEST_FILE_SRV_MODE:
+
+        ProxyHttp::serverStaticFile(TEST_FILE_LOCATION, TEST_FILE_CONTENT_TYPE, $expireFarFutureDays = 100, PARTIAL_BYTE_START, PARTIAL_BYTE_END);
+        break;
+
+    case WHOLE_TEST_FILE_WITH_RANGE_SRV_MODE:
+
+        ProxyHttp::serverStaticFile(TEST_FILE_LOCATION, TEST_FILE_CONTENT_TYPE, $expireFarFutureDays = 100, 0, filesize(TEST_FILE_LOCATION));
         break;
 }

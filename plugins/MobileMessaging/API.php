@@ -1,12 +1,10 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik_Plugins
- * @package MobileMessaging
  */
 namespace Piwik\Plugins\MobileMessaging;
 
@@ -21,7 +19,6 @@ use Piwik\Plugins\MobileMessaging\SMSProvider;
  *  - activate phone numbers
  *  - check remaining credits
  *  - send SMS
- * @package MobileMessaging
  * @method static \Piwik\Plugins\MobileMessaging\API getInstance()
  */
 class API extends \Piwik\Plugin\API
@@ -33,7 +30,7 @@ class API extends \Piwik\Plugin\API
      * @param string $provider
      * @return SMSProvider
      */
-    static private function getSMSProviderInstance($provider)
+    private static function getSMSProviderInstance($provider)
     {
         return SMSProvider::factory($provider);
     }
@@ -361,14 +358,14 @@ class API extends \Piwik\Plugin\API
 
     private function checkCredentialManagementRights()
     {
-        $this->getDelegatedManagement() ? Piwik::checkUserIsNotAnonymous() : Piwik::checkUserIsSuperUser();
+        $this->getDelegatedManagement() ? Piwik::checkUserIsNotAnonymous() : Piwik::checkUserHasSuperUserAccess();
     }
 
     private function setUserSettings($user, $settings)
     {
         Option::set(
             $user . MobileMessaging::USER_SETTINGS_POSTFIX_OPTION,
-            Common::json_encode($settings)
+            json_encode($settings)
         );
     }
 
@@ -384,7 +381,7 @@ class API extends \Piwik\Plugin\API
 
     private function getCredentialManagerLogin()
     {
-        return $this->getDelegatedManagement() ? Piwik::getCurrentUserLogin() : Piwik::getSuperUserLogin();
+        return $this->getDelegatedManagement() ? Piwik::getCurrentUserLogin() : '';
     }
 
     private function getUserSettings($user)
@@ -395,7 +392,7 @@ class API extends \Piwik\Plugin\API
         if (empty($userSettings)) {
             $userSettings = array();
         } else {
-            $userSettings = Common::json_decode($userSettings, true);
+            $userSettings = json_decode($userSettings, true);
         }
 
         return $userSettings;
@@ -418,7 +415,7 @@ class API extends \Piwik\Plugin\API
      */
     public function setDelegatedManagement($delegatedManagement)
     {
-        Piwik::checkUserIsSuperUser();
+        Piwik::checkUserHasSuperUserAccess();
         Option::set(MobileMessaging::DELEGATED_MANAGEMENT_OPTION, $delegatedManagement);
     }
 

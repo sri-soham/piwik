@@ -1,12 +1,10 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Piwik
  */
 namespace Piwik\DataTable\Filter;
 
@@ -15,18 +13,19 @@ use Piwik\DataTable\BaseFilter;
 
 /**
  * Deletes every row for which a specific column does not match a supplied regex pattern.
- * 
+ *
  * **Example**
- * 
+ *
  *     // filter out all rows whose labels doesn't start with piwik
  *     $dataTable->filter('Pattern', array('label', '^piwik'));
  *
- * @package Piwik
- * @subpackage DataTable
  * @api
  */
 class Pattern extends BaseFilter
 {
+    /**
+     * @var string|array
+     */
     private $columnToFilter;
     private $patternToSearch;
     private $patternToSearchQuoted;
@@ -34,7 +33,7 @@ class Pattern extends BaseFilter
 
     /**
      * Constructor.
-     * 
+     *
      * @param DataTable $table The table to eventually filter.
      * @param string $columnToFilter The column to match with the `$patternToSearch` pattern.
      * @param string $patternToSearch The regex pattern to use.
@@ -57,7 +56,7 @@ class Pattern extends BaseFilter
      * @return string
      * @ignore
      */
-    static public function getPatternQuoted($pattern)
+    public static function getPatternQuoted($pattern)
     {
         return '/' . str_replace('/', '\/', $pattern) . '/';
     }
@@ -65,21 +64,20 @@ class Pattern extends BaseFilter
     /**
      * Performs case insensitive match
      *
-     * @param string $pattern
      * @param string $patternQuoted
      * @param string $string
      * @param bool $invertedMatch
      * @return int
      * @ignore
      */
-    static public function match($pattern, $patternQuoted, $string, $invertedMatch)
+    public static function match($patternQuoted, $string, $invertedMatch = false)
     {
-        return @preg_match($patternQuoted . "i", $string) == 1 ^ $invertedMatch;
+        return preg_match($patternQuoted . "i", $string) == 1 ^ $invertedMatch;
     }
 
     /**
      * See {@link Pattern}.
-     * 
+     *
      * @param DataTable $table
      */
     public function filter($table)
@@ -93,9 +91,35 @@ class Pattern extends BaseFilter
             if ($value === false) {
                 $value = $row->getMetadata($this->columnToFilter);
             }
-            if (!self::match($this->patternToSearch, $this->patternToSearchQuoted, $value, $this->invertedMatch)) {
+            if (!self::match($this->patternToSearchQuoted, $value, $this->invertedMatch)) {
                 $table->deleteRow($key);
             }
         }
+    }
+
+    /**
+     * See {@link Pattern}.
+     *
+     * @param array $array
+     * @return array
+     */
+    public function filterArray($array)
+    {
+        $newArray = array();
+
+        foreach ($array as $key => $row) {
+            foreach ($this->columnToFilter as $column) {
+                if (!array_key_exists($column, $row)) {
+                    continue;
+                }
+
+                if (self::match($this->patternToSearchQuoted, $row[$column], $this->invertedMatch)) {
+                    $newArray[$key] = $row;
+                    continue 2;
+                }
+            }
+        }
+
+        return $newArray;
     }
 }

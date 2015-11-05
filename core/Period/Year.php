@@ -1,12 +1,10 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Piwik
  */
 namespace Piwik\Period;
 
@@ -14,8 +12,6 @@ use Piwik\Date;
 use Piwik\Period;
 
 /**
- * @package Piwik
- * @subpackage Period
  */
 class Year extends Period
 {
@@ -62,6 +58,7 @@ class Year extends Period
         if ($this->subperiodsProcessed) {
             return;
         }
+
         parent::generate();
 
         $year = $this->date->toString("Y");
@@ -79,13 +76,15 @@ class Year extends Period
      * @param string $format
      * @return array
      */
-    function toString($format = 'ignored')
+    public function toString($format = 'ignored')
     {
         $this->generate();
+
         $stringMonth = array();
         foreach ($this->subperiods as $month) {
             $stringMonth[] = $month->getDateStart()->toString("Y") . "-" . $month->getDateStart()->toString("m") . "-01";
         }
+
         return $stringMonth;
     }
 }

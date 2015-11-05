@@ -2,28 +2,31 @@
 ; This configuration is used for automatic integration
 ; tests on Travis-CI. Do not use this in production.
 
-[superuser]
-login = admin
-password = 098f6bcd4621d373cade4e832627b4f6
-email = hello@example.org
-
 [database]
-host = localhost
+host = 127.0.0.1
 username = root
 password =
 dbname = piwik_tests
-adapter = PDO_MYSQL
-tables_prefix = piwiktests_
+adapter = PDO\MYSQL
+; no table prefix for tests on travis
+tables_prefix =
 ;charset = utf8
 
+[tests]
+request_uri = "/"
+
 [database_tests]
-host = localhost
+host = 127.0.0.1
 username = root
 password =
 dbname = piwik_tests
-adapter = PDO_MYSQL
-tables_prefix = piwiktests_
+adapter = PDO\MYSQL
+; no table prefix for tests on travis
+tables_prefix =
 
 [log]
 log_writers[] = file
-log_level = debug
+log_level = info
+
+; leave this empty here
+[General]

@@ -1,12 +1,10 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik_Plugins
- * @package UserCountry
  */
 namespace Piwik\Plugins\UserCountry;
 
@@ -14,26 +12,27 @@ require_once PIWIK_INCLUDE_PATH . "/core/ScheduledTask.php"; // for the tracker 
 
 use Exception;
 use Piwik\Common;
+use Piwik\Container\StaticContainer;
 use Piwik\Date;
 use Piwik\Http;
 use Piwik\Log;
 use Piwik\Option;
 use Piwik\Piwik;
-use Piwik\Plugins\UserCountry\LocationProvider;
-use Piwik\Plugins\UserCountry\LocationProvider\GeoIp;
 use Piwik\Plugins\UserCountry\LocationProvider\GeoIp\Php;
-use Piwik\ScheduledTask;
-use Piwik\ScheduledTaskTimetable;
-use Piwik\ScheduledTime\Monthly;
-use Piwik\ScheduledTime\Weekly;
-use Piwik\TaskScheduler;
+use Piwik\Plugins\UserCountry\LocationProvider\GeoIp;
+use Piwik\Plugins\UserCountry\LocationProvider;
+use Piwik\Scheduler\Scheduler;
+use Piwik\Scheduler\Task;
+use Piwik\Scheduler\Timetable;
+use Piwik\Scheduler\Schedule\Monthly;
+use Piwik\Scheduler\Schedule\Weekly;
 use Piwik\Unzip;
 
 /**
  * Used to automatically update installed GeoIP databases, and manages the updater's
  * scheduled task.
  */
-class GeoIPAutoUpdater extends ScheduledTask
+class GeoIPAutoUpdater extends Task
 {
     const SCHEDULE_PERIOD_MONTHLY = 'month';
     const SCHEDULE_PERIOD_WEEKLY = 'week';
@@ -80,7 +79,7 @@ class GeoIPAutoUpdater extends ScheduledTask
                 break;
         }
 
-        parent::__construct($this, 'update', null, $schedulePeriod, ScheduledTask::LOWEST_PRIORITY);
+        parent::__construct($this, 'update', null, $schedulePeriod, Task::LOWEST_PRIORITY);
     }
 
     /**
@@ -130,6 +129,8 @@ class GeoIPAutoUpdater extends ScheduledTask
      */
     protected function downloadFile($dbType, $url)
     {
+        $url = trim($url);
+
         $ext = GeoIPAutoUpdater::getGeoIPUrlExtension($url);
 
         // NOTE: using the first item in $dbNames[$dbType] makes sure GeoLiteCity will be renamed to GeoIPCity
@@ -267,7 +268,7 @@ class GeoIPAutoUpdater extends ScheduledTask
             }
 
             $tempFile = GeoIp::getPathForGeoIpDatabase($tempFilename);
-            rename($existing = $tempFile, $newName = $oldDbFile);
+            rename($tempFile, $oldDbFile);
 
             // delete original archive
             if ($unlink) {
@@ -334,7 +335,7 @@ class GeoIPAutoUpdater extends ScheduledTask
         // set period option
         if (!empty($options['period'])) {
             $period = $options['period'];
-            
+
             if ($period != self::SCHEDULE_PERIOD_MONTHLY
                 && $period != self::SCHEDULE_PERIOD_WEEKLY
             ) {
@@ -346,7 +347,10 @@ class GeoIPAutoUpdater extends ScheduledTask
 
             Option::set(self::SCHEDULE_PERIOD_OPTION_NAME, $period);
 
-            TaskScheduler::rescheduleTask(new GeoIPAutoUpdater());
+            /** @var Scheduler $scheduler */
+            $scheduler = StaticContainer::getContainer()->get('Piwik\Scheduler\Scheduler');
+
+            $scheduler->rescheduleTask(new GeoIPAutoUpdater());
         }
     }
 
@@ -518,8 +522,10 @@ class GeoIPAutoUpdater extends ScheduledTask
      * Databases are renamed to ${original}.broken .
      *
      * Note: method is protected for testability.
+     *
+     * @param $logErrors - only used to hide error logs during tests
      */
-    protected function performRedundantDbChecks()
+    protected function performRedundantDbChecks($logErrors = true)
     {
         $databaseTypes = array_keys(GeoIp::$dbNames);
 
@@ -538,8 +544,11 @@ class GeoIPAutoUpdater extends ScheduledTask
             self::getTestLocationCatchPhpErrors($provider);
             if (self::$unzipPhpError !== null) {
                 list($errno, $errstr, $errfile, $errline) = self::$unzipPhpError;
-                Log::warning("GeoIPAutoUpdater: Encountered PHP error when performing redundant tests on GeoIP "
-                    . "%s database: %s: %s on line %s of %s.", $type, $errno, $errstr, $errline, $errfile);
+
+                if($logErrors) {
+                    Log::error("GeoIPAutoUpdater: Encountered PHP error when performing redundant tests on GeoIP "
+                        . "%s database: %s: %s on line %s of %s.", $type, $errno, $errstr, $errline, $errfile);
+                }
 
                 // get the current filename for the DB and an available new one to rename it to
                 list($oldPath, $newPath) = $this->getOldAndNewPathsForBrokenDb($customNames[$type]);
@@ -624,19 +633,19 @@ class GeoIPAutoUpdater extends ScheduledTask
 
     /**
      * Returns the next scheduled time for the auto updater.
-     * 
+     *
      * @return Date|false
      */
     public static function getNextRunTime()
     {
         $task = new GeoIPAutoUpdater();
 
-        $timetable = new ScheduledTaskTimetable();
+        $timetable = new Timetable();
         return $timetable->getScheduledTaskTime($task->getName());
     }
 
     /**
-     * See {@link Piwik\ScheduledTime::getRescheduledTime()}.
+     * See {@link Piwik\Scheduler\Schedule\Schedule::getRescheduledTime()}.
      */
     public function getRescheduledTime()
     {
@@ -672,15 +681,13 @@ class GeoIPAutoUpdater extends ScheduledTask
 
     private function getPreviousScheduledTime($rescheduledTime)
     {
-        $updaterPeriod = Option::get(self::SCHEDULE_PERIOD_OPTION_NAME);
+        $updaterPeriod = self::getSchedulePeriod();
 
-        if ($updaterPeriod == 'week') {
+        if ($updaterPeriod == self::SCHEDULE_PERIOD_WEEKLY) {
             return Date::factory($rescheduledTime)->subWeek(1);
-        } else if ($updaterPeriod == 'month') {
+        } else if ($updaterPeriod == self::SCHEDULE_PERIOD_MONTHLY) {
             return Date::factory($rescheduledTime)->subMonth(1);
-        } else {
-            Log::warning("Unknown GeoIP updater period found in database: %s", $updaterPeriod);
-            return Date::factory(0);
         }
+        throw new Exception("Unknown GeoIP updater period found in database: %s", $updaterPeriod);
     }
 }

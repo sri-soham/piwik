@@ -1,12 +1,10 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Piwik
  */
 namespace Piwik\AssetManager\UIAssetMerger;
 
@@ -30,7 +28,7 @@ class JScriptUIAssetMerger extends UIAssetMerger
      * @param JScriptUIAssetFetcher $assetFetcher
      * @param UIAssetCacheBuster $cacheBuster
      */
-    function __construct($mergedAsset, $assetFetcher, $cacheBuster)
+    public function __construct($mergedAsset, $assetFetcher, $cacheBuster)
     {
         parent::__construct($mergedAsset, $assetFetcher, $cacheBuster);
 
@@ -59,7 +57,7 @@ class JScriptUIAssetMerger extends UIAssetMerger
     {
         $plugins = $this->getPlugins();
 
-        if(!empty($plugins)) {
+        if (!empty($plugins)) {
 
             /**
              * Triggered after all the JavaScript files Piwik uses are minified and merged into a
@@ -83,8 +81,9 @@ class JScriptUIAssetMerger extends UIAssetMerger
     {
         $content = $uiAsset->getContent();
 
-        if (!$this->assetMinifier->isMinifiedJs($content))
+        if (!$this->assetMinifier->isMinifiedJs($content)) {
             $content = $this->assetMinifier->minifyJs($content);
+        }
 
         return $content;
     }

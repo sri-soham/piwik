@@ -71,6 +71,12 @@ class Option extends Base
         return $this->db->fetchAll($sql);
     }
 
+    public function getNameLike($name)
+    {
+        $sql  = 'SELECT option_name, option_value FROM ' . $this->table . ' WHERE option_name LIKE ?';
+        return $this->db->fetchAll($sql, array($name));
+    }
+
     public function sqlUpdate($name, $value)
     {
         $sql = 'UPDATE ' . $this->table . ' SET '

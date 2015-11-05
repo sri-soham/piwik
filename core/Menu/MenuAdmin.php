@@ -1,27 +1,25 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Piwik_Menu
  */
 namespace Piwik\Menu;
 
 use Piwik\Piwik;
 
 /**
- * Contains menu entries for the Admin menu. Plugins can subscribe to the 
- * {@hook Menu.Admin.addItems} event to add new pages to the admin menu.
- * 
+ * Contains menu entries for the Admin menu.
+ * Plugins can implement the `configureAdminMenu()` method of the `Menu` plugin class to add, rename of remove
+ * items. If your plugin does not have a `Menu` class yet you can create one using `./console generate:menu`.
+ *
  * **Example**
- * 
- *     // add a new page in an observer to Menu.Admin.addItems
- *     public function addAdminMenuItem()
+ *
+ *     public function configureAdminMenu(MenuAdmin $menu)
  *     {
- *         MenuAdmin::getInstance()->add(
+ *         $menu->add(
  *             'MyPlugin_MyTranslatedAdminMenuCategory',
  *             'MyPlugin_MyTranslatedAdminPageName',
  *             array('module' => 'MyPlugin', 'action' => 'index'),
@@ -29,26 +27,79 @@ use Piwik\Piwik;
  *             $order = 2
  *         );
  *     }
- * 
- * @package Piwik_Menu
+ *
  * @method static \Piwik\Menu\MenuAdmin getInstance()
  */
 class MenuAdmin extends MenuAbstract
 {
     /**
-     * Adds a new AdminMenu entry under the 'Settings' category.
-     *
-     * @param string $adminMenuName The name of the admin menu entry. Can be a translation token.
-     * @param string|array $url The URL the admin menu entry should link to, or an array of query parameters
-     *                          that can be used to build the URL.
-     * @param boolean $displayedForCurrentUser Whether this menu entry should be displayed for the
-     *                                         current user. If false, the entry will not be added.
-     * @param int $order The order hint.
+     * See {@link add()}. Adds a new menu item to the development section of the admin menu.
+     * @param string $menuName
+     * @param array $url
+     * @param int $order
+     * @param bool|string $tooltip
      * @api
+     * @since 2.5.0
      */
-    public static function addEntry($adminMenuName, $url, $displayedForCurrentUser = true, $order = 20)
+    public function addDevelopmentItem($menuName, $url, $order = 50, $tooltip = false)
     {
-        self::getInstance()->add('General_Settings', $adminMenuName, $url, $displayedForCurrentUser, $order);
+        $this->addItem('CoreAdminHome_MenuDevelopment', $menuName, $url, $order, $tooltip);
+    }
+
+    /**
+     * See {@link add()}. Adds a new menu item to the diagnostic section of the admin menu.
+     * @param string $menuName
+     * @param array $url
+     * @param int $order
+     * @param bool|string $tooltip
+     * @api
+     * @since 2.5.0
+     */
+    public function addDiagnosticItem($menuName, $url, $order = 50, $tooltip = false)
+    {
+        $this->addItem('CoreAdminHome_MenuDiagnostic', $menuName, $url, $order, $tooltip);
+    }
+
+    /**
+     * See {@link add()}. Adds a new menu item to the platform section of the admin menu.
+     * @param string $menuName
+     * @param array $url
+     * @param int $order
+     * @param bool|string $tooltip
+     * @api
+     * @since 2.5.0
+     */
+    public function addPlatformItem($menuName, $url, $order = 50, $tooltip = false)
+    {
+        $this->addItem('CorePluginsAdmin_MenuPlatform', $menuName, $url, $order, $tooltip);
+    }
+
+    /**
+     * See {@link add()}. Adds a new menu item to the settings section of the admin menu.
+     * @param string $menuName
+     * @param array $url
+     * @param int $order
+     * @param bool|string $tooltip
+     * @api
+     * @since 2.5.0
+     */
+    public function addSettingsItem($menuName, $url, $order = 50, $tooltip = false)
+    {
+        $this->addItem('General_Settings', $menuName, $url, $order, $tooltip);
+    }
+
+    /**
+     * See {@link add()}. Adds a new menu item to the manage section of the admin menu.
+     * @param string $menuName
+     * @param array $url
+     * @param int $order
+     * @param bool|string $tooltip
+     * @api
+     * @since 2.5.0
+     */
+    public function addManageItem($menuName, $url, $order = 50, $tooltip = false)
+    {
+        $this->addItem('CoreAdminHome_Administration', $menuName, $url, $order, $tooltip);
     }
 
     /**
@@ -61,51 +112,16 @@ class MenuAdmin extends MenuAbstract
         if (!$this->menu) {
 
             /**
-             * Triggered when collecting all available admin menu items. Subscribe to this event if you want
-             * to add one or more items to the Piwik admin menu.
-             *
-             * Menu items should be added via the {@link add()} method.
-             *
-             * **Example**
-             * 
-             *     use Piwik\Menu\MenuAdmin;
-             * 
-             *     public function addMenuItems()
-             *     {
-             *         MenuAdmin::getInstance()->add(
-             *             'MenuName',
-             *             'SubmenuName',
-             *             array('module' => 'MyPlugin', 'action' => 'index'),
-             *             $showOnlyIf = Piwik::isUserIsSuperUser(),
-             *             $order = 6
-             *         );
-             *     }
+             * @ignore
+             * @deprecated
              */
-            Piwik::postEvent('Menu.Admin.addItems');
-        }
-        return parent::getMenu();
-    }
+            Piwik::postEvent('Menu.Admin.addItems', array());
 
-    /**
-     * Returns the current AdminMenu name
-     *
-     * @return boolean
-     */
-    public function getCurrentAdminMenuName()
-    {
-        $menu = MenuAdmin::getInstance()->getMenu();
-        $currentModule = Piwik::getModule();
-        $currentAction = Piwik::getAction();
-        foreach ($menu as $submenu) {
-            foreach ($submenu as $subMenuName => $parameters) {
-                if (strpos($subMenuName, '_') !== 0 &&
-                    $parameters['_url']['module'] == $currentModule
-                    && $parameters['_url']['action'] == $currentAction
-                ) {
-                    return $subMenuName;
-                }
+            foreach ($this->getAllMenus() as $menu) {
+                $menu->configureAdminMenu($this);
             }
         }
-        return false;
+
+        return parent::getMenu();
     }
 }

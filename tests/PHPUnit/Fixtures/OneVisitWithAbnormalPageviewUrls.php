@@ -1,17 +1,20 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
+namespace Piwik\Tests\Fixtures;
+
 use Piwik\Date;
+use Piwik\Tests\Framework\Fixture;
 
 /**
  * Adds one site and tracks one visit w/ pageview URLs that are not normalized.
  * These URLs use different protocols and a mix of lowercase & uppercase letters.
  */
-class Test_Piwik_Fixture_OneVisitWithAbnormalPageviewUrls extends Test_Piwik_BaseFixture
+class OneVisitWithAbnormalPageviewUrls extends Fixture
 {
     public $dateTime = '2010-03-06 11:22:33';
     public $idSite = 1;
@@ -38,7 +41,7 @@ class Test_Piwik_Fixture_OneVisitWithAbnormalPageviewUrls extends Test_Piwik_Bas
     {
         $dateTime = $this->dateTime;
         $idSite = $this->idSite;
-        $t = self::getTracker($idSite, $dateTime, $defaultInit = true, $useThirdPartyCookie = 1);
+        $t = self::getTracker($idSite, $dateTime, $defaultInit = true);
 
         $t->setUrlReferrer('http://www.google.com/search?q=piwik');
         $t->setUrl('http://example.org/foo/bar.html');

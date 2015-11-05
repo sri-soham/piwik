@@ -1,12 +1,10 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Piwik
  */
 namespace Piwik\DataTable\Filter;
 
@@ -30,13 +28,11 @@ use Piwik\Piwik;
  * This filter can be extended to vary exactly how ranges are prettified based
  * on the range values found in the DataTable. To see an example of this,
  * take a look at the {@link BeautifyTimeRangeLabels} filter.
- * 
+ *
  * **Basic usage example**
- * 
+ *
  *     $dataTable->queueFilter('BeautifyRangeLabels', array("1 visit", "%s visits"));
- * 
- * @package Piwik
- * @subpackage DataTable
+ *
  * @api
  */
 class BeautifyRangeLabels extends ColumnCallbackReplace
@@ -69,7 +65,7 @@ class BeautifyRangeLabels extends ColumnCallbackReplace
         parent::__construct($table, 'label', array($this, 'beautify'), array());
 
         $this->labelSingular = $labelSingular;
-        $this->labelPlural = $labelPlural;
+        $this->labelPlural   = $labelPlural;
     }
 
     /**

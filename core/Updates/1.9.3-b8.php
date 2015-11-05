@@ -1,12 +1,10 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Updates
  */
 
 namespace Piwik\Updates;
@@ -16,11 +14,10 @@ use Piwik\Updater;
 use Piwik\Updates;
 
 /**
- * @package Updates
  */
 class Updates_1_9_3_b8 extends Updates
 {
-    static function getSql($schema = 'Myisam')
+    public function getMigrationQueries(Updater $updater)
     {
         return array(
             // ignore existing column name error (1060)
@@ -29,9 +26,9 @@ class Updates_1_9_3_b8 extends Updates
         );
     }
 
-    static function update()
+    public function doUpdate(Updater $updater)
     {
         // add excluded_user_agents column to site table
-        Updater::updateDatabase(__FILE__, self::getSql());
+        $updater->executeMigrationQueries(__FILE__, $this->getMigrationQueries($updater));
     }
 }

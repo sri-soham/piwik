@@ -1,17 +1,20 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link    http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
+namespace Piwik\Tests\Fixtures;
+
 use Piwik\Date;
+use Piwik\Tests\Framework\Fixture;
 
 /**
  * Adds one site and tracks 7 visits w/ some long-ish urls (as page urls and
  * referrer urls).
  */
-class Test_Piwik_Fixture_SomeVisitsWithLongUrls extends Test_Piwik_BaseFixture
+class SomeVisitsWithLongUrls extends Fixture
 {
     public $dateTime = '2010-03-06 01:22:33';
     public $idSite = 1;
@@ -41,7 +44,7 @@ class Test_Piwik_Fixture_SomeVisitsWithLongUrls extends Test_Piwik_BaseFixture
         $idSite = $this->idSite;
 
         // Visit 1: keyword and few URLs
-        $t = self::getTracker($idSite, $dateTime, $defaultInit = true, $useThirdPartyCookie = 1);
+        $t = self::getTracker($idSite, $dateTime, $defaultInit = true);
         $t->setUrlReferrer('http://bing.com/search?q=Hello world');
 
         // Generate a few page views that will be truncated

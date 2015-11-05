@@ -1,0 +1,22 @@
+{
+    "name": "TestRunner",
+    "version": "0.1.0",
+    "description": "Developer tool that lets you run Piwik automated tests suite. Only needed in development.",
+    "theme": false,
+    "require": {
+        "piwik": ">=2.9.0"
+    },
+    "authors": [
+        {
+            "name": "Piwik",
+            "email": "hello@piwik.org",
+            "homepage": "http:\/\/piwik.org"
+        }
+    ],
+    "license": "GPL v3+",
+    "keywords": [
+        "test",
+        "runner"
+    ],
+    "homepage": "http:\/\/piwik.org"
+}

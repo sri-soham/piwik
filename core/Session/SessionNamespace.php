@@ -1,23 +1,20 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Piwik
  */
 namespace Piwik\Session;
 
 use Piwik\Common;
+use Piwik\Session;
 use Zend_Session_Namespace;
 
 /**
  * Session namespace.
  *
- * @package Piwik
- * @subpackage Session
  */
 class SessionNamespace extends Zend_Session_Namespace
 {
@@ -31,6 +28,8 @@ class SessionNamespace extends Zend_Session_Namespace
             self::$_readable = true;
             return;
         }
+
+        Session::start();
 
         parent::__construct($namespace, $singleInstance);
     }

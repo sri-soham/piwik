@@ -1,33 +1,47 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik_Plugins
- * @package UsersManager
  */
 namespace Piwik\Plugins\UsersManager;
 
 use Exception;
 use Piwik\API\ResponseBuilder;
 use Piwik\Common;
-use Piwik\Config;
+use Piwik\Container\StaticContainer;
+use Piwik\Metrics\Formatter;
+use Piwik\NoAccessException;
 use Piwik\Piwik;
+use Piwik\Plugin\ControllerAdmin;
+use Piwik\Plugins\LanguagesManager\API as APILanguagesManager;
+use Piwik\Plugins\LanguagesManager\LanguagesManager;
+use Piwik\Plugins\Login\SessionInitializer;
 use Piwik\Plugins\SitesManager\API as APISitesManager;
 use Piwik\Plugins\UsersManager\API as APIUsersManager;
+use Piwik\SettingsPiwik;
 use Piwik\Site;
 use Piwik\Tracker\IgnoreCookie;
+use Piwik\Translation\Translator;
 use Piwik\Url;
 use Piwik\View;
 
-/**
- *
- * @package UsersManager
- */
-class Controller extends \Piwik\Plugin\ControllerAdmin
+class Controller extends ControllerAdmin
 {
+    /**
+     * @var Translator
+     */
+    private $translator;
+
+    public function __construct(Translator $translator)
+    {
+        $this->translator = $translator;
+
+        parent::__construct();
+    }
+
     static function orderByName($a, $b)
     {
         return strcmp($a['name'], $b['name']);
@@ -52,10 +66,14 @@ class Controller extends \Piwik\Plugin\ControllerAdmin
 
         if ($idSiteSelected === 'all') {
             $usersAccessByWebsite = array();
-            $defaultReportSiteName = Piwik::translate('UsersManager_ApplyToAllWebsites');
+            $defaultReportSiteName = $this->translator->translate('UsersManager_ApplyToAllWebsites');
         } else {
-            $usersAccessByWebsite = APIUsersManager::getInstance()->getUsersAccessFromSite($idSiteSelected);
             $defaultReportSiteName = Site::getNameFor($idSiteSelected);
+            try {
+                $usersAccessByWebsite = APIUsersManager::getInstance()->getUsersAccessFromSite($idSiteSelected);
+            } catch (NoAccessException $e) {
+                return $this->noAdminAccessToWebsite($idSiteSelected, $defaultReportSiteName, $e->getMessage());
+            }
         }
 
         // we dont want to display the user currently logged so that the user can't change his settings from admin to view...
@@ -78,18 +96,38 @@ class Controller extends \Piwik\Plugin\ControllerAdmin
 
         ksort($usersAccessByWebsite);
 
-        $users = array();
+        $users             = array();
+        $superUsers        = array();
         $usersAliasByLogin = array();
+
+        $formatter = new Formatter();
+
         if (Piwik::isUserHasSomeAdminAccess()) {
+            $view->showLastSeen = true;
+
             $users = APIUsersManager::getInstance()->getUsers();
-            foreach ($users as $user) {
+            foreach ($users as $index => $user) {
                 $usersAliasByLogin[$user['login']] = $user['alias'];
+
+                $lastSeen = LastSeenTimeLogger::getLastSeenTimeForUser($user['login']);
+                $users[$index]['last_seen'] = $lastSeen == 0
+                                            ? false : $formatter->getPrettyTimeFromSeconds(time() - $lastSeen);
+            }
+
+            if (Piwik::hasUserSuperUserAccess()) {
+                foreach ($users as $user) {
+                    if ($user['superuser_access']) {
+                        $superUsers[] = $user['login'];
+                    }
+                }
             }
         }
+
         $view->anonymousHasViewAccess = $this->hasAnonymousUserViewAccess($usersAccessByWebsite);
         $view->idSiteSelected = $idSiteSelected;
         $view->defaultReportSiteName = $defaultReportSiteName;
         $view->users = $users;
+        $view->superUserLogins = $superUsers;
         $view->usersAliasByLogin = $usersAliasByLogin;
         $view->usersCount = count($users) - 1;
         $view->usersAccessByWebsite = $usersAccessByWebsite;
@@ -104,6 +142,7 @@ class Controller extends \Piwik\Plugin\ControllerAdmin
     private function hasAnonymousUserViewAccess($usersAccessByWebsite)
     {
         $anonymousHasViewAccess = false;
+
         foreach ($usersAccessByWebsite as $login => $access) {
             if ($login == 'anonymous'
                 && $access != 'noaccess'
@@ -111,6 +150,7 @@ class Controller extends \Piwik\Plugin\ControllerAdmin
                 $anonymousHasViewAccess = true;
             }
         }
+
         return $anonymousHasViewAccess;
     }
 
@@ -126,6 +166,59 @@ class Controller extends \Piwik\Plugin\ControllerAdmin
     }
 
     /**
+     * Returns the enabled dates that users can select,
+     * in their User Settings page "Report date to load by default"
+     *
+     * @throws
+     * @return array
+     */
+    protected function getDefaultDates()
+    {
+        $dates = array(
+            'today'      => $this->translator->translate('Intl_Today'),
+            'yesterday'  => $this->translator->translate('Intl_Yesterday'),
+            'previous7'  => $this->translator->translate('General_PreviousDays', 7),
+            'previous30' => $this->translator->translate('General_PreviousDays', 30),
+            'last7'      => $this->translator->translate('General_LastDays', 7),
+            'last30'     => $this->translator->translate('General_LastDays', 30),
+            'week'       => $this->translator->translate('General_CurrentWeek'),
+            'month'      => $this->translator->translate('General_CurrentMonth'),
+            'year'       => $this->translator->translate('General_CurrentYear'),
+        );
+
+        $mappingDatesToPeriods = array(
+            'today' => 'day',
+            'yesterday' => 'day',
+            'previous7' => 'range',
+            'previous30' => 'range',
+            'last7' => 'range',
+            'last30' => 'range',
+            'week' => 'week',
+            'month' => 'month',
+            'year' => 'year',
+        );
+
+        // assertion
+        if (count($dates) != count($mappingDatesToPeriods)) {
+            throw new Exception("some metadata is missing in getDefaultDates()");
+        }
+
+        $allowedPeriods = self::getEnabledPeriodsInUI();
+        $allowedDates = array_intersect($mappingDatesToPeriods, $allowedPeriods);
+        $dates = array_intersect_key($dates, $allowedDates);
+
+        /**
+         * Triggered when the list of available dates is requested, for example for the
+         * User Settings > Report date to load by default.
+         *
+         * @param array &$dates Array of (date => translation)
+         */
+        Piwik::postEvent('UsersManager.getDefaultDates', array(&$dates));
+
+        return $dates;
+    }
+
+    /**
      * The "User Settings" admin UI screen view
      */
     public function userSettings()
@@ -135,44 +228,56 @@ class Controller extends \Piwik\Plugin\ControllerAdmin
         $view = new View('@UsersManager/userSettings');
 
         $userLogin = Piwik::getCurrentUserLogin();
-        if (Piwik::isUserIsSuperUser()) {
-            $view->userAlias = $userLogin;
-            $view->userEmail = Piwik::getSuperUserEmail();
-            $this->displayWarningIfConfigFileNotWritable();
-        } else {
-            $user = APIUsersManager::getInstance()->getUser($userLogin);
-            $view->userAlias = $user['alias'];
-            $view->userEmail = $user['email'];
+        $user = APIUsersManager::getInstance()->getUser($userLogin);
+        $view->userAlias = $user['alias'];
+        $view->userEmail = $user['email'];
+
+        $view->ignoreSalt = $this->getIgnoreCookieSalt();
+
+        $userPreferences = new UserPreferences();
+        $defaultReport   = $userPreferences->getDefaultReport();
+
+        if ($defaultReport === false) {
+            $defaultReport = $userPreferences->getDefaultWebsiteId();
         }
 
-        $defaultReport = APIUsersManager::getInstance()->getUserPreference($userLogin, APIUsersManager::PREFERENCE_DEFAULT_REPORT);
-        if ($defaultReport === false) {
-            $defaultReport = $this->getDefaultWebsiteId();
-        }
         $view->defaultReport = $defaultReport;
 
         if ($defaultReport == 'MultiSites') {
-            $view->defaultReportSiteName = Site::getNameFor($this->getDefaultWebsiteId());
+
+            $defaultSiteId = $userPreferences->getDefaultWebsiteId();
+
+            $view->defaultReportIdSite   = $defaultSiteId;
+            $view->defaultReportSiteName = Site::getNameFor($defaultSiteId);
         } else {
+            $view->defaultReportIdSite   = $defaultReport;
             $view->defaultReportSiteName = Site::getNameFor($defaultReport);
         }
 
         $view->defaultDate = $this->getDefaultDateForUser($userLogin);
-        $view->availableDefaultDates = array(
-            'today'      => Piwik::translate('General_Today'),
-            'yesterday'  => Piwik::translate('General_Yesterday'),
-            'previous7'  => Piwik::translate('General_PreviousDays', 7),
-            'previous30' => Piwik::translate('General_PreviousDays', 30),
-            'last7'      => Piwik::translate('General_LastDays', 7),
-            'last30'     => Piwik::translate('General_LastDays', 30),
-            'week'       => Piwik::translate('General_CurrentWeek'),
-            'month'      => Piwik::translate('General_CurrentMonth'),
-            'year'       => Piwik::translate('General_CurrentYear'),
-        );
+        $view->availableDefaultDates = $this->getDefaultDates();
 
+        $view->languages = APILanguagesManager::getInstance()->getAvailableLanguageNames();
+        $view->currentLanguageCode = LanguagesManager::getLanguageCodeForCurrentUser();
         $view->ignoreCookieSet = IgnoreCookie::isIgnoreCookieFound();
-        $this->initViewAnonymousUserSettings($view);
         $view->piwikHost = Url::getCurrentHost();
+        $this->setBasicVariablesView($view);
+
+        return $view->render();
+    }
+
+    /**
+     * The "Anonymous Settings" admin UI screen view
+     */
+    public function anonymousSettings()
+    {
+        Piwik::checkUserHasSuperUserAccess();
+
+        $view = new View('@UsersManager/anonymousSettings');
+
+        $view->availableDefaultDates = $this->getDefaultDates();
+
+        $this->initViewAnonymousUserSettings($view);
         $this->setBasicVariablesView($view);
 
         return $view->render();
@@ -182,7 +287,11 @@ class Controller extends \Piwik\Plugin\ControllerAdmin
     {
         Piwik::checkUserHasSomeViewAccess();
         Piwik::checkUserIsNotAnonymous();
-        $this->checkTokenInUrl();
+
+        $salt = Common::getRequestVar('ignoreSalt', false, 'string');
+        if ($salt !== $this->getIgnoreCookieSalt()) {
+            throw new Exception("Not authorized");
+        }
 
         IgnoreCookie::setIgnoreCookie();
         Piwik::redirectToModule('UsersManager', 'userSettings', array('token_auth' => false));
@@ -194,7 +303,7 @@ class Controller extends \Piwik\Plugin\ControllerAdmin
      */
     protected function initViewAnonymousUserSettings($view)
     {
-        if (!Piwik::isUserIsSuperUser()) {
+        if (!Piwik::hasUserSuperUserAccess()) {
             return;
         }
         $userLogin = 'anonymous';
@@ -237,7 +346,7 @@ class Controller extends \Piwik\Plugin\ControllerAdmin
     {
         $response = new ResponseBuilder(Common::getRequestVar('format'));
         try {
-            Piwik::checkUserIsSuperUser();
+            Piwik::checkUserHasSuperUserAccess();
             $this->checkTokenInUrl();
 
             $anonymousDefaultReport = Common::getRequestVar('anonymousDefaultReport');
@@ -269,9 +378,13 @@ class Controller extends \Piwik\Plugin\ControllerAdmin
 
             $defaultReport = Common::getRequestVar('defaultReport');
             $defaultDate = Common::getRequestVar('defaultDate');
+            $language = Common::getRequestVar('language');
             $userLogin = Piwik::getCurrentUserLogin();
 
             $this->processPasswordChange($userLogin);
+
+            LanguagesManager::setLanguageForSession($language);
+            APILanguagesManager::getInstance()->setLanguageForUser($userLogin, $language);
 
             APIUsersManager::getInstance()->setUserPreference($userLogin,
                 APIUsersManager::PREFERENCE_DEFAULT_REPORT,
@@ -287,6 +400,18 @@ class Controller extends \Piwik\Plugin\ControllerAdmin
         return $toReturn;
     }
 
+    private function noAdminAccessToWebsite($idSiteSelected, $defaultReportSiteName, $message)
+    {
+        $view = new View('@UsersManager/noWebsiteAdminAccess');
+
+        $view->idSiteSelected = $idSiteSelected;
+        $view->defaultReportSiteName = $defaultReportSiteName;
+        $view->message = $message;
+        $this->setBasicVariablesView($view);
+
+        return $view->render();
+    }
+
     private function processPasswordChange($userLogin)
     {
         $alias = Common::getRequestVar('alias');
@@ -298,7 +423,7 @@ class Controller extends \Piwik\Plugin\ControllerAdmin
             || !empty($passwordBis)
         ) {
             if ($password != $passwordBis) {
-                throw new Exception(Piwik::translate('Login_PasswordsDoNotMatch'));
+                throw new Exception($this->translator->translate('Login_PasswordsDoNotMatch'));
             }
             $newPassword = $password;
         }
@@ -310,34 +435,26 @@ class Controller extends \Piwik\Plugin\ControllerAdmin
             throw new Exception("Cannot change password with untrusted hostname!");
         }
 
-        if (Piwik::isUserIsSuperUser()) {
-            $superUser = Config::getInstance()->superuser;
-            $updatedSuperUser = false;
-
-            if ($newPassword !== false) {
-                $newPassword = Common::unsanitizeInputValue($newPassword);
-                $md5PasswordSuperUser = md5($newPassword);
-                $superUser['password'] = $md5PasswordSuperUser;
-                $updatedSuperUser = true;
-            }
-            if ($superUser['email'] != $email) {
-                $superUser['email'] = $email;
-                $updatedSuperUser = true;
-            }
-            if ($updatedSuperUser) {
-                Config::getInstance()->superuser = $superUser;
-                Config::getInstance()->forceSave();
-            }
-        } else {
-            APIUsersManager::getInstance()->updateUser($userLogin, $newPassword, $email, $alias);
-            if ($newPassword !== false) {
-                $newPassword = Common::unsanitizeInputValue($newPassword);
-            }
+        APIUsersManager::getInstance()->updateUser($userLogin, $newPassword, $email, $alias);
+        if ($newPassword !== false) {
+            $newPassword = Common::unsanitizeInputValue($newPassword);
         }
 
         // logs the user in with the new password
         if ($newPassword !== false) {
-            \Piwik\Registry::get('auth')->initSession($userLogin, md5($newPassword), $rememberMe = false);
+            $sessionInitializer = new SessionInitializer();
+            $auth = StaticContainer::get('Piwik\Auth');
+            $auth->setLogin($userLogin);
+            $auth->setPassword($password);
+            $sessionInitializer->initSession($auth, $rememberMe = false);
         }
+    }
+
+    /**
+     * @return string
+     */
+    private function getIgnoreCookieSalt()
+    {
+        return md5(SettingsPiwik::getSalt());
     }
 }

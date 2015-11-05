@@ -1,57 +1,48 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik_Plugins
- * @package PrivacyManager
  */
 namespace Piwik\Plugins\PrivacyManager;
 
 use Piwik\Common;
 use Piwik\Tracker\IgnoreCookie;
 use Piwik\Tracker\Request;
-use Piwik\Tracker\Cache;
-use Piwik\Option;
 
 /**
  * Excludes visits where user agent's request contains either:
- * 
+ *
  * - X-Do-Not-Track header (used by AdBlockPlus and NoScript)
  * - DNT header (used by Mozilla)
- * 
- * @package PrivacyManager
+ *
+ * Note: visits from Internet Explorer and other browsers that have DoNoTrack enabled by default will be tracked anyway.
  */
 class DoNotTrackHeaderChecker
 {
-    const OPTION_NAME = "PrivacyManager.doNotTrackEnabled";
+    /**
+     * @param Config $config
+     */
+    public function __construct($config = null)
+    {
+        $this->config = $config ?: new Config();
+    }
 
     /**
      * Checks for DoNotTrack headers and if found, sets `$exclude` to `true`.
      */
     public function checkHeaderInTracker(&$exclude)
     {
-        if (!$this->isActiveInTracker()
-            || $exclude
-        ) {
+        if ($exclude) {
+            Common::printDebug("Visit is already excluded, no need to check DoNotTrack support.");
             return;
         }
 
-        if ((isset($_SERVER['HTTP_X_DO_NOT_TRACK']) && $_SERVER['HTTP_X_DO_NOT_TRACK'] === '1')
-            || (isset($_SERVER['HTTP_DNT']) && substr($_SERVER['HTTP_DNT'], 0, 1) === '1')
-        ) {
-            $request = new Request($_REQUEST);
-            $ua = $request->getUserAgent();
-            if (strpos($ua, 'MSIE 10') !== false
-                || strpos($ua, 'Trident/7') !== false) {
-                Common::printDebug("INTERNET EXPLORER 10 and 11 enable DoNotTrack by default; so Piwik ignores DNT for all IE10 + IE11 browsers...");
-                return;
-            }
+        $exclude = $this->isDoNotTrackFound();
 
-            $exclude = true;
-            Common::printDebug("DoNotTrack found.");
+        if($exclude) {
 
             $trackingCookie = IgnoreCookie::getTrackingCookie();
             $trackingCookie->delete();
@@ -64,39 +55,46 @@ class DoNotTrackHeaderChecker
     }
 
     /**
-     * Returns true if DoNotTrack header checking is enabled. This function is called by the
-     * Tracker.
+     * @return bool
      */
-    private function isActiveInTracker()
+    public function isDoNotTrackFound()
     {
-        $cache = Cache::getCacheGeneral();
-        return !empty($cache[self::OPTION_NAME]);
-    }
+        if (!$this->isActive()) {
+            Common::printDebug("DoNotTrack support is not enabled, skip check");
+            return false;
+        }
 
-    /**
-     * Caches the status of DoNotTrack checking (whether it is enabled or not).
-     */
-    public function setTrackerCacheGeneral(&$cacheContent)
-    {
-        $cacheContent[self::OPTION_NAME] = Option::get(self::OPTION_NAME);
+        if (!$this->isHeaderDntFound()) {
+            Common::printDebug("DoNotTrack header not found");
+            return false;
+        }
+
+        $request = new Request($_REQUEST);
+        $userAgent = $request->getUserAgent();
+
+        if ($this->isUserAgentWithDoNotTrackAlwaysEnabled($userAgent)) {
+            Common::printDebug("INTERNET EXPLORER enable DoNotTrack by default; so Piwik ignores DNT IE browsers...");
+            return false;
+        }
+
+        Common::printDebug("DoNotTrack header found!");
+        return true;
     }
 
     /**
      * Deactivates DoNotTrack header checking. This function will not be called by the Tracker.
      */
-    public static function deactivate()
+    public function deactivate()
     {
-        Option::set(self::OPTION_NAME, 0);
-        Cache::clearCacheGeneral();
+        $this->config->doNotTrackEnabled = false;
     }
 
     /**
      * Activates DoNotTrack header checking. This function will not be called by the Tracker.
      */
-    public static function activate()
+    public function activate()
     {
-        Option::set(self::OPTION_NAME, 1);
-        Cache::clearCacheGeneral();
+        $this->config->doNotTrackEnabled = true;
     }
 
     /**
@@ -104,9 +102,50 @@ class DoNotTrackHeaderChecker
      *
      * @return bool
      */
-    public static function isActive()
+    public function isActive()
     {
-        $active = Option::get(self::OPTION_NAME);
-        return !empty($active);
+        return $this->config->doNotTrackEnabled;
+    }
+
+    /**
+     * @return bool
+     */
+    protected function isHeaderDntFound()
+    {
+        return (isset($_SERVER['HTTP_X_DO_NOT_TRACK']) && $_SERVER['HTTP_X_DO_NOT_TRACK'] === '1')
+            || (isset($_SERVER['HTTP_DNT']) && substr($_SERVER['HTTP_DNT'], 0, 1) === '1');
+    }
+
+    /**
+     *
+     * @param $userAgent
+     * @return bool
+     */
+    protected function isUserAgentWithDoNotTrackAlwaysEnabled($userAgent)
+    {
+        $browsersWithDnt = $this->getBrowsersWithDNTAlwaysEnabled();
+        foreach($browsersWithDnt as $userAgentBrowserFragment) {
+            if (stripos($userAgent, $userAgentBrowserFragment) !== false) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Some browsers have DNT enabled by default. For those we will ignore DNT and always track those users.
+     *
+     * @return array
+     */
+    protected function getBrowsersWithDNTAlwaysEnabled()
+    {
+        return array(
+            // IE
+            'MSIE',
+            'Trident',
+
+            // Maxthon
+            'Maxthon',
+        );
     }
 }

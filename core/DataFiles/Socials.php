@@ -1,12 +1,10 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package DataFiles
  */
 
 if (!isset($GLOBALS['Piwik_socialUrl'])) {
@@ -81,6 +79,9 @@ if (!isset($GLOBALS['Piwik_socialUrl'])) {
 
         // douban
         'douban.com'           => 'douban',
+
+        // dribbble
+        'dribbble.com'         => 'dribbble',
 
         // Odnoklassniki
         'odnoklassniki.ru'     => 'Odnoklassniki',
@@ -221,7 +222,7 @@ if (!isset($GLOBALS['Piwik_socialUrl'])) {
 
         // Vimeo
         'vimeo.com'            => 'Vimeo',
-        
+
         //tumblr
         'tumblr.com'           => 'tumblr',
     );

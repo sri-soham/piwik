@@ -1,12 +1,10 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Piwik
  */
 namespace Piwik\DataTable\Filter;
 
@@ -16,13 +14,11 @@ use Piwik\DataTable\BaseFilter;
 /**
  * Check range
  *
- * @package Piwik
- * @subpackage DataTable
  */
 class RangeCheck extends BaseFilter
 {
-    static public $minimumValue = 0.00;
-    static public $maximumValue = 100.0;
+    public static $minimumValue = 0.00;
+    public static $maximumValue = 100.0;
 
     /**
      * @param DataTable $table
@@ -36,7 +32,7 @@ class RangeCheck extends BaseFilter
 
         $this->columnToFilter = $columnToFilter;
 
-        if ($minimumValue < $maximumValue) {
+        if ((float) $minimumValue < (float) $maximumValue) {
             self::$minimumValue = $minimumValue;
             self::$maximumValue = $maximumValue;
         }
@@ -51,10 +47,23 @@ class RangeCheck extends BaseFilter
     {
         foreach ($table->getRows() as $row) {
             $value = $row->getColumn($this->columnToFilter);
+
+            if ($value === false) {
+                $value = $row->getMetadata($this->columnToFilter);
+                if ($value !== false) {
+                    if ($value < (float) self::$minimumValue) {
+                        $row->setMetadata($this->columnToFilter, self::$minimumValue);
+                    } elseif ($value > (float) self::$maximumValue) {
+                        $row->setMetadata($this->columnToFilter, self::$maximumValue);
+                    }
+                }
+                continue;
+            }
+
             if ($value !== false) {
-                if ($value < self::$minimumValue) {
+                if ($value < (float) self::$minimumValue) {
                     $row->setColumn($this->columnToFilter, self::$minimumValue);
-                } elseif ($value > self::$maximumValue) {
+                } elseif ($value > (float) self::$maximumValue) {
                     $row->setColumn($this->columnToFilter, self::$maximumValue);
                 }
             }

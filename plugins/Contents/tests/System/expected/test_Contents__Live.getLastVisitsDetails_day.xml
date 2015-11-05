@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<result>
+	<row>
+		<idSite>1</idSite>
+		<idVisit>1</idVisit>
+		<visitIp>156.5.3.2</visitIp>
+		
+		<actionDetails>
+			<row>
+				<type>action</type>
+				<url>http://www.example.org/page</url>
+				<pageTitle>Ads</pageTitle>
+				<pageIdAction>2</pageIdAction>
+				
+				<pageId>1</pageId>
+				<generationTime>0.33s</generationTime>
+				<timeSpent>270</timeSpent>
+				<timeSpentPretty>4 min 30s</timeSpentPretty>
+				<icon />
+				
+			</row>
+		</actionDetails>
+		<goalConversions>0</goalConversions>
+		<siteCurrency>USD</siteCurrency>
+		<siteCurrencySymbol>$</siteCurrencySymbol>
+		
+		
+		
+		
+		<userId />
+		<visitorType>new</visitorType>
+		<visitorTypeIcon />
+		<visitConverted>0</visitConverted>
+		<visitConvertedIcon />
+		<visitCount>1</visitCount>
+		
+		<visitEcommerceStatus>none</visitEcommerceStatus>
+		<visitEcommerceStatusIcon />
+		<daysSinceFirstVisit>0</daysSinceFirstVisit>
+		<daysSinceLastEcommerceOrder>0</daysSinceLastEcommerceOrder>
+		<visitDuration>271</visitDuration>
+		<visitDurationPretty>4 min 31s</visitDurationPretty>
+		<searches>0</searches>
+		<actions>1</actions>
+		<referrerType>direct</referrerType>
+		<referrerTypeName>Direct Entry</referrerTypeName>
+		<referrerName />
+		<referrerKeyword />
+		<referrerKeywordPosition />
+		<referrerUrl />
+		<referrerSearchEngineUrl />
+		<referrerSearchEngineIcon />
+		<languageCode>fr</languageCode>
+		<language>French</language>
+		<deviceType>Desktop</deviceType>
+		<deviceTypeIcon>plugins/DevicesDetection/images/screens/normal.gif</deviceTypeIcon>
+		<deviceBrand>Unknown</deviceBrand>
+		<deviceModel />
+		<operatingSystem>Windows XP</operatingSystem>
+		<operatingSystemName>Windows</operatingSystemName>
+		<operatingSystemIcon>plugins/DevicesDetection/images/os/WIN.gif</operatingSystemIcon>
+		<operatingSystemCode>WIN</operatingSystemCode>
+		<operatingSystemVersion>XP</operatingSystemVersion>
+		<browserFamily>Gecko</browserFamily>
+		<browserFamilyDescription>Gecko (Firefox)</browserFamilyDescription>
+		<browser>Firefox 3.6</browser>
+		<browserName>Firefox</browserName>
+		<browserIcon>plugins/DevicesDetection/images/browsers/FF.gif</browserIcon>
+		<browserCode>FF</browserCode>
+		<browserVersion>3.6</browserVersion>
+		<events>0</events>
+		<continent>Europe</continent>
+		<continentCode>eur</continentCode>
+		<country>France</country>
+		<countryCode>fr</countryCode>
+		<countryFlag>plugins/UserCountry/images/flags/fr.png</countryFlag>
+		<region />
+		<regionCode />
+		<city />
+		<location>France</location>
+		<latitude />
+		<longitude />
+		<visitLocalTime>12:34:06</visitLocalTime>
+		<visitLocalHour>12</visitLocalHour>
+		<daysSinceLastVisit>0</daysSinceLastVisit>
+		<provider>Unknown</provider>
+		<providerName>Unknown</providerName>
+		<providerUrl />
+		<customVariables>
+		</customVariables>
+		<resolution>1024x768</resolution>
+		<plugins>flash, java</plugins>
+		<pluginsIcons>
+			<row>
+				<pluginIcon>plugins/DevicePlugins/images/plugins/flash.gif</pluginIcon>
+				<pluginName>flash</pluginName>
+			</row>
+			<row>
+				<pluginIcon>plugins/DevicePlugins/images/plugins/java.gif</pluginIcon>
+				<pluginName>java</pluginName>
+			</row>
+		</pluginsIcons>
+		
+		
+		
+		
+		
+	</row>
+	<row>
+		<idSite>1</idSite>
+		<idVisit>2</idVisit>
+		<visitIp>111.1.1.1</visitIp>
+		
+		<actionDetails>
+			<row>
+				<type>action</type>
+				<url>http://www.example.org/page</url>
+				<pageTitle>Ads</pageTitle>
+				<pageIdAction>2</pageIdAction>
+				
+				<pageId>13</pageId>
+				<generationTime>0.33s</generationTime>
+				<timeSpent>270</timeSpent>
+				<timeSpentPretty>4 min 30s</timeSpentPretty>
+				<icon />
+				
+			</row>
+		</actionDetails>
+		<goalConversions>0</goalConversions>
+		<siteCurrency>USD</siteCurrency>
+		<siteCurrencySymbol>$</siteCurrencySymbol>
+		
+		
+		
+		
+		<userId />
+		<visitorType>new</visitorType>
+		<visitorTypeIcon />
+		<visitConverted>0</visitConverted>
+		<visitConvertedIcon />
+		<visitCount>1</visitCount>
+		
+		<visitEcommerceStatus>none</visitEcommerceStatus>
+		<visitEcommerceStatusIcon />
+		<daysSinceFirstVisit>0</daysSinceFirstVisit>
+		<daysSinceLastEcommerceOrder>0</daysSinceLastEcommerceOrder>
+		<visitDuration>271</visitDuration>
+		<visitDurationPretty>4 min 31s</visitDurationPretty>
+		<searches>0</searches>
+		<actions>1</actions>
+		<referrerType>direct</referrerType>
+		<referrerTypeName>Direct Entry</referrerTypeName>
+		<referrerName />
+		<referrerKeyword />
+		<referrerKeywordPosition />
+		<referrerUrl />
+		<referrerSearchEngineUrl />
+		<referrerSearchEngineIcon />
+		<languageCode>fr</languageCode>
+		<language>French</language>
+		<deviceType>Desktop</deviceType>
+		<deviceTypeIcon>plugins/DevicesDetection/images/screens/normal.gif</deviceTypeIcon>
+		<deviceBrand>Unknown</deviceBrand>
+		<deviceModel />
+		<operatingSystem>Windows XP</operatingSystem>
+		<operatingSystemName>Windows</operatingSystemName>
+		<operatingSystemIcon>plugins/DevicesDetection/images/os/WIN.gif</operatingSystemIcon>
+		<operatingSystemCode>WIN</operatingSystemCode>
+		<operatingSystemVersion>XP</operatingSystemVersion>
+		<browserFamily>Gecko</browserFamily>
+		<browserFamilyDescription>Gecko (Firefox)</browserFamilyDescription>
+		<browser>Firefox 3.6</browser>
+		<browserName>Firefox</browserName>
+		<browserIcon>plugins/DevicesDetection/images/browsers/FF.gif</browserIcon>
+		<browserCode>FF</browserCode>
+		<browserVersion>3.6</browserVersion>
+		<events>0</events>
+		<continent>Europe</continent>
+		<continentCode>eur</continentCode>
+		<country>France</country>
+		<countryCode>fr</countryCode>
+		<countryFlag>plugins/UserCountry/images/flags/fr.png</countryFlag>
+		<region />
+		<regionCode />
+		<city />
+		<location>France</location>
+		<latitude />
+		<longitude />
+		<visitLocalTime>12:34:06</visitLocalTime>
+		<visitLocalHour>12</visitLocalHour>
+		<daysSinceLastVisit>0</daysSinceLastVisit>
+		<provider>Unknown</provider>
+		<providerName>Unknown</providerName>
+		<providerUrl />
+		<customVariables>
+		</customVariables>
+		<resolution>1024x768</resolution>
+		<plugins>director</plugins>
+		<pluginsIcons>
+			<row>
+				<pluginIcon>plugins/DevicePlugins/images/plugins/director.gif</pluginIcon>
+				<pluginName>director</pluginName>
+			</row>
+		</pluginsIcons>
+		
+		
+		
+		
+		
+	</row>
+</result>

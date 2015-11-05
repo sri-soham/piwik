@@ -1,25 +1,22 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Piwik
  */
 namespace Piwik\Db\Adapter;
 
 use Exception;
 use Piwik\Config;
+use Piwik\Db;
 use Piwik\Db\AdapterInterface;
 use Piwik\Piwik;
 use Zend_Config;
 use Zend_Db_Adapter_Mysqli;
 
 /**
- * @package Piwik
- * @subpackage Piwik_Db
  */
 class Mysqli extends Zend_Db_Adapter_Mysqli implements AdapterInterface
 {
@@ -53,6 +50,17 @@ class Mysqli extends Zend_Db_Adapter_Mysqli implements AdapterInterface
         return 3306;
     }
 
+    protected function _connect()
+    {
+        if ($this->_connection) {
+            return;
+        }
+
+        parent::_connect();
+
+        $this->_connection->query('SET sql_mode = "' . Db::SQL_MODE . '"');
+    }
+
     /**
      * Check MySQL version
      *
@@ -60,8 +68,9 @@ class Mysqli extends Zend_Db_Adapter_Mysqli implements AdapterInterface
      */
     public function checkServerVersion()
     {
-        $serverVersion = $this->getServerVersion();
+        $serverVersion   = $this->getServerVersion();
         $requiredVersion = Config::getInstance()->General['minimum_mysql_version'];
+
         if (version_compare($serverVersion, $requiredVersion) === -1) {
             throw new Exception(Piwik::translate('General_ExceptionDatabaseVersion', array('MySQL', $serverVersion, $requiredVersion)));
         }
@@ -76,6 +85,7 @@ class Mysqli extends Zend_Db_Adapter_Mysqli implements AdapterInterface
     {
         $serverVersion = $this->getServerVersion();
         $clientVersion = $this->getClientVersion();
+
         // incompatible change to DECIMAL implementation in 5.0.3
         if (version_compare($serverVersion, '5.0.3') >= 0
             && version_compare($clientVersion, '5.0.3') < 0
@@ -172,10 +182,12 @@ class Mysqli extends Zend_Db_Adapter_Mysqli implements AdapterInterface
     public function getClientVersion()
     {
         $this->_connect();
-        $version = $this->_connection->server_version;
-        $major = (int)($version / 10000);
-        $minor = (int)($version % 10000 / 100);
+
+        $version  = $this->_connection->server_version;
+        $major    = (int)($version / 10000);
+        $minor    = (int)($version % 10000 / 100);
         $revision = (int)($version % 100);
+
         return $major . '.' . $minor . '.' . $revision;
     }
 }

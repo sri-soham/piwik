@@ -1,42 +1,37 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Piwik
  */
 namespace Piwik\DataTable\Filter;
 
 use Piwik\DataTable\BaseFilter;
 use Piwik\DataTable;
-use Piwik\DataTable\Manager;
 use Piwik\Piwik;
 
 /**
  * Replaces the label of the summary row with a supplied label.
- * 
+ *
  * This filter is only used to prettify the summary row label and so it should
  * always be queued on a {@link DataTable}.
- * 
+ *
  * This filter always recurses. In other words, this filter will always apply itself to
  * all subtables in the given {@link DataTable}'s table hierarchy.
- * 
+ *
  * **Basic example**
- * 
+ *
  *     $dataTable->queueFilter('ReplaceSummaryRowLabel', array(Piwik::translate('General_Others')));
- * 
- * @package Piwik
- * @subpackage DataTable
+ *
  * @api
  */
 class ReplaceSummaryRowLabel extends BaseFilter
 {
     /**
      * Constructor.
-     * 
+     *
      * @param DataTable $table The table that will eventually be filtered.
      * @param string|null $newLabel The new label for summary row. If null, defaults to
      *                              `Piwik::translate('General_Others')`.
@@ -57,20 +52,20 @@ class ReplaceSummaryRowLabel extends BaseFilter
      */
     public function filter($table)
     {
-        $rows = $table->getRows();
-        foreach ($rows as $id => $row) {
-            if ($row->getColumn('label') == DataTable::LABEL_SUMMARY_ROW
-                || $id == DataTable::ID_SUMMARY_ROW
-            ) {
+        $row = $table->getRowFromId(DataTable::ID_SUMMARY_ROW);
+        if ($row) {
+            $row->setColumn('label', $this->newLabel);
+        } else {
+            $row = $table->getRowFromLabel(DataTable::LABEL_SUMMARY_ROW);
+            if ($row) {
                 $row->setColumn('label', $this->newLabel);
-                break;
             }
         }
 
         // recurse
-        foreach ($rows as $row) {
-            if ($row->isSubtableLoaded()) {
-                $subTable = Manager::getInstance()->getTable($row->getIdSubDataTable());
+        foreach ($table->getRowsWithoutSummaryRow() as $row) {
+            $subTable = $row->getSubtable();
+            if ($subTable) {
                 $this->filter($subTable);
             }
         }

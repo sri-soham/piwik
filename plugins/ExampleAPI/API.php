@@ -1,25 +1,22 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik_Plugins
- * @package Piwik_ExampleAPI
  */
 namespace Piwik\Plugins\ExampleAPI;
 
-use Piwik\DataTable;
 use Piwik\DataTable\Row;
+use Piwik\DataTable;
 use Piwik\Piwik;
 use Piwik\Version;
 
 /**
  * The ExampleAPI is useful to developers building a custom Piwik plugin.
  *
- * Please see the <a href='http://dev.piwik.org/trac/browser/trunk/plugins/ExampleAPI/API.php#L1' target='_blank'>source code in in the file plugins/ExampleAPI/API.php</a> for more documentation.
- * @package Piwik_ExampleAPI
+ * Please see the <a href='https://github.com/piwik/piwik/blob/master/plugins/ExampleAPI/API.php' rel='noreferrer' target='_blank'>source code in in the file plugins/ExampleAPI/API.php</a> for more documentation.
  * @method static \Piwik\Plugins\ExampleAPI\API getInstance()
  */
 class API extends \Piwik\Plugin\API
@@ -90,7 +87,7 @@ class API extends \Piwik\Plugin\API
      */
     public function getDescriptionArray()
     {
-        return array('piwik', 'open source', 'web analytics', 'free', 'Strong message: Свободный Тибет');
+        return array('piwik', 'free/libre', 'web analytics', 'free', 'Strong message: Свободный Тибет');
     }
 
     /**
@@ -149,7 +146,6 @@ class API extends \Piwik\Plugin\API
 /**
  * Magic Object
  *
- * @package ExamplePlugin
  */
 class MagicObject
 {

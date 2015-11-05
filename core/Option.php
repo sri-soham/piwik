@@ -1,12 +1,10 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Piwik
  */
 namespace Piwik;
 
@@ -15,40 +13,51 @@ use Piwik\Db\Factory;
 /**
  * Convenient key-value storage for user specified options and temporary
  * data that needs to be persisted beyond one request.
- * 
+ *
  * ### Examples
- * 
+ *
  * **Setting and getting options**
- * 
+ *
  *     $optionValue = Option::get('MyPlugin.MyOptionName');
  *     if ($optionValue === false) {
  *         // if not set, set it
  *         Option::set('MyPlugin.MyOptionName', 'my option value');
  *     }
- * 
+ *
  * **Storing user specific options**
- * 
+ *
  *     $userName = // ...
  *     Option::set('MyPlugin.MyOptionName.' . $userName, 'my option value');
- * 
+ *
  * **Clearing user specific options**
- * 
+ *
  *     Option::deleteLike('MyPlugin.MyOptionName.%');
  *
- * @package Piwik
  * @api
  */
 class Option
 {
     /**
      * Returns the option value for the requested option `$name`.
-     * 
+     *
      * @param string $name The option name.
      * @return string|false The value or `false`, if not found.
      */
     public static function get($name)
     {
         return self::getInstance()->getValue($name);
+    }
+
+    /**
+     * Returns option values for options whose names are like a given pattern.
+     *
+     * @param string $namePattern The pattern used in the SQL `LIKE` expression
+     *                            used to SELECT options.
+     * @return array Array mapping option names with option values.
+     */
+    public static function getLike($namePattern)
+    {
+        return self::getInstance()->getNameLike($namePattern);
     }
 
     /**
@@ -61,7 +70,7 @@ class Option
      */
     public static function set($name, $value, $autoload = 0)
     {
-        return self::getInstance()->setValue($name, $value, $autoload);
+        self::getInstance()->setValue($name, $value, $autoload);
     }
 
     /**
@@ -72,7 +81,7 @@ class Option
      */
     public static function delete($name, $value = null)
     {
-        return self::getInstance()->deleteValue($name, $value);
+        self::getInstance()->deleteValue($name, $value);
     }
 
     /**
@@ -84,7 +93,12 @@ class Option
      */
     public static function deleteLike($namePattern, $value = null)
     {
-        return self::getInstance()->deleteNameLike($namePattern, $value);
+        self::getInstance()->deleteNameLike($namePattern, $value);
+    }
+
+    public static function clearCachedOption($name)
+    {
+        self::getInstance()->clearCachedOptionByName($name);
     }
 
     /**
@@ -115,19 +129,31 @@ class Option
      * Singleton instance
      * @var \Piwik\Option
      */
-    static private $instance = null;
+    private static $instance = null;
 
     /**
      * Returns Singleton instance
      *
      * @return \Piwik\Option
      */
-    static private function getInstance()
+    private static function getInstance()
     {
         if (self::$instance == null) {
             self::$instance = new self;
         }
+
         return self::$instance;
+    }
+
+    /**
+     * Sets the singleton instance. For testing purposes.
+     *
+     * @param mixed
+     * @ignore
+     */
+    public static function setSingletonInstance($instance)
+    {
+        self::$instance = $instance;
     }
 
     /**
@@ -135,6 +161,13 @@ class Option
      */
     private function __construct()
     {
+    }
+
+    protected function clearCachedOptionByName($name)
+    {
+        if (isset($this->all[$name])) {
+            unset($this->all[$name]);
+        }
     }
 
     protected function getValue($name)
@@ -149,6 +182,7 @@ class Option
         if($value === false) {
             return false;
         }
+
         $this->all[$name] = $value;
         return $value;
     }
@@ -175,6 +209,19 @@ class Option
         $dao->deleteLike($name, $value);
 
         $this->clearCache();
+    }
+
+    protected function getNameLike($name)
+    {
+        $dao = Factory::getDAO('option');
+        $rows = $dao->getNameLike($name);
+
+        $result = array();
+        foreach ($rows as $row) {
+            $result[$row['option_name']] = $row['option_value'];
+        }
+
+        return $result;
     }
 
     /**

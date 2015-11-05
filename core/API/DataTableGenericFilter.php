@@ -1,36 +1,47 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Piwik
  */
 namespace Piwik\API;
 
 use Exception;
 use Piwik\Common;
 use Piwik\DataTable;
-use Piwik\DataTable\Filter\AddColumnsProcessedMetricsGoal;
+use Piwik\Plugin\ProcessedMetric;
+use Piwik\Plugin\Report;
 
-/**
- * @package Piwik
- * @subpackage Piwik_API
- */
 class DataTableGenericFilter
 {
-    private static $genericFiltersInfo = null;
+    /**
+     * List of filter names not to run.
+     *
+     * @var string[]
+     */
+    private $disabledFilters = array();
+
+    /**
+     * @var Report
+     */
+    private $report;
+
+    /**
+     * @var array
+     */
+    private $request;
 
     /**
      * Constructor
      *
      * @param $request
      */
-    function __construct($request)
+    public function __construct($request, $report)
     {
         $this->request = $request;
+        $this->report  = $report;
     }
 
     /**
@@ -41,6 +52,16 @@ class DataTableGenericFilter
     public function filter($table)
     {
         $this->applyGenericFilters($table);
+    }
+
+    /**
+     * Makes sure a set of filters are not run.
+     *
+     * @param string[] $filterNames The name of each filter to disable.
+     */
+    public function disableFilters($filterNames)
+    {
+        $this->disabledFilters = array_unique(array_merge($this->disabledFilters, $filterNames));
     }
 
     /**
@@ -57,43 +78,54 @@ class DataTableGenericFilter
      */
     public static function getGenericFiltersInformation()
     {
-        if (is_null(self::$genericFiltersInfo)) {
-            self::$genericFiltersInfo = array(
-                'Pattern'                        => array(
-                    'filter_column'  => array('string', 'label'),
-                    'filter_pattern' => array('string'),
-                ),
-                'PatternRecursive'               => array(
-                    'filter_column_recursive'  => array('string', 'label'),
-                    'filter_pattern_recursive' => array('string'),
-                ),
-                'ExcludeLowPopulation'           => array(
-                    'filter_excludelowpop'       => array('string'),
-                    'filter_excludelowpop_value' => array('float', '0'),
-                ),
-                'AddColumnsProcessedMetrics'     => array(
-                    'filter_add_columns_when_show_all_columns' => array('integer')
-                ),
-                'AddColumnsProcessedMetricsGoal' => array(
-                    'filter_update_columns_when_show_all_goals' => array('integer'),
-                    'idGoal'                                    => array('string', AddColumnsProcessedMetricsGoal::GOALS_OVERVIEW),
-                ),
-                'Sort'                           => array(
-                    'filter_sort_column' => array('string'),
-                    'filter_sort_order'  => array('string', 'desc'),
-                ),
-                'Truncate'                       => array(
-                    'filter_truncate' => array('integer'),
-                ),
-                'Limit'                          => array(
-                    'filter_offset'    => array('integer', '0'),
-                    'filter_limit'     => array('integer'),
-                    'keep_summary_row' => array('integer', '0'),
-                ),
-            );
+        return array(
+            array('Pattern',
+                  array(
+                      'filter_column'  => array('string', 'label'),
+                      'filter_pattern' => array('string')
+                  )),
+            array('PatternRecursive',
+                  array(
+                      'filter_column_recursive'  => array('string', 'label'),
+                      'filter_pattern_recursive' => array('string'),
+                  )),
+            array('ExcludeLowPopulation',
+                  array(
+                      'filter_excludelowpop'       => array('string'),
+                      'filter_excludelowpop_value' => array('float', '0'),
+                  )),
+            array('Sort',
+                  array(
+                      'filter_sort_column' => array('string'),
+                      'filter_sort_order'  => array('string', 'desc'),
+                  )),
+            array('Truncate',
+                  array(
+                      'filter_truncate' => array('integer'),
+                  )),
+            array('Limit',
+                  array(
+                      'filter_offset'    => array('integer', '0'),
+                      'filter_limit'     => array('integer'),
+                      'keep_summary_row' => array('integer', '0'),
+                  ))
+        );
+    }
+
+    private function getGenericFiltersHavingDefaultValues()
+    {
+        $filters = self::getGenericFiltersInformation();
+
+        if ($this->report && $this->report->getDefaultSortColumn()) {
+            foreach ($filters as $index => $filter) {
+                if ($filter[0] === 'Sort') {
+                    $filters[$index][1]['filter_sort_column'] = array('string', $this->report->getDefaultSortColumn());
+                    $filters[$index][1]['filter_sort_order']  = array('string', $this->report->getDefaultSortOrder());
+                }
+            }
         }
 
-        return self::$genericFiltersInfo;
+        return $filters;
     }
 
     /**
@@ -113,13 +145,20 @@ class DataTableGenericFilter
             return;
         }
 
-        $genericFilters = self::getGenericFiltersInformation();
+        $genericFilters = $this->getGenericFiltersHavingDefaultValues();
 
         $filterApplied = false;
-        foreach ($genericFilters as $filterName => $parameters) {
+        foreach ($genericFilters as $filterMeta) {
+            $filterName = $filterMeta[0];
+            $filterParams = $filterMeta[1];
             $filterParameters = array();
             $exceptionRaised = false;
-            foreach ($parameters as $name => $info) {
+
+            if (in_array($filterName, $this->disabledFilters)) {
+                continue;
+            }
+
+            foreach ($filterParams as $name => $info) {
                 // parameter type to cast to
                 $type = $info[0];
 
@@ -127,12 +166,6 @@ class DataTableGenericFilter
                 $defaultValue = null;
                 if (isset($info[1])) {
                     $defaultValue = $info[1];
-                }
-
-                // third element in the array, if it exists, overrides the name of the request variable
-                $varName = $name;
-                if (isset($info[2])) {
-                    $varName = $info[2];
                 }
 
                 try {
@@ -150,6 +183,45 @@ class DataTableGenericFilter
                 $filterApplied = true;
             }
         }
+
         return $filterApplied;
+    }
+
+    public function areProcessedMetricsNeededFor($metrics)
+    {
+        $columnQueryParameters = array(
+            'filter_column',
+            'filter_column_recursive',
+            'filter_excludelowpop',
+            'filter_sort_column'
+        );
+
+        foreach ($columnQueryParameters as $queryParamName) {
+            $queryParamValue = Common::getRequestVar($queryParamName, false, $type = null, $this->request);
+            if (!empty($queryParamValue)
+                && $this->containsProcessedMetric($metrics, $queryParamValue)
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param ProcessedMetric[] $metrics
+     * @param string $name
+     * @return bool
+     */
+    private function containsProcessedMetric($metrics, $name)
+    {
+        foreach ($metrics as $metric) {
+            if ($metric instanceof ProcessedMetric
+                && $metric->getName() == $name
+            ) {
+                return true;
+            }
+        }
+        return false;
     }
 }

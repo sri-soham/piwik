@@ -1,32 +1,30 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package ReportRenderer
  */
 namespace Piwik\ReportRenderer;
 
+use Piwik\Piwik;
 use Piwik\Plugins\API\API;
 use Piwik\ReportRenderer;
 use Piwik\SettingsPiwik;
 use Piwik\View;
 
 /**
- *
- * @package ReportRenderer
+ * HTML report renderer
  */
 class Html extends ReportRenderer
 {
     const IMAGE_GRAPH_WIDTH = 700;
     const IMAGE_GRAPH_HEIGHT = 200;
 
-    const REPORT_TITLE_TEXT_SIZE = 11;
+    const REPORT_TITLE_TEXT_SIZE = 24;
     const REPORT_TABLE_HEADER_TEXT_SIZE = 11;
-    const REPORT_TABLE_ROW_TEXT_SIZE = 11;
+    const REPORT_TABLE_ROW_TEXT_SIZE = '13px';
     const REPORT_BACK_TO_TOP_TEXT_SIZE = 9;
 
     const HTML_CONTENT_TYPE = 'text/html';
@@ -109,6 +107,7 @@ class Html extends ReportRenderer
 
     private function assignCommonParameters(View $view)
     {
+        $view->assign("reportFontFamily", ReportRenderer::DEFAULT_REPORT_FONT_FAMILY);
         $view->assign("reportTitleTextColor", ReportRenderer::REPORT_TITLE_TEXT_COLOR);
         $view->assign("reportTitleTextSize", self::REPORT_TITLE_TEXT_SIZE);
         $view->assign("reportTextColor", ReportRenderer::REPORT_TEXT_COLOR);
@@ -116,7 +115,9 @@ class Html extends ReportRenderer
         $view->assign("tableHeaderTextColor", ReportRenderer::TABLE_HEADER_TEXT_COLOR);
         $view->assign("tableCellBorderColor", ReportRenderer::TABLE_CELL_BORDER_COLOR);
         $view->assign("tableBgColor", ReportRenderer::TABLE_BG_COLOR);
+        $view->assign("reportTableHeaderTextWeight", self::TABLE_HEADER_TEXT_WEIGHT);
         $view->assign("reportTableHeaderTextSize", self::REPORT_TABLE_HEADER_TEXT_SIZE);
+        $view->assign("reportTableHeaderTextTransform", ReportRenderer::TABLE_HEADER_TEXT_TRANSFORM);
         $view->assign("reportTableRowTextSize", self::REPORT_TABLE_ROW_TEXT_SIZE);
         $view->assign("reportBackToTopTextSize", self::REPORT_BACK_TO_TOP_TEXT_SIZE);
         $view->assign("currentPath", SettingsPiwik::getPiwikUrl());
@@ -163,5 +164,57 @@ class Html extends ReportRenderer
         }
 
         $this->rendering .= $reportView->render();
+    }
+
+    public function getAttachments($report, $processedReports, $prettyDate)
+    {
+        $additionalFiles = array();
+
+        foreach ($processedReports as $processedReport) {
+            if ($processedReport['displayGraph']) {
+                $additionalFiles[] = $this->getAttachment($report, $processedReport, $prettyDate);
+            }
+        }
+
+        return $additionalFiles;
+    }
+
+    protected function getAttachment($report, $processedReport, $prettyDate)
+    {
+        $additionalFile = array();
+
+        $segment = \Piwik\Plugins\ScheduledReports\API::getSegment($report['idsegment']);
+
+        $segmentName = $segment != null ? sprintf(' (%s)', $segment['name']) : '';
+
+        $processedReportMetadata = $processedReport['metadata'];
+
+        $additionalFile['filename'] =
+            sprintf(
+                '%s - %s - %d - %s %d%s.png',
+                $processedReportMetadata['name'],
+                $prettyDate,
+                $report['idsite'],
+                Piwik::translate('General_Report'),
+                $report['idreport'],
+                $segmentName
+            );
+
+        $additionalFile['cid'] = $processedReportMetadata['uniqueId'];
+
+        $additionalFile['content'] =
+            ReportRenderer::getStaticGraph(
+                $processedReportMetadata,
+                Html::IMAGE_GRAPH_WIDTH,
+                Html::IMAGE_GRAPH_HEIGHT,
+                $processedReport['evolutionGraph'],
+                $segment
+            );
+
+        $additionalFile['mimeType'] = 'image/png';
+
+        $additionalFile['encoding'] = \Zend_Mime::ENCODING_BASE64;
+
+        return $additionalFile;
     }
 }

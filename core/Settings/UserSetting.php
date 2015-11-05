@@ -1,15 +1,14 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Piwik
  */
 
 namespace Piwik\Settings;
+
 use Piwik\Common;
 use Piwik\Piwik;
 
@@ -17,8 +16,6 @@ use Piwik\Piwik;
  * Describes a per user setting. Each user will be able to change this setting for themselves,
  * but not for other users.
  *
- * @package Piwik
- * @subpackage Settings
  *
  * @api
  */
@@ -27,8 +24,14 @@ class UserSetting extends Setting
     private $userLogin = null;
 
     /**
+     * Null while not initialized, bool otherwise.
+     * @var null|bool
+     */
+    private $hasReadAndWritePermission = null;
+
+    /**
      * Constructor.
-     * 
+     *
      * @param string $name The setting's persisted name.
      * @param string $title The setting's display name.
      * @param null|string $userLogin The user this setting applies to. Will default to the current user login.
@@ -38,13 +41,37 @@ class UserSetting extends Setting
         parent::__construct($name, $title);
 
         $this->setUserLogin($userLogin);
+    }
 
-        $this->displayedForCurrentUser = Piwik::isUserHasSomeViewAccess();
+    /**
+     * Returns `true` if this setting can be displayed for the current user, `false` if otherwise.
+     *
+     * @return bool
+     */
+    public function isReadableByCurrentUser()
+    {
+        return $this->isWritableByCurrentUser();
+    }
+
+    /**
+     * Returns `true` if this setting can be displayed for the current user, `false` if otherwise.
+     *
+     * @return bool
+     */
+    public function isWritableByCurrentUser()
+    {
+        if (isset($this->hasReadAndWritePermission)) {
+            return $this->hasReadAndWritePermission;
+        }
+
+        $this->hasReadAndWritePermission = Piwik::isUserHasSomeViewAccess();
+
+        return $this->hasReadAndWritePermission;
     }
 
     /**
      * Returns the display order. User settings are displayed after system settings.
-     * 
+     *
      * @return int
      */
     public function getOrder()
@@ -80,7 +107,7 @@ class UserSetting extends Setting
      */
     public function setUserLogin($userLogin)
     {
-        if (!empty($userLogin) && !Piwik::isUserIsSuperUserOrTheUser($userLogin)) {
+        if (!empty($userLogin) && !Piwik::hasUserSuperUserAccessOrIsTheUser($userLogin)) {
             throw new \Exception('You do not have the permission to read the settings of a different user');
         }
 
@@ -104,16 +131,13 @@ class UserSetting extends Setting
         $pluginsSettings = Manager::getAllPluginSettings();
 
         foreach ($pluginsSettings as $pluginSettings) {
-
             $settings = $pluginSettings->getSettings();
 
             foreach ($settings as $setting) {
-
                 if ($setting instanceof UserSetting) {
                     $setting->setUserLogin($userLogin);
-                    $pluginSettings->removeSettingValue($setting);
+                    $setting->removeValue();
                 }
-
             }
 
             $pluginSettings->save();

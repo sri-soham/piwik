@@ -1,44 +1,31 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik_Plugins
- * @package CorePluginsAdmin
  */
 namespace Piwik\Plugins\CorePluginsAdmin;
 
-use Piwik\CacheFile;
+use Piwik\Cache;
 use Piwik\Http;
 use Piwik\Version;
 
 /**
  *
- * @package CorePluginsAdmin
  */
 class MarketplaceApiClient
 {
     const CACHE_TIMEOUT_IN_SECONDS = 1200;
-    const HTTP_REQUEST_TIMEOUT = 3;
+    const HTTP_REQUEST_TIMEOUT = 60;
 
     private $domain = 'http://plugins.piwik.org';
 
-    /**
-     * @var CacheFile
-     */
-    private $cache = null;
-
-    public function __construct()
-    {
-        $this->cache = new CacheFile('marketplace', self::CACHE_TIMEOUT_IN_SECONDS);
-    }
-
     public static function clearAllCacheEntries()
     {
-        $cache = new CacheFile('marketplace');
-        $cache->deleteAll();
+        $cache = Cache::getLazyCache();
+        $cache->flushAll();
     }
 
     public function getPluginInfo($name)
@@ -140,7 +127,10 @@ class MarketplaceApiClient
     {
         ksort($params);
         $query = http_build_query($params);
-        $result = $this->getCachedResult($action, $query);
+
+        $cacheId = $this->getCacheKey($action, $query);
+        $cache  = $this->buildCache();
+        $result = $cache->fetch($cacheId);
 
         if (false === $result) {
             $endpoint = $this->domain . '/api/1.0/';
@@ -158,29 +148,20 @@ class MarketplaceApiClient
                 throw new MarketplaceApiException($result['error']);
             }
 
-            $this->cacheResult($action, $query, $result);
+            $cache->save($cacheId, $result, self::CACHE_TIMEOUT_IN_SECONDS);
         }
 
         return $result;
     }
 
-    private function getCachedResult($action, $query)
+    private function buildCache()
     {
-        $cacheKey = $this->getCacheKey($action, $query);
-
-        return $this->cache->get($cacheKey);
-    }
-
-    private function cacheResult($action, $query, $result)
-    {
-        $cacheKey = $this->getCacheKey($action, $query);
-
-        $this->cache->set($cacheKey, $result);
+        return Cache::getLazyCache();
     }
 
     private function getCacheKey($action, $query)
     {
-        return sprintf('api.1.0.%s.%s', str_replace('/', '.', $action), md5($query));
+        return sprintf('marketplace.api.1.0.%s.%s', str_replace('/', '.', $action), md5($query));
     }
 
     /**

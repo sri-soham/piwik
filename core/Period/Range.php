@@ -1,17 +1,17 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Piwik
  */
 namespace Piwik\Period;
 
 use Exception;
+use Piwik\Cache;
 use Piwik\Common;
+use Piwik\Container\StaticContainer;
 use Piwik\Date;
 use Piwik\Period;
 use Piwik\Piwik;
@@ -25,16 +25,19 @@ use Piwik\Piwik;
  * date=2007-07-24,2013-11-15).
  *
  * The range period differs from other periods mainly in that since it is arbitrary,
- * range periods are not pre-archived by the **archive.php** cron script.
+ * range periods are not pre-archived by the cron core:archive command.
  *
- * @package Piwik
- * @subpackage Period
  * @api
  */
 class Range extends Period
 {
     protected $label = 'range';
     protected $today;
+
+    /**
+     * @var null|Date
+     */
+    protected $defaultEndDate;
 
     /**
      * Constructor.
@@ -49,13 +52,52 @@ class Range extends Period
     public function __construct($strPeriod, $strDate, $timezone = 'UTC', $today = false)
     {
         $this->strPeriod = $strPeriod;
-        $this->strDate = $strDate;
+        $this->strDate   = $strDate;
+        $this->timezone  = $timezone;
         $this->defaultEndDate = null;
-        $this->timezone = $timezone;
+
         if ($today === false) {
             $today = Date::factory('now', $this->timezone);
         }
+
         $this->today = $today;
+
+        $this->translator = StaticContainer::get('Piwik\Translation\Translator');
+    }
+
+    private function getCache()
+    {
+        return Cache::getTransientCache();
+    }
+
+    private function getCacheId()
+    {
+        $end = '';
+        if ($this->defaultEndDate) {
+            $end = $this->defaultEndDate->getTimestamp();
+        }
+
+        $today = $this->today->getTimestamp();
+
+        return 'range' . $this->strPeriod . $this->strDate . $this->timezone . $end . $today;
+    }
+
+    private function loadAllFromCache()
+    {
+        $range = $this->getCache()->fetch($this->getCacheId());
+
+        if (!empty($range)) {
+            foreach ($range as $key => $val) {
+                $this->$key = $val;
+            }
+        }
+    }
+
+    private function cacheAll()
+    {
+        $props = get_object_vars($this);
+
+        $this->getCache()->save($this->getCacheId(), $props);
     }
 
     /**
@@ -67,10 +109,12 @@ class Range extends Period
     {
         //"30 Dec 08 - 26 Feb 09"
         $dateStart = $this->getDateStart();
-        $dateEnd = $this->getDateEnd();
-        $template = Piwik::translate('CoreHome_ShortDateFormatWithYear');
+        $dateEnd   = $this->getDateEnd();
+        $template  = $this->translator->translate('CoreHome_ShortDateFormatWithYear');
+
         $shortDateStart = $dateStart->getLocalized($template);
-        $shortDateEnd = $dateEnd->getLocalized($template);
+        $shortDateEnd   = $dateEnd->getLocalized($template);
+
         $out = "$shortDateStart - $shortDateEnd";
         return $out;
     }
@@ -94,9 +138,11 @@ class Range extends Period
     public function getDateStart()
     {
         $dateStart = parent::getDateStart();
+
         if (empty($dateStart)) {
             throw new Exception("Specified date range is invalid.");
         }
+
         return $dateStart;
     }
 
@@ -107,7 +153,7 @@ class Range extends Period
      */
     public function getPrettyString()
     {
-        $out = Piwik::translate('General_DateRangeFromTo', array($this->getDateStart()->toString(), $this->getDateEnd()->toString()));
+        $out = $this->translator->translate('General_DateRangeFromTo', array($this->getDateStart()->toString(), $this->getDateEnd()->toString()));
         return $out;
     }
 
@@ -154,6 +200,12 @@ class Range extends Period
             return;
         }
 
+        $this->loadAllFromCache();
+
+        if ($this->subperiodsProcessed) {
+            return;
+        }
+
         parent::generate();
 
         if (preg_match('/(last|previous)([0-9]*)/', $this->strDate, $regs)) {
@@ -184,20 +236,16 @@ class Range extends Period
 
             // last1 means only one result ; last2 means 2 results so we remove only 1 to the days/weeks/etc
             $lastN--;
-            $lastN = abs($lastN);
+            if ($lastN < 0) {
+                $lastN = 0;
+            }
 
             $startDate = $endDate->addPeriod(-1 * $lastN, $period);
-
         } elseif ($dateRange = Range::parseDateRange($this->strDate)) {
             $strDateStart = $dateRange[1];
             $strDateEnd = $dateRange[2];
             $startDate = Date::factory($strDateStart);
 
-            if ($strDateEnd == 'today') {
-                $strDateEnd = 'now';
-            } elseif ($strDateEnd == 'yesterday') {
-                $strDateEnd = 'yesterdaySameTime';
-            }
             // we set the timezone in the Date object only if the date is relative eg. 'today', 'yesterday', 'now'
             $timezone = null;
             if (strpos($strDateEnd, '-') === false) {
@@ -205,16 +253,20 @@ class Range extends Period
             }
             $endDate = Date::factory($strDateEnd, $timezone);
         } else {
-            throw new Exception(Piwik::translate('General_ExceptionInvalidDateRange', array($this->strDate, ' \'lastN\', \'previousN\', \'YYYY-MM-DD,YYYY-MM-DD\'')));
+            throw new Exception($this->translator->translate('General_ExceptionInvalidDateRange', array($this->strDate, ' \'lastN\', \'previousN\', \'YYYY-MM-DD,YYYY-MM-DD\'')));
         }
+
         if ($this->strPeriod != 'range') {
             $this->fillArraySubPeriods($startDate, $endDate, $this->strPeriod);
+            $this->cacheAll();
             return;
         }
+
         $this->processOptimalSubperiods($startDate, $endDate);
         // When period=range, we want End Date to be the actual specified end date,
         // rather than the end of the month / week / whatever is used for processing this range
         $this->endDate = $endDate;
+        $this->cacheAll();
     }
 
     /**
@@ -224,12 +276,14 @@ class Range extends Period
      * @param string $dateString
      * @return mixed  array(1 => dateStartString, 2 => dateEndString) or `false` if the input was not a date range.
      */
-    static public function parseDateRange($dateString)
+    public static function parseDateRange($dateString)
     {
         $matched = preg_match('/^([0-9]{4}-[0-9]{1,2}-[0-9]{1,2}),(([0-9]{4}-[0-9]{1,2}-[0-9]{1,2})|today|now|yesterday)$/D', trim($dateString), $regs);
+
         if (empty($matched)) {
             return false;
         }
+
         return $regs;
     }
 
@@ -245,6 +299,7 @@ class Range extends Period
         if (!is_null($this->endDate)) {
             return $this->endDate;
         }
+
         return parent::getDateEnd();
     }
 
@@ -282,7 +337,7 @@ class Range extends Period
             ) {
                 $this->addSubperiod($year);
                 $endOfPeriod = $endOfYear;
-            } else if ($startDate == $startOfMonth
+            } elseif ($startDate == $startOfMonth
                 && ($endOfMonth->isEarlier($endDate)
                     || $endOfMonth == $endDate
                     || $endOfMonth->isLater($this->today)
@@ -342,14 +397,14 @@ class Range extends Period
     protected function fillArraySubPeriods($startDate, $endDate, $period)
     {
         $arrayPeriods = array();
-        $endSubperiod = Period::factory($period, $endDate);
+        $endSubperiod = Period\Factory::build($period, $endDate);
         $arrayPeriods[] = $endSubperiod;
 
         // set end date to start of end period since we're comparing against start date.
         $endDate = $endSubperiod->getDateStart();
         while ($endDate->isLater($startDate)) {
             $endDate = $endDate->addPeriod(-1, $period);
-            $subPeriod = Period::factory($period, $endDate);
+            $subPeriod = Period\Factory::build($period, $endDate);
             $arrayPeriods[] = $subPeriod;
         }
         $arrayPeriods = array_reverse($arrayPeriods);
@@ -370,6 +425,24 @@ class Range extends Period
      */
     public static function getLastDate($date = false, $period = false)
     {
+        return self::getDateXPeriodsAgo(1, $date, $period);
+    }
+
+    /**
+     * Returns the date that is X periods before the supplied date.
+     *
+     * @param bool|string $date The date to get the last date of.
+     * @param bool|string $period The period to use (either 'day', 'week', 'month', 'year');
+     * @param int         $subXPeriods How many periods in the past the date should be, for instance 1 or 7.
+     *                    If sub period is 365 days and the current year is a leap year we assume you want to get the
+     *                    day one year ago and change the value to 366 days therefore.
+     *
+     * @return array An array with two elements, a string for the date before $date and
+     *               a Period instance for the period before $date.
+     * @api
+     */
+    public static function getDateXPeriodsAgo($subXPeriods, $date = false, $period = false)
+    {
         if ($date === false) {
             $date = Common::getRequestVar('date');
         }
@@ -378,20 +451,25 @@ class Range extends Period
             $period = Common::getRequestVar('period');
         }
 
+        if (365 == $subXPeriods && 'day' == $period && Date::today()->isLeapYear()) {
+            $subXPeriods = 366;
+        }
+
         // can't get the last date for range periods & dates that use lastN/previousN
         $strLastDate = false;
-        $lastPeriod = false;
+        $lastPeriod  = false;
         if ($period != 'range' && !preg_match('/(last|previous)([0-9]*)/', $date, $regs)) {
-            if (strpos($date, ',')) // date in the form of 2011-01-01,2011-02-02
-            {
+            if (strpos($date, ',')) {
+                // date in the form of 2011-01-01,2011-02-02
+
                 $rangePeriod = new Range($period, $date);
 
-                $lastStartDate = $rangePeriod->getDateStart()->addPeriod(-1, $period);
-                $lastEndDate = $rangePeriod->getDateEnd()->addPeriod(-1, $period);
+                $lastStartDate = $rangePeriod->getDateStart()->subPeriod($subXPeriods, $period);
+                $lastEndDate   = $rangePeriod->getDateEnd()->subPeriod($subXPeriods, $period);
 
                 $strLastDate = "$lastStartDate,$lastEndDate";
             } else {
-                $lastPeriod = Date::factory($date)->addPeriod(-1, $period);
+                $lastPeriod  = Date::factory($date)->subPeriod($subXPeriods, $period);
                 $strLastDate = $lastPeriod->toString();
             }
         }
@@ -407,7 +485,7 @@ class Range extends Period
      * @param int $lastN The number of periods of type `$period` that the result range should
      *                   span.
      * @param string $endDate The desired end date of the range.
-     * @param Site $site The site whose timezone should be used.
+     * @param \Piwik\Site $site The site whose timezone should be used.
      * @return string The date range string, eg, `'2012-01-02,2013-01-02'`.
      * @api
      */
@@ -416,6 +494,7 @@ class Range extends Period
         $last30Relative = new Range($period, $lastN, $site->getTimezone());
         $last30Relative->setDefaultEndDate(Date::factory($endDate));
         $date = $last30Relative->getDateStart()->toString() . "," . $last30Relative->getDateEnd()->toString();
+
         return $date;
     }
 
@@ -429,5 +508,18 @@ class Range extends Period
                 && $endDate->isLater($this->today)));
 
         return $isEndOfWeekLaterThanEndDate;
+    }
+
+    /**
+     * Returns the date range string comprising two dates
+     *
+     * @return string eg, `'2012-01-01,2012-01-31'`.
+     */
+    public function getRangeString()
+    {
+        $dateStart = $this->getDateStart();
+        $dateEnd   = $this->getDateEnd();
+
+        return $dateStart->toString("Y-m-d") . "," . $dateEnd->toString("Y-m-d");
     }
 }

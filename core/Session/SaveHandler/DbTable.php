@@ -1,24 +1,21 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Piwik
  */
 
 namespace Piwik\Session\SaveHandler;
 
+use Piwik\Db;
 use Zend_Session;
 use Zend_Session_SaveHandler_Interface;
 
 /**
  * Database-backed session save handler
  *
- * @package Piwik
- * @subpackage Session
  */
 class DbTable implements Zend_Session_SaveHandler_Interface
 {
@@ -28,7 +25,7 @@ class DbTable implements Zend_Session_SaveHandler_Interface
     /**
      * @param array $config
      */
-    function __construct($config)
+    public function __construct($config)
     {
         $this->config = $config;
         $this->maxLifetime = ini_get('session.gc_maxlifetime');
@@ -53,7 +50,7 @@ class DbTable implements Zend_Session_SaveHandler_Interface
      */
     public function open($save_path, $name)
     {
-        $this->config['db']->getConnection();
+        Db::get()->getConnection();
 
         return true;
     }
@@ -80,9 +77,10 @@ class DbTable implements Zend_Session_SaveHandler_Interface
             . ' WHERE ' . $this->config['primary'] . ' = ?'
             . ' AND ' . $this->config['modifiedColumn'] . ' + ' . $this->config['lifetimeColumn'] . ' >= ?';
 
-        $result = $this->config['db']->fetchOne($sql, array($id, time()));
-        if (!$result)
+        $result = Db::get()->fetchOne($sql, array($id, time()));
+        if (!$result) {
             $result = '';
+        }
 
         return $result;
     }
@@ -107,7 +105,7 @@ class DbTable implements Zend_Session_SaveHandler_Interface
             . $this->config['lifetimeColumn'] . ' = ?,'
             . $this->config['dataColumn'] . ' = ?';
 
-        $this->config['db']->query($sql, array($id, time(), $this->maxLifetime, $data, time(), $this->maxLifetime, $data));
+        Db::get()->query($sql, array($id, time(), $this->maxLifetime, $data, time(), $this->maxLifetime, $data));
 
         return true;
     }
@@ -121,10 +119,9 @@ class DbTable implements Zend_Session_SaveHandler_Interface
      */
     public function destroy($id)
     {
-        $sql = 'DELETE FROM ' . $this->config['name']
-            . ' WHERE ' . $this->config['primary'] . ' = ?';
+        $sql = 'DELETE FROM ' . $this->config['name'] . ' WHERE ' . $this->config['primary'] . ' = ?';
 
-        $this->config['db']->query($sql, array($id));
+        Db::get()->query($sql, array($id));
 
         return true;
     }
@@ -141,7 +138,7 @@ class DbTable implements Zend_Session_SaveHandler_Interface
         $sql = 'DELETE FROM ' . $this->config['name']
             . ' WHERE ' . $this->config['modifiedColumn'] . ' + ' . $this->config['lifetimeColumn'] . ' < ?';
 
-        $this->config['db']->query($sql, array(time()));
+        Db::get()->query($sql, array(time()));
 
         return true;
     }

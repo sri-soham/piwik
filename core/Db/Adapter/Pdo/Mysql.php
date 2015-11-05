@@ -1,12 +1,10 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Piwik
  */
 namespace Piwik\Db\Adapter\Pdo;
 
@@ -14,6 +12,7 @@ use Exception;
 use PDO;
 use PDOException;
 use Piwik\Config;
+use Piwik\Db;
 use Piwik\Db\AdapterInterface;
 use Piwik\Piwik;
 use Zend_Config;
@@ -22,8 +21,6 @@ use Zend_Db_Select;
 use Zend_Db_Statement_Interface;
 
 /**
- * @package Piwik
- * @subpackage Piwik_Db
  */
 class Mysql extends Zend_Db_Adapter_Pdo_Mysql implements AdapterInterface
 {
@@ -65,10 +62,21 @@ class Mysql extends Zend_Db_Adapter_Pdo_Mysql implements AdapterInterface
          */
         $this->_connection->setAttribute(PDO::ATTR_EMULATE_PREPARES, true);
 
+        return $this->_connection;
+    }
+
+    protected function _connect()
+    {
+        if ($this->_connection) {
+            return;
+        }
+
+        parent::_connect();
+
         // MYSQL_ATTR_USE_BUFFERED_QUERY will use more memory when enabled
         // $this->_connection->setAttribute(PDO::MYSQL_ATTR_USE_BUFFERED_QUERY, true);
 
-        return $this->_connection;
+        $this->_connection->exec('SET sql_mode = "' . Db::SQL_MODE . '"');
     }
 
     /**
@@ -96,8 +104,9 @@ class Mysql extends Zend_Db_Adapter_Pdo_Mysql implements AdapterInterface
      */
     public function checkServerVersion()
     {
-        $serverVersion = $this->getServerVersion();
+        $serverVersion   = $this->getServerVersion();
         $requiredVersion = Config::getInstance()->General['minimum_mysql_version'];
+
         if (version_compare($serverVersion, $requiredVersion) === -1) {
             throw new Exception(Piwik::translate('General_ExceptionDatabaseVersion', array('MySQL', $serverVersion, $requiredVersion)));
         }
@@ -112,6 +121,7 @@ class Mysql extends Zend_Db_Adapter_Pdo_Mysql implements AdapterInterface
     {
         $serverVersion = $this->getServerVersion();
         $clientVersion = $this->getClientVersion();
+
         // incompatible change to DECIMAL implementation in 5.0.3
         if (version_compare($serverVersion, '5.0.3') >= 0
             && version_compare($clientVersion, '5.0.3') < 0
@@ -127,8 +137,7 @@ class Mysql extends Zend_Db_Adapter_Pdo_Mysql implements AdapterInterface
      */
     public static function isEnabled()
     {
-        $extensions = @get_loaded_extensions();
-        return in_array('PDO', $extensions) && in_array('pdo_mysql', $extensions) && in_array('mysql', PDO::getAvailableDrivers());
+        return extension_loaded('PDO') && extension_loaded('pdo_mysql') && in_array('mysql', PDO::getAvailableDrivers());
     }
 
     /**
@@ -163,6 +172,7 @@ class Mysql extends Zend_Db_Adapter_Pdo_Mysql implements AdapterInterface
         if (preg_match('/(?:\[|\s)([0-9]{4})(?:\]|\s)/', $e->getMessage(), $match)) {
             return $match[1] == $errno;
         }
+
         return false;
     }
 
@@ -174,9 +184,11 @@ class Mysql extends Zend_Db_Adapter_Pdo_Mysql implements AdapterInterface
     public function isConnectionUTF8()
     {
         $charsetInfo = $this->fetchAll('SHOW VARIABLES LIKE ?', array('character_set_connection'));
+
         if (empty($charsetInfo)) {
             return false;
         }
+
         $charset = $charsetInfo[0]['Value'];
         return $charset === 'utf8';
     }

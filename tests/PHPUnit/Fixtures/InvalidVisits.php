@@ -1,18 +1,22 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link    http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
+namespace Piwik\Tests\Fixtures;
+
 use Piwik\Http;
 use Piwik\Plugins\SitesManager\API;
+use Piwik\Tests\Framework\Fixture;
+use Exception;
 
 /**
  * Adds one site and sends several invalid tracking requests. The result should be
  * one website with no visits.
  */
-class Test_Piwik_Fixture_InvalidVisits extends Test_Piwik_BaseFixture
+class InvalidVisits extends Fixture
 {
     public $idSite = 1;
     public $dateTime = '2009-01-04 00:11:42';
@@ -52,7 +56,7 @@ class Test_Piwik_Fixture_InvalidVisits extends Test_Piwik_BaseFixture
         // Trigger empty request
         $trackerUrl = self::getTrackerUrl();
         $response = Http::fetchRemoteFile($trackerUrl);
-        self::assertTrue(strpos($response, 'is a free open source web') !== false, 'Piwik empty request response not correct: ' . $response);
+        self::assertTrue(strpos($response, 'is a free/libre web') !== false, 'Piwik empty request response not correct: ' . $response);
 
         $t = self::getTracker($idSite, $dateTime, $defaultInit = true);
 
@@ -92,6 +96,21 @@ class Test_Piwik_Fixture_InvalidVisits extends Test_Piwik_BaseFixture
             $t->setIp($excludedIpBis);
             self::checkResponse($t->doTrackPageView('visit from IP globally excluded'));
         }
+
+        // test unknown url exclusion works
+        $urls = array("http://piwik.net", "http://my.stuff.com/");
+        API::getInstance()->updateSite($idSite, $siteName = null, $urls, $ecommerce = null, $siteSearch = null,
+            $searchKeywordParameters = null, $searchCategoryParameters = null, $excludedIps = null, $excludedQueryParams = null,
+            $timezone = null, $currency = null, $group = null, $startDate = null, $excludedUserAgents = null,
+            $keepUrlFragments = null, $type = null, $settings = null, $excludeUnknownUrls = 1);
+
+        $t->setIp("125.4.5.6");
+
+        $t->setUrl("http://piwik.com/to/the/moon");
+        $t->doTrackPageView("ignored, not from piwik.net");
+
+        $t->setUrl("http://their.stuff.com/back/to/the/future");
+        $t->doTrackPageView("ignored, not from my.stuff.com");
 
         try {
             @$t->setAttributionInfo(array());

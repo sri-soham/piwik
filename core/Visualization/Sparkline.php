@@ -1,12 +1,10 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Piwik
  */
 
 namespace Piwik\Visualization;
@@ -25,9 +23,6 @@ require_once PIWIK_INCLUDE_PATH . '/libs/sparkline/lib/Sparkline_Line.php';
 /**
  * Renders a sparkline image given a PHP data array.
  * Using the Sparkline PHP Graphing Library sparkline.org
- *
- * @package Piwik
- * @subpackage Piwik_Visualization
  */
 class Sparkline implements ViewInterface
 {
@@ -37,6 +32,7 @@ class Sparkline implements ViewInterface
     public static $enableSparklineImages = true;
 
     private static $colorNames = array('backgroundColor', 'lineColor', 'minPointColor', 'lastPointColor', 'maxPointColor');
+    private $values = array();
 
     /**
      * Width of the sparkline
@@ -65,7 +61,6 @@ class Sparkline implements ViewInterface
      */
     public function setHeight($height)
     {
-
         if (!is_numeric($height) || $height <= 0) {
             return;
         }
@@ -79,7 +74,6 @@ class Sparkline implements ViewInterface
      */
     public function setWidth($width)
     {
-
         if (!is_numeric($width) || $width <= 0) {
             return;
         }
@@ -115,7 +109,9 @@ class Sparkline implements ViewInterface
 
         $min = $max = $last = null;
         $i = 0;
-        $toRemove = array('%', str_replace('%s', '', Piwik::translate('General_Seconds')));
+        $seconds  = Piwik::translate('Intl_NSecondsShort');
+        $toRemove = array('%', str_replace('%s', '', $seconds));
+
         foreach ($this->values as $value) {
             // 50% and 50s should be plotted as 50
             $value = str_replace($toRemove, '', $value);
@@ -163,6 +159,7 @@ class Sparkline implements ViewInterface
     private function setSparklineColors($sparkline)
     {
         $colors = Common::getRequestVar('colors', false, 'json');
+
         if (empty($colors)) { // quick fix so row evolution sparklines will have color in widgetize's iframes
             $colors = array(
                 'backgroundColor' => '#ffffff',

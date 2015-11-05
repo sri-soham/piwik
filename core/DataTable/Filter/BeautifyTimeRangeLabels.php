@@ -1,12 +1,10 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Piwik
  */
 namespace Piwik\DataTable\Filter;
 
@@ -19,13 +17,11 @@ use Piwik\DataTable;
  * This filter customizes the behavior of the {@link BeautifyRangeLabels} filter
  * so range values that are less than one minute are displayed in seconds but
  * other ranges are displayed in minutes.
- * 
+ *
  * **Basic usage**
- * 
+ *
  *     $dataTable->filter('BeautifyTimeRangeLabels', array("%1$s-%2$s min", "1 min", "%s min"));
- * 
- * @package Piwik
- * @subpackage DataTable
+ *
  * @api
  */
 class BeautifyTimeRangeLabels extends BeautifyRangeLabels
@@ -74,7 +70,7 @@ class BeautifyTimeRangeLabels extends BeautifyRangeLabels
     {
         if ($lowerBound < 60) {
             return sprintf($this->labelSecondsPlural, $lowerBound, $lowerBound);
-        } else if ($lowerBound == 60) {
+        } elseif ($lowerBound == 60) {
             return $this->labelSingular;
         } else {
             return sprintf($this->labelPlural, ceil($lowerBound / 60));

@@ -1,88 +1,62 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik_Plugins
- * @package DevicesDetection
  */
 namespace Piwik\Plugins\DevicesDetection;
 
+use DeviceDetector\DeviceDetector;
 use Piwik\Common;
 use Piwik\Db;
 use Piwik\Piwik;
 use Piwik\Plugin\ControllerAdmin;
+use Piwik\Plugin\Manager AS PluginManager;
+use Piwik\Plugin\Report;
 use Piwik\View;
-use Piwik\ViewDataTable\Factory;
-use UserAgentParserEnhanced;
 
 class Controller extends \Piwik\Plugin\Controller
 {
     public function index()
     {
-        $view = new View('@DevicesDetection/index');
-        $view->deviceTypes = $view->deviceModels = $view->deviceBrands = $view->osReport = $view->browserReport = "blank";
-        $view->deviceTypes = $this->getType(true);
-        $view->deviceBrands = $this->getBrand(true);
-        $view->deviceModels = $this->getModel(true);
-        $view->osReport = $this->getOsFamilies(true);
-        $view->browserReport = $this->getBrowserFamilies(true);
+        return $this->devices();
+    }
+    
+    public function devices()
+    {
+        $view = new View('@DevicesDetection/devices');
+        $view->deviceTypes = $this->renderReport('getType');
+        $view->deviceBrands = $this->renderReport('getBrand');
+        $view->deviceModels = $this->renderReport('getModel');
+
+        $isResolutionEnabled = PluginManager::getInstance()->isPluginActivated('Resolution');
+        if ($isResolutionEnabled) {
+            $view->resolutions = $this->renderReport(Report::factory('Resolution', 'getResolution'));
+        }
+
         return $view->render();
     }
 
-    public function getType()
+    public function software()
     {
-        return $this->renderReport(__FUNCTION__);
-    }
+        $view = new View('@DevicesDetection/software');
+        $view->osReport = $this->renderReport('getOsVersions');
+        $view->browserReport = $this->renderReport('getBrowsers');
+        $view->browserEngineReport = $this->renderReport('getBrowserEngines');
 
-    public function getBrand()
-    {
-        return $this->renderReport(__FUNCTION__);
-    }
+        $isResolutionEnabled = PluginManager::getInstance()->isPluginActivated('Resolution');
+        if ($isResolutionEnabled) {
+            $view->configurations = $this->renderReport(Report::factory('Resolution', 'getConfiguration'));
+        }
 
-    public function getModel()
-    {
-        return $this->renderReport(__FUNCTION__);
-    }
+        $isDevicePluginsEnabled = PluginManager::getInstance()->isPluginActivated('DevicePlugins');
+        if ($isDevicePluginsEnabled) {
+            $view->browserPlugins = $this->renderReport(Report::factory('DevicePlugins', 'getPlugin'));
+        }
 
-    public function getOsFamilies()
-    {
-        return $this->renderReport(__FUNCTION__);
-    }
-
-    public function getOsVersions()
-    {
-        return $this->renderReport(__FUNCTION__);
-    }
-
-    public function getBrowserFamilies()
-    {
-        return $this->renderReport(__FUNCTION__);
-    }
-
-    public function getBrowserVersions()
-    {
-        return $this->renderReport(__FUNCTION__);
-    }
-
-    private function getArray(UserAgentParserEnhanced $UAParser)
-    {
-        $UADetails['config_browser_name'] = $UAParser->getBrowser("short_name");
-        $UADetails['config_browser_version'] = $UAParser->getBrowser("version");
-        $UADetails['config_os'] = $UAParser->getOs("short_name");
-        $UADetails['config_os_version'] = $UAParser->getOs("version");
-        $UADetails['config_device_type'] = $UAParser->getDevice();
-        $UADetails['config_device_model'] = $UAParser->getModel();
-        $UADetails['config_device_brand'] = $UAParser->getBrand();
-        return $UADetails;
-    }
-
-    private function updateVisit($idVisit, $uaDetails)
-    {
-        $LogVisit = \Piwik\Db\Factory::getDAO('log_visit');
-        $LogVisit->updateVisit($idVisit, $uaDetails);
+        return $view->render();
     }
 
     public function deviceDetection()
@@ -95,26 +69,94 @@ class Controller extends \Piwik\Plugin\Controller
 
         $userAgent = Common::getRequestVar('ua', $_SERVER['HTTP_USER_AGENT'], 'string');
 
-        $parsedUA = UserAgentParserEnhanced::getInfoFromUserAgent($userAgent);
+        $uaParser = new DeviceDetector($userAgent);
+        $uaParser->parse();
 
         $view->userAgent           = $userAgent;
-        $view->browser_name        = $parsedUA['browser']['name'];
-        $view->browser_short_name  = $parsedUA['browser']['short_name'];
-        $view->browser_version     = $parsedUA['browser']['version'];
-        $view->browser_logo        = getBrowserLogoExtended($parsedUA['browser']['short_name']);
-        $view->browser_family      = $parsedUA['browser_family'];
-        $view->browser_family_logo = getBrowserFamilyLogoExtended($parsedUA['browser_family']);
-        $view->os_name             = $parsedUA['os']['name'];
-        $view->os_logo             = getOsLogoExtended($parsedUA['os']['short_name']);
-        $view->os_short_name       = $parsedUA['os']['short_name'];
-        $view->os_family           = $parsedUA['os_family'];
-        $view->os_family_logo      = getOsFamilyLogoExtended($parsedUA['os_family']);
-        $view->os_version          = $parsedUA['os']['version'];
-        $view->device_type         = $parsedUA['device']['type'];
-        $view->device_type_logo    = getDeviceTypeLogo(ucfirst($view->device_type));
-        $view->device_model        = $parsedUA['device']['model'];
-        $view->device_brand        = getDeviceBrandLabel($parsedUA['device']['brand']);
-        $view->device_brand_logo   = getBrandLogo($view->device_brand);
+        $view->browser_name        = $uaParser->getClient('name');
+        $view->browser_short_name  = $uaParser->getClient('short_name');
+        $view->browser_version     = $uaParser->getClient('version');
+        $view->browser_logo        = getBrowserLogo($uaParser->getClient('short_name'));
+        $view->browser_family      = \DeviceDetector\Parser\Client\Browser::getBrowserFamily($uaParser->getClient('short_name'));
+        $view->browser_family_logo = getBrowserFamilyLogo($view->browser_family);
+        $view->os_name             = $uaParser->getOs('name');
+        $view->os_logo             = getOsLogo($uaParser->getOs('short_name'));
+        $view->os_short_name       = $uaParser->getOs('short_name');
+        $view->os_family           = \DeviceDetector\Parser\OperatingSystem::getOsFamily($uaParser->getOs('short_name'));
+        $view->os_family_logo      = getOsFamilyLogo($view->os_family);
+        $view->os_version          = $uaParser->getOs('version');
+        $view->device_type         = getDeviceTypeLabel($uaParser->getDeviceName());
+        $view->device_type_logo    = getDeviceTypeLogo($uaParser->getDeviceName());
+        $view->device_model        = $uaParser->getModel();
+        $view->device_brand        = getDeviceBrandLabel($uaParser->getBrand());
+        $view->device_brand_logo   = getBrandLogo($uaParser->getBrand());
+
+        return $view->render();
+    }
+
+    public function showList()
+    {
+        Piwik::checkUserHasSomeAdminAccess();
+
+        $view = new View('@DevicesDetection/list');
+
+        $type = Common::getRequestVar('type', 'brands', 'string');
+
+        $list = array();
+
+        switch ($type) {
+            case 'brands':
+                $availableBrands = \DeviceDetector\Parser\Device\DeviceParserAbstract::$deviceBrands;
+
+                foreach ($availableBrands as $short => $name) {
+                    if ($name != 'Unknown') {
+                        $list[$name] = getBrandLogo($name);
+                    }
+                }
+                break;
+
+            case 'browsers':
+                $availableBrowsers = \DeviceDetector\Parser\Client\Browser::getAvailableBrowsers();
+
+                foreach ($availableBrowsers as $short => $name) {
+                    $list[$name] = getBrowserLogo($short);
+                }
+                break;
+
+            case 'browserfamilies':
+                $availableBrowserFamilies = \DeviceDetector\Parser\Client\Browser::getAvailableBrowserFamilies();
+
+                foreach ($availableBrowserFamilies as $name => $browsers) {
+                    $list[$name] = getBrowserFamilyLogo($name);
+                }
+                break;
+
+            case 'os':
+                $availableOSs = \DeviceDetector\Parser\OperatingSystem::getAvailableOperatingSystems();
+
+                foreach ($availableOSs as $short => $name) {
+                    $list[$name] = getOsLogo($short);
+                }
+                break;
+
+            case 'osfamilies':
+                $osFamilies = \DeviceDetector\Parser\OperatingSystem::getAvailableOperatingSystemFamilies();
+
+                foreach ($osFamilies as $name => $oss) {
+                    $list[$name] = getOsFamilyLogo($name);
+                }
+                break;
+
+            case 'devicetypes':
+                $deviceTypes = \DeviceDetector\Parser\Device\DeviceParserAbstract::getAvailableDeviceTypes();
+
+                foreach ($deviceTypes as $name => $id) {
+                    $list[$name] = getDeviceTypeLogo($name);
+                }
+                break;
+        }
+
+        $view->itemList = $list;
 
         return $view->render();
     }

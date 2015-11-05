@@ -1,18 +1,17 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik_Plugins
- * @package Overlay
  */
 namespace Piwik\Plugins\Overlay;
 
 use Exception;
 use Piwik\Access;
 use Piwik\Config;
+use Piwik\Container\StaticContainer;
 use Piwik\DataTable;
 use Piwik\Piwik;
 use Piwik\Plugins\SitesManager\API as APISitesManager;
@@ -22,7 +21,6 @@ use Piwik\Tracker\PageUrl;
 
 /**
  * Class API
- * @package Overlay
  * @method static \Piwik\Plugins\Overlay\API getInstance()
  */
 class API extends \Piwik\Plugin\API
@@ -108,26 +106,26 @@ class API extends \Piwik\Plugin\API
     {
         /**
          * Triggered immediately before the user is authenticated.
-         * 
+         *
          * This event can be used by plugins that provide their own authentication mechanism
-         * to make that mechanism available. Subscribers should set the `'auth'` object in
-         * the {@link Piwik\Registry} to an object that implements the {@link Piwik\Auth} interface.
-         * 
+         * to make that mechanism available. Subscribers should set the `'Piwik\Auth'` object in
+         * the container to an object that implements the {@link Piwik\Auth} interface.
+         *
          * **Example**
-         * 
-         *     use Piwik\Registry;
-         * 
-         *     public function initAuthenticationObject($allowCookieAuthentication)
+         *
+         *     use Piwik\Container\StaticContainer;
+         *
+         *     public function initAuthenticationObject($activateCookieAuth)
          *     {
-         *         Registry::set('auth', new LDAPAuth($allowCookieAuthentication));
+         *         StaticContainer::getContainer()->set('Piwik\Auth', new LDAPAuth($activateCookieAuth));
          *     }
-         * 
-         * @param bool $allowCookieAuthentication Whether authentication based on `$_COOKIE` values should
+         *
+         * @param bool $activateCookieAuth Whether authentication based on `$_COOKIE` values should
          *                                        be allowed.
          */
-        Piwik::postEvent('Request.initAuthenticationObject', array($allowCookieAuthentication = true));
+        Piwik::postEvent('Request.initAuthenticationObject', array($activateCookieAuth = true));
 
-        $auth = \Piwik\Registry::get('auth');
+        $auth = StaticContainer::get('Piwik\Auth');
         $success = Access::getInstance()->reloadAccess($auth);
 
         if (!$success) {

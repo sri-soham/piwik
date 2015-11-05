@@ -1,56 +1,55 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik_Plugins
- * @package CoreUpdater
  */
 namespace Piwik\Plugins\CoreUpdater;
 
 use Exception;
+use Piwik\Access;
+use Piwik\API\ResponseBuilder;
 use Piwik\Common;
 use Piwik\Filesystem;
 use Piwik\FrontController;
 use Piwik\Piwik;
 use Piwik\UpdateCheck;
-use Piwik\Updater;
+use Piwik\Updater as PiwikCoreUpdater;
+use Piwik\UpdaterErrorException;
 use Piwik\Version;
 
 /**
  *
- * @package CoreUpdater
  */
 class CoreUpdater extends \Piwik\Plugin
 {
     /**
-     * @see Piwik_Plugin::getListHooksRegistered
+     * @see Piwik\Plugin::registerEvents
      */
-    public function getListHooksRegistered()
+    public function registerEvents()
     {
-        $hooks = array(
+        return array(
             'Request.dispatchCoreAndPluginUpdatesScreen' => 'dispatch',
-            'Updater.checkForUpdates'                    => 'updateCheck',
+            'Platform.initialized'                       => 'updateCheck',
         );
-        return $hooks;
     }
 
-    public static function getComponentUpdates(Updater $updater)
+    /**
+     * @deprecated
+     */
+    public static function updateComponents(PiwikCoreUpdater $updater, $componentsWithUpdateFile)
     {
-        $updater->addComponentToCheck('core', Version::VERSION);
-        $plugins = \Piwik\Plugin\Manager::getInstance()->getLoadedPlugins();
-        foreach ($plugins as $pluginName => $plugin) {
-            $updater->addComponentToCheck($pluginName, $plugin->getVersion());
-        }
+        return $updater->updateComponents($componentsWithUpdateFile);
+    }
 
-        $componentsWithUpdateFile = $updater->getComponentsWithUpdateFile();
-        if (count($componentsWithUpdateFile) == 0 && !$updater->hasNewVersion('core')) {
-            return null;
-        }
-
-        return $componentsWithUpdateFile;
+    /**
+     * @deprecated
+     */
+    public static function getComponentUpdates(PiwikCoreUpdater $updater)
+    {
+        return $updater->getComponentUpdates();
     }
 
     public function dispatch()
@@ -58,22 +57,32 @@ class CoreUpdater extends \Piwik\Plugin
         $module = Common::getRequestVar('module', '', 'string');
         $action = Common::getRequestVar('action', '', 'string');
 
-        $updater = new Updater();
-        $updater->addComponentToCheck('core', Version::VERSION);
-        $updates = $updater->getComponentsWithNewVersion();
+        $updater = new PiwikCoreUpdater();
+        $updates = $updater->getComponentsWithNewVersion(array('core' => Version::VERSION));
         if (!empty($updates)) {
             Filesystem::deleteAllCacheOnUpdate();
         }
-        if (self::getComponentUpdates($updater) !== null
+        if ($updater->getComponentUpdates() !== null
             && $module != 'CoreUpdater'
             // Proxy module is used to redirect users to piwik.org, should still work when Piwik must be updated
             && $module != 'Proxy'
+            // Do not show update page during installation.
+            && $module != 'Installation'
             && !($module == 'LanguagesManager'
                 && $action == 'saveLanguage')
         ) {
             if (FrontController::shouldRethrowException()) {
                 throw new Exception("Piwik and/or some plugins have been upgraded to a new version. \n" .
                     "--> Please run the update process first. See documentation: http://piwik.org/docs/update/ \n");
+            } elseif ($module === 'API')  {
+
+                $outputFormat = strtolower(Common::getRequestVar('format', 'xml', 'string', $_GET + $_POST));
+                $response = new ResponseBuilder($outputFormat);
+                $e = new Exception('Database Upgrade Required. Your Piwik database is out-of-date, and must be upgraded before you can continue.');
+                echo $response->getResponseException($e);
+                Common::sendResponseCode(503);
+                exit;
+
             } else {
                 Piwik::redirectToModule('CoreUpdater');
             }

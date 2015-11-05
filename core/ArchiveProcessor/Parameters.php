@@ -1,12 +1,10 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Piwik
  */
 
 namespace Piwik\ArchiveProcessor;
@@ -47,7 +45,7 @@ class Parameters
 
     /**
      * Constructor.
-     * 
+     *
      * @ignore
      */
     public function __construct(Site $site, Period $period, Segment $segment)
@@ -92,7 +90,7 @@ class Parameters
      */
     public function getSubPeriods()
     {
-        if($this->getPeriod()->getLabel() == 'day') {
+        if ($this->getPeriod()->getLabel() == 'day') {
             return array( $this->getPeriod() );
         }
         return $this->getPeriod()->getSubperiods();
@@ -176,7 +174,7 @@ class Parameters
         if ($isTemporary) {
             $temporary = 'temporary archive';
         }
-        Log::verbose(
+        Log::debug(
             "%s archive, idSite = %d (%s), segment '%s', report = '%s', UTC datetime [%s -> %s]",
             $this->getPeriod()->getLabel(),
             $this->getSite()->getId(),

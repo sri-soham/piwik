@@ -1,14 +1,14 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Piwik
  */
 namespace Piwik;
+
+use Piwik\Exception\MissingFilePermissionException;
 
 class Filechecks
 {
@@ -40,21 +40,15 @@ class Filechecks
     {
         $resultCheck = array();
         foreach ($directoriesToCheck as $directoryToCheck) {
-
             if (!preg_match('/^' . preg_quote(PIWIK_USER_PATH, '/') . '/', $directoryToCheck)) {
                 $directoryToCheck = PIWIK_USER_PATH . $directoryToCheck;
             }
 
-            $directoryToCheck = SettingsPiwik::rewriteTmpPathWithHostname($directoryToCheck);
-
             Filesystem::mkdir($directoryToCheck);
 
             $directory = Filesystem::realpath($directoryToCheck);
-            $resultCheck[$directory] = false;
-            if ($directory !== false // realpath() returns FALSE on failure
-                && is_writable($directoryToCheck)
-            ) {
-                $resultCheck[$directory] = true;
+            if ($directory !== false) {
+                $resultCheck[$directory] = is_writable($directoryToCheck);
             }
         }
         return $resultCheck;
@@ -84,17 +78,17 @@ class Filechecks
         // Also give the chown since the chmod is only 755
         if (!SettingsServer::isWindows()) {
             $realpath = Filesystem::realpath(PIWIK_INCLUDE_PATH . '/');
-            $directoryList = "<code>chown -R www-data:www-data " . $realpath . "</code><br />" . $directoryList;
+            $directoryList = "<code>chown -R ". self::getUserAndGroup() ." " . $realpath . "</code><br />" . $directoryList;
         }
 
-        if(function_exists('shell_exec')) {
-            $currentUser = trim(shell_exec('whoami'));
-            if(!empty($currentUser)) {
+        if (function_exists('shell_exec')) {
+            $currentUser = self::getUser();
+            if (!empty($currentUser)) {
                 $optionalUserInfo = " (running as user '" . $currentUser . "')";
             }
         }
 
-        $directoryMessage = "<p><b>Piwik couldn't write to some directories $optionalUserInfo</b>.</p>";
+        $directoryMessage  = "<p><b>Piwik couldn't write to some directories $optionalUserInfo</b>.</p>";
         $directoryMessage .= "<p>Try to Execute the following commands on your server, to allow Write access on these directories"
             . ":</p>"
             . "<blockquote>$directoryList</blockquote>"
@@ -102,7 +96,10 @@ class Filechecks
             . "<p>After applying the modifications, you can <a href='index.php'>refresh the page</a>.</p>"
             . "<p>If you need more help, try <a href='?module=Proxy&action=redirect&url=http://piwik.org'>Piwik.org</a>.</p>";
 
-        Piwik_ExitWithMessage($directoryMessage, false, true);
+        $ex = new MissingFilePermissionException($directoryMessage);
+        $ex->setIsHtmlMessage();
+
+        throw $ex;
     }
 
     /**
@@ -116,15 +113,16 @@ class Filechecks
         $messages[] = true;
 
         $manifest = PIWIK_INCLUDE_PATH . '/config/manifest.inc.php';
+
         if (file_exists($manifest)) {
             require_once $manifest;
         }
 
         if (!class_exists('Piwik\\Manifest')) {
-            $git = SettingsPiwik::getCurrentGitBranch();
-            if(empty($git)) {
-                $messages[] = Piwik::translate('General_WarningFileIntegrityNoManifest') . " If you are deploying Piwik from Git, this message is normal.";
-            }
+            $messages[] = Piwik::translate('General_WarningFileIntegrityNoManifest')
+                        . ' '
+                        . Piwik::translate('General_WarningFileIntegrityNoManifestDeployingFromGit');
+
             return $messages;
         }
 
@@ -137,7 +135,7 @@ class Filechecks
 
             if (!file_exists($file) || !is_readable($file)) {
                 $messages[] = Piwik::translate('General_ExceptionMissingFile', $file);
-            } else if (filesize($file) != $props[0]) {
+            } elseif (filesize($file) != $props[0]) {
                 if (!$hasMd5 || in_array(substr($path, -4), array('.gif', '.ico', '.jpg', '.png', '.swf'))) {
                     // files that contain binary data (e.g., images) must match the file size
                     $messages[] = Piwik::translate('General_ExceptionFilesizeMismatch', array($file, $props[0], filesize($file)));
@@ -151,7 +149,7 @@ class Filechecks
                         $messages[] = Piwik::translate('General_ExceptionFilesizeMismatch', array($file, $props[0], filesize($file)));
                     }
                 }
-            } else if ($hasMd5file && (@md5_file($file) !== $props[1])) {
+            } elseif ($hasMd5file && (@md5_file($file) !== $props[1])) {
                 $messages[] = Piwik::translate('General_ExceptionFileIntegrity', $file);
             }
         }
@@ -176,7 +174,7 @@ class Filechecks
     {
         $realpath = Filesystem::realpath(PIWIK_INCLUDE_PATH . '/');
         $message = '';
-        $message .= "<code>chown -R www-data:www-data " . $realpath . "</code><br />";
+        $message .= "<code>chown -R ". self::getUserAndGroup() ." " . $realpath . "</code><br />";
         $message .= "<code>chmod -R 0755 " . $realpath . "</code><br />";
         $message .= 'After you execute these commands (or change permissions via your FTP software), refresh the page and you should be able to use the "Automatic Update" feature.';
         return $message;
@@ -196,14 +194,38 @@ class Filechecks
             $message .= "On Windows, check that the folder is not read only and is writable.\n
 						You can try to execute:<br />";
         } else {
-            $message .= "For example, on a Linux server if your Apache httpd user
-						is www-data, you can try to execute:<br />\n"
-                . "<code>chown -R www-data:www-data " . $path . "</code><br />";
+            $message .= "For example, on a GNU/Linux server if your Apache httpd user is "
+                        . self::getUser()
+                        . ", you can try to execute:<br />\n"
+                        . "<code>chown -R ". self::getUserAndGroup() ." " . $path . "</code><br />";
         }
 
         $message .= self::getMakeWritableCommand($path);
 
         return $message;
+    }
+
+    private static function getUserAndGroup()
+    {
+        $user = self::getUser();
+        if (!function_exists('shell_exec')) {
+            return $user . ':' . $user;
+        }
+
+        $group = trim(shell_exec('groups '. $user .' | cut -f3 -d" "'));
+
+        if (empty($group)) {
+            $group = 'www-data';
+        }
+        return $user . ':' . $group;
+    }
+
+    private static function getUser()
+    {
+        if (!function_exists('shell_exec')) {
+            return 'www-data';
+        }
+        return trim(shell_exec('whoami'));
     }
 
     /**

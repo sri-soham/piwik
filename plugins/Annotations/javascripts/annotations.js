@@ -1,5 +1,5 @@
 /*!
- * Piwik - Web Analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
@@ -126,6 +126,8 @@
             annotationDate = new Date(parts[0], parts[1] - 1, parts[2]);
 
         var result = piwik.getBaseDatePickerOptions(annotationDate);
+        result.showButtonPanel = true;
+        result.currentText = _pk_translate('Intl_Today');
 
         // make sure days before site start & after today cannot be selected
         var piwikMinDate = result.minDate;
@@ -160,6 +162,7 @@
      */
     var toggleAnnotationMode = function (inAnnotationElement) {
         var annotation = $(inAnnotationElement).closest('.annotation');
+        annotation.toggleClass('edit')
         $('.annotation-period,.annotation-period-edit,.delete-annotation,' +
             '.annotation-edit-mode,.annotation-view-mode', annotation).toggle();
 
@@ -243,7 +246,8 @@
         manager.on('click', '.add-annotation', function (e) {
             e.preventDefault();
 
-            $('.new-annotation-row', manager).show();
+            var $newRow = $('.new-annotation-row', manager);
+            $newRow.show();
             $(this).hide();
 
             return false;
@@ -459,9 +463,9 @@
                     // modify the starred count & make sure the correct image is used
                     var newStarCount = starredCount + starAmt;
                     if (newStarCount > 0) {
-                        var newImg = 'plugins/Zeitgeist/images/annotations_starred.png';
+                        var newImg = 'plugins/Morpheus/images/annotations_starred.png';
                     } else {
-                        var newImg = 'plugins/Zeitgeist/images/annotations.png';
+                        var newImg = 'plugins/Morpheus/images/annotations.png';
                     }
                     $(this).attr('data-starred', newStarCount).find('img').attr('src', newImg);
 
@@ -519,6 +523,8 @@
 
             loadingAnnotationManager = true;
 
+            $('.loadingPiwikBelow', domElem).insertAfter($('.evolution-annotations', domElem));
+
             var loading = $('.loadingPiwikBelow', domElem).css({display: 'block'});
 
             // the annotations for this report have not been retrieved yet, so do an ajax request
@@ -539,7 +545,8 @@
                 loading.css('visibility', 'hidden');
 
                 // add & show annotation manager
-                $('.dataTableFeatures', domElem).append(manager);
+                manager.insertAfter($('.evolution-annotations', domElem));
+
                 manager.slideDown('slow', function () {
                     loading.hide().css('visibility', 'visible');
                     loadingAnnotationManager = false;

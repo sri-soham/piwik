@@ -1,51 +1,36 @@
 <?php
 
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik_Plugins
- * @package Widgetize
  */
 
 namespace Piwik\Plugins\Widgetize;
-use Piwik\Menu\MenuTop;
-use Piwik\Piwik;
 
-/**
- *
- * @package Widgetize
- */
 class Widgetize extends \Piwik\Plugin
 {
     /**
-     * @see Piwik_Plugin::getListHooksRegistered
+     * @see Piwik\Plugin::registerEvents
      */
-    public function getListHooksRegistered()
+    public function registerEvents()
     {
         return array(
             'AssetManager.getJavaScriptFiles'        => 'getJsFiles',
             'AssetManager.getStylesheetFiles'        => 'getStylesheetFiles',
-            'Menu.Top.addItems'                      => 'addTopMenu',
             'Translate.getClientSideTranslationKeys' => 'getClientSideTranslationKeys'
         );
-    }
-
-    public function addTopMenu()
-    {
-        $tooltip = Piwik::translate('Widgetize_TopLinkTooltip');
-        $urlParams = array('module' => 'Widgetize', 'action' => 'index', 'segment' => false);
-
-        MenuTop::addEntry('General_Widgets', $urlParams, true, 5, $isHTML = false, $tooltip);
     }
 
     public function getJsFiles(&$jsFiles)
     {
         $jsFiles[] = "libs/jquery/jquery.truncate.js";
-        $jsFiles[] = "libs/jquery/jquery.scrollTo.js";
-        $jsFiles[] = "plugins/Zeitgeist/javascripts/piwikHelper.js";
+        $jsFiles[] = "libs/bower_components/jquery.scrollTo/jquery.scrollTo.min.js";
+        $jsFiles[] = "plugins/Morpheus/javascripts/piwikHelper.js";
+        $jsFiles[] = "plugins/Morpheus/javascripts/jquery.icheck.min.js";
+        $jsFiles[] = "plugins/Morpheus/javascripts/morpheus.js";
         $jsFiles[] = "plugins/CoreHome/javascripts/dataTable.js";
         $jsFiles[] = "plugins/Dashboard/javascripts/widgetMenu.js";
         $jsFiles[] = "plugins/Widgetize/javascripts/widgetize.js";

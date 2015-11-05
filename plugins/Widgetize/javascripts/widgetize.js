@@ -1,5 +1,5 @@
 /*!
- * Piwik - Web Analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
@@ -64,7 +64,7 @@ function widgetize() {
                 '</span>' +
                 '</div>' +
                 '<div> <label for="embedThisWidgetDirectLink">&rsaquo; Direct Link</label>' +
-                '<span id="embedThisWidgetDirectLink"> ' + self.getInputFormWithHtml('directLinkEmbed', urlIframe) + ' - <a href="' + urlIframe + '" target="_blank">' + _pk_translate('Widgetize_OpenInNewWindow') + '</a></span>'
+                '<span id="embedThisWidgetDirectLink"> ' + self.getInputFormWithHtml('directLinkEmbed', urlIframe) + ' - <a href="' + urlIframe + '" rel="noreferrer"  target="_blank">' + _pk_translate('Widgetize_OpenInNewWindow') + '</a></span>'
                 + '</div>'
         );
 

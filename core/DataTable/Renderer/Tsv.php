@@ -1,15 +1,12 @@
 <?php
 /**
- * Piwik - Open source web analytics
+ * Piwik - free/libre analytics platform
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
- * @category Piwik
- * @package Piwik
  */
 namespace Piwik\DataTable\Renderer;
-
 
 /**
  * TSV export
@@ -17,15 +14,13 @@ namespace Piwik\DataTable\Renderer;
  * Excel doesn't import CSV properly, it expects TAB separated values by default.
  * TSV is therefore the 'CSV' that is Excel compatible
  *
- * @package Piwik
- * @subpackage DataTable
  */
 class Tsv extends Csv
 {
     /**
      * Constructor
      */
-    function __construct()
+    public function __construct()
     {
         parent::__construct();
         $this->setSeparator("\t");
@@ -36,7 +31,7 @@ class Tsv extends Csv
      *
      * @return string
      */
-    function render()
+    public function render()
     {
         return parent::render();
     }
