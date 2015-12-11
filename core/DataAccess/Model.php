@@ -13,6 +13,7 @@ use Piwik\Common;
 use Piwik\Container\StaticContainer;
 use Piwik\Db;
 use Piwik\DbHelper;
+use Piwik\Db\Factory;
 use Piwik\Sequence;
 use Psr\Log\LoggerInterface;
 
@@ -21,16 +22,19 @@ use Psr\Log\LoggerInterface;
  *
  * @package Piwik\DataAccess
  */
-class Model
+class Model implements \Piwik\Db\FactoryCreated
 {
     /**
      * @var LoggerInterface
      */
-    private $logger;
+    protected $logger;
+
+    protected $db;
 
     public function __construct(LoggerInterface $logger = null)
     {
         $this->logger = $logger ?: StaticContainer::get('Psr\Log\LoggerInterface');
+        $this->db = Db::get();
     }
 
     /**
@@ -45,27 +49,13 @@ class Model
      */
     public function getInvalidatedArchiveIdsSafeToDelete($archiveTable, array $idSites)
     {
-        try {
-            Db::get()->query('SET SESSION group_concat_max_len=' . (128 * 1024));
-        } catch (\Exception $ex) {
-            $this->logger->info("Could not set group_concat_max_len MySQL session variable.");
-        }
+        $this->setGroupConcatMaxLen();
 
         $idSites = array_map(function ($v) { return (int)$v; }, $idSites);
 
-        $sql = "SELECT idsite, date1, date2, period, name,
-                       GROUP_CONCAT(idarchive, '.', value ORDER BY ts_archived DESC) as archives
-                  FROM `$archiveTable`
-                 WHERE name LIKE 'done%'
-                   AND value IN (" . ArchiveWriter::DONE_INVALIDATED . ','
-                                   . ArchiveWriter::DONE_OK . ','
-                                   . ArchiveWriter::DONE_OK_TEMPORARY . ")
-                   AND idsite IN (" . implode(',', $idSites) . ")
-                 GROUP BY idsite, date1, date2, period, name";
-
         $archiveIds = array();
+        $rows = $this->invalidatedArchiveIdRows($archiveTable, $idSites);
 
-        $rows = Db::fetchAll($sql);
         foreach ($rows as $row) {
             $duplicateArchives = explode(',', $row['archives']);
 
@@ -127,7 +117,7 @@ class Model
             " WHERE ( $sql ) " .
             $sqlSites .
             $sqlPeriod;
-        Db::query($query, $bind);
+        $this->db->query($query, $bind);
     }
 
 
@@ -139,7 +129,7 @@ class Model
                             AND ts_archived < ?)
                          OR value = " . ArchiveWriter::DONE_ERROR . ")";
 
-        return Db::fetchAll($query, array($purgeArchivesOlderThan));
+        return $this->db->fetchAll($query, array($purgeArchivesOlderThan));
     }
 
     public function deleteArchivesWithPeriod($numericTable, $blobTable, $period, $date)
@@ -147,11 +137,11 @@ class Model
         $query = "DELETE FROM %s WHERE period = ? AND ts_archived < ?";
         $bind  = array($period, $date);
 
-        $queryObj = Db::query(sprintf($query, $numericTable), $bind);
+        $queryObj = $this->db->query(sprintf($query, $numericTable), $bind);
         $deletedRows = $queryObj->rowCount();
 
         try {
-            $queryObj = Db::query(sprintf($query, $blobTable), $bind);
+            $queryObj = $this->db->query(sprintf($query, $blobTable), $bind);
             $deletedRows += $queryObj->rowCount();
         } catch (Exception $e) {
             // Individual blob tables could be missing
@@ -169,11 +159,11 @@ class Model
         $idsToDelete = array_values($idsToDelete);
         $query = "DELETE FROM %s WHERE idarchive IN (" . Common::getSqlStringFieldsArray($idsToDelete) . ")";
 
-        $queryObj = Db::query(sprintf($query, $numericTable), $idsToDelete);
+        $queryObj = $this->db->query(sprintf($query, $numericTable), $idsToDelete);
         $deletedRows = $queryObj->rowCount();
 
         try {
-            $queryObj = Db::query(sprintf($query, $blobTable), $idsToDelete);
+            $queryObj = $this->db->query(sprintf($query, $blobTable), $idsToDelete);
             $deletedRows += $queryObj->rowCount();
         } catch (Exception $e) {
             // Individual blob tables could be missing
@@ -202,7 +192,8 @@ class Model
 
         $sqlWhereArchiveName = self::getNameCondition($doneFlags, $doneFlagValues);
 
-        $sqlQuery = "SELECT idarchive, value, name, date1 as startDate FROM $numericTable
+        $date1As = $this->db->quoteIdentifier('startDate');
+        $sqlQuery = "SELECT idarchive, value, name, date1 as $date1As FROM $numericTable
                      WHERE idsite = ?
                          AND date1 = ?
                          AND date2 = ?
@@ -212,14 +203,13 @@ class Model
                                OR name = '" . ArchiveSelector::NB_VISITS_CONVERTED_RECORD_LOOKED_UP . "')
                          $timeStampWhere
                      ORDER BY idarchive DESC";
-        $results = Db::fetchAll($sqlQuery, $bindSQL);
+        $results = $this->db->fetchAll($sqlQuery, $bindSQL);
 
         return $results;
     }
 
     public function createArchiveTable($tableName, $tableNamePrefix)
     {
-        $db  = Db::get();
         $sql = DbHelper::getTableCreateSql($tableNamePrefix);
 
         // replace table name template by real name
@@ -227,17 +217,18 @@ class Model
         $sql = str_replace($tableNamePrefix, $tableName, $sql);
 
         try {
-            $db->query($sql);
+            $this->db->query($sql);
         } catch (Exception $e) {
             // accept mysql error 1050: table already exists, throw otherwise
-            if (!$db->isErrNo($e, '1050')) {
+            if (!$this->db->isErrNo($e, '1050')) {
                 throw $e;
             }
         }
 
         try {
             if (ArchiveTableCreator::NUMERIC_TABLE === ArchiveTableCreator::getTypeFromTableName($tableName)) {
-                $sequence = new Sequence($tableName);
+                $sequence = Factory::getDAO('sequence');
+                $sequence->setName($tableName);
                 $sequence->create();
             }
         } catch (Exception $e) {
@@ -246,7 +237,8 @@ class Model
 
     public function allocateNewArchiveId($numericTable)
     {
-        $sequence  = new Sequence($numericTable);
+        $sequence = Factory::getDAO('sequence');
+        $sequence->setName($numericTable);
 
         try {
             $idarchive = $sequence->getNextId();
@@ -265,13 +257,14 @@ class Model
         $dbLockName = "deletePreviousArchiveStatus.$numericTable.$archiveId";
 
         // without advisory lock here, the DELETE would acquire Exclusive Lock
-        $this->acquireArchiveTableLock($dbLockName);
+        $Generic = Factory::getGeneric();
+        $Generic->getDbLock($dbLockName);
 
-        Db::query("DELETE FROM $numericTable WHERE idarchive = ? AND (name = '" . $doneFlag . "')",
+        $this->db->query("DELETE FROM $numericTable WHERE idarchive = ? AND (name = '" . $doneFlag . "')",
             array($archiveId)
         );
 
-        $this->releaseArchiveTableLock($dbLockName);
+        $Generic->releaseDbLock($dbLockName);
     }
 
     public function insertRecord($tableName, $fields, $record, $name, $value)
@@ -284,7 +277,7 @@ class Model
         $bindSql[] = $name;
         $bindSql[] = $value;
 
-        Db::query($query, $bindSql);
+        $this->db->query($query, $bindSql);
 
         return true;
     }
@@ -297,7 +290,7 @@ class Model
      */
     public function getSitesWithInvalidatedArchive($numericTable)
     {
-        $rows = Db::fetchAll("SELECT DISTINCT idsite FROM `$numericTable` WHERE name LIKE 'done%' AND value = " . ArchiveWriter::DONE_INVALIDATED);
+        $rows = $this->db->fetchAll("SELECT DISTINCT idsite FROM `$numericTable` WHERE name LIKE 'done%' AND value = " . ArchiveWriter::DONE_INVALIDATED);
 
         $result = array();
         foreach ($rows as $row) {
@@ -318,15 +311,29 @@ class Model
         return "((name IN ($allDoneFlags)) AND (value IN (" . implode(',', $possibleValues) . ")))";
     }
 
-    protected function acquireArchiveTableLock($dbLockName)
+    protected function setGroupConcatMaxLen()
     {
-        if (Db::getDbLock($dbLockName, $maxRetries = 30) === false) {
-            throw new Exception("Cannot get named lock $dbLockName.");
+        try {
+            $this->db->query('SET SESSION group_concat_max_len=' . (128 * 1024));
+        } catch (\Exception $ex) {
+            $this->logger->info("Could not set group_concat_max_len MySQL session variable.");
         }
     }
 
-    protected function releaseArchiveTableLock($dbLockName)
+    protected function invalidatedArchiveIdRows($archiveTable, $idSites)
     {
-        Db::releaseDbLock($dbLockName);
+        $sql = "SELECT idsite, date1, date2, period, name,
+                       GROUP_CONCAT(idarchive, '.', value ORDER BY ts_archived DESC) as archives
+                  FROM `$archiveTable`
+                 WHERE name LIKE 'done%'
+                   AND value IN (" . ArchiveWriter::DONE_INVALIDATED . ','
+                                   . ArchiveWriter::DONE_OK . ','
+                                   . ArchiveWriter::DONE_OK_TEMPORARY . ")
+                   AND idsite IN (" . implode(',', $idSites) . ")
+                 GROUP BY idsite, date1, date2, period, name";
+
+        $rows = $this->db->fetchAll($sql);
+
+        return $rows;
     }
 }

@@ -13,6 +13,7 @@ use Piwik\DataAccess\LogAggregator;
 use Piwik\DataTable\Filter\ColumnDelete;
 use Piwik\Date;
 use Piwik\Db;
+use Piwik\Db\Factory;
 use Piwik\Metrics\Formatter;
 use Piwik\Network\IPUtils;
 use Piwik\Piwik;
@@ -246,7 +247,7 @@ class Visitor implements VisitorInterface
     {
         $idVisit = $visitorDetailsArray['idVisit'];
 
-        $model = new Model();
+        $model = Factory::getModel(__NAMESPACE__);
         $actionDetails = $model->queryActionsForVisit($idVisit, $actionsLimit);
 
         $formatter = new Formatter();

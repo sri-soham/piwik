@@ -19,6 +19,7 @@ class DatabaseHandler extends AbstractProcessingHandler
 {
     protected function write(array $record)
     {
+        # Query works for both Pgsql and Mysql, hence not moved to separate class.
         $sql = sprintf(
             'INSERT INTO %s (tag, timestamp, level, message) VALUES (?, ?, ?, ?)',
             Common::prefixTable('logger_message')

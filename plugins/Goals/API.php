@@ -16,6 +16,7 @@ use Piwik\Cache as PiwikCache;
 use Piwik\Common;
 use Piwik\DataTable;
 use Piwik\Db;
+use Piwik\Db\Factory;
 use Piwik\Metrics;
 use Piwik\Piwik;
 use Piwik\Plugin\Report;
@@ -134,7 +135,7 @@ class API extends \Piwik\Plugin\API
 
     private function getModel()
     {
-        return new Model();
+        return Factory::getModel(__NAMESPACE__);
     }
 
     /**

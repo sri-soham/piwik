@@ -1,4 +1,4 @@
-; <?php exit; ?> DO NOT REMOVE THIS LINE
+<?php exit; ?> DO NOT REMOVE THIS LINE
 ; If you want to change some of these default values, the best practise is to override
 ; them in your configuration file in config/config.ini.php. If you directly edit this file,
 ; you will lose your changes when you upgrade Piwik.

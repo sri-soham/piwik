@@ -127,6 +127,19 @@ class LogLinkVisitAction extends Base
         return $this->db->fetchOne($sql);
     }
     
+    /**
+     * Deletes visit actions for the supplied visit IDs from log_link_visit_action.
+     *
+     * @param int[] $visitIds
+     * @return int The number of deleted rows.
+     */
+    public function deleteVisitActionsForVisits($visitIds)
+    {
+        $sql = 'DELETE FROM ' . $this->table . ' WHERE idvisit IN (' . implode(', ', $visitIds) . ');';
+        $statement = $this->db->query($sql);
+        return $statement->rowCount();
+    }
+
     protected function paramsRecord($idvisit, $idsite, $idvisitor, $server_time,
                         $url, $name, $ref_url, $ref_name, $time_spent,
                         $custom_value, $custom_variables, $actionIdsCached

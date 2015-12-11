@@ -10,6 +10,7 @@ namespace Piwik\Plugins\SegmentEditor;
 
 use Piwik\Config;
 use Piwik\Db;
+use Piwik\Db\Factory;
 use Piwik\Version;
 
 /**
@@ -50,7 +51,7 @@ class SegmentEditor extends \Piwik\Plugin
      */
     public function getKnownSegmentsToArchiveForSite(&$segments, $idSite)
     {
-        $model = new Model();
+        $model = Factory::getModel(__NAMESPACE__);
         $segmentToAutoArchive = $model->getSegmentsToAutoArchive($idSite);
 
         foreach ($segmentToAutoArchive as $segmentInfo) {
@@ -62,7 +63,8 @@ class SegmentEditor extends \Piwik\Plugin
 
     public function install()
     {
-        Model::install();
+        $model = Factory::getModel(__NAMESPACE__);
+        $model->install();
     }
 
     public function getJsFiles(&$jsFiles)

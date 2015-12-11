@@ -8,6 +8,7 @@
 
 namespace Piwik\Plugins\SitesManager\tests\Integration;
 
+use Piwik\Db\Factory;
 use Piwik\Piwik;
 use Piwik\Plugin;
 use Piwik\Plugins\MobileAppMeasurable;
@@ -958,14 +959,14 @@ class ApiTest extends IntegrationTestCase
 
     private function assertHasSite($idSite)
     {
-        $model = new Model();
+        $model = Factory::getModel('Piwik\\Plugins\\SitesManager');
         $siteInfo = $model->getSiteFromId($idSite);
         $this->assertNotEmpty($siteInfo);
     }
 
     private function assertHasNotSite($idSite)
     {
-        $model = new Model();
+        $model = Factory::getModel('Piwik\\Plugins\\SitesManager');
         $siteInfo = $model->getSiteFromId($idSite);
         $this->assertEmpty($siteInfo);
     }

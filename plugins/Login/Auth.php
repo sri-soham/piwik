@@ -11,6 +11,7 @@ namespace Piwik\Plugins\Login;
 use Exception;
 use Piwik\AuthResult;
 use Piwik\Db;
+use Piwik\Db\Factory;
 use Piwik\Plugins\UsersManager\Model;
 use Piwik\Session;
 
@@ -27,7 +28,7 @@ class Auth implements \Piwik\Auth
 
     public function __construct()
     {
-        $this->userModel = new Model();
+        $this->userModel = Factory::getModel('Piwik\\Plugins\\UsersManager');
     }
 
     /**

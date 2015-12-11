@@ -119,6 +119,36 @@ class LogConversion extends Base
         return true;
     }
 
+    public function updateConversions($values, $idvisit)
+    {
+        $Generic = Factory::getGeneric($this->db);
+        $binary_columns = array('idvisitor');
+        foreach ($binary_columns as $bc) {
+            if (array_key_exists($bc, $values)) {
+                $values[$bc] = $Generic->bin2db($values[$bc]);
+            }
+        }
+
+        $updateParts = $sqlBind = array();
+        foreach ($values AS $name => $value) {
+            // Case where bind parameters don't work
+            if(strpos($value, $name) !== false) {
+                //$name = 'visit_total_events'
+                //$value = 'visit_total_events + 1';
+                $updateParts[] = " $name = $value ";
+            } else {
+                $updateParts[] = $name . " = ?";
+                $sqlBind[] = $value;
+            }
+        }
+        
+        array_push($sqlBind, $idvisit);
+        $sql = 'UPDATE ' . $this->table . ' SET '
+             . implode(', ', $updateParts) . ' '
+             . 'WHERE idvisit = ?';
+        $result = $this->db->query($sql, $sqlBind);
+    }
+
     /**
      *  uses tracker db
      */
@@ -135,4 +165,19 @@ class LogConversion extends Base
 
         return $this->db->rowCount($result) > 0;
     }
+
+    /**
+     * Deletes conversions for the supplied visit IDs from log_conversion. This method does not cascade, so
+     * conversion items will not be deleted.
+     *
+     * @param int[] $visitIds
+     * @return int The number of deleted rows.
+     */
+    public function deleteConversions($visitIds)
+    {
+        $sql = 'DELETE FROM ' . $this->table . ' WHERE idvisit IN (' . implode(', ', $visitIds) . ');';
+        $statement = $this->db->query($sql);
+        return $statement->rowCount();
+    }
+
 }

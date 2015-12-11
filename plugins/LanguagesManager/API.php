@@ -10,6 +10,7 @@
 namespace Piwik\Plugins\LanguagesManager;
 
 use Piwik\Db;
+use Piwik\Db\Factory;
 use Piwik\Development;
 use Piwik\Filesystem;
 use Piwik\Piwik;
@@ -252,7 +253,7 @@ class API extends \Piwik\Plugin\API
 
     private function getModel()
     {
-        return new Model();
+        return Factory::getModel(__NAMESPACE__);
     }
 
     /**

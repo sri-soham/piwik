@@ -14,6 +14,7 @@ use Piwik\Common;
 use Piwik\Config;
 use Piwik\Container\StaticContainer;
 use Piwik\Date;
+use Piwik\Db\Factory;
 use Piwik\Exception\UnexpectedWebsiteFoundException;
 use Piwik\Network\IPUtils;
 use Piwik\Piwik;
@@ -297,7 +298,7 @@ class Visit implements VisitInterface
 
     private function getModel()
     {
-        return new Model();
+        return Factory::getModel(__NAMESPACE__);
     }
 
     /**

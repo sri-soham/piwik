@@ -15,6 +15,7 @@ use Piwik\DataTable;
 use Piwik\DataTable\Row;
 use Piwik\Date;
 use Piwik\Db;
+use Piwik\Db\Factory;
 use Piwik\Metrics\Formatter;
 use Piwik\Period;
 use Piwik\Piwik;
@@ -78,7 +79,7 @@ class API extends \Piwik\Plugin\API
     public function getCounters($idSite, $lastMinutes, $segment = false, $showColumns = array(), $hideColumns = array())
     {
         Piwik::checkUserHasViewAccess($idSite);
-        $model = new Model();
+        $model = Factory::getModel(__NAMESPACE__);
 
         $counters = array();
 
@@ -341,7 +342,7 @@ class API extends \Piwik\Plugin\API
 
     private function loadLastVisitorDetailsFromDatabase($idSite, $period, $date, $segment = false, $offset = 0, $limit = 100, $minTimestamp = false, $filterSortOrder = false, $visitorId = false)
     {
-        $model = new Model();
+        $model = Factory::getModel(__NAMESPACE__);
         $data = $model->queryLogVisits($idSite, $period, $date, $segment, $offset, $limit, $visitorId, $minTimestamp, $filterSortOrder);
         return $this->makeVisitorTableFromArray($data);
     }

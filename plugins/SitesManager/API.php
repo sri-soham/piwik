@@ -14,6 +14,7 @@ use Piwik\Common;
 use Piwik\Container\StaticContainer;
 use Piwik\Date;
 use Piwik\Db;
+use Piwik\Db\Factory;
 use Piwik\Metrics\Formatter;
 use Piwik\Network\IPUtils;
 use Piwik\Option;
@@ -200,7 +201,7 @@ class API extends \Piwik\Plugin\API
 
     private function getModel()
     {
-        return new Model();
+        return Factory::getModel(__NAMESPACE__);
     }
 
     /**

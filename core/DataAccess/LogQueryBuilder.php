@@ -260,7 +260,7 @@ class LogQueryBuilder
             // $limit = "10, 5". We would not have to do this but we do to prevent possible injections.
             $offset = trim($limitParts[0]);
             $limit  = trim($limitParts[1]);
-            $sql   .= sprintf(' LIMIT %d, %d', $offset, $limit);
+            $sql   .= sprintf(' LIMIT %d OFFSET %d', $limit, $offset);
         } else {
             // $limit = "5"
             $limit = (int)$limit;

@@ -12,6 +12,7 @@ use Piwik\Common;
 use Piwik\Container\StaticContainer;
 use Piwik\Db;
 use Piwik\Plugin\Dimension\DimensionMetadataProvider;
+use Piwik\Db\Factory;
 
 /**
  * DAO that queries log tables.
@@ -36,11 +37,8 @@ class RawLogDao
      */
     public function updateVisits(array $values, $idVisit)
     {
-        $sql = "UPDATE " . Common::prefixTable('log_visit')
-            . " SET " . $this->getColumnSetExpressions(array_keys($values))
-            . " WHERE idvisit = ?";
-
-        $this->update($sql, $values, $idVisit);
+        $LogVisit = Factory::getDAO('log_visit');
+        $LogVisit->updateVisits($values, $idVisit);
     }
 
     /**
@@ -49,11 +47,8 @@ class RawLogDao
      */
     public function updateConversions(array $values, $idVisit)
     {
-        $sql = "UPDATE " . Common::prefixTable('log_conversion')
-            . " SET " . $this->getColumnSetExpressions(array_keys($values))
-            . " WHERE idvisit = ?";
-
-        $this->update($sql, $values, $idVisit);
+        $LogConversion = Factory::getDAO('log_conversion');
+        $LogConversion->updateConversions($values, $idVisit);
     }
 
     /**
@@ -63,13 +58,8 @@ class RawLogDao
      */
     public function countVisitsWithDatesLimit($from, $to)
     {
-        $sql = "SELECT COUNT(*) AS num_rows"
-             . " FROM " . Common::prefixTable('log_visit')
-             . " WHERE visit_last_action_time >= ? AND visit_last_action_time < ?";
-
-        $bind = array($from, $to);
-
-        return (int) Db::fetchOne($sql, $bind);
+        $LogVisit = Factory::getDAO('log_visit');
+        return $LogVisit->countVisitsWithDatesLimit($from, $to);
     }
 
     /**
@@ -101,12 +91,22 @@ class RawLogDao
     {
         $idField = $this->getIdFieldForLogTable($logTable);
         list($query, $bind) = $this->createLogIterationQuery($logTable, $idField, $fields, $conditions, $iterationStep);
+        $binaryColumns = $this->getBinaryColumns($logTable);
+        $Generic = Factory::getGeneric();
 
         $lastId = 0;
         do {
             $rows = Db::fetchAll($query, array_merge(array($lastId), $bind));
             if (!empty($rows)) {
-                $lastId = $rows[count($rows) - 1][$idField];
+                $count = count($rows);
+                $lastId = $rows[$count - 1][$idField];
+                for ($i=0; $i<$count; ++$i) {
+                    foreach ($binaryColumns as $bc) {
+                        if (!empty($rows[$i][$bc])) {
+                            $rows[$i][$bc] = $Generic->db2bin($rows[$i][$bc]);
+                        }
+                    }
+                }
 
                 $callback($rows);
             }
@@ -122,11 +122,8 @@ class RawLogDao
      */
     public function deleteVisits($idVisits)
     {
-        $sql = "DELETE FROM `" . Common::prefixTable('log_visit') . "` WHERE idvisit IN "
-             . $this->getInFieldExpressionWithInts($idVisits);
-
-        $statement = Db::query($sql);
-        return $statement->rowCount();
+        $LogVisit = Factory::getDAO('log_visit');
+        return $LogVisit->deleteVisits($idVisits);
     }
 
     /**
@@ -137,11 +134,8 @@ class RawLogDao
      */
     public function deleteVisitActionsForVisits($visitIds)
     {
-        $sql = "DELETE FROM `" . Common::prefixTable('log_link_visit_action') . "` WHERE idvisit IN "
-             . $this->getInFieldExpressionWithInts($visitIds);
-
-        $statement = Db::query($sql);
-        return $statement->rowCount();
+        $LogLinkVisitAction = Factory::getDAO('log_link_visit_action');
+        return $LogLinkVisitAction->deleteVisitActionsForVisits($visitIds);
     }
 
     /**
@@ -153,11 +147,8 @@ class RawLogDao
      */
     public function deleteConversions($visitIds)
     {
-        $sql = "DELETE FROM `" . Common::prefixTable('log_conversion') . "` WHERE idvisit IN "
-             . $this->getInFieldExpressionWithInts($visitIds);
-
-        $statement = Db::query($sql);
-        return $statement->rowCount();
+        $LogConversion = Factory::getDAO('log_conversion');
+        return $LogConversion->deleteConversions($visitIds);
     }
 
     /**
@@ -168,11 +159,8 @@ class RawLogDao
      */
     public function deleteConversionItems($visitIds)
     {
-        $sql = "DELETE FROM `" . Common::prefixTable('log_conversion_item') . "` WHERE idvisit IN "
-             . $this->getInFieldExpressionWithInts($visitIds);
-
-        $statement = Db::query($sql);
-        return $statement->rowCount();
+        $LogConversionItem = Factory::getDAO('log_conversion_item');
+        return $LogConversionItem->deleteConversionItems($visitIds);
     }
 
     /**
@@ -189,24 +177,9 @@ class RawLogDao
             throw new \Exception("RawLogDao.deleteUnusedLogActions() requires table locking permission in order to complete without error.");
         }
 
-        // get current max ID in log tables w/ idaction references.
-        $maxIds = $this->getMaxIdsInLogTables();
-
-        $this->createTempTableForStoringUsedActions();
-
-        // do large insert (inserting everything before maxIds) w/o locking tables...
-        $this->insertActionsToKeep($maxIds, $deleteOlderThanMax = true);
-
-        // ... then do small insert w/ locked tables to minimize the amount of time tables are locked.
-        $this->lockLogTables();
-        $this->insertActionsToKeep($maxIds, $deleteOlderThanMax = false);
-
-        // delete before unlocking tables so there's no chance a new log row that references an
-        // unused action will be inserted.
-        $this->deleteUnusedActions();
-        Db::unlockAllTables();
+        $LogAction = Factory::getDAO('log_action');
+        $LogAction->purgeUnused($this->dimensionMetadataProvider);
     }
-
 
     /**
      * Returns the list of the website IDs that received some visits between the specified timestamp.
@@ -217,42 +190,8 @@ class RawLogDao
      */
     public function hasSiteVisitsBetweenTimeframe($fromDateTime, $toDateTime, $idSite)
     {
-        $sites = Db::fetchOne("SELECT 1
-                FROM " . Common::prefixTable('log_visit') . "
-                WHERE idsite = ?
-                AND visit_last_action_time > ?
-                AND visit_last_action_time < ?
-                LIMIT 1", array($idSite, $fromDateTime, $toDateTime));
-
-        return (bool) $sites;
-    }
-
-    /**
-     * @param array $columnsToSet
-     * @return string
-     */
-    protected function getColumnSetExpressions(array $columnsToSet)
-    {
-        $columnsToSet = array_map(
-            function ($column) {
-                return $column . ' = ?';
-            },
-            $columnsToSet
-        );
-
-        return implode(', ', $columnsToSet);
-    }
-
-    /**
-     * @param array $values
-     * @param $idVisit
-     * @param $sql
-     * @return \Zend_Db_Statement
-     * @throws \Exception
-     */
-    protected function update($sql, array $values, $idVisit)
-    {
-        return Db::query($sql, array_merge(array_values($values), array($idVisit)));
+        $LogVisit = Factory::getDAO('log_visit');
+        return $LogVisit->hasSiteVisitsBetweenTimeframe($fromDateTime, $toDateTime, $idSite);
     }
 
     private function getIdFieldForLogTable($logTable)
@@ -273,13 +212,31 @@ class RawLogDao
         }
     }
 
+    private function getBinaryColumns($logTable)
+    {
+        switch ($logTable) {
+            case 'log_visit':
+                return array('idvisitor', 'config_id', 'location_ip');
+            case 'log_link_visit_action':
+                return array('idvisitor');
+            case 'log_conversion':
+                return array('idvisitor');
+            case 'log_conversion_item':
+                return array('idvisitor');
+            case 'log_action':
+                return array();
+            default:
+                throw new \InvalidArgumentException("Unknown log table '$logTable'.");
+        }
+    }
+
     // TODO: instead of creating a log query like this, we should re-use segments. to do this, however, there must be a 1-1
     //       mapping for dimensions => segments, and each dimension should automatically have a segment.
     private function createLogIterationQuery($logTable, $idField, $fields, $conditions, $iterationStep)
     {
         $bind = array();
 
-        $sql = "SELECT " . implode(', ', $fields) . " FROM `" . Common::prefixTable($logTable) . "` WHERE $idField > ?";
+        $sql = "SELECT " . implode(', ', $fields) . " FROM " . Common::prefixTable($logTable) . " WHERE $idField > ?";
 
         foreach ($conditions as $condition) {
             list($column, $operator, $value) = $condition;
@@ -318,85 +275,5 @@ class RawLogDao
         $sql .= ")";
 
         return $sql;
-    }
-
-
-    private function getMaxIdsInLogTables()
-    {
-        $tables = array('log_conversion', 'log_link_visit_action', 'log_visit', 'log_conversion_item');
-        $idColumns = $this->getTableIdColumns();
-
-        $result = array();
-        foreach ($tables as $table) {
-            $idCol = $idColumns[$table];
-            $result[$table] = Db::fetchOne("SELECT MAX($idCol) FROM " . Common::prefixTable($table));
-        }
-
-        return $result;
-    }
-
-    private function createTempTableForStoringUsedActions()
-    {
-        $sql = "CREATE TEMPORARY TABLE " . Common::prefixTable(self::DELETE_UNUSED_ACTIONS_TEMP_TABLE_NAME) . " (
-					idaction INT(11),
-					PRIMARY KEY (idaction)
-				)";
-        Db::query($sql);
-    }
-
-    // protected for testing purposes
-    protected function insertActionsToKeep($maxIds, $olderThan = true, $insertIntoTempIterationStep = 100000)
-    {
-        $tempTableName = Common::prefixTable(self::DELETE_UNUSED_ACTIONS_TEMP_TABLE_NAME);
-
-        $idColumns = $this->getTableIdColumns();
-        foreach ($this->dimensionMetadataProvider->getActionReferenceColumnsByTable() as $table => $columns) {
-            $idCol = $idColumns[$table];
-
-            foreach ($columns as $col) {
-                $select = "SELECT $col FROM " . Common::prefixTable($table) . " WHERE $idCol >= ? AND $idCol < ?";
-                $sql = "INSERT IGNORE INTO $tempTableName $select";
-
-                if ($olderThan) {
-                    $start = 0;
-                    $finish = $maxIds[$table];
-                } else {
-                    $start = $maxIds[$table];
-                    $finish = Db::fetchOne("SELECT MAX($idCol) FROM " . Common::prefixTable($table));
-                }
-
-                Db::segmentedQuery($sql, $start, $finish, $insertIntoTempIterationStep);
-            }
-        }
-    }
-
-    private function lockLogTables()
-    {
-        Db::lockTables(
-            $readLocks = Common::prefixTables('log_conversion', 'log_link_visit_action', 'log_visit', 'log_conversion_item'),
-            $writeLocks = Common::prefixTables('log_action')
-        );
-    }
-
-    private function deleteUnusedActions()
-    {
-        list($logActionTable, $tempTableName) = Common::prefixTables("log_action", self::DELETE_UNUSED_ACTIONS_TEMP_TABLE_NAME);
-
-        $deleteSql = "DELETE LOW_PRIORITY QUICK IGNORE $logActionTable
-						FROM $logActionTable
-				   LEFT JOIN $tempTableName tmp ON tmp.idaction = $logActionTable.idaction
-					   WHERE tmp.idaction IS NULL";
-
-        Db::query($deleteSql);
-    }
-
-    private function getTableIdColumns()
-    {
-        return array(
-            'log_link_visit_action' => 'idlink_va',
-            'log_conversion'        => 'idvisit',
-            'log_visit'             => 'idvisit',
-            'log_conversion_item'   => 'idvisit'
-        );
     }
 }

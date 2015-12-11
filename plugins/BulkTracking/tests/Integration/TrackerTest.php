@@ -9,6 +9,7 @@
 namespace Piwik\Plugins\BulkTracking\tests\Integration;
 
 use Piwik\Common;
+use Piwik\Db\Factory;
 use Piwik\Plugin;
 use Piwik\Plugins\BulkTracking\tests\Framework\Mock\Tracker\Response;
 use Piwik\Plugins\BulkTracking\tests\Framework\TestCase\BulkTrackingTestCase;
@@ -151,7 +152,8 @@ class TrackerTest extends BulkTrackingTestCase
 
     private function getIdVisit($idVisit)
     {
-        return Tracker::getDatabase()->fetchRow("SELECT * FROM " . Common::prefixTable('log_visit') . " WHERE idvisit = ?", array($idVisit));
+        $LogVisit = Factory::getDAO('log_visit', Tracker::getDatabase());
+        return $LogVisit->getByIdvisit($idVisit);
     }
 
     protected static function configureFixture($fixture)

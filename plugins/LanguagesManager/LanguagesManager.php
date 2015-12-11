@@ -15,6 +15,7 @@ use Piwik\Config;
 use Piwik\Container\StaticContainer;
 use Piwik\Cookie;
 use Piwik\Db;
+use Piwik\Db\Factory;
 use Piwik\Intl\Locale;
 use Piwik\Piwik;
 use Piwik\Translate;
@@ -117,7 +118,7 @@ class LanguagesManager extends \Piwik\Plugin
 
     public function deleteUserLanguage($userLogin)
     {
-        $model = new Model();
+        $model = Factory::getModel(__NAMESPACE__);
         $model->deleteUserLanguage($userLogin);
     }
 
@@ -126,7 +127,8 @@ class LanguagesManager extends \Piwik\Plugin
      */
     public function install()
     {
-        Model::install();
+        $model = Factory::getModel(__NAMESPACE__);
+        $model->install();
     }
 
     /**
@@ -134,7 +136,8 @@ class LanguagesManager extends \Piwik\Plugin
      */
     public function uninstall()
     {
-        Model::uninstall();
+        $model = Factory::getModel(__NAMESPACE__);
+        $model->uninstall();
     }
 
     /**

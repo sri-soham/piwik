@@ -10,6 +10,7 @@ namespace Piwik;
 
 use Exception;
 use Piwik\Container\StaticContainer;
+use Piwik\Db\Factory;
 
 /**
  * Singleton that manages user access to Piwik resources.
@@ -169,9 +170,8 @@ class Access
 
     public function getRawSitesWithSomeViewAccess($login)
     {
-        $sql = self::getSqlAccessSite("access, t2.idsite");
-
-        return Db::fetchAll($sql, $login);
+        $Access = Factory::getDAO('access');
+        return $Access->getAccessSiteByLogin($login);
     }
 
     /**

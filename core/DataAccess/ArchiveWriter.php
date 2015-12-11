@@ -15,6 +15,7 @@ use Piwik\ArchiveProcessor\Rules;
 use Piwik\ArchiveProcessor;
 use Piwik\Db;
 use Piwik\Db\BatchInsert;
+use Piwik\Db\Factory;
 use Piwik\Period;
 
 /**
@@ -159,7 +160,7 @@ class ArchiveWriter
 
     private function getModel()
     {
-        return new Model();
+        return Factory::getModel(__NAMESPACE__);
     }
 
     protected function logArchiveStatusAsIncomplete()

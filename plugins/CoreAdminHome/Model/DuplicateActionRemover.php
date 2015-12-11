@@ -17,8 +17,10 @@ use Psr\Log\LoggerInterface;
  * Provides methods to find duplicate actions and fix duplicate action references in tables
  * that reference log_action rows.
  */
-class DuplicateActionRemover
+class DuplicateActionRemover implements \Piwik\Db\FactoryCreated
 {
+    protected $db;
+
     /**
      * The tables that contain idaction reference columns.
      *
@@ -60,6 +62,7 @@ class DuplicateActionRemover
     {
         $this->tableMetadataAccess = $tableMetadataAccess ?: new TableMetadata();
         $this->logger = $logger ?: StaticContainer::get('Psr\Log\LoggerInterface');
+        $this->db = Db::get();
     }
 
     /**
@@ -74,12 +77,9 @@ class DuplicateActionRemover
      */
     public function getDuplicateIdActions()
     {
-        $sql = "SELECT name, COUNT(*) AS count, GROUP_CONCAT(idaction ORDER BY idaction ASC SEPARATOR ',') as idactions
-                  FROM " . Common::prefixTable('log_action') . "
-              GROUP BY name, hash, type HAVING count > 1";
-
+        $rows = $this->getDuplicateIdActionsFromDB();
         $result = array();
-        foreach (Db::fetchAll($sql) as $row) {
+        foreach ($rows as $row) {
             $dupeInfo = array('name' => $row['name']);
 
             $idActions = explode(",", $row['idactions']);
@@ -89,6 +89,15 @@ class DuplicateActionRemover
             $result[] = $dupeInfo;
         }
         return $result;
+    }
+
+    public function getDuplicateIdActionsFromDB()
+    {
+        $sql = "SELECT name, COUNT(*) AS count, GROUP_CONCAT(idaction ORDER BY idaction ASC SEPARATOR ',') as idactions
+                  FROM " . Common::prefixTable('log_action') . "
+              GROUP BY name, hash, type HAVING count > 1";
+
+        return $this->db->fetchAll($sql);
     }
 
     /**
@@ -116,7 +125,7 @@ class DuplicateActionRemover
         $table = Common::prefixTable($table);
 
         $inFromIdsExpression = $this->getInFromIdsExpression($duplicateIdActions);
-        $setExpression = "%1\$s = IF(($inFromIdsExpression), $realIdAction, %1\$s)";
+        $setExpression = "%1\$s = CASE WHEN ($inFromIdsExpression) THEN $realIdAction ELSE %1\$s END ";
 
         $sql = "UPDATE $table SET\n";
         foreach ($idactionColumns as $index => $column) {
@@ -127,7 +136,7 @@ class DuplicateActionRemover
         }
         $sql .= $this->getWhereToGetRowsUsingDuplicateActions($idactionColumns, $duplicateIdActions);
 
-        Db::query($sql);
+        $this->db->query($sql);
     }
 
     /**
@@ -147,7 +156,7 @@ class DuplicateActionRemover
 
         $sql = "SELECT idsite, DATE(server_time) as server_time FROM $table ";
         $sql .= $this->getWhereToGetRowsUsingDuplicateActions($idactionColumns, $duplicateIdActions);
-        return Db::fetchAll($sql);
+        return $this->db->fetchAll($sql);
     }
 
     private function getIdActionTableColumnsFromMetadata()

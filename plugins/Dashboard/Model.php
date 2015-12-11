@@ -12,14 +12,16 @@ use Piwik\Db;
 use Piwik\DbHelper;
 use Piwik\WidgetsList;
 
-class Model
+class Model implements \Piwik\Db\FactoryCreated
 {
-    private static $rawPrefix = 'user_dashboard';
-    private $table;
+    protected static $rawPrefix = 'user_dashboard';
+    protected $table;
+    protected $db;
 
     public function __construct()
     {
         $this->table = Common::prefixTable(self::$rawPrefix);
+        $this->db = Db::get();
     }
 
     /**
@@ -36,14 +38,14 @@ class Model
         $query   = sprintf('SELECT layout FROM %s WHERE login = ? AND iddashboard = ?',
                            $this->table);
         $bind    = array($login, $idDashboard);
-        $layouts = Db::fetchAll($query, $bind);
+        $layouts = $this->db->fetchAll($query, $bind);
 
         return $layouts;
     }
 
     public function getAllDashboardsForUser($login)
     {
-        $dashboards = Db::fetchAll('SELECT iddashboard, name, layout FROM ' . $this->table .
+        $dashboards = $this->db->fetchAll('SELECT iddashboard, name, layout FROM ' . $this->table .
                                    ' WHERE login = ? ORDER BY iddashboard', array($login));
 
         return $dashboards;
@@ -51,7 +53,7 @@ class Model
 
     public function deleteAllLayoutsForUser($userLogin)
     {
-        Db::query('DELETE FROM ' . $this->table . ' WHERE login = ?', array($userLogin));
+        $this->db->query('DELETE FROM ' . $this->table . ' WHERE login = ?', array($userLogin));
     }
 
     /**
@@ -65,7 +67,7 @@ class Model
     {
         $bind  = array($name, $login, $idDashboard);
         $query = sprintf('UPDATE %s SET name = ? WHERE login = ? AND iddashboard = ?', $this->table);
-        Db::query($query, $bind);
+        $this->db->query($query, $bind);
     }
 
     /**
@@ -74,7 +76,7 @@ class Model
     public function deleteDashboardForUser($idDashboard, $login)
     {
         $query = sprintf('DELETE FROM %s WHERE iddashboard = ? AND login = ?', $this->table);
-        Db::query($query, array($idDashboard, $login));
+        $this->db->query($query, array($idDashboard, $login));
     }
 
     /**
@@ -87,7 +89,7 @@ class Model
 
         $query = sprintf('INSERT INTO %s (login, iddashboard, name, layout) VALUES (?, ?, ?, ?)', $this->table);
         $bind  = array($login, $nextId, $name, $layout);
-        Db::query($query, $bind);
+        $this->db->query($query, $bind);
 
         return $nextId;
     }
@@ -100,13 +102,13 @@ class Model
         $bind   = array($login, $idDashboard, $layout, $layout);
         $query  = sprintf('INSERT INTO %s (login, iddashboard, layout) VALUES (?,?,?) ON DUPLICATE KEY UPDATE layout=?',
                           $this->table);
-        Db::query($query, $bind);
+        $this->db->query($query, $bind);
     }
 
-    private function getNextIdDashboard($login)
+    protected function getNextIdDashboard($login)
     {
         $nextIdQuery = sprintf('SELECT MAX(iddashboard)+1 FROM %s WHERE login = ?', $this->table);
-        $nextId      = Db::fetchOne($nextIdQuery, array($login));
+        $nextId      = $this->db->fetchOne($nextIdQuery, array($login));
 
         if (empty($nextId)) {
             $nextId = 1;
@@ -127,7 +129,7 @@ class Model
         $bind  = array($login, $idDashboard, $layout, $layout);
         $query = sprintf('INSERT INTO %s (login, iddashboard, layout) VALUES (?,?,?) ON DUPLICATE KEY UPDATE layout=?',
                          $this->table);
-        Db::query($query, $bind);
+        $this->db->query($query, $bind);
     }
 
     public static function install()

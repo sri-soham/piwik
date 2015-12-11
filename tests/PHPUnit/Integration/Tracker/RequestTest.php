@@ -8,6 +8,7 @@
 
 namespace Piwik\Tests\Integration\Tracker;
 
+use Piwik\Db\Factory;
 use Piwik\Piwik;
 use Piwik\Plugins\CustomVariables\CustomVariables;
 use Piwik\Plugins\UsersManager\API;
@@ -295,7 +296,7 @@ class RequestTest extends IntegrationTestCase
 
         $token = API::getInstance()->getTokenAuth($login, $passwordHash);
 
-        $user = new Model();
+        $user = Factory::getModel('Piwik\\Plugins\\UsersManager');
         $user->addUser($login, $passwordHash, 'admin@piwik', 'alias', $token, '2014-01-01 00:00:00');
         $user->addUserAccess($login, 'admin', array($idSite));
 

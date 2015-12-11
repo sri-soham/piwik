@@ -15,9 +15,15 @@ use Piwik\DbHelper;
 /**
  * The SegmentEditor Model lets you persist and read custom Segments from the backend without handling any logic.
  */
-class Model
+class Model implements \Piwik\Db\FactoryCreated
 {
-    private static $rawPrefix = 'segment';
+    protected static $rawPrefix = 'segment';
+    protected $db;
+
+    public function __construct()
+    {
+        $this->db = Db::get();
+    }
 
     protected function getTable()
     {
@@ -34,7 +40,7 @@ class Model
     {
         $sql = "SELECT * FROM " . $this->getTable() . " WHERE deleted = 0";
 
-        $segments = $this->getDb()->fetchAll($sql);
+        $segments = $this->db->fetchAll($sql);
 
         return $segments;
     }
@@ -59,7 +65,7 @@ class Model
         $sql = $this->buildQuerySortedByName("($whereIdSite enable_only_idsite = 0)
                                               AND deleted = 0 AND auto_archive = 1");
 
-        $segments = $this->getDb()->fetchAll($sql, $bind);
+        $segments = $this->db->fetchAll($sql, $bind);
 
         return $segments;
     }
@@ -75,7 +81,7 @@ class Model
         $bind = array($userLogin);
         $sql  = $this->buildQuerySortedByName('deleted = 0 AND (enable_all_users = 1 OR login = ?)');
 
-        $segments = $this->getDb()->fetchAll($sql, $bind);
+        $segments = $this->db->fetchAll($sql, $bind);
 
         return $segments;
     }
@@ -93,47 +99,38 @@ class Model
         $sql  = $this->buildQuerySortedByName('(enable_only_idsite = ? OR enable_only_idsite = 0)
                                                AND deleted = 0
                                                AND (enable_all_users = 1 OR login = ?)');
-        $segments = $this->getDb()->fetchAll($sql, $bind);
+        $segments = $this->db->fetchAll($sql, $bind);
 
         return $segments;
     }
 
     public function deleteSegment($idSegment)
     {
-        $db = $this->getDb();
-        $db->delete($this->getTable(), 'idsegment = ' . (int) $idSegment);
+        $this->db->delete($this->getTable(), 'idsegment = ' . (int) $idSegment);
     }
 
     public function updateSegment($idSegment, $segment)
     {
         $idSegment = (int) $idSegment;
 
-        $db = $this->getDb();
-        $db->update($this->getTable(), $segment, "idsegment = $idSegment");
+        $this->db->update($this->getTable(), $segment, "idsegment = $idSegment");
 
         return true;
     }
 
     public function createSegment($segment)
     {
-        $db = $this->getDb();
-        $db->insert($this->getTable(), $segment);
-        $id = $db->lastInsertId();
+        $this->db->insert($this->getTable(), $segment);
+        $id = $this->db->lastInsertId();
 
         return $id;
     }
 
     public function getSegment($idSegment)
     {
-        $db = $this->getDb();
-        $segment = $db->fetchRow("SELECT * FROM " . $this->getTable() . " WHERE idsegment = ?", $idSegment);
+        $segment = $this->db->fetchRow("SELECT * FROM " . $this->getTable() . " WHERE idsegment = ?", $idSegment);
 
         return $segment;
-    }
-
-    private function getDb()
-    {
-        return Db::get();
     }
 
     private function buildQuerySortedByName($where)

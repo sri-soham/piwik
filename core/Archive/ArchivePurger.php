@@ -14,6 +14,7 @@ use Piwik\Container\StaticContainer;
 use Piwik\DataAccess\ArchiveTableCreator;
 use Piwik\DataAccess\Model;
 use Piwik\Date;
+use Piwik\Db\Factory;
 use Piwik\Piwik;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
@@ -72,7 +73,11 @@ class ArchivePurger
 
     public function __construct(Model $model = null, Date $purgeCustomRangesOlderThan = null, LoggerInterface $logger = null)
     {
-        $this->model = $model ?: new Model();
+        # Overriding the $model object injected by the DI container.
+        # DI Container injects the Model class irrespective of the database used
+        # (Mysql or Pgsql). Also, it doesn't set the Db object on the Model
+        # class.
+        $this->model = Factory::getModel('Piwik\\DataAccess');
 
         $this->purgeCustomRangesOlderThan = $purgeCustomRangesOlderThan ?: self::getDefaultCustomRangeToPurgeAgeThreshold();
 

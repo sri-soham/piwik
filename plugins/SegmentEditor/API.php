@@ -11,6 +11,7 @@ namespace Piwik\Plugins\SegmentEditor;
 use Exception;
 use Piwik\Common;
 use Piwik\Date;
+use Piwik\Db\Factory;
 use Piwik\Piwik;
 use Piwik\Config;
 use Piwik\Segment;
@@ -200,7 +201,7 @@ class API extends \Piwik\Plugin\API
 
     private function getModel()
     {
-        return new Model();
+        return Factory::getModel(__NAMESPACE__);
     }
 
     /**

@@ -13,6 +13,7 @@ use Piwik\CronArchive\SitesToReprocessDistributedList;
 use Piwik\DataAccess\ArchiveTableCreator;
 use Piwik\DataAccess\Model;
 use Piwik\Date;
+use Piwik\Db\Factory;
 use Piwik\Option;
 use Piwik\Plugins\CoreAdminHome\Tasks\ArchivesToPurgeDistributedList;
 use Piwik\Plugins\PrivacyManager\PrivacyManager;
@@ -152,7 +153,8 @@ class ArchiveInvalidator
         $idSites    = Site::getIdSitesFromIdSitesString($idSites);
         $minDateSql = $minDate->subDay(1)->getDatetime();
 
-        $model = new SitesManagerModel();
+        #$model = new SitesManagerModel();
+        $model = Factory::getModel('Piwik\\Plugins\\SitesManager');
         $model->updateSiteCreatedTime($idSites, $minDateSql);
     }
 
@@ -342,6 +344,6 @@ class ArchiveInvalidator
 
     private static function getModel()
     {
-        return new Model();
+        return Factory::getModel('Piwik\\DataAccess');
     }
 }

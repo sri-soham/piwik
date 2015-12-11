@@ -27,6 +27,8 @@ class LogAction extends Base
 { 
     const TEMP_TABLE_NAME = 'tmp_log_actions_to_keep';
 
+    protected $dimensionMetadataProvider;
+
     public function __construct($db, $table)
     {
         parent::__construct($db, $table);
@@ -43,7 +45,7 @@ class LogAction extends Base
                 $sql .= "(name NOT LIKE CONCAT('%', ?, '%') AND type = $actionType )";
                 break;
             default:
-                throw new \Exception("This match type is not available for action-segments.");
+                throw new \Exception("This match type $matchType is not available for action-segments.");
                 break;
         }
 
@@ -134,8 +136,19 @@ class LogAction extends Base
         return $this->db->fetchOne($sql, array($idaction));
     }
 
-    public function purgeUnused()
+    public function deleteByIdactions($idActions)
     {
+        foreach ($idActions as &$id) {
+            $id = (int)$id;
+        }
+
+        $sql = "DELETE FROM {$this->table} WHERE idaction IN (" . implode(",", $idActions) . ")";
+        $this->db->query($sql);
+    }
+
+    public function purgeUnused($dimensionMetadataProvider)
+    {
+        $this->dimensionMetadataProvider = $dimensionMetadataProvider;
         // get current max visit ID in log tables w/ idaction references.
         $maxIds = $this->getMaxIdsInLogTables();
         $generic = Factory::getGeneric($this->db);
@@ -198,7 +211,7 @@ class LogAction extends Base
         $tempTable = Common::prefixTable(self::TEMP_TABLE_NAME);
 
         $idColumns = $this->getTableIdColumns();
-        foreach ($this->getIdActionColumns() as $table => $columns) {
+        foreach ($this->dimensionMetadataProvider->getActionReferenceColumnsByTable() as $table => $columns) {
             $idCol = $idColumns[$table];
             foreach ($columns as $col) {
                 $select = "SELECT $col from " . Common::prefixTable($table) . " WHERE $idCol >= ? AND $idCol < ?";
@@ -215,20 +228,6 @@ class LogAction extends Base
 
                 $Generic->segmentedQuery($sql, $start, $finish, LogDataPurger::$selectSegmentSize);
             }
-        }
-
-        // allow code to be executed after data is inserted. for concurrency testing purposes.
-        if ($olderThan) {
-            /**
-             * @ignore
-             */
-            Piwik::postEvent("LogDataPurger.ActionsToKeepInserted.olderThan");
-        }
-        else {
-            /**
-             * @ignore
-             */
-            Piwik::postEvent("LogDataPurger.ActionsToKeepInserted.newerThan");
         }
     }
 

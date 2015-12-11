@@ -15,6 +15,7 @@ use Piwik\Config;
 use Piwik\Container\StaticContainer;
 use Piwik\Date;
 use Piwik\Db;
+use Piwik\Db\Factory;
 use Piwik\Log;
 use Piwik\NoAccessException;
 use Piwik\Piwik;
@@ -25,7 +26,6 @@ use Piwik\ReportRenderer;
 use Piwik\Site;
 use Piwik\Tracker;
 use Piwik\Translate;
-use Piwik\Db\Factory;
 use Piwik\Translation\Translator;
 use Piwik\Url;
 use Piwik\UrlHelper;
@@ -608,7 +608,7 @@ class API extends \Piwik\Plugin\API
 
     private function getModel()
     {
-        return new Model();
+        return Factory::getModel(__NAMESPACE__);
     }
 
     private static function getReportSubjectAndReportTitle($websiteName, $reports)

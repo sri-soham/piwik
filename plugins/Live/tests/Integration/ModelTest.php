@@ -9,6 +9,7 @@
 namespace Piwik\Plugins\Live\tests\Integration;
 
 use Piwik\Common;
+use Piwik\Db\Factory;
 use Piwik\Plugins\Live\Model;
 use Piwik\Tests\Framework\Fixture;
 use Piwik\Tests\Framework\Mock\FakeAccess;
@@ -33,6 +34,7 @@ class ModelTest extends IntegrationTestCase
     public function test_makeLogVisitsQueryString()
     {
         $model = new Model();
+        $model = Factory::getModel('Piwik\\Plugins\\Live');
         list($sql, $bind) = $model->makeLogVisitsQueryString(
                 $idSite = 1,
                 $period = 'month',
@@ -68,7 +70,7 @@ class ModelTest extends IntegrationTestCase
 
     public function test_makeLogVisitsQueryStringWithOffset()
     {
-        $model = new Model();
+        $model = Factory::getModel('Piwik\\Plugins\\Live');
         list($sql, $bind) = $model->makeLogVisitsQueryString(
                 $idSite = 1,
                 $period = 'month',
@@ -88,7 +90,7 @@ class ModelTest extends IntegrationTestCase
                       AND log_visit.visit_last_action_time >= ?
                       AND log_visit.visit_last_action_time <= ?
                     ORDER BY idsite, visit_last_action_time DESC
-                    LIMIT 15, 100
+                    LIMIT 15 OFFSET 100
                  ) AS sub
                  GROUP BY sub.idvisit
                  ORDER BY sub.visit_last_action_time DESC
@@ -105,7 +107,7 @@ class ModelTest extends IntegrationTestCase
 
     public function test_makeLogVisitsQueryString_whenSegment()
     {
-        $model = new Model();
+        $model = Factory::getModel('Piwik\\Plugins\\Live');
         list($sql, $bind) = $model->makeLogVisitsQueryString(
             $idSite = 1,
             $period = 'month',

@@ -70,11 +70,14 @@ class LogVisit extends Base
         return Db::segmentedFetchFirst($sql, $maxIdVisit, 0, $segmentSize);
     }
 
-    public function update($valuesToUpdate, $idsite, $idvisit)
+    public function updateVisits($valuesToUpdate, $idvisit)
     {
         $Generic = Factory::getGeneric($this->db);
-        if (array_key_exists('idvisitor', $valuesToUpdate)) {
-            $valuesToUpdate['idvisitor'] = $Generic->bin2db($valuesToUpdate['idvisitor']);
+        $binary_columns = array('idvisitor', 'config_id', 'location_ip');
+        foreach ($binary_columns as $bc) {
+            if (array_key_exists($bc, $valuesToUpdate)) {
+                $valuesToUpdate[$bc] = $Generic->bin2db($valuesToUpdate[$bc]);
+            }
         }
 
         $updateParts = $sqlBind = array();
@@ -90,16 +93,11 @@ class LogVisit extends Base
             }
         }
         
-        array_push($sqlBind, $idsite, $idvisit);
+        array_push($sqlBind, $idvisit);
         $sql = 'UPDATE ' . $this->table . ' SET '
              . implode(', ', $updateParts) . ' '
-             . 'WHERE idsite = ? AND idvisit = ?';
+             . 'WHERE idvisit = ?';
         $result = $this->db->query($sql, $sqlBind);
-
-        return array($this->db->rowCount($result),
-                     $sql,
-                     $sqlBind
-                    );
     }
 
     public function add($visitor_info)
@@ -113,6 +111,46 @@ class LogVisit extends Base
         $this->db->query($sql, $bind);
 
         return $this->db->lastInsertId();
+    }
+
+    /**
+     * Deletes visits with the supplied IDs from log_visit. This method does not cascade, so rows in other tables w/
+     * the same visit ID will still exist.
+     *
+     * @param int[] $idVisits
+     * @return int The number of deleted rows.
+     */
+    public function deleteVisits($idVisits)
+    {
+        $sql = 'DELETE FROM ' . $this->table . ' WHERE idvisit IN (' . implode(', ', $idVisits) . ')';
+        $statement = $this->db->query($sql);
+        return $statement->rowCount();
+    }
+
+    /**
+     * Returns the list of the website IDs that received some visits between the specified timestamp.
+     *
+     * @param string $fromDateTime
+     * @param string $toDateTime
+     * @return bool true if there are visits for this site between the given timeframe, false if not
+     */
+    public function hasSiteVisitsBetweenTimeframe($fromDateTime, $toDateTime, $idSite)
+    {
+        $sql = "SELECT 1
+                  FROM {$this->table}
+                 WHERE idsite = ?
+                   AND visit_last_action_time > ?
+                   AND visit_last_action_time < ?
+                 LIMIT 1";
+        $sites = $this->db->fetchOne($sql, array($idSite, $fromDateTime, $toDateTime));
+
+        return (bool) $sites;
+    }
+
+    public function getByIdvisit($idVisit)
+    {
+        $sql = "SELECT * FROM {$this->table} WHERE idvisit = ?";
+        return $this->db->query($sql, array($idVisit));
     }
 
     /**
@@ -183,6 +221,22 @@ class LogVisit extends Base
     {
         $sql = 'SELECT MAX(idvisit) FROM ' . $this->table;
         return $this->db->fetchOne($sql);
+    }
+
+    /**
+     * @param string $from
+     * @param string $to
+     * @return int
+     */
+    public function countVisitsWithDatesLimit($from, $to)
+    {
+        $sql = "SELECT COUNT(*) AS num_rows"
+             . " FROM " . $this->table
+             . " WHERE visit_last_action_time >= ? AND visit_last_action_time < ?";
+
+        $bind = array($from, $to);
+
+        return (int) $this->db->fetchOne($sql, $bind);
     }
 
     public function loadLastVisitorDetailsSelect()

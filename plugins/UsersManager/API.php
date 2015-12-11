@@ -14,6 +14,7 @@ use Piwik\Common;
 use Piwik\Config;
 use Piwik\Container\StaticContainer;
 use Piwik\Date;
+use Piwik\Db\Factory;
 use Piwik\Option;
 use Piwik\Piwik;
 use Piwik\Site;
@@ -47,7 +48,11 @@ class API extends \Piwik\Plugin\API
 
     public function __construct(Model $model)
     {
-        $this->model = $model;
+        # Overriding the $model object injected by the DI container.
+        # DI Container injects the Model class irrespective of the database used
+        # (Mysql or Pgsql). Also, it doesn't set the Db object on the Model
+        # class.
+        $this->model = Factory::getModel(__NAMESPACE__);
     }
 
     /**
@@ -309,7 +314,7 @@ class API extends \Piwik\Plugin\API
         // Super users have 'admin' access for every site
         if (Piwik::hasTheUserSuperUserAccess($userLogin)) {
             $return = array();
-            $siteManagerModel = new \Piwik\Plugins\SitesManager\Model();
+            $siteManagerModel = Factory::getModel('Piwik\\Plugins\\SitesManager');
             $sites = $siteManagerModel->getAllSites();
             foreach ($sites as $site) {
                 $return[] = array(

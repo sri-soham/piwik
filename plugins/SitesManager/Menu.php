@@ -8,6 +8,7 @@
  */
 namespace Piwik\Plugins\SitesManager;
 
+use Piwik\Db\Factory;
 use Piwik\Menu\MenuAdmin;
 use Piwik\Piwik;
 use Piwik\Measurable\Type\TypeManager;
@@ -46,7 +47,7 @@ class Menu extends \Piwik\Plugin\Menu
             return reset($types);
         } else {
             // multiple types are activated, check whether only one is actually in use
-            $model   = new Model();
+            $model   = Factory::getModel(__NAMESPACE__);
             $typeIds = $model->getUsedTypeIds();
 
             if (count($typeIds) === 1) {

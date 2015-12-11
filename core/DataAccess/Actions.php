@@ -9,6 +9,7 @@ namespace Piwik\DataAccess;
 
 use Piwik\Db;
 use Piwik\Common;
+use Piwik\Db\Factory;
 
 /**
  * Data Access Object for operations dealing with the log_action table.
@@ -22,13 +23,7 @@ class Actions
      */
     public function delete($idActions)
     {
-        foreach ($idActions as &$id) {
-            $id = (int)$id;
-        }
-
-        $table = Common::prefixTable('log_action');
-
-        $sql = "DELETE FROM $table WHERE idaction IN (" . implode(",", $idActions) . ")";
-        Db::query($sql);
+        $LogAction = Factory::getDAO('log_action');
+        $LogAction->deleteByIdactions($idActions);
     }
 }

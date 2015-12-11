@@ -14,22 +14,23 @@ use Piwik\Db;
 use Piwik\Common;
 use Exception;
 
-class Model
+class Model implements \Piwik\Db\FactoryCreated
 {
-    private static $rawPrefix = 'site';
-    private $table;
+    protected static $rawPrefix = 'site';
+    protected $table;
+    protected $db;
 
     public function __construct()
     {
         $this->table = Common::prefixTable(self::$rawPrefix);
+        $this->db = Db::get();
     }
 
     public function createSite($site)
     {
-        $db = $this->getDb();
-        $db->insert($this->table, $site);
+        $this->db->insert($this->table, $site);
 
-        $idSite = $db->lastInsertId();
+        $idSite = $this->db->lastInsertId();
 
         return $idSite;
     }
@@ -41,7 +42,7 @@ class Model
      */
     public function getSitesFromGroup($group)
     {
-        $sites = $this->getDb()->fetchAll("SELECT * FROM " . $this->table . "
+        $sites = $this->db->fetchAll("SELECT * FROM " . $this->table . "
                                            WHERE `group` = ?", $group);
 
         return $sites;
@@ -55,7 +56,8 @@ class Model
      */
     public function getSitesGroups()
     {
-        $groups = $this->getDb()->fetchAll("SELECT DISTINCT `group` FROM " . $this->table);
+        $group = $this->db->quoteIdentifier('group');
+        $groups = $this->db->fetchAll("SELECT DISTINCT $group FROM " . $this->table);
 
         $cleanedGroups = array();
         foreach ($groups as $group) {
@@ -72,7 +74,7 @@ class Model
      */
     public function getAllSites()
     {
-        $sites = $this->getDb()->fetchAll("SELECT * FROM " . $this->table . " ORDER BY idsite ASC");
+        $sites = $this->db->fetchAll("SELECT * FROM " . $this->table . " ORDER BY idsite ASC");
 
         return $sites;
     }
@@ -86,7 +88,7 @@ class Model
      */
     public function getSitesWithVisits($time, $now)
     {
-        $sites = Db::fetchAll("
+        $sites = $this->db->fetchAll("
             SELECT idsite FROM " . $this->table . " s
             WHERE EXISTS (
                 SELECT 1
@@ -111,7 +113,7 @@ class Model
     {
         $siteUrlTable = Common::prefixTable('site_url');
 
-        $ids = $this->getDb()->fetchAll(
+        $ids = $this->db->fetchAll(
             'SELECT idsite FROM ' . $this->table . '
                     WHERE main_url IN ( ' . Common::getSqlStringFieldsArray($urls) . ') ' .
             'UNION
@@ -137,7 +139,7 @@ class Model
         $siteUrlTable  = Common::prefixTable('site_url');
         $sqlAccessSite = Access::getSqlAccessSite('idsite');
 
-        $ids = $this->getDb()->fetchAll(
+        $ids = $this->db->fetchAll(
             'SELECT idsite
                 FROM ' . $this->table . '
                     WHERE main_url IN ( ' . Common::getSqlStringFieldsArray($urls) . ')' .
@@ -171,18 +173,16 @@ class Model
         $query = 'SELECT idsite FROM ' . $this->table . '
                   WHERE timezone IN (' . Common::getSqlStringFieldsArray($timezones) . ')
                   ORDER BY idsite ASC';
-        $sites = $this->getDb()->fetchAll($query, $timezones);
+        $sites = $this->db->fetchAll($query, $timezones);
 
         return $sites;
     }
 
     public function deleteSite($idSite)
     {
-        $db = $this->getDb();
-
-        $db->query("DELETE FROM " . $this->table . " WHERE idsite = ?", $idSite);
-        $db->query("DELETE FROM " . Common::prefixTable("site_url") . " WHERE idsite = ?", $idSite);
-        $db->query("DELETE FROM " . Common::prefixTable("access") . " WHERE idsite = ?", $idSite);
+        $this->db->query("DELETE FROM " . $this->table . " WHERE idsite = ?", $idSite);
+        $this->db->query("DELETE FROM " . Common::prefixTable("site_url") . " WHERE idsite = ?", $idSite);
+        $this->db->query("DELETE FROM " . Common::prefixTable("access") . " WHERE idsite = ?", $idSite);
     }
 
     /**
@@ -206,8 +206,7 @@ class Model
 
         $idSites = array_map('intval', $idSites);
 
-        $db    = $this->getDb();
-        $sites = $db->fetchAll("SELECT * FROM " . $this->table . "
+        $sites = $this->db->fetchAll("SELECT * FROM " . $this->table . "
                                 WHERE idsite IN (" . implode(", ", $idSites) . ")
                                 ORDER BY idsite ASC $limit");
 
@@ -223,7 +222,7 @@ class Model
      */
     public function getSiteFromId($idSite)
     {
-        $site = $this->getDb()->fetchRow("SELECT * FROM " . $this->table . "
+        $site = $this->db->fetchRow("SELECT * FROM " . $this->table . "
                                           WHERE idsite = ?", $idSite);
 
         return $site;
@@ -237,7 +236,7 @@ class Model
      */
     public function getSitesId()
     {
-        $result  = Db::fetchAll("SELECT idsite FROM " . Common::prefixTable('site'));
+        $result  = $this->db->fetchAll("SELECT idsite FROM " . Common::prefixTable('site'));
 
         $idSites = array();
         foreach ($result as $idSite) {
@@ -275,8 +274,7 @@ class Model
      */
     public function getAliasSiteUrlsFromId($idSite)
     {
-        $db     = $this->getDb();
-        $result = $db->fetchAll("SELECT url FROM " . Common::prefixTable("site_url") . "
+        $result = $this->db->fetchAll("SELECT url FROM " . Common::prefixTable("site_url") . "
                                 WHERE idsite = ?", $idSite);
         $urls = array();
         foreach ($result as $url) {
@@ -290,8 +288,7 @@ class Model
     {
         $idSite = (int) $idSite;
 
-        $db = $this->getDb();
-        $db->update($this->table, $site, "idsite = $idSite");
+        $this->db->update($this->table, $site, "idsite = $idSite");
     }
 
     /**
@@ -301,7 +298,7 @@ class Model
      */
     public function getUniqueSiteTimezones()
     {
-        $results = Db::fetchAll("SELECT distinct timezone FROM " . $this->table);
+        $results = $this->db->fetchAll("SELECT distinct timezone FROM " . $this->table);
 
         $timezones = array();
         foreach ($results as $result) {
@@ -328,7 +325,7 @@ class Model
 
         $bind  = array($minDateSql, $minDateSql);
 
-        Db::query($query, $bind);
+        $this->db->query($query, $bind);
     }
 
     /**
@@ -338,7 +335,7 @@ class Model
     public function getUsedTypeIds()
     {
         $types = array();
-        $rows = $this->getDb()->fetchAll("SELECT DISTINCT `type` as typeid FROM " . $this->table);
+        $rows = $this->db->fetchAll("SELECT DISTINCT `type` as typeid FROM " . $this->table);
 
         foreach ($rows as $row) {
             $types[] = $row['typeid'];
@@ -353,8 +350,7 @@ class Model
      */
     public function insertSiteUrl($idSite, $url)
     {
-        $db = $this->getDb();
-        $db->insert(Common::prefixTable("site_url"), array(
+        $this->db->insert(Common::prefixTable("site_url"), array(
                 'idsite' => (int) $idSite,
                 'url'    => $url
             )
@@ -390,8 +386,7 @@ class Model
             $query .= " LIMIT " . (int) $limit;
         }
 
-        $db    = $this->getDb();
-        $sites = $db->fetchAll($query, $bind);
+        $sites = $this->db->fetchAll($query, $bind);
 
         return $sites;
     }
@@ -401,12 +396,6 @@ class Model
      */
     public function deleteSiteAliasUrls($idsite)
     {
-        $db = $this->getDb();
-        $db->query("DELETE FROM " . Common::prefixTable("site_url") . " WHERE idsite = ?", $idsite);
-    }
-
-    private function getDb()
-    {
-        return Db::get();
+        $this->db->query("DELETE FROM " . Common::prefixTable("site_url") . " WHERE idsite = ?", $idsite);
     }
 }

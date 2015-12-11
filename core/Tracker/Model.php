@@ -10,11 +10,11 @@ namespace Piwik\Tracker;
 
 use Exception;
 use Piwik\Common;
+use Piwik\Db\Factory;
 use Piwik\Tracker;
 
-class Model
+class Model implements \Piwik\Db\FactoryCreated
 {
-
     public function createAction($visitAction)
     {
         $fields = implode(", ", array_keys($visitAction));
@@ -58,9 +58,16 @@ class Model
 
         $updateParts = $sqlBind = $updateWhereParts = array();
 
+        $db = $this->getDb();
+        $Generic = Factory::getGeneric($db);
         foreach ($newConversion as $name => $value) {
             $updateParts[] = $name . " = ?";
-            $sqlBind[]     = $value;
+            if ($name == 'idvisitor') {
+                $sqlBind[] = $Generic->bin2db($value);
+            }
+            else {
+                $sqlBind[]     = $value;
+            }
         }
 
         foreach ($updateWhere as $name => $value) {
@@ -74,7 +81,7 @@ class Model
         $sql   = "UPDATE $table SET $parts WHERE " . implode($updateWhereParts, ' AND ');
 
         try {
-            $this->getDb()->query($sql, $sqlBind);
+            $db->query($sql, $sqlBind);
         } catch (Exception $e) {
             Common::printDebug("There was an error while updating the Conversion: " . $e->getMessage());
 
@@ -115,6 +122,8 @@ class Model
 
     public function createEcommerceItems($ecommerceItems)
     {
+        $db = $this->getDb();
+        $Generic = Factory::getGeneric($db);
         $sql = "INSERT INTO " . Common::prefixTable('log_conversion_item');
         $i    = 0;
         $bind = array();
@@ -127,6 +136,9 @@ class Model
                 $sql   .= ',';
             }
 
+            if (!empty($item['idvisitor'])) {
+                $item['idvisitor'] = $Generic->bin2db($item['idvisitor']);
+            }
             $newRow = array_values($item);
             $sql   .= " ( " . Common::getSqlStringFieldsArray($newRow) . " ) ";
             $bind   = array_merge($bind, $newRow);
@@ -137,7 +149,7 @@ class Model
         Common::printDebug($bind);
 
         try {
-            $this->getDb()->query($sql, $bind);
+            $db->query($sql, $bind);
         } catch (Exception $e) {
             if ($e->getCode() == 23000 ||
                 false !== strpos($e->getMessage(), 'Duplicate entry') ||
@@ -173,7 +185,7 @@ class Model
         return $realFirstActionId;
     }
 
-    private function insertNewAction($name, $type, $urlPrefix)
+    protected function insertNewAction($name, $type, $urlPrefix)
     {
         $table = Common::prefixTable('log_action');
         $sql   = "INSERT INTO $table (name, hash, type, url_prefix) VALUES (?,CRC32(?),?,?)";
@@ -186,7 +198,7 @@ class Model
         return $actionId;
     }
 
-    private function getSqlSelectActionId()
+    protected function getSqlSelectActionId()
     {
         // it is possible for multiple actions to exist in the DB (due to rare concurrency issues), so the ORDER BY and
         // LIMIT are important
@@ -253,10 +265,17 @@ class Model
 
     public function updateEcommerceItem($originalIdOrder, $newItem)
     {
+        $db = $this->getDb();
+        $Generic = Factory::getGeneric($db);
         $updateParts = $sqlBind = array();
         foreach ($newItem as $name => $value) {
             $updateParts[] = $name . " = ?";
-            $sqlBind[]     = $value;
+            if ($name == 'idvisitor') {
+                $sqlBind[]     = $Generic->bin2db($value);
+            }
+            else {
+                $sqlBind[]     = $value;
+            }
         }
 
         $parts = implode($updateParts, ', ');
@@ -268,20 +287,24 @@ class Model
         $sqlBind[] = $originalIdOrder;
         $sqlBind[] = $newItem['idaction_sku'];
 
-        $this->getDb()->query($sql, $sqlBind);
+        $db->query($sql, $sqlBind);
     }
 
     public function createVisit($visit)
     {
+        $db = $this->getDb();
+        $Generic = Factory::getGeneric($db);
         $fields = array_keys($visit);
         $fields = implode(", ", $fields);
         $values = Common::getSqlStringFieldsArray($visit);
         $table  = Common::prefixTable('log_visit');
+        if (!empty($visit['idvisitor'])) {
+            $visit['idvisitor'] = $Generic->bin2db($visit['idvisitor']);
+        }
 
         $sql  = "INSERT INTO $table ($fields) VALUES ($values)";
         $bind = array_values($visit);
 
-        $db = $this->getDb();
         $db->query($sql, $bind);
 
         return $db->lastInsertId();
@@ -349,10 +372,15 @@ class Model
             }
         }
 
+        if (!empty($visitRow['idvisitor'])) {
+            $Generic = Factory::getGeneric($this->getDb());
+            $visitRow['idvisitor'] = $Generic->db2bin($visitRow['idvisitor']);
+        }
+
         return $visitRow;
     }
 
-    private function findVisitorByVisitorId($idVisitor, $select, $from, $where, $bindSql)
+    protected function findVisitorByVisitorId($idVisitor, $select, $from, $where, $bindSql)
     {
         // will use INDEX index_idsite_idvisitor (idsite, idvisitor)
         $where .= ' AND idvisitor = ?';
@@ -361,7 +389,7 @@ class Model
         return $this->fetchVisitor($select, $from, $where, $bindSql);
     }
 
-    private function findVisitorByConfigId($configId, $select, $from, $where, $bindSql)
+    protected function findVisitorByConfigId($configId, $select, $from, $where, $bindSql)
     {
         // will use INDEX index_idsite_config_datetime (idsite, config_id, visit_last_action_time)
         $where .= ' AND config_id = ?';
@@ -370,7 +398,7 @@ class Model
         return $this->fetchVisitor($select, $from, $where, $bindSql);
     }
 
-    private function fetchVisitor($select, $from, $where, $bindSql)
+    protected function fetchVisitor($select, $from, $where, $bindSql)
     {
         $sql = "$select $from WHERE " . $where . "
                 ORDER BY visit_last_action_time DESC
@@ -396,8 +424,9 @@ class Model
         return $result == null;
     }
 
-    private function visitFieldsToQuery($valuesToUpdate)
+    protected function visitFieldsToQuery($valuesToUpdate)
     {
+        $Generic = Factory::getGeneric($this->getDb());
         $updateParts = array();
         $sqlBind     = array();
 
@@ -409,14 +438,19 @@ class Model
                 $updateParts[] = " $name = $value ";
             } else {
                 $updateParts[] = $name . " = ?";
-                $sqlBind[]     = $value;
+                if ($name == 'idvisitor') {
+                    $sqlBind[] = $Generic->bin2db($value);
+                }
+                else {
+                    $sqlBind[] = $value;
+                }
             }
         }
 
         return array($updateParts, $sqlBind);
     }
 
-    private function deleteDuplicateAction($newActionId)
+    protected function deleteDuplicateAction($newActionId)
     {
         $sql = "DELETE FROM " . Common::prefixTable('log_action') . " WHERE idaction = ?";
 
@@ -424,12 +458,12 @@ class Model
         $db->query($sql, array($newActionId));
     }
 
-    private function getDb()
+    protected function getDb()
     {
         return Tracker::getDatabase();
     }
 
-    private function getSqlConditionToMatchSingleAction()
+    protected function getSqlConditionToMatchSingleAction()
     {
         return "( hash = CRC32(?) AND name = ? AND type = ? )";
     }

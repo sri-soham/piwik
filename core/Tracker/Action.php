@@ -11,6 +11,7 @@ namespace Piwik\Tracker;
 
 use Exception;
 use Piwik\Common;
+use Piwik\Db\Factory;
 use Piwik\Piwik;
 use Piwik\Plugin\Dimension\ActionDimension;
 use Piwik\Plugin\Manager;
@@ -424,7 +425,7 @@ abstract class Action
 
     private function getModel()
     {
-        return new Model();
+        return Factory::getModel(__NAMESPACE__);
     }
 
     /**

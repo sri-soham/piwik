@@ -11,6 +11,7 @@ namespace Piwik\Tracker;
 use Exception;
 use Piwik\Common;
 use Piwik\Date;
+use Piwik\Db\Factory;
 use Piwik\Piwik;
 use Piwik\Plugin\Dimension\ConversionDimension;
 use Piwik\Plugin\Dimension\VisitDimension;
@@ -598,7 +599,7 @@ class GoalManager
 
     private function getModel()
     {
-        return new Model();
+        return Factory::getModel(__NAMESPACE__);
     }
 
     /**

@@ -10,6 +10,7 @@ namespace Piwik\Plugins\ScheduledReports;
 
 use Exception;
 use Piwik\Db;
+use Piwik\Db\Factory;
 use Piwik\Log;
 use Piwik\Mail;
 use Piwik\Option;
@@ -600,12 +601,13 @@ class ScheduledReports extends \Piwik\Plugin
 
     private function getModel()
     {
-        return new Model();
+        return Factory::getModel(__NAMESPACE__);
     }
 
     public function install()
     {
-        Model::install();
+        $model = Factory::getModel(__NAMESPACE__);
+        $model->install();
     }
 
     private static function checkAdditionalEmails($additionalEmails)
@@ -669,7 +671,7 @@ class ScheduledReports extends \Piwik\Plugin
     {
         if (Config::getInstance()->General['scheduled_reports_replyto_is_user_email_and_alias']) {
             if (isset($report['login'])) {
-                $userModel = new UserModel();
+                $userModel = Factory::getModel('Piwik\\Plugins\\UsersManager');
                 $user = $userModel->getUser($report['login']);
 
                 $mail->setReplyTo($user['email'], $user['alias']);

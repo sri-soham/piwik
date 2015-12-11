@@ -225,4 +225,17 @@ class LogConversionItem extends Base
         $sql = 'SELECT MAX(idvisit) FROM ' . $this->table;
         return $this->db->fetchOne($sql);
     }
+
+    /**
+     * Deletes conversion items for the supplied visit IDs from log_conversion_item.
+     *
+     * @param int[] $visitIds
+     * @return int The number of deleted rows.
+     */
+    public function deleteConversionItems($visitIds)
+    {
+        $sql = 'DELETE FROM ' . $this->table . ' WHERE idvisit IN (' . implode(', ', $visitIds) . ');';
+        $statement = $this->db->query($sql);
+        return $statement->rowCount();
+    }
 }

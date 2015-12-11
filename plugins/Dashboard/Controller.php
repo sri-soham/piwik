@@ -10,6 +10,7 @@ namespace Piwik\Plugins\Dashboard;
 use Piwik\Common;
 use Piwik\DataTable\Renderer\Json;
 use Piwik\Db;
+use Piwik\Db\Factory;
 use Piwik\Piwik;
 use Piwik\Session\SessionNamespace;
 use Piwik\View;
@@ -111,7 +112,7 @@ class Controller extends \Piwik\Plugin\Controller
 
     private function getModel()
     {
-        return new Model();
+        return Factory::getModel(__NAMESPACE__);
     }
 
     /**

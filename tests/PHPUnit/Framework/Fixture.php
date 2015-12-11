@@ -20,6 +20,7 @@ use Piwik\DataAccess\ArchiveTableCreator;
 use Piwik\DataTable\Manager as DataTableManager;
 use Piwik\Date;
 use Piwik\Db;
+use Piwik\Db\Factory;
 use Piwik\DbHelper;
 use Piwik\Ini\IniReader;
 use Piwik\Log;
@@ -612,7 +613,7 @@ class Fixture extends \PHPUnit_Framework_Assert
         $password = UsersManager::getPasswordHash(self::ADMIN_USER_PASSWORD);
         $token = self::getTokenAuth();
 
-        $model = new \Piwik\Plugins\UsersManager\Model();
+        $model = Factory::getModel('Piwik\\Plugins\\UsersManager');
         if ($removeExisting) {
             $model->deleteUserOnly($login);
         }

@@ -12,6 +12,7 @@ namespace Piwik\DataAccess;
 use Piwik\Common;
 use Piwik\Date;
 use Piwik\DbHelper;
+use Piwik\Db\Factory;
 
 class ArchiveTableCreator
 {
@@ -55,7 +56,7 @@ class ArchiveTableCreator
 
     private static function getModel()
     {
-        return new Model();
+        return Factory::getModel(__NAMESPACE__);
     }
 
     public static function clear()

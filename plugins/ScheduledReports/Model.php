@@ -14,33 +14,35 @@ use Piwik\DbHelper;
 use Piwik\ReportRenderer;
 use Piwik\Translate;
 
-class Model
+class Model implements \Piwik\Db\FactoryCreated
 {
-    private static $rawPrefix = 'report';
-    private $table;
+    protected static $rawPrefix = 'report';
+    protected $table;
+    protected $db;
 
     public function __construct()
     {
         $this->table = Common::prefixTable(self::$rawPrefix);
+        $this->db = Db::get();
     }
 
     public function deleteUserReportForSite($userLogin, $idSite)
     {
         $query = 'DELETE FROM ' . $this->table . ' WHERE login = ? and idsite = ?';
         $bind  = array($userLogin, $idSite);
-        Db::query($query, $bind);
+        $this->db->query($query, $bind);
     }
 
     public function deleteAllReportForUser($userLogin)
     {
-        Db::query('DELETE FROM ' . $this->table . ' WHERE login = ?', $userLogin);
+        $this->db->query('DELETE FROM ' . $this->table . ' WHERE login = ?', $userLogin);
     }
 
     public function updateReport($idReport, $report)
     {
         $idReport = (int) $idReport;
 
-        $this->getDb()->update($this->table, $report, "idreport = " . $idReport);
+        $this->db->update($this->table, $report, "idreport = " . $idReport);
     }
 
     public function createReport($report)
@@ -48,26 +50,20 @@ class Model
         $nextId = $this->getNextReportId();
         $report['idreport'] = $nextId;
 
-        $this->getDb()->insert($this->table, $report);
+        $this->db->insert($this->table, $report);
 
         return $nextId;
     }
 
     private function getNextReportId()
     {
-        $db = $this->getDb();
-        $idReport = $db->fetchOne("SELECT max(idreport) + 1 FROM " . $this->table);
+        $idReport = $this->db->fetchOne("SELECT max(idreport) + 1 FROM " . $this->table);
 
         if ($idReport == false) {
             $idReport = 1;
         }
 
         return $idReport;
-    }
-
-    private function getDb()
-    {
-        return Db::get();
     }
 
     public static function install()

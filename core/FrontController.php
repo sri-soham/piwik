@@ -226,7 +226,9 @@ class FrontController extends Singleton
         // try to connect to the database
         try {
             Db::createDatabaseObject();
-            Db::fetchAll("SELECT DATABASE()");
+            // SELECT DATABASE() is mysql specific
+            // SELECT CURRENT_TIMESTAMP works on both mysql and pgsql
+            Db::fetchAll("SELECT CURRENT_TIMESTAMP");
         } catch (Exception $exception) {
             if (self::shouldRethrowException()) {
                 throw $exception;

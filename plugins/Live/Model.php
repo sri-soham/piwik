@@ -22,9 +22,15 @@ use Piwik\Segment;
 use Piwik\Site;
 use Piwik\Tracker\GoalManager;
 
-class Model
+class Model implements \Piwik\Db\FactoryCreated
 {
+    protected $db;
 
+    public function __construct()
+    {
+        $this->db = Db::get();
+    }
+    
     /**
      * @param $idVisit
      * @param $actionsLimit
@@ -46,16 +52,16 @@ class Model
 					COALESCE(log_action_event_category.type, log_action.type, log_action_title.type) AS type,
 					log_action.name AS url,
 					log_action.url_prefix,
-					log_action_title.name AS pageTitle,
-					log_action.idaction AS pageIdAction,
+					log_action_title.name AS " . $this->db->quoteIdentifier('pageTitle') .",
+					log_action.idaction AS " . $this->db->quoteIdentifier('pageIdAction') . ",
 					log_link_visit_action.idlink_va,
-					log_link_visit_action.server_time as serverTimePretty,
-					log_link_visit_action.time_spent_ref_action as timeSpentRef,
-					log_link_visit_action.idlink_va AS pageId,
+					log_link_visit_action.server_time as " . $this->db->quoteIdentifier('serverTimePretty') . ",
+					log_link_visit_action.time_spent_ref_action as " . $this->db->quoteIdentifier('timeSpentRef') . ",
+					log_link_visit_action.idlink_va AS " . $this->db->quoteIdentifier('pageId') . ",
 					log_link_visit_action.custom_float
 					" . $sqlCustomVariables . ",
-					log_action_event_category.name AS eventCategory,
-					log_action_event_action.name as eventAction
+					log_action_event_category.name AS " . $this->db->quoteIdentifier('eventCategory') . ",
+					log_action_event_action.name as " . $this->db->quoteIdentifier('eventAction') . "
 				FROM " . Common::prefixTable('log_link_visit_action') . " AS log_link_visit_action
 					LEFT JOIN " . Common::prefixTable('log_action') . " AS log_action
 					ON  log_link_visit_action.idaction_url = log_action.idaction
@@ -67,9 +73,9 @@ class Model
 					ON  log_link_visit_action.idaction_event_action = log_action_event_action.idaction
 				WHERE log_link_visit_action.idvisit = ?
 				ORDER BY server_time ASC
-				LIMIT 0, $actionsLimit
+				LIMIT $actionsLimit OFFSET 0
 				 ";
-        $actionDetails = Db::fetchAll($sql, array($idVisit));
+        $actionDetails = $this->db->fetchAll($sql, array($idVisit));
         return $actionDetails;
     }
 
@@ -84,12 +90,12 @@ class Model
         $sql = "
 				SELECT
 						'goal' as type,
-						goal.name as goalName,
-						goal.idgoal as goalId,
+						goal.name as " . $this->db->quoteIdentifier('goalName') . ",
+						goal.idgoal as " . $this->db->quoteIdentifier('goalId') . ",
 						goal.revenue as revenue,
 						log_conversion.idlink_va,
-						log_conversion.idlink_va as goalPageId,
-						log_conversion.server_time as serverTimePretty,
+						log_conversion.idlink_va as " . $this->db->quoteIdentifier('goalPageId') . ",
+						log_conversion.server_time as " . $this->db->quoteIdentifier('serverTimePretty') . ",
 						log_conversion.url as url
 				FROM " . Common::prefixTable('log_conversion') . " AS log_conversion
 				LEFT JOIN " . Common::prefixTable('goal') . " AS goal
@@ -100,9 +106,9 @@ class Model
 				WHERE log_conversion.idvisit = ?
 					AND log_conversion.idgoal > 0
                 ORDER BY server_time ASC
-				LIMIT 0, $limit
+				LIMIT $limit OFFSET 0
 			";
-        $goalDetails = Db::fetchAll($sql, array($idVisit));
+        $goalDetails = $this->db->fetchAll($sql, array($idVisit));
         return $goalDetails;
     }
 
@@ -118,21 +124,21 @@ class Model
 						case idgoal when " . GoalManager::IDGOAL_CART
                             . " then '" . Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_CART
                             . "' else '" . Piwik::LABEL_ID_GOAL_IS_ECOMMERCE_ORDER . "' end as type,
-						idorder as orderId,
+						idorder as " . $this->db->quoteIdentifier('orderId') . ",
 						" . LogAggregator::getSqlRevenue('revenue') . " as revenue,
-						" . LogAggregator::getSqlRevenue('revenue_subtotal') . " as revenueSubTotal,
-						" . LogAggregator::getSqlRevenue('revenue_tax') . " as revenueTax,
-						" . LogAggregator::getSqlRevenue('revenue_shipping') . " as revenueShipping,
-						" . LogAggregator::getSqlRevenue('revenue_discount') . " as revenueDiscount,
+						" . LogAggregator::getSqlRevenue('revenue_subtotal') . " as " . $this->db->quoteIdentifier('revenueSubTotal') . ",
+						" . LogAggregator::getSqlRevenue('revenue_tax') . " as " . $this->db->quoteIdentifier('revenueTax') . ",
+						" . LogAggregator::getSqlRevenue('revenue_shipping') . " as " . $this->db->quoteIdentifier('revenueShipping') . ",
+						" . LogAggregator::getSqlRevenue('revenue_discount') . " as " . $this->db->quoteIdentifier('revenueDiscount') . ",
 						items as items,
-						log_conversion.server_time as serverTimePretty,
+						log_conversion.server_time as " . $this->db->quoteIdentifier('serverTimePretty') . ",
 						log_conversion.idlink_va
 					FROM " . Common::prefixTable('log_conversion') . " AS log_conversion
 					WHERE idvisit = ?
 						AND idgoal <= " . GoalManager::IDGOAL_ORDER . "
 					ORDER BY server_time ASC
-					LIMIT 0, $limit";
-        $ecommerceDetails = Db::fetchAll($sql, array($idVisit));
+					LIMIT $limit OFFSET 0";
+        $ecommerceDetails = $this->db->fetchAll($sql, array($idVisit));
         return $ecommerceDetails;
     }
 
@@ -147,9 +153,9 @@ class Model
     public function queryEcommerceItemsForOrder($idVisit, $idOrder, $actionsLimit)
     {
         $sql = "SELECT
-							log_action_sku.name as itemSKU,
-							log_action_name.name as itemName,
-							log_action_category.name as itemCategory,
+							log_action_sku.name as " . $this->db->quoteIdentifier('itemSKU') . ",
+							log_action_name.name as " . $this->db->quoteIdentifier('itemName') . ",
+							log_action_category.name as " . $this->db->quoteIdentifier('itemCategory') . ",
 							" . LogAggregator::getSqlRevenue('price') . " as price,
 							quantity as quantity
 						FROM " . Common::prefixTable('log_conversion_item') . "
@@ -162,12 +168,12 @@ class Model
 						WHERE idvisit = ?
 							AND idorder = ?
 							AND deleted = 0
-						LIMIT 0, $actionsLimit
+						LIMIT $actionsLimit OFFSET 0
 				";
 
         $bind = array($idVisit, $idOrder);
 
-        $itemsDetails = Db::fetchAll($sql, $bind);
+        $itemsDetails = $this->db->fetchAll($sql, $bind);
         return $itemsDetails;
     }
 
@@ -187,7 +193,7 @@ class Model
     {
         list($sql, $bind) = $this->makeLogVisitsQueryString($idSite, $period, $date, $segment, $offset, $limit, $visitorId, $minTimestamp, $filterSortOrder);
 
-        return Db::fetchAll($sql, $bind);
+        return $this->db->fetchAll($sql, $bind);
     }
 
     /**
@@ -284,7 +290,7 @@ class Model
         $segment = new Segment($segment, $idSite);
         $query   = $segment->getSelectQuery($select, $from, $where, $bind);
 
-        $numVisitors = Db::fetchOne($query['sql'], $query['bind']);
+        $numVisitors = $this->db->fetchOne($query['sql'], $query['bind']);
 
         return $numVisitors;
     }
@@ -349,7 +355,7 @@ class Model
                  LIMIT 1";
         $bind = array_merge($queryInfo['bind'], array($visitLastActionTime));
 
-        $visitorId = Db::fetchOne($sql, $bind);
+        $visitorId = $this->db->fetchOne($sql, $bind);
         if (!empty($visitorId)) {
             $visitorId = bin2hex($visitorId);
         }

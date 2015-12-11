@@ -10,6 +10,7 @@
 namespace Piwik\Session\SaveHandler;
 
 use Piwik\Db;
+use Piwik\Db\Factory;
 use Zend_Session;
 use Zend_Session_SaveHandler_Interface;
 
@@ -21,6 +22,7 @@ class DbTable implements Zend_Session_SaveHandler_Interface
 {
     protected $config;
     protected $maxLifetime;
+    protected $model;
 
     /**
      * @param array $config
@@ -29,6 +31,8 @@ class DbTable implements Zend_Session_SaveHandler_Interface
     {
         $this->config = $config;
         $this->maxLifetime = ini_get('session.gc_maxlifetime');
+        $this->model = Factory::getModel(__NAMESPACE__);
+        $this->model->setConfig($config);
     }
 
     /**
@@ -73,16 +77,7 @@ class DbTable implements Zend_Session_SaveHandler_Interface
      */
     public function read($id)
     {
-        $sql = 'SELECT ' . $this->config['dataColumn'] . ' FROM ' . $this->config['name']
-            . ' WHERE ' . $this->config['primary'] . ' = ?'
-            . ' AND ' . $this->config['modifiedColumn'] . ' + ' . $this->config['lifetimeColumn'] . ' >= ?';
-
-        $result = Db::get()->fetchOne($sql, array($id, time()));
-        if (!$result) {
-            $result = '';
-        }
-
-        return $result;
+        return $this->model->read($id);
     }
 
     /**
@@ -94,20 +89,7 @@ class DbTable implements Zend_Session_SaveHandler_Interface
      */
     public function write($id, $data)
     {
-        $sql = 'INSERT INTO ' . $this->config['name']
-            . ' (' . $this->config['primary'] . ','
-            . $this->config['modifiedColumn'] . ','
-            . $this->config['lifetimeColumn'] . ','
-            . $this->config['dataColumn'] . ')'
-            . ' VALUES (?,?,?,?)'
-            . ' ON DUPLICATE KEY UPDATE '
-            . $this->config['modifiedColumn'] . ' = ?,'
-            . $this->config['lifetimeColumn'] . ' = ?,'
-            . $this->config['dataColumn'] . ' = ?';
-
-        Db::get()->query($sql, array($id, time(), $this->maxLifetime, $data, time(), $this->maxLifetime, $data));
-
-        return true;
+        return $this->model->write($id, $data, $this->maxLifetime);
     }
 
     /**
@@ -119,11 +101,7 @@ class DbTable implements Zend_Session_SaveHandler_Interface
      */
     public function destroy($id)
     {
-        $sql = 'DELETE FROM ' . $this->config['name'] . ' WHERE ' . $this->config['primary'] . ' = ?';
-
-        Db::get()->query($sql, array($id));
-
-        return true;
+        return $this->model->destroy($id);
     }
 
     /**
@@ -135,11 +113,6 @@ class DbTable implements Zend_Session_SaveHandler_Interface
      */
     public function gc($maxlifetime)
     {
-        $sql = 'DELETE FROM ' . $this->config['name']
-            . ' WHERE ' . $this->config['modifiedColumn'] . ' + ' . $this->config['lifetimeColumn'] . ' < ?';
-
-        Db::get()->query($sql, array(time()));
-
-        return true;
+        return $this->model->gc($maxlifetime);
     }
 }

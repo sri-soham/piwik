@@ -587,6 +587,31 @@ class Pgsql implements SchemaInterface
     }
 
     /**
+     * Creates a new table in the database.
+     *
+     * @param string $nameWithoutPrefix The name of the table without any piwik prefix.
+     * @param string $createDefinition  The table create definition, see the "MySQL CREATE TABLE" specification for
+     *                                  more information.
+     * @throws \Exception
+     */
+    public function createTable($nameWithoutPrefix, $createDefinition)
+    {
+        $statement = sprintf("CREATE TABLE %s ( %s );",
+                             Common::prefixTable($nameWithoutPrefix),
+                             $createDefinition);
+
+        try {
+            Db::exec($statement);
+        } catch (Exception $e) {
+            // postgresql code error 42P01: duplicate_table
+            // see bug #153 http://dev.piwik.org/trac/ticket/153
+            if ($e->getCode() != '42P01') {
+                throw $e;
+            }
+        }
+    }
+
+    /**
      * Creates an entry in the User table for the "anonymous" user.
      */
     public function createAnonymousUser()

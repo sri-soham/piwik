@@ -13,19 +13,21 @@ use Piwik\Common;
 use Piwik\Db;
 use Piwik\DbHelper;
 
-class Model
+class Model implements \Piwik\Db\FactoryCreated
 {
-    private static $rawPrefix = 'user_language';
-    private $table;
+    protected static $rawPrefix = 'user_language';
+    protected $table;
+    protected $db;
 
     public function __construct()
     {
         $this->table = Common::prefixTable(self::$rawPrefix);
+        $this->db = Db::get();
     }
 
     public function deleteUserLanguage($userLogin)
     {
-        Db::query('DELETE FROM ' . $this->table . ' WHERE login = ?', $userLogin);
+        $this->db->query('DELETE FROM ' . $this->table . ' WHERE login = ?', $userLogin);
     }
 
     /**
@@ -36,7 +38,7 @@ class Model
      */
     public function getLanguageForUser($userLogin)
     {
-        return Db::fetchOne('SELECT language FROM ' . $this->table .
+        return $this->db->fetchOne('SELECT language FROM ' . $this->table .
                             ' WHERE login = ? ', array($userLogin));
     }
 
@@ -52,7 +54,7 @@ class Model
         $query = 'INSERT INTO ' . $this->table .
                  ' (login, language) VALUES (?,?) ON DUPLICATE KEY UPDATE language=?';
         $bind  = array($login, $languageCode, $languageCode);
-        Db::query($query, $bind);
+        $this->db->query($query, $bind);
 
         return true;
     }

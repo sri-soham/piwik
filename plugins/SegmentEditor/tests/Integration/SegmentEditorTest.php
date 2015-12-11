@@ -9,6 +9,7 @@
 namespace Piwik\Plugins\SegmentEditor\tests\Integration;
 
 use Piwik\Date;
+use Piwik\Db\Factory;
 use Piwik\Piwik;
 use Piwik\Plugins\SegmentEditor\API;
 use Piwik\Plugins\SegmentEditor\Model;
@@ -112,7 +113,7 @@ class SegmentEditorTest extends IntegrationTestCase
         $this->assertEquals($segment, $expected);
 
         // There is a segment to process for this particular site
-        $model = new Model();
+        $model = Factory::getModel('Piwik\\Plugins\\SegmentEditor');
         $segments = $model->getSegmentsToAutoArchive($idSite);
         unset($segments[0]['ts_created']);
         $this->assertEquals($segments, array($expected));

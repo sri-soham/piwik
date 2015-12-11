@@ -11,6 +11,7 @@ namespace Piwik\Plugins\CoreAdminHome\Commands;
 use Piwik\Common;
 use Piwik\Container\StaticContainer;
 use Piwik\DataAccess\Actions;
+use Piwik\Db\Factory;
 use Piwik\Archive\ArchiveInvalidator;
 use Piwik\Plugin\ConsoleCommand;
 use Piwik\Plugins\CoreAdminHome\Model\DuplicateActionRemover;
@@ -76,7 +77,7 @@ class FixDuplicateLogActions extends ConsoleCommand
         parent::__construct();
 
         $this->archiveInvalidator = $invalidator ?: new ArchiveInvalidator();
-        $this->duplicateActionRemover = $duplicateActionRemover ?: new DuplicateActionRemover();
+        $this->duplicateActionRemover = $duplicateActionRemover ?: Factory::getModel('Piwik\\Plugins\\CoreAdminHome\\Model', 'DuplicateActionRemover');
         $this->actionsAccess = $actionsAccess ?: new Actions();
         $this->logger = $logger ?: StaticContainer::get('Psr\Log\LoggerInterface');
     }

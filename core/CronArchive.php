@@ -16,6 +16,7 @@ use Piwik\CronArchive\FixedSiteIds;
 use Piwik\CronArchive\SharedSiteIds;
 use Piwik\Archive\ArchiveInvalidator;
 use Piwik\DataAccess\RawLogDao;
+use Piwik\Db\Factory;
 use Piwik\Exception\UnexpectedWebsiteFoundException;
 use Piwik\Metrics\Formatter;
 use Piwik\Period\Factory as PeriodFactory;
@@ -470,7 +471,10 @@ class CronArchive
     public function setSegmentsToForceFromSegmentIds($idSegments)
     {
         /** @var SegmentEditorModel $segmentEditorModel */
-        $segmentEditorModel = StaticContainer::get('Piwik\Plugins\SegmentEditor\Model');
+        # Generating model from the factory as the injected model will not take into
+        # account the database while generating the model object.
+        #$segmentEditorModel = StaticContainer::get('Piwik\Plugins\SegmentEditor\Model');
+        $segmentEditorModel = Factory::getModel('Piwik\Plugins\SegmentEditor');
         $segments = $segmentEditorModel->getAllSegmentsAndIgnoreVisibility();
 
         $segments = array_filter($segments, function ($segment) use ($idSegments) {

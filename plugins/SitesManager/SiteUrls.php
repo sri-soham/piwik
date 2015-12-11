@@ -9,6 +9,7 @@
 namespace Piwik\Plugins\SitesManager;
 
 use Piwik\Cache;
+use Piwik\Db\Factory;
 
 class SiteUrls
 {
@@ -34,7 +35,7 @@ class SiteUrls
 
     public function getAllSiteUrls()
     {
-        $model    = new Model();
+        $model    = Factory::getModel(__NAMESPACE__);
         $siteIds  = $model->getSitesId();
         $siteUrls = array();
 

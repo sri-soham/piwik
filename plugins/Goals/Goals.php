@@ -11,6 +11,7 @@ namespace Piwik\Plugins\Goals;
 use Piwik\ArchiveProcessor;
 use Piwik\Common;
 use Piwik\Db;
+use Piwik\Db\Factory;
 use Piwik\Piwik;
 use Piwik\Plugin\Report;
 use Piwik\Tracker\GoalManager;
@@ -129,7 +130,7 @@ class Goals extends \Piwik\Plugin
      */
     public function deleteSiteGoals($idSite)
     {
-        $model = new Model();
+        $model = Factory::getModel(__NAMESPACE__);
         $model->deleteGoalsForSite($idSite);
     }
 

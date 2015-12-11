@@ -16,6 +16,7 @@ use Piwik\ArchiveProcessor\Rules;
 use Piwik\Common;
 use Piwik\Date;
 use Piwik\Db;
+use Piwik\Db\Factory;
 use Piwik\Period;
 use Piwik\Period\Range;
 use Piwik\Segment;
@@ -42,7 +43,7 @@ class ArchiveSelector
 
     private static function getModel()
     {
-        return new Model();
+        return Factory::getModel(__NAMESPACE__);
     }
 
     public static function getArchiveIdAndVisits(ArchiveProcessor\Parameters $params, $minDatetimeArchiveProcessedUTC)
@@ -156,64 +157,18 @@ class ArchiveSelector
             $siteIds[$index] = (int) $siteId;
         }
 
-        $getArchiveIdsSql = "SELECT idsite, name, date1, date2, MAX(idarchive) as idarchive
-                               FROM %s
-                              WHERE idsite IN (" . implode(',', $siteIds) . ")
-                                AND " . self::getNameCondition($plugins, $segment) . "
-                                AND %s
-                           GROUP BY idsite, date1, date2";
-
         $monthToPeriods = array();
         foreach ($periods as $period) {
             /** @var Period $period */
             $table = ArchiveTableCreator::getNumericTable($period->getDateStart());
             $monthToPeriods[$table][] = $period;
         }
+        $nameCondition = self::getNameCondition($plugins, $segment);
 
-        // for every month within the archive query, select from numeric table
-        $result = array();
-        foreach ($monthToPeriods as $table => $periods) {
-            $firstPeriod = reset($periods);
+        $Archive = Factory::getDAO('archive');
+        $results = $Archive->getArchiveIds($siteIds, $monthToPeriods, $nameCondition);
 
-            $bind = array();
-
-            if ($firstPeriod instanceof Range) {
-                $dateCondition = "period = ? AND date1 = ? AND date2 = ?";
-                $bind[] = $firstPeriod->getId();
-                $bind[] = $firstPeriod->getDateStart()->toString('Y-m-d');
-                $bind[] = $firstPeriod->getDateEnd()->toString('Y-m-d');
-            } else {
-                // we assume there is no range date in $periods
-                $dateCondition = '(';
-
-                foreach ($periods as $period) {
-                    if (strlen($dateCondition) > 1) {
-                        $dateCondition .= ' OR ';
-                    }
-
-                    $dateCondition .= "(period = ? AND date1 = ? AND date2 = ?)";
-                    $bind[] = $period->getId();
-                    $bind[] = $period->getDateStart()->toString('Y-m-d');
-                    $bind[] = $period->getDateEnd()->toString('Y-m-d');
-                }
-
-                $dateCondition .= ')';
-            }
-
-            $sql = sprintf($getArchiveIdsSql, $table, $dateCondition);
-
-            $archiveIds = Db::fetchAll($sql, $bind);
-
-            // get the archive IDs
-            foreach ($archiveIds as $row) {
-                //FIXMEA duplicate with Archive.php
-                $dateStr = $row['date1'] . ',' . $row['date2'];
-
-                $result[$row['name']][$dateStr][] = $row['idarchive'];
-            }
-        }
-
-        return $result;
+        return $results;
     }
 
     /**
@@ -230,110 +185,10 @@ class ArchiveSelector
      */
     public static function getArchiveData($archiveIds, $recordNames, $archiveDataType, $idSubtable)
     {
-        $chunk = new Chunk();
-
-        // create the SQL to select archive data
-        $loadAllSubtables = $idSubtable == Archive::ID_SUBTABLE_LOAD_ALL_SUBTABLES;
-        if ($loadAllSubtables) {
-            $name = reset($recordNames);
-
-            // select blobs w/ name like "$name_[0-9]+" w/o using RLIKE
-            $nameEnd = strlen($name) + 1;
-            $nameEndAppendix = $nameEnd + 1;
-            $appendix = $chunk->getAppendix();
-            $lenAppendix = strlen($appendix);
-
-            $checkForChunkBlob  = "SUBSTRING(name, $nameEnd, $lenAppendix) = '$appendix'";
-            $checkForSubtableId = "(SUBSTRING(name, $nameEndAppendix, 1) >= '0'
-                                    AND SUBSTRING(name, $nameEndAppendix, 1) <= '9')";
-
-            $whereNameIs = "(name = ? OR (name LIKE ? AND ( $checkForChunkBlob OR $checkForSubtableId ) ))";
-            $bind = array($name, $name . '%');
-        } else {
-            if ($idSubtable === null) {
-                // select root table or specific record names
-                $bind = array_values($recordNames);
-            } else {
-                // select a subtable id
-                $bind = array();
-                foreach ($recordNames as $recordName) {
-                    // to be backwards compatibe we need to look for the exact idSubtable blob and for the chunk
-                    // that stores the subtables (a chunk stores many blobs in one blob)
-                    $bind[] = $chunk->getRecordNameForTableId($recordName, $idSubtable);
-                    $bind[] = self::appendIdSubtable($recordName, $idSubtable);
-                }
-            }
-
-            $inNames     = Common::getSqlStringFieldsArray($bind);
-            $whereNameIs = "name IN ($inNames)";
-        }
-
-        $getValuesSql = "SELECT value, name, idsite, date1, date2, ts_archived
-                                FROM %s
-                                WHERE idarchive IN (%s)
-                                  AND " . $whereNameIs;
-
-        // get data from every table we're querying
-        $rows = array();
-        foreach ($archiveIds as $period => $ids) {
-            if (empty($ids)) {
-                throw new Exception("Unexpected: id archive not found for period '$period' '");
-            }
-
-            // $period = "2009-01-04,2009-01-04",
-            $date = Date::factory(substr($period, 0, 10));
-
-            $isNumeric = $archiveDataType == 'numeric';
-            if ($isNumeric) {
-                $table = ArchiveTableCreator::getNumericTable($date);
-            } else {
-                $table = ArchiveTableCreator::getBlobTable($date);
-            }
-
-            $sql      = sprintf($getValuesSql, $table, implode(',', $ids));
-            $dataRows = Db::fetchAll($sql, $bind);
-
-            foreach ($dataRows as $row) {
-                if ($isNumeric) {
-                    $rows[] = $row;
-                } else {
-                    $row['value'] = self::uncompress($row['value']);
-
-                    if ($chunk->isRecordNameAChunk($row['name'])) {
-                        self::moveChunkRowToRows($rows, $row, $chunk, $loadAllSubtables, $idSubtable);
-                    } else {
-                        $rows[] = $row;
-                    }
-                }
-            }
-        }
+        $Archive = Factory::getDAO('archive');
+        $rows = $Archive->getArchiveData($archiveIds, $recordNames, $archiveDataType, $idSubtable);
 
         return $rows;
-    }
-
-    private static function moveChunkRowToRows(&$rows, $row, Chunk $chunk, $loadAllSubtables, $idSubtable)
-    {
-        // $blobs = array([subtableID] = [blob of subtableId])
-        $blobs = unserialize($row['value']);
-
-        if (!is_array($blobs)) {
-            return;
-        }
-
-        // $rawName = eg 'PluginName_ArchiveName'
-        $rawName = $chunk->getRecordNameWithoutChunkAppendix($row['name']);
-
-        if ($loadAllSubtables) {
-            foreach ($blobs as $subtableId => $blob) {
-                $row['value'] = $blob;
-                $row['name']  = self::appendIdSubtable($rawName, $subtableId);
-                $rows[] = $row;
-            }
-        } elseif (array_key_exists($idSubtable, $blobs)) {
-            $row['value'] = $blobs[$idSubtable];
-            $row['name'] = self::appendIdSubtable($rawName, $idSubtable);
-            $rows[] = $row;
-        }
     }
 
     public static function appendIdSubtable($recordName, $id)

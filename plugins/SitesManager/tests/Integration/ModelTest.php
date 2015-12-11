@@ -8,6 +8,7 @@
 
 namespace Piwik\Plugins\SitesManager\tests\Integration;
 
+use Piwik\Db\Factory;
 use Piwik\Plugins\SitesManager\Model;
 use Piwik\Tests\Framework\Fixture;
 use Piwik\Tests\Framework\TestCase\IntegrationTestCase;
@@ -28,7 +29,7 @@ class ModelTest extends IntegrationTestCase
     {
         parent::setUp();
 
-        $this->model = new Model();
+        $this->model = Factory::getModel('Piwik\\Plugins\\SitesManager');
     }
 
     public function test_getUsedTypeIds_shouldReturnNoType_IfNoSitesExist()

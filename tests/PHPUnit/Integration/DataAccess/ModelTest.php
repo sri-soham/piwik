@@ -10,6 +10,7 @@ namespace Piwik\Tests\Integration\DataAccess;
 
 use Piwik\Tests\Framework\TestCase\IntegrationTestCase;
 use Piwik\DataAccess\Model;
+use Piwik\Db\Factory;
 
 /**
  * @group Core
@@ -27,7 +28,7 @@ class ModelTest extends IntegrationTestCase
     {
         parent::setUp();
 
-        $this->model = new Model();
+        $this->model = Factory::getModel('Piwik\\DataAccess');
         $this->model->createArchiveTable($this->tableName, 'archive_numeric');
     }
 

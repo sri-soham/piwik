@@ -25,6 +25,7 @@ class Factory
 
     private $adapter;
     private $folder;
+    private $model_prefix;
 
     private static function setInstance()
     {
@@ -62,6 +63,12 @@ class Factory
         return self::$instance->helper($class_name, $db);
     }
 
+    public static function getModel($namespace, $class='Model')
+    {
+        self::setInstance();
+        return self::$instance->model($namespace, $class);
+    }
+
     public static function setTest($test)
     {
         if (is_bool($test)) {
@@ -72,7 +79,7 @@ class Factory
     public function __construct()
     {
         $this->adapter = $this->getAdapter();
-        $this->folder = $this->folderName();
+        list($this->folder, $this->model_prefix) = $this->folderName();
     }
 
     /**
@@ -145,6 +152,35 @@ class Factory
         return $class;
     }
 
+    public function model($namespace, $class_name)
+    {
+        $class = $namespace . '\\' . $this->model_prefix . $class_name;
+        if (strpos($class, 'Piwik\\Plugins') === 0) {
+            $file_path = str_replace('Piwik\\Plugins', 'plugins', $class);
+            $file_path = str_replace('\\', DIRECTORY_SEPARATOR, $file_path);
+            $file_path = PIWIK_INCLUDE_PATH . $file_path . '.php';
+        }
+        elseif (strpos($class, 'Piwik') === 0) {
+            $file_path = str_replace('Piwik', 'core', $class);
+            $file_path = str_replace('\\', DIRECTORY_SEPARATOR, $file_path);
+            $file_path = PIWIK_INCLUDE_PATH . $file_path . '.php';
+        }
+        else {
+            throw new \Exception('Unknown namespace ' . $namespace);
+        }
+
+        if (strlen($this->model_prefix) > 0 # postgresql
+            && !file_exists($file_path)) {
+            $file_path = str_replace($this->model_prefix . 'Model.php', 'Model.php', $file_path);
+            $class = str_replace($this->model_prefix . 'Model', 'Model');
+        }
+
+        $obj = new $class();
+
+        return $obj;
+
+    }
+
     /**
      *  get class name from table name
      *
@@ -188,15 +224,17 @@ class Factory
         switch ($adapter) {
             case 'pdo\pgsql':
                 $ret = 'Pgsql';
+                $prefix = 'Pg';
             break;
             case 'pdo\mysql':
             case 'mysqli':
             default:
                 $ret = 'Mysql';
+                $prefix = '';
             break;
         }
 
-        return $ret;
+        return array($ret, $prefix);
     }
 
     /**

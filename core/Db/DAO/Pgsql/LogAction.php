@@ -47,7 +47,7 @@ class LogAction extends \Piwik\Db\DAO\Mysql\LogAction
                 $sql .= "(name NOT LIKE '%' || ? || '%' AND type = $actionType )";
                 break;
             default:
-                throw new \Exception("This match type is not available for action-segments.");
+                throw new \Exception("This match type $matchType is not available for action-segments.");
                 break;
         }
 
@@ -87,8 +87,9 @@ class LogAction extends \Piwik\Db\DAO\Mysql\LogAction
         $this->db->query($sql);
     }
 
-    public function purgeUnused()
+    public function purgeUnused($dimensionMetadataProvider)
     {
+        $this->dimensionMetadataProvider = $dimensionMetadataProvider;
         // get current max visit ID in log tables w/ idaction references.
         $maxIds = $this->getMaxIdsInLogTables();
         $this->generic = Factory::getGeneric($this->db);
@@ -102,11 +103,18 @@ class LogAction extends \Piwik\Db\DAO\Mysql\LogAction
         $this->lockLogTables($this->generic);
         $this->insertActionsToKeep($maxIds, $deleteOlderThanMax = false);
         
+        // Mysql uses 'INSERT IGNORE' which is not available on pgsql 9.1.
+        // We can do the generic->insertIgnore, but checking for exception for every
+        // single query can be a time taking endeavour. To avoid, 'INSERT's are
+        // carried on normally. Before deleting unused actions, we will remove
+        // duplicate rows from the temporary table.
+        $this->deleteDuplicatesFromTempTable();
+
         // delete before unlocking tables so there's no chance a new log row that references an
         // unused action will be inserted.
-        $this->deleteDuplicatesFromTempTable();
         $this->deleteUnusedActions();
-        // unlock the log tables
+
+        // unlock the log tables. In pgsql, locks are released on commit/rollback
         $this->generic->commit();
         $this->generic = null;
     }
@@ -115,7 +123,7 @@ class LogAction extends \Piwik\Db\DAO\Mysql\LogAction
     {
         $tempTable = Common::prefixTable(self::TEMP_TABLE_NAME);
         $idColumns = $this->getTableIdColumns();
-        foreach ($this->getIdActionColumns() as $table => $columns) {
+        foreach ($this->dimensionMetadataProvider->getActionReferenceColumnsByTable() as $table => $columns) {
             $idCol = $idColumns[$table];
             foreach ($columns as $col) {
                 $select = "SELECT $col from " . Common::prefixTable($table) . " WHERE $idCol >= ? AND $idCol < ?";
@@ -130,20 +138,6 @@ class LogAction extends \Piwik\Db\DAO\Mysql\LogAction
                 }
                 $this->generic->segmentedQuery($sql, $start, $finish, LogDataPurger::$selectSegmentSize);
             }
-        }
-
-        // allow code to be executed after data is inserted. for concurrency testing purposes.
-        if ($olderThan) {
-            /**
-             * @ignore
-             */
-            Piwik::postEvent("LogDataPurger.ActionsToKeepInserted.olderThan");
-        }
-        else {
-            /**
-             * @ignore
-             */
-            Piwik::postEvent("LogDataPurger.ActionsToKeepInserted.newerThan");
         }
     }
 

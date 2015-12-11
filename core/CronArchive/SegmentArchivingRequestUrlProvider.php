@@ -11,6 +11,7 @@ use Piwik\Cache\Cache;
 use Piwik\Cache\Transient;
 use Piwik\Container\StaticContainer;
 use Piwik\Date;
+use Piwik\Db\Factory;
 use Piwik\Period\Factory as PeriodFactory;
 use Piwik\Period\Range;
 use Piwik\Plugins\SegmentEditor\Model;
@@ -53,7 +54,7 @@ class SegmentArchivingRequestUrlProvider
                                 Date $now = null, LoggerInterface $logger = null)
     {
         $this->processNewSegmentsFrom = $processNewSegmentsFrom;
-        $this->segmentEditorModel = $segmentEditorModel ?: new Model();
+        $this->segmentEditorModel = $segmentEditorModel ?: Factory::getModel('Piwik\\Plugins\\SegmentEditor');
         $this->segmentListCache = $segmentListCache ?: new Transient();
         $this->now = $now ?: Date::factory('now');
         $this->logger = $logger ?: StaticContainer::get('Psr\Log\LoggerInterface');

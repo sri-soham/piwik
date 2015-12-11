@@ -29,6 +29,12 @@ class Generic
         return $this->db->fetchOne($sql);
     }
 
+    public function getCountFromWhere($table, $where)
+    {
+        $sql = "SELECT COUNT(*) FROM $table WHERE " . implode(' AND ', array_keys($where));
+        return (int) $this->db->fetchOne($sql, array_values($where));
+    }
+
     /**
      * Performs a non-SELECT query on a table one chunk at a time.
      * 

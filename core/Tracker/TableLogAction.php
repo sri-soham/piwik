@@ -10,6 +10,7 @@
 namespace Piwik\Tracker;
 
 use Piwik\Common;
+use Piwik\Db\Factory;
 use Piwik\Segment\SegmentExpression;
 
 /**
@@ -60,22 +61,8 @@ class TableLogAction
     {
         // now, we handle the cases =@ (contains) and !@ (does not contain)
         // build the expression based on the match type
-        $sql = 'SELECT idaction FROM ' . Common::prefixTable('log_action') . ' WHERE %s AND type = ' . $actionType . ' )';
-
-        switch ($matchType) {
-            case '=@':
-                // use concat to make sure, no %s occurs because some plugins use %s in their sql
-                $where = '( name LIKE CONCAT(\'%\', ?, \'%\') ';
-                break;
-            case '!@':
-                $where = '( name NOT LIKE CONCAT(\'%\', ?, \'%\') ';
-                break;
-            default:
-                throw new \Exception("This match type $matchType is not available for action-segments.");
-                break;
-        }
-
-        $sql = sprintf($sql, $where);
+        $LogAction = Factory::getDAO('log_action');
+        $sql = $LogAction->sqlIdactionFromSegment($matchType, $actionType);
 
         return $sql;
     }
@@ -100,7 +87,7 @@ class TableLogAction
 
     private static function getModel()
     {
-        return new Model();
+        return Factory::getModel(__NAMESPACE__);
     }
 
     private static function queryIdsAction($actionsNameAndType)

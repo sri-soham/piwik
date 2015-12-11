@@ -27,6 +27,9 @@ class LoadDataInfileCheck implements Diagnostic
         $this->translator = $translator;
     }
 
+    # This checks if the LOAD DATA INFILE is enabled for the database.
+    # Postgresql does support it, so it will return false.
+    # Hence, no need for a database agnostic function for this.
     public function execute()
     {
         $isPiwikInstalling = !Config::getInstance()->existsLocalConfig();

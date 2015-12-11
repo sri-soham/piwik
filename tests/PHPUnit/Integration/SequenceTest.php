@@ -9,7 +9,9 @@
 namespace Piwik\Tests\Integration;
 
 use Piwik\Db;
-use Piwik\Sequence;
+use Piwik\Db\Factory;
+use Piwik\Sequence as OrigSequence;
+use Piwik\Db\DAO\Mysql\Sequence;
 use Piwik\Tests\Framework\TestCase\IntegrationTestCase;
 
 /**
@@ -111,12 +113,18 @@ class SequenceTest extends IntegrationTestCase
 
     private function getEmptySequence()
     {
-        return new Sequence('notCreatedSequence');
+        $sequence = Factory::getDAO('sequence');
+        $sequence->setName('notCreatedSequence');
+        return $sequence;
+
+        #return new Sequence('notCreatedSequence');
     }
 
     private function getExistingSequence()
     {
-        $sequence = new Sequence('mySequence0815');
+        #$sequence = new Sequence('mySequence0815');
+        $sequence = Factory::getDAO('sequence');
+        $sequence->setName('notCreatedSequence');
         $sequence->create();
 
         return $sequence;

@@ -12,6 +12,7 @@ namespace Piwik\Plugins\Live;
 use Exception;
 use Piwik\DataTable;
 use Piwik\Date;
+use Piwik\Db\Factory;
 use Piwik\Metrics\Formatter;
 use Piwik\Piwik;
 use Piwik\Site;
@@ -327,7 +328,7 @@ class VisitorProfile
         $rows = $visits->getRows();
         $latestVisitTime = reset($rows)->getColumn('lastActionDateTime');
 
-        $model = new Model();
+        $model = Factory::getModel(__NAMESPACE__);
         $this->profile['nextVisitorId'] = $model->queryAdjacentVisitorId($this->idSite, $visitorId, $latestVisitTime, $segment, $getNext = true);
         $this->profile['previousVisitorId'] = $model->queryAdjacentVisitorId($this->idSite, $visitorId, $latestVisitTime, $segment, $getNext = false);
     }

@@ -10,21 +10,23 @@ namespace Piwik\Plugins\Goals;
 
 use Piwik\Common;
 use Piwik\Db;
+use Piwik\Db\Factory;
 
-class Model
+class Model implements \Piwik\Db\FactoryCreated
 {
-    private static $rawPrefix = 'goal';
-    private $table;
+    protected static $rawPrefix = 'goal';
+    protected $table;
+    protected $db;
 
     public function __construct()
     {
         $this->table = Common::prefixTable(self::$rawPrefix);
+        $this->db = Db::get();
     }
 
     private function getNextIdGoal($idSite)
     {
-        $db     = $this->getDb();
-        $idGoal = $db->fetchOne("SELECT max(idgoal) + 1 FROM " . $this->table . "
+        $idGoal = $this->db->fetchOne("SELECT max(idgoal) + 1 FROM " . $this->table . "
                                  WHERE idsite = ?", $idSite);
 
         if (empty($idGoal)) {
@@ -36,13 +38,12 @@ class Model
 
     public function createGoalForSite($idSite, $goal)
     {
-        $db     = $this->getDb();
         $goalId = $this->getNextIdGoal($idSite);
 
         $goal['idgoal'] = $goalId;
         $goal['idsite'] = $idSite;
 
-        $db->insert($this->table, $goal);
+        $this->db->insert($this->table, $goal);
 
         return $goalId;
     }
@@ -52,22 +53,22 @@ class Model
         $idSite = (int) $idSite;
         $idGoal = (int) $idGoal;
 
-        $db = $this->getDb();
-        $db->update($this->table, $goal, "idsite = '$idSite' AND idgoal = '$idGoal'");
+        $this->db->update($this->table, $goal, "idsite = $idSite AND idgoal = $idGoal");
     }
 
     // actually this should be in a log_conversion model
     public function deleteGoalConversions($idSite, $idGoal)
     {
         $table = Common::prefixTable("log_conversion");
+        $Generic = Factory::getGeneric($this->db);
 
-        Db::deleteAllRows($table, "WHERE idgoal = ? AND idsite = ?", "idvisit", 100000, array($idGoal, $idSite));
+        $Generic->deleteAll($table, "WHERE idgoal = ? AND idsite = ?", "idvisit", 100000, array($idGoal, $idSite));
     }
 
     public function getActiveGoals($idSite)
     {
         $idSite = array_map('intval', $idSite);
-        $goals  = Db::fetchAll("SELECT * FROM " . $this->table . "
+        $goals  = $this->db->fetchAll("SELECT * FROM " . $this->table . "
                                 WHERE idsite IN (" . implode(", ", $idSite) . ")
                                       AND deleted = 0");
 
@@ -76,7 +77,7 @@ class Model
 
     public function deleteGoalsForSite($idSite)
     {
-        Db::query("DELETE FROM " . $this->table . " WHERE idsite = ? ", array($idSite));
+        $this->db->query("DELETE FROM " . $this->table . " WHERE idsite = ? ", array($idSite));
     }
 
     public function deleteGoal($idSite, $idGoal)
@@ -85,11 +86,6 @@ class Model
                   WHERE idsite = ? AND idgoal = ?";
         $bind  = array($idSite, $idGoal);
 
-        Db::query($query, $bind);
-    }
-
-    private function getDb()
-    {
-        return Db::get();
+        $this->db->query($query, $bind);
     }
 }

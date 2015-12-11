@@ -1,4 +1,4 @@
-<?
+<?php
 /**
  *  Piwik _ Open source web analytics
  *
@@ -134,27 +134,49 @@ class Archive extends \Piwik\Db\DAO\Mysql\Archive
      * @param array $archiveIds The IDs of the archives to get data from.
      * @param array $recordNames The names of the data to retrieve (ie, nb_visits, nb_actions, etc.)
      * @param string $archiveDataType The archive data type (either, 'blob' or 'numeric').
-     * @param bool $loadAllSubtables Whether to pre-load all subtables
+     * @param int|null|string $idSubtable  null if the root blob should be loaded, an integer if a subtable should be
+     *                                     loaded and 'all' if all subtables should be loaded.
      * @throws Exception
      * @return array
      */
-    public function getArchiveData($archiveIds, $recordNames, $archiveDataType, $loadAllSubtables)
+    public function getArchiveData($archiveIds, $recordNames, $archiveDataType, $idSubtable)
     {
+        $chunk = new Chunk();
+
         // create the SQL to select archive data
-        $inNames = Common::getSqlStringFieldsArray($recordNames);
+        $loadAllSubtables = $idSubtable == Archive::ID_SUBTABLE_LOAD_ALL_SUBTABLES;
         if ($loadAllSubtables) {
             $name = reset($recordNames);
 
             // select blobs w/ name like "$name_[0-9]+" w/o using RLIKE
-            $nameEnd = strlen($name) + 2;
-            $whereNameIs = "(name = ?
-                            OR (name LIKE ?
-                                 AND SUBSTRING(name FROM $nameEnd FOR 1) >= '0'
-                                 AND SUBSTRING(name FROM $nameEnd FOR 1) <= '9') )";
+            $nameEnd = strlen($name) + 1;
+            $nameEndAppendix = $nameEnd + 1;
+            $appendix = $chunk->getAppendix();
+            $lenAppendix = strlen($appendix);
+
+            $checkForChunkBlob  = "SUBSTRING(name FROM $nameEnd FOR $lenAppendix) = '$appendix'";
+            $checkForSubtableId = "(SUBSTRING(name FROM $nameEndAppendix FOR 1) >= '0'
+                                    AND SUBSTRING(name FROM $nameEndAppendix FOR 1) <= '9')";
+
+            $whereNameIs = "(name = ? OR (name LIKE ? AND ( $checkForChunkBlob OR $checkForSubtableId ) ))";
             $bind = array($name, $name . '%');
         } else {
+            if ($idSubtable === null) {
+                // select root table or specific record names
+                $bind = array_values($recordNames);
+            } else {
+                // select a subtable id
+                $bind = array();
+                foreach ($recordNames as $recordName) {
+                    // to be backwards compatibe we need to look for the exact idSubtable blob and for the chunk
+                    // that stores the subtables (a chunk stores many blobs in one blob)
+                    $bind[] = $chunk->getRecordNameForTableId($recordName, $idSubtable);
+                    $bind[] = ArchiveSelector::appendIdSubtable($recordName, $idSubtable);
+                }
+            }
+
+            $inNames     = Common::getSqlStringFieldsArray($bind);
             $whereNameIs = "name IN ($inNames)";
-            $bind = array_values($recordNames);
         }
 
         $getValuesSql = "SELECT %s, name, idsite, date1, date2, ts_archived
@@ -170,7 +192,8 @@ class Archive extends \Piwik\Db\DAO\Mysql\Archive
             }
             // $period = "2009-01-04,2009-01-04",
             $date = Date::factory(substr($period, 0, 10));
-            if ($archiveDataType == 'numeric') {
+            $isNumeric = $archiveDataType == 'numeric';
+            if ($isNumeric) {
                 $table = ArchiveTableCreator::getNumericTable($date);
             } else {
                 $table = ArchiveTableCreator::getBlobTable($date);
@@ -179,8 +202,19 @@ class Archive extends \Piwik\Db\DAO\Mysql\Archive
             $sql = sprintf($getValuesSql, $valueCol, $table, implode(',', $ids));
             $dataRows = $this->db->fetchAll($sql, $bind);
             $dataRows = $this->binaryOutput($dataRows, true);
+
             foreach ($dataRows as $row) {
-                $rows[] = $row;
+                if ($isNumeric) {
+                    $rows[] = $row;
+                } else {
+                    $row['value'] = $this->uncompress($row['value']);
+
+                    if ($chunk->isRecordNameAChunk($row['name'])) {
+                        $this->moveChunkRowToRows($rows, $row, $chunk, $loadAllSubtables, $idSubtable);
+                    } else {
+                        $rows[] = $row;
+                    }
+                }
             }
         }
 

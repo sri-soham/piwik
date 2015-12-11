@@ -9,6 +9,7 @@
 namespace Piwik\Plugins\UsersManager\tests\Integration;
 
 use Piwik\Access;
+use Piwik\Db\Factory;
 use Piwik\Plugins\SitesManager\API as APISitesManager;
 use Piwik\Plugins\UsersManager\API;
 use Piwik\Plugins\UsersManager\Model;
@@ -50,7 +51,7 @@ class UsersManagerTest extends IntegrationTestCase
         FakeAccess::$superUserLogin = 'superusertest';
 
         $this->api   = API::getInstance();
-        $this->model = new Model();
+        $this->model = Factory::getModel('Piwik\\Plugins\\UsersManager');
     }
 
     private function _flatten($sitesAccess)

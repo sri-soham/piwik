@@ -10,6 +10,7 @@ namespace Piwik\Plugins\Dashboard;
 
 use Piwik\Common;
 use Piwik\Db;
+use Piwik\Db\Factory;
 use Piwik\Piwik;
 use Piwik\WidgetsList;
 
@@ -52,7 +53,7 @@ class Dashboard extends \Piwik\Plugin
 
     private function getModel()
     {
-        return new Model();
+        return Factory::getModel(__NAMESPACE__);
     }
 
     public function getDefaultLayout()

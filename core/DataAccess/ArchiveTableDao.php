@@ -57,7 +57,7 @@ class ArchiveTableDao
                        SUM(CASE WHEN name LIKE 'done%' AND CHAR_LENGTH(name) > 32 THEN 1 ELSE 0 END) AS count_segment_archives,
                        SUM(CASE WHEN name NOT LIKE 'done%' THEN 1 ELSE 0 END) AS count_numeric_rows,
                        0 AS count_blob_rows
-                  FROM `$numericTable`
+                  FROM $numericTable
               GROUP BY idsite, date1, date2, period";
 
         $rows = Db::fetchAll($sql, array(ArchiveWriter::DONE_INVALIDATED, ArchiveWriter::DONE_OK_TEMPORARY,
@@ -72,7 +72,7 @@ class ArchiveTableDao
         // query blob table & manually merge results (no FULL OUTER JOIN in mysql)
         $sql = "SELECT CONCAT_WS('.', idsite, date1, date2, period) AS label,
                        COUNT(*) AS count_blob_rows
-                  FROM `$blobTable`
+                  FROM $blobTable
               GROUP BY idsite, date1, date1, period";
 
         foreach (Db::fetchAll($sql) as $blobStatsRow) {

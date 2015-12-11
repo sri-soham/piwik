@@ -123,30 +123,27 @@ class LogDataPurger
     private function getDeleteIdVisitOffset($deleteLogsOlderThan)
     {
         $logVisit = Common::prefixTable("log_visit");
+        $LogVisit = Factory::getDAO('log_visit');
 
         // get max idvisit
-        $maxIdVisit = Db::fetchOne("SELECT MAX(idvisit) FROM $logVisit");
+        $maxIdVisit = $LogVisit->getMaxIdvisit();
         if (empty($maxIdVisit)) {
             return false;
         }
 
         // select highest idvisit to delete from
         $dateStart = Date::factory("today")->subDay($deleteLogsOlderThan);
-        $sql = "SELECT idvisit
-		          FROM $logVisit
-		         WHERE '" . $dateStart->toString('Y-m-d H:i:s') . "' > visit_last_action_time
-		           AND idvisit <= ?
-		           AND idvisit > ?
-		      ORDER BY idvisit DESC
-		         LIMIT 1";
-
-        return Db::segmentedFetchFirst($sql, $maxIdVisit, 0, -self::$selectSegmentSize);
+        return $LogVisit->getDeleteIdVisitOffset(
+                $dateStart->toString('Y-m-d H:i:s'),
+                $maxIdVisit,
+                -self::$selectSegmentSize
+               );
     }
 
     private function getLogTableDeleteCount($table, $maxIdVisit)
     {
-        $sql = "SELECT COUNT(*) FROM $table WHERE idvisit <= ?";
-        return (int) Db::fetchOne($sql, array($maxIdVisit));
+        $Generic = Factory::getGeneric();
+        return $Generic->getCountFromWhere($table, array('idvisit <= ?' => $maxIdVisit));
     }
 
     // let's hardcode, since these are not dynamically created tables

@@ -10,6 +10,7 @@ namespace Piwik\Plugins\UsersManager;
 
 use Exception;
 use Piwik\Db;
+use Piwik\Db\Factory;
 use Piwik\Option;
 use Piwik\Piwik;
 use Piwik\SettingsPiwik;
@@ -69,7 +70,7 @@ class UsersManager extends \Piwik\Plugin
 
     public function getCronArchiveTokenAuth(&$tokens)
     {
-        $model      = new Model();
+        $model      = Factory::getModel(__NAMESPACE__);
         $superUsers = $model->getUsersHavingSuperUserAccess();
 
         foreach($superUsers as $superUser) {
